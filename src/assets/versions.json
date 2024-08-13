@@ -1,0 +1,10 @@
+{
+	"u5": {
+		"name": "Update 5",
+		"experimental": "false"
+	},
+	"u6": {
+		"name": "Update 6",
+		"experimental": "true"
+	}
+}

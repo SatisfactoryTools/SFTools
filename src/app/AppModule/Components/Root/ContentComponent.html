@@ -1,0 +1,8 @@
+<ng-container *ngIf="hasError|async; else noError"><h1>ERROR</h1></ng-container>
+<ng-template #noError>
+	<navbar></navbar>
+
+	<div class="container-fluid" style="margin-top: 60px;">
+		<router-outlet></router-outlet>
+	</div>
+</ng-template>

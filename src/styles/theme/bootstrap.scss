@@ -1,0 +1,13 @@
+// definitions
+$sfOrange: #DF691A;
+
+// overrides
+$primary: $sfOrange;
+
+// import bootstrap
+@import "./variables";
+@import "~bootstrap/scss/bootstrap";
+
+$font-size-sm: $font-size-base;
+@import "./bootswatch";
+$font-size-sm: $font-size-base * .875;
