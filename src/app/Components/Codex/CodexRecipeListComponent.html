@@ -1,0 +1,20 @@
+<div class="table-responsive">
+	<table class="table table-sm mb-0">
+		<thead>
+			<tr class="small">
+				@if (showNames) {
+					<th class="fw-normal text-muted">Recipe</th>
+				}
+				<th class="fw-normal text-muted">Ingredients</th>
+				<th></th>
+				<th class="fw-normal text-muted">Products</th>
+				<th class="fw-normal text-muted">Machine</th>
+			</tr>
+		</thead>
+		<tbody>
+			@for (recipe of recipes; track recipe.className) {
+				<tr codex-recipe [recipe]="recipe" [showName]="showNames"></tr>
+			}
+		</tbody>
+	</table>
+</div>

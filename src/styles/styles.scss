@@ -1,1 +1,97 @@
 @import "theme/bootstrap";
+
+// Tooltips are non-interactive; without this a tooltip rendered next to its
+// trigger can steal the hover and flicker in a show/hide loop.
+.tooltip {
+	pointer-events: none;
+
+	.tooltip-inner {
+		color: #fff;
+	}
+
+	// Small gap between the arrow and the trigger so the arrow touches the
+	// element instead of clipping into it.
+	&.bs-tooltip-end { margin-left: 6px; }
+	&.bs-tooltip-start { margin-left: -6px; }
+	&.bs-tooltip-bottom { margin-top: 6px; }
+	&.bs-tooltip-top { margin-top: -6px; }
+}
+
+// Icons are decoration inside buttons, never interactive themselves. Without
+// this, crossing an icon's edge fires mouseout/mouseover on the tooltip host
+// (ngx-bootstrap's hover trigger), making the tooltip flicker.
+fa-icon {
+	pointer-events: none;
+}
+
+// Superhero's $secondary (#4e5d6c) doubles as the card/modal/dropdown
+// background, so .text-secondary - used all over the app as "muted text" -
+// is invisible inside cards and modals. Restyle the utility to a tone that
+// reads on both the page (#0f2537) and card (#4e5d6c) backgrounds.
+// !important matches the specificity of Bootstrap's own utility rule.
+.text-secondary {
+	color: #9fb0c0 !important;
+}
+
+// The same collision hits outline-secondary buttons (e.g. Cancel buttons in
+// dialogs): their border and label are $secondary and vanish on the card
+// background. Lift them to the readable muted tones.
+.btn-outline-secondary {
+	--bs-btn-color: #9fb0c0;
+	--bs-btn-border-color: #7e8f9e;
+	--bs-btn-hover-color: #fff;
+	--bs-btn-hover-bg: #7e8f9e;
+	--bs-btn-hover-border-color: #7e8f9e;
+	--bs-btn-active-bg: #7e8f9e;
+	--bs-btn-active-border-color: #7e8f9e;
+	--bs-btn-disabled-color: #9fb0c0;
+	--bs-btn-disabled-border-color: #7e8f9e;
+}
+
+// Edge corner handles advertise click-to-remove with a pointer cursor (set
+// as a presentation attribute by the vertices tool); once a drag starts the
+// handle is the active element, so :active flips it to the move cursor.
+.x6-edge-tool-vertex:active {
+	cursor: move;
+}
+
+// Graph connection ports (one per IO item, drawn by PlannerGraphService).
+// Hidden - and inert, so they never steal the node's own drag - until their
+// node is hovered. During a connect drag (.pg-connecting on the canvas) the
+// hover rule is overridden: only ports that can accept the dragged item show,
+// on every node at once, and nodes without one dim out. Rule order matters:
+// the connecting rules share specificity with the hover rules and must win.
+.x6-node .pg-port {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 0.12s ease;
+}
+.x6-node:hover .pg-port {
+	opacity: 1;
+}
+.x6-node:hover circle.pg-port {
+	pointer-events: auto;
+	cursor: crosshair;
+}
+.pg-connecting .x6-node .pg-port {
+	opacity: 0;
+}
+.pg-connecting .x6-node circle.pg-port {
+	pointer-events: none;
+	cursor: default;
+}
+.pg-connecting .x6-node .pg-port-available {
+	opacity: 1;
+}
+.pg-connecting .x6-node circle.pg-port-available {
+	pointer-events: auto;
+	cursor: crosshair;
+}
+.pg-connecting .pg-node-dim {
+	opacity: 0.35;
+}
+// Snap feedback while connecting, applied by x6's magnetAdsorbed highlighter.
+circle.pg-port-adsorbed {
+	stroke: #f0ad4e;
+	stroke-width: 2.5px;
+}

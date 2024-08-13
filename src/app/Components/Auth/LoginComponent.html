@@ -1,0 +1,48 @@
+<div class="container mt-5">
+	<div class="row justify-content-center">
+		<div class="col-md-6 col-lg-5">
+			<h2 class="mb-4">Sign in</h2>
+
+			@if (error) {
+				<div class="alert alert-danger">{{ error }}</div>
+			}
+
+			<oauth-provider-buttons verb="Sign in with"></oauth-provider-buttons>
+
+			<p class="text-secondary small mt-2 mb-0">
+				Steam can't create a new account - sign in another way first, then link Steam
+				from your account settings.
+			</p>
+
+			<hr class="border-secondary" />
+
+			@if (!showPasswordForm) {
+				<button type="button" class="btn btn-sm btn-outline-secondary w-100" (click)="showPasswordForm = true">
+					Sign in with username &amp; password
+				</button>
+			} @else {
+				<form (ngSubmit)="submit()">
+					<div class="mb-3">
+						<label class="form-label" for="login">Username</label>
+						<input class="form-control" id="login" type="text" name="login" [(ngModel)]="login" required autocomplete="username">
+					</div>
+					<div class="mb-3">
+						<label class="form-label" for="password">Password</label>
+						<input class="form-control" id="password" type="password" name="password" [(ngModel)]="password" required autocomplete="current-password">
+					</div>
+					<button class="btn btn-outline-primary w-100" type="submit" [disabled]="loading">
+						@if (loading) {
+							<span class="spinner-border spinner-border-sm me-2" role="status"></span>
+						}
+						Login
+					</button>
+				</form>
+
+				<div class="mt-3 d-flex justify-content-between small">
+					<a routerLink="/auth/forgot-password">Forgot password?</a>
+					<a routerLink="/auth/register">Create account</a>
+				</div>
+			}
+		</div>
+	</div>
+</div>

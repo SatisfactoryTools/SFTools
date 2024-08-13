@@ -1,0 +1,78 @@
+@if (item(); as item) {
+	<div class="container-fluid py-3">
+		<a codexLink="items" class="btn btn-sm btn-outline-secondary mb-3"><fa-icon [icon]="faChevronLeft"></fa-icon> Items</a>
+
+		<div class="d-flex align-items-start gap-3 mb-4">
+			<game-icon [hash]="item.icon" [size]="96" [alt]="item.name"></game-icon>
+			<div>
+				<h2 class="mb-0">{{ item.name }}</h2>
+				@if (item.abbr) {
+					<div class="text-muted small mb-1">{{ item.abbr }}</div>
+				}
+				@if (item.description) {
+					<p class="mt-2 mb-0">{{ item.description }}</p>
+				}
+			</div>
+		</div>
+
+		<codex-section heading="Properties" [flush]="true">
+			<table class="table table-sm">
+				<tbody>
+					<tr>
+						<th class="text-muted fw-normal" style="width: 40%;">Form</th>
+						<td>{{ item.form | titlecase }}</td>
+					</tr>
+					<tr>
+						<th class="text-muted fw-normal">Stack size</th>
+						<td>{{ item.stackSize }}</td>
+					</tr>
+					<tr>
+						<th class="text-muted fw-normal">Sinkable</th>
+						<td>
+							@if (item.sinkPoints > 0) {
+								{{ item.sinkPoints }} points
+							} @else {
+								No
+							}
+						</td>
+					</tr>
+					@if (item.energy > 0) {
+						<tr>
+							<th class="text-muted fw-normal">Energy value</th>
+							<td>{{ item.energy }} MJ</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</codex-section>
+
+		@if (producedBy().length > 0) {
+			<codex-section heading="Produced by" [flush]="true">
+				<codex-recipe-list [recipes]="producedBy()"/>
+			</codex-section>
+		}
+
+		@if (usedInRecipes().length > 0) {
+			<codex-section heading="Used in recipes" [flush]="true">
+				<codex-recipe-list [recipes]="usedInRecipes()"/>
+			</codex-section>
+		}
+
+		@if (usedForBuildings().length > 0) {
+			<codex-section heading="Used to build" [flush]="true">
+				<codex-building-list [buildings]="usedForBuildings()" [showCost]="true"/>
+			</codex-section>
+		}
+
+		@if (usedForSchematics().length > 0) {
+			<codex-section heading="Used to research" [flush]="true">
+				<codex-schematic-list [schematics]="usedForSchematics()" [showCost]="true"/>
+			</codex-section>
+		}
+	</div>
+} @else {
+	<div class="container-fluid py-3">
+		<p class="text-muted">Item not found.</p>
+		<a codexLink="items" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Items</a>
+	</div>
+}

@@ -1,0 +1,120 @@
+<div class="p-2 d-flex flex-column gap-1">
+
+	@if (activePlan(); as plan) {
+
+		<div class="d-flex align-items-center gap-1">
+			<button class="btn btn-link btn-sm p-0 text-body" type="button" (click)="toggleSection('graph')">
+				<fa-icon [icon]="isOpen('graph') ? faCaretDown : faCaretRight"></fa-icon>
+			</button>
+			<span class="fw-semibold flex-grow-1" role="button" (click)="toggleSection('graph')">Graph settings</span>
+		</div>
+
+		@if (isOpen('graph')) {
+			<div class="d-flex flex-column gap-2 ps-3 pb-2">
+
+				<div>
+					<label class="form-label text-secondary mb-1">Direction</label>
+					<select
+						class="form-select form-select-sm bg-dark text-light border-secondary"
+						[ngModel]="graphSettings().direction"
+						(ngModelChange)="setDirection($event)"
+					>
+						<option value="left">Left to right</option>
+						<option value="down">Top to bottom</option>
+					</select>
+				</div>
+
+				<div>
+					<label class="form-label text-secondary mb-1">Edge shape</label>
+					<select
+						class="form-select form-select-sm bg-dark text-light border-secondary"
+						[ngModel]="graphSettings().edgeShape"
+						(ngModelChange)="setEdgeShape($event)"
+					>
+						<option value="multisegment">Multi-segment</option>
+						<option value="straight">Straight</option>
+					</select>
+				</div>
+
+				<div>
+					<label class="form-label text-secondary mb-1 d-flex justify-content-between">
+						<span>Node spacing</span>
+						<span class="text-light">{{ graphSettings().nodeSpacing }}</span>
+					</label>
+					<input
+						type="range"
+						class="form-range"
+						min="0"
+						max="100"
+						step="5"
+						[ngModel]="graphSettings().nodeSpacing"
+						(ngModelChange)="setNodeSpacing($event)"
+					>
+				</div>
+
+				<div>
+					<label class="form-label text-secondary mb-1 d-flex justify-content-between">
+						<span>Layer spacing</span>
+						<span class="text-light">{{ graphSettings().layerSpacing }}</span>
+					</label>
+					<input
+						type="range"
+						class="form-range"
+						min="0"
+						max="200"
+						step="5"
+						[ngModel]="graphSettings().layerSpacing"
+						(ngModelChange)="setLayerSpacing($event)"
+					>
+				</div>
+
+				<div class="text-secondary">Applied the next time the graph is laid out (calculation or subplan creation). Subplans inherit these settings when created.</div>
+
+			</div>
+		}
+
+		<div class="d-flex align-items-center gap-1">
+			<button class="btn btn-link btn-sm p-0 text-body" type="button" (click)="toggleSection('colors')">
+				<fa-icon [icon]="isOpen('colors') ? faCaretDown : faCaretRight"></fa-icon>
+			</button>
+			<span class="fw-semibold flex-grow-1" role="button" (click)="toggleSection('colors')">Colour by machine</span>
+		</div>
+
+		@if (isOpen('colors')) {
+			<div class="d-flex flex-column gap-2 ps-3 pb-2">
+
+				<div class="text-secondary">Checked machines override the default recipe colour; the rest keep it.</div>
+				@for (machine of machines; track machine.className) {
+					<div class="d-flex align-items-center gap-2">
+						<div class="form-check mb-0 flex-grow-1 text-truncate">
+							<input
+								type="checkbox"
+								class="form-check-input"
+								[id]="'machine-' + machine.className"
+								[ngModel]="isMachineEnabled(machine)"
+								(ngModelChange)="setMachineEnabled(machine, $event)"
+							/>
+							<label class="form-check-label text-truncate" [for]="'machine-' + machine.className">{{ machine.name }}</label>
+						</div>
+						@if (isMachineEnabled(machine)) {
+							<input
+								type="color"
+								class="form-control form-control-color form-control-sm flex-shrink-0"
+								[ngModel]="machineColor(machine)"
+								(ngModelChange)="setMachineColor(machine, $event)"
+								[title]="machine.name + ' colour'"
+							/>
+						}
+					</div>
+				} @empty {
+					<div class="text-secondary">Open a game version to configure per-machine colours.</div>
+				}
+
+			</div>
+		}
+
+	} @else {
+		<div class="p-1 text-secondary">Select a plan to edit its settings.</div>
+	}
+
+</div>

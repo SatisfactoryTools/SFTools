@@ -1,0 +1,50 @@
+@switch (section()) {
+	@case ('items') {
+		@if (detail(); as itemClassName) {
+			<codex-item-detail [itemClassName]="itemClassName"/>
+		} @else {
+			<codex-items/>
+		}
+	}
+	@case ('recipes') {
+		@if (detail(); as recipeClassName) {
+			<codex-recipe-detail [recipeClassName]="recipeClassName"/>
+		} @else {
+			<codex-recipes/>
+		}
+	}
+	@case ('buildings') {
+		@if (detail(); as buildingClassName) {
+			<codex-building-detail [buildingClassName]="buildingClassName"/>
+		} @else {
+			<codex-buildings/>
+		}
+	}
+	@case ('schematics') {
+		@if (detail(); as schematicClassName) {
+			<codex-schematic-detail [schematicClassName]="schematicClassName"/>
+		} @else {
+			<codex-schematics/>
+		}
+	}
+	@default {
+		<div class="d-grid gap-2 p-3 mx-auto" style="max-width: 420px;">
+			<a class="btn btn-outline-primary btn-lg" codexLink="items">
+				<fa-icon [icon]="faCubes"></fa-icon>
+				Items
+			</a>
+			<a class="btn btn-outline-primary btn-lg" codexLink="recipes">
+				<fa-icon [icon]="faScroll"></fa-icon>
+				Recipes
+			</a>
+			<a class="btn btn-outline-primary btn-lg" codexLink="buildings">
+				<fa-icon [icon]="faIndustry"></fa-icon>
+				Buildings
+			</a>
+			<a class="btn btn-outline-primary btn-lg" codexLink="schematics">
+				<fa-icon [icon]="faGraduationCap"></fa-icon>
+				Schematics
+			</a>
+		</div>
+	}
+}

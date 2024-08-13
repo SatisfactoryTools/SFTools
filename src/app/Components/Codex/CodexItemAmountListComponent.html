@@ -1,0 +1,5 @@
+<div class="d-flex align-items-center flex-wrap column-gap-3 row-gap-2">
+	@for (entry of amounts; track $index) {
+		<codex-item-amount-tile [entry]="entry"/>
+	}
+</div>

@@ -1,0 +1,89 @@
+<div class="p-2">
+	<input
+		type="search"
+		class="form-control form-control-sm bg-dark text-light border-secondary mb-2"
+		name="recipe-filter"
+		placeholder="Filter by recipe or product name…"
+		[(ngModel)]="filter"
+	/>
+
+	<div class="row g-3">
+		<div class="col-6">
+			<div class="d-flex align-items-center gap-1 mb-1">
+				<span class="fw-semibold flex-grow-1">Alternate recipes</span>
+				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, true)">All</button>
+				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, false)">None</button>
+			</div>
+			<div>
+				@for (recipe of alternateRecipes; track recipe.className) {
+					<div class="form-check">
+						<input
+							class="form-check-input"
+							type="checkbox"
+							[id]="'recipe-' + recipe.className"
+							[checked]="isEnabled(recipe)"
+							(change)="toggle(recipe)"
+						/>
+						<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'recipe-' + recipe.className">
+							<span class="text-truncate">{{ displayName(recipe) }}</span>
+							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end">
+								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
+									<span class="d-inline-flex align-items-center gap-1" [title]="ingredient.item.name">
+										{{ rateFormatter.amount(ingredient.amount) }}<game-icon [hash]="ingredient.item.icon" [size]="18" [alt]="ingredient.item.name"></game-icon>
+									</span>
+								}
+								<span class="mx-1"><fa-icon [icon]="faChevronRight"></fa-icon></span>
+								@for (product of recipe.products; track product.item.className) {
+									<span class="d-inline-flex align-items-center gap-1" [title]="product.item.name">
+										{{ rateFormatter.amount(product.amount) }}<game-icon [hash]="product.item.icon" [size]="18" [alt]="product.item.name"></game-icon>
+									</span>
+								}
+							</span>
+						</label>
+					</div>
+				} @empty {
+					<div class="text-secondary">No alternate recipes match the filter.</div>
+				}
+			</div>
+		</div>
+
+		<div class="col-6">
+			<div class="d-flex align-items-center gap-1 mb-1">
+				<span class="fw-semibold flex-grow-1">Standard recipes</span>
+				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, true)">All</button>
+				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, false)">None</button>
+			</div>
+			<div>
+				@for (recipe of standardRecipes; track recipe.className) {
+					<div class="form-check">
+						<input
+							class="form-check-input"
+							type="checkbox"
+							[id]="'recipe-' + recipe.className"
+							[checked]="isEnabled(recipe)"
+							(change)="toggle(recipe)"
+						/>
+						<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'recipe-' + recipe.className">
+							<span class="text-truncate">{{ displayName(recipe) }}</span>
+							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end">
+								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
+									<span class="d-inline-flex align-items-center gap-1" [title]="ingredient.item.name">
+										{{ rateFormatter.amount(ingredient.amount) }}<game-icon [hash]="ingredient.item.icon" [size]="18" [alt]="ingredient.item.name"></game-icon>
+									</span>
+								}
+								<span class="mx-1"><fa-icon [icon]="faChevronRight"></fa-icon></span>
+								@for (product of recipe.products; track product.item.className) {
+									<span class="d-inline-flex align-items-center gap-1" [title]="product.item.name">
+										{{ rateFormatter.amount(product.amount) }}<game-icon [hash]="product.item.icon" [size]="18" [alt]="product.item.name"></game-icon>
+									</span>
+								}
+							</span>
+						</label>
+					</div>
+				} @empty {
+					<div class="text-secondary">No standard recipes match the filter.</div>
+				}
+			</div>
+		</div>
+	</div>
+</div>

@@ -1,0 +1,94 @@
+<div class="p-2 d-flex flex-column gap-3">
+
+	@if (noneEnabled) {
+		<div class="alert alert-warning py-2 px-3 mb-0">
+			At least one optimisation goal must be enabled - the solver will not run without one.
+		</div>
+	}
+
+	<div class="text-secondary">
+		The solver minimises the enabled goals combined; the weights set their relative worth
+		(e.g. how much 1 MW costs compared to 1 machine).
+	</div>
+
+	<div>
+		<div class="form-check">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="opt-resources"
+				[checked]="resourcesEnabled"
+				(change)="toggleResources()"
+			/>
+			<label class="form-check-label fw-semibold" for="opt-resources">Raw resources</label>
+		</div>
+		@if (resourcesEnabled) {
+			<div class="row g-1 mt-1 ps-4" style="max-width: 760px;">
+				@for (row of resourceRows; track row.className) {
+					<div class="col-6 col-xxl-4 d-flex align-items-center gap-2">
+						<game-icon [hash]="iconHash(row.className)" [size]="18" [alt]="row.name"></game-icon>
+						<span class="flex-grow-1 text-truncate">{{ row.name }}</span>
+						<input
+							type="number"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							style="width: 90px; flex: none;"
+							min="0"
+							step="0.1"
+							[value]="row.weight"
+							(change)="setResourceWeight(row, +$any($event.target).value)"
+						/>
+					</div>
+				}
+			</div>
+		}
+	</div>
+
+	<div class="d-flex align-items-center gap-2">
+		<div class="form-check mb-0" style="width: 160px;">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="opt-power"
+				[checked]="powerEnabled"
+				(change)="togglePower()"
+			/>
+			<label class="form-check-label fw-semibold" for="opt-power">Power</label>
+		</div>
+		<span class="text-secondary">Weight per MW</span>
+		<input
+			type="number"
+			class="form-control form-control-sm bg-dark text-light border-secondary"
+			style="width: 90px; flex: none;"
+			min="0"
+			step="0.1"
+			[disabled]="!powerEnabled"
+			[value]="powerWeight"
+			(change)="setPowerWeight(+$any($event.target).value)"
+		/>
+	</div>
+
+	<div class="d-flex align-items-center gap-2">
+		<div class="form-check mb-0" style="width: 160px;">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="opt-machines"
+				[checked]="machinesEnabled"
+				(change)="toggleMachines()"
+			/>
+			<label class="form-check-label fw-semibold" for="opt-machines">Machine count</label>
+		</div>
+		<span class="text-secondary">Weight per machine</span>
+		<input
+			type="number"
+			class="form-control form-control-sm bg-dark text-light border-secondary"
+			style="width: 90px; flex: none;"
+			min="0"
+			step="0.1"
+			[disabled]="!machinesEnabled"
+			[value]="machinesWeight"
+			(change)="setMachinesWeight(+$any($event.target).value)"
+		/>
+	</div>
+
+</div>

@@ -1,0 +1,13 @@
+<div class="container mt-5">
+	<div class="row justify-content-center">
+		<div class="col-md-6 col-lg-5 text-center">
+			@if (error; as message) {
+				<div class="alert alert-danger text-start">{{ message }}</div>
+				<a routerLink="/auth/login" class="btn btn-sm btn-outline-secondary">Back to sign-in</a>
+			} @else {
+				<span class="spinner-border spinner-border-sm me-2" role="status"></span>
+				Completing {{ providerLabel }} sign-in…
+			}
+		</div>
+	</div>
+</div>

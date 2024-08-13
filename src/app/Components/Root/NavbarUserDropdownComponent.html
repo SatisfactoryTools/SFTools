@@ -1,0 +1,43 @@
+@if (authService.isAuthenticated()) {
+	<li class="nav-item dropdown" dropdown>
+		<a class="nav-link dropdown-toggle" dropdownToggle href="javascript: void(0);">
+			<fa-icon [icon]="faCircleUser"></fa-icon>
+			{{ authService.currentLogin() }}
+		</a>
+		<ul *dropdownMenu class="dropdown-menu dropdown-menu-end">
+			<li>
+				<a class="dropdown-item" routerLink="/account">
+					<fa-icon [icon]="faUser"></fa-icon>
+					Account
+				</a>
+			</li>
+			<li>
+				<button class="dropdown-item" type="button" (click)="logout()">
+					<fa-icon [icon]="faRightFromBracket"></fa-icon>
+					Logout
+				</button>
+			</li>
+		</ul>
+	</li>
+} @else {
+	<li class="nav-item dropdown" dropdown>
+		<a class="nav-link dropdown-toggle" dropdownToggle href="javascript: void(0);">
+			<fa-icon [icon]="faCircleUser"></fa-icon>
+			Account
+		</a>
+		<ul *dropdownMenu class="dropdown-menu dropdown-menu-end">
+			<li>
+				<a class="dropdown-item" routerLink="/auth/login">
+					<fa-icon [icon]="faRightToBracket"></fa-icon>
+					Login
+				</a>
+			</li>
+			<li>
+				<a class="dropdown-item" routerLink="/auth/register">
+					<fa-icon [icon]="faUserPlus"></fa-icon>
+					Register
+				</a>
+			</li>
+		</ul>
+	</li>
+}

@@ -1,0 +1,202 @@
+@if (isBound) {
+	<div class="d-flex align-items-center gap-2 mb-2">
+		<a [routerLink]="['/mods', modId]" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Back to mod</a>
+		<h2 class="mb-0 flex-grow-1">
+			{{ mod?.name ?? 'Mod' }}
+			<span class="text-secondary">- {{ modVersion?.name ?? '…' }}</span>
+		</h2>
+		@if (saveState === 'saved') {
+			<span class="text-success small">Saved.</span>
+		}
+		@if (saveError; as message) {
+			<span class="text-danger small">{{ message }}</span>
+		}
+		<button type="button" class="btn btn-sm btn-primary" [disabled]="loadState !== 'ready' || saveState === 'saving'" (click)="save()">
+			{{ saveState === 'saving' ? 'Saving…' : 'Save to mod version' }}
+		</button>
+	</div>
+	@if (loadState === 'loading') {
+		<p class="text-secondary">Loading mod data…</p>
+	}
+	@if (loadState === 'error') {
+		<div class="alert alert-danger">Could not load this mod version (missing, not yours, or the data failed to fetch).</div>
+	}
+	@if (loadWarnings.length > 0) {
+		<div class="alert alert-warning py-2">
+			The stored data does not fully fit the schema ({{ loadWarnings.length }} problem{{ loadWarnings.length === 1 ? '' : 's' }}) -
+			it was loaded anyway; saving writes the corrected form. First problem: {{ loadWarnings[0] }}
+		</div>
+	}
+} @else {
+	<div class="d-flex align-items-center justify-content-between">
+		<h2 class="mb-0">Mod editor</h2>
+		<span class="text-secondary small">Scratchpad - entries overwrite or extend a base version by className.</span>
+	</div>
+}
+
+<ul class="nav nav-tabs mt-3">
+	<li class="nav-item">
+		<button type="button" class="nav-link" [class.active]="activeTab === 'editor'" (click)="activeTab = 'editor'">Visual editor</button>
+	</li>
+	<li class="nav-item">
+		<button type="button" class="nav-link" [class.active]="activeTab === 'json'" (click)="activeTab = 'json'">JSON</button>
+	</li>
+</ul>
+
+@if (activeTab === 'editor') {
+	<div class="d-flex gap-1 flex-wrap mt-3">
+		@for (descriptor of descriptors; track descriptor.collection) {
+			<button type="button" class="btn btn-sm"
+				[class.btn-primary]="activeSection === descriptor.collection"
+				[class.btn-dark]="activeSection !== descriptor.collection"
+				(click)="setSection(descriptor.collection)"
+			>{{ descriptor.label }} <span class="opacity-75">({{ entryCount(descriptor) }})</span></button>
+		}
+		<button type="button" class="btn btn-sm"
+			[class.btn-primary]="activeSection === 'resources'"
+			[class.btn-dark]="activeSection !== 'resources'"
+			(click)="setSection('resources')"
+		>Resources <span class="opacity-75">({{ data.resources.length }})</span></button>
+		<button type="button" class="btn btn-sm"
+			[class.btn-primary]="activeSection === 'images'"
+			[class.btn-dark]="activeSection !== 'images'"
+			(click)="setSection('images')"
+		>Images <span class="opacity-75">({{ imageStore.images().length }})</span></button>
+	</div>
+
+	@if (activeDescriptor; as descriptor) {
+		<div class="mt-3 d-flex gap-2 align-items-start" style="max-width: 560px;">
+			<input
+				type="text"
+				class="form-control form-control-sm bg-dark text-light border-secondary"
+				[placeholder]="'className, e.g. ' + descriptor.classNamePrefix + 'MyThing_C'"
+				[(ngModel)]="newClassName"
+				(keydown.enter)="addEntry(descriptor)"
+			/>
+			<button type="button" class="btn btn-sm btn-success flex-shrink-0" (click)="addEntry(descriptor)">Add {{ descriptor.singular }}</button>
+		</div>
+		@if (addError; as message) {
+			<div class="text-danger small mt-1">{{ message }}</div>
+		}
+
+		<div class="list-group mt-3">
+			@for (key of entryKeys(descriptor); track key) {
+				<div class="list-group-item bg-dark border-secondary">
+					<div class="d-flex align-items-center gap-2" role="button" (click)="toggleExpand(descriptor, key)">
+						<span class="text-secondary">{{ isExpanded(descriptor, key) ? '▾' : '▸' }}</span>
+						<code class="flex-grow-1">{{ key }}</code>
+						@if (entryName(descriptor, key); as name) {
+							<span class="text-secondary">{{ name }}</span>
+						}
+						<button type="button" class="btn btn-sm btn-outline-danger py-0" (click)="removeEntry(descriptor, key); $event.stopPropagation()">Delete</button>
+					</div>
+					@if (isExpanded(descriptor, key)) {
+						<div class="mt-3 border-top border-secondary pt-3">
+							<mod-entry-form [entry]="collectionOf(descriptor)[key]" [descriptor]="descriptor"></mod-entry-form>
+						</div>
+					}
+				</div>
+			} @empty {
+				<div class="text-secondary fst-italic p-2">No {{ descriptor.label.toLowerCase() }} in this mod yet.</div>
+			}
+		</div>
+	}
+
+	@if (activeSection === 'resources') {
+		<div class="mt-3" style="max-width: 560px;">
+			<div class="text-secondary small mb-2">Item classNames that count as raw resources (mineable).</div>
+			<div class="d-flex gap-2">
+				<input
+					type="text"
+					class="form-control form-control-sm bg-dark text-light border-secondary"
+					placeholder="item className, e.g. Desc_MyOre_C"
+					[(ngModel)]="newResource"
+					(keydown.enter)="addResource()"
+				/>
+				<button type="button" class="btn btn-sm btn-success flex-shrink-0" (click)="addResource()">Add</button>
+			</div>
+			<ul class="list-group mt-2">
+				@for (resource of data.resources; track resource) {
+					<li class="list-group-item bg-dark border-secondary d-flex align-items-center">
+						<code class="flex-grow-1">{{ resource }}</code>
+						<button type="button" class="btn btn-sm btn-outline-danger py-0" (click)="removeResource($index)">✕</button>
+					</li>
+				} @empty {
+					<li class="list-group-item bg-dark border-secondary text-secondary fst-italic">No resources added.</li>
+				}
+			</ul>
+		</div>
+	}
+
+	@if (activeSection === 'images') {
+		<div class="mt-3" style="max-width: 640px;">
+			<div class="text-secondary small mb-2">
+				Images are not part of the JSON - icon fields hold an image id. Files picked here stay local
+				(ids like <code>local-…</code>) until the upload endpoint exists; uploading will replace them with server ids.
+			</div>
+			<label class="btn btn-sm btn-outline-primary">
+				Upload images…
+				<input type="file" accept="image/*" multiple class="d-none" (change)="onImagePicked($event)" />
+			</label>
+			<ul class="list-group mt-2">
+				@for (image of imageStore.images(); track image.id) {
+					<li class="list-group-item bg-dark border-secondary d-flex align-items-center gap-2">
+						<img [src]="image.url" alt="" style="width: 32px; height: 32px; object-fit: contain;" class="border border-secondary rounded" />
+						<code class="flex-grow-1">{{ image.id }}</code>
+						<span class="text-secondary text-truncate" style="max-width: 200px;">{{ image.name }}</span>
+						<button type="button" class="btn btn-sm btn-outline-danger py-0" (click)="imageStore.remove(image.id)">✕</button>
+					</li>
+				} @empty {
+					<li class="list-group-item bg-dark border-secondary text-secondary fst-italic">No images picked.</li>
+				}
+			</ul>
+		</div>
+	}
+}
+
+@if (activeTab === 'json') {
+	<div class="row g-3 mt-1">
+		<div class="col-lg-6">
+			<div class="d-flex align-items-center justify-content-between mb-1">
+				<span class="text-secondary">Generated mod data</span>
+				<div class="d-flex gap-1">
+					<button type="button" class="btn btn-sm btn-outline-secondary py-0" (click)="copyJson()">Copy</button>
+					<button type="button" class="btn btn-sm btn-outline-secondary py-0" (click)="downloadJson()">Download</button>
+				</div>
+			</div>
+			<textarea
+				readonly
+				rows="24"
+				class="form-control form-control-sm bg-dark text-light border-secondary font-monospace"
+				[value]="generatedJson"
+			></textarea>
+		</div>
+		<div class="col-lg-6">
+			<div class="d-flex align-items-center justify-content-between mb-1">
+				<span class="text-secondary">Paste mod data</span>
+				<div class="d-flex gap-1">
+					<button type="button" class="btn btn-sm btn-outline-secondary py-0" (click)="validatePasted()">Validate</button>
+					<button type="button" class="btn btn-sm btn-primary py-0" (click)="loadPasted()">Validate &amp; load</button>
+				</div>
+			</div>
+			<textarea
+				rows="24"
+				class="form-control form-control-sm bg-dark text-light border-secondary font-monospace"
+				placeholder='{"data": {"items": {...}, "recipes": {...}, ...}, "metadata": {}} - or just the inner data object'
+				[(ngModel)]="pastedJson"
+			></textarea>
+			@if (pasteMessage; as message) {
+				<div class="text-success small mt-1">{{ message }}</div>
+			}
+			@if (pasteErrors.length > 0) {
+				<div class="alert alert-danger mt-2 py-2 px-3 mb-0" style="max-height: 200px; overflow-y: auto;">
+					<ul class="mb-0 ps-3">
+						@for (error of pasteErrors; track $index) {
+							<li class="small">{{ error }}</li>
+						}
+					</ul>
+				</div>
+			}
+		</div>
+	</div>
+}

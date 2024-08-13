@@ -1,0 +1,6 @@
+<a class="entity-link" [codexLink]="link">
+	@for (icon of icons; track $index) {
+		<game-icon [hash]="icon" [size]="size" [alt]="name"></game-icon>
+	}
+	<span class="entity-name">{{ name }}</span>
+</a>

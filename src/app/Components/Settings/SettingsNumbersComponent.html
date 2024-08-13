@@ -1,0 +1,104 @@
+<div class="card">
+	<div class="card-header">
+		<h5 class="mb-0">Numbers</h5>
+	</div>
+	<div class="card-body">
+		<div class="row g-3">
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="decimal-separator">Decimal separator</label>
+				<select
+					id="decimal-separator"
+					class="form-select"
+					[ngModel]="numbers.decimalSeparator"
+					(ngModelChange)="setDecimalSeparator($event)"
+				>
+					<option value="dot">Dot - 1234.5</option>
+					<option value="comma">Comma - 1234,5</option>
+				</select>
+			</div>
+
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="power-display">Power display</label>
+				<select
+					id="power-display"
+					class="form-select"
+					[ngModel]="numbers.powerDisplay"
+					(ngModelChange)="setPowerDisplay($event)"
+				>
+					<option value="scaled">Scale units - MW / GW / TW</option>
+					<option value="mw">Megawatts only - MW</option>
+				</select>
+			</div>
+
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="item-precision">Item amount precision</label>
+				<input
+					id="item-precision"
+					type="number"
+					min="0"
+					max="6"
+					step="1"
+					class="form-control"
+					[ngModel]="numbers.itemAmountPrecision"
+					(ngModelChange)="setItemAmountPrecision($event)"
+				/>
+				<div class="form-text">Decimals shown for amounts and rates (e.g. graph edges).</div>
+			</div>
+
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="clock-precision">Clock speed precision</label>
+				<input
+					id="clock-precision"
+					type="number"
+					min="0"
+					max="4"
+					step="1"
+					class="form-control"
+					[ngModel]="numbers.clockSpeedPrecision"
+					(ngModelChange)="setClockSpeedPrecision($event)"
+				/>
+				<div class="form-text">Decimals shown for clock speeds (game maximum is 4).</div>
+			</div>
+
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="machine-precision">Machine count precision</label>
+				<input
+					id="machine-precision"
+					type="number"
+					min="0"
+					max="6"
+					step="1"
+					class="form-control"
+					[ngModel]="numbers.machineCountPrecision"
+					(ngModelChange)="setMachineCountPrecision($event)"
+				/>
+				<div class="form-text">Decimals shown for machine counts (decimal machine display, see Graph).</div>
+			</div>
+
+			<div class="col-12">
+				<div class="form-check">
+					<input
+						id="show-fluid-unit"
+						type="checkbox"
+						class="form-check-input"
+						[ngModel]="numbers.showFluidUnit"
+						(ngModelChange)="setShowFluidUnit($event)"
+					/>
+					<label class="form-check-label" for="show-fluid-unit">
+						Show m³ unit for fluids ("120 m³/min" instead of "120/min")
+					</label>
+				</div>
+			</div>
+		</div>
+
+		<hr class="my-4">
+
+		<h6 class="text-secondary">Preview</h6>
+		<div class="row g-2">
+			<div class="col-auto"><span class="badge text-bg-secondary">Amount: {{ rateFormatter.amount(1234.5678) }}</span></div>
+			<div class="col-auto"><span class="badge text-bg-secondary">Clock: {{ rateFormatter.clock(66.6667) }}%</span></div>
+			<div class="col-auto"><span class="badge text-bg-secondary">Machines: {{ rateFormatter.machineCount(3.84615) }}×</span></div>
+			<div class="col-auto"><span class="badge text-bg-secondary">Power: {{ rateFormatter.power(1500) }}</span></div>
+		</div>
+	</div>
+</div>

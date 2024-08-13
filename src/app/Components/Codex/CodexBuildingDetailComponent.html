@@ -1,0 +1,119 @@
+@if (building(); as building) {
+	<div class="container-fluid py-3">
+		<a codexLink="buildings" class="btn btn-sm btn-outline-secondary mb-3"><fa-icon [icon]="faChevronLeft"></fa-icon> Buildings</a>
+
+		<div class="d-flex align-items-start gap-3 mb-4">
+			<game-icon [hash]="building.icon" [size]="96" [alt]="building.name"></game-icon>
+			<div>
+				<h2 class="mb-0">{{ building.name }}</h2>
+				@if (building.description) {
+					<p class="mt-2 mb-0" style="white-space: pre-line;">{{ building.description }}</p>
+				}
+			</div>
+		</div>
+
+		@if (buildCost().length > 0) {
+			<codex-section heading="Build cost">
+				<codex-item-amount-list [amounts]="buildCost()"/>
+			</codex-section>
+		}
+
+		<codex-section heading="Properties" [flush]="true">
+			<table class="table table-sm">
+				<tbody>
+					@if (building.powerUsage > 0) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Power usage</th>
+							<td>{{ formatter.power(building.powerUsage) }}</td>
+						</tr>
+					}
+					@if (building.powerProduction > 0) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Power production</th>
+							<td>{{ formatter.power(building.powerProduction) }}</td>
+						</tr>
+					}
+					@if (building.canOverclock) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Overclocking</th>
+							<td>{{ overclockRange(building) }}</td>
+						</tr>
+					}
+					@if (building.canSloop) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Somersloop slots</th>
+							<td>{{ building.sloopSlots }}</td>
+						</tr>
+					}
+					@if (building.manufacturingSpeed > 0 && building.manufacturingSpeed !== 1) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Manufacturing speed</th>
+							<td>{{ formatter.percent(building.manufacturingSpeed) }}</td>
+						</tr>
+					}
+					@if (building.storageSize > 0) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Storage size</th>
+							<td>{{ building.storageSize }} slots</td>
+						</tr>
+					}
+					@if (building.beltSpeed > 0) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Belt speed</th>
+							<td>{{ formatter.rate(building.beltSpeed) }}</td>
+						</tr>
+					}
+					@if (building.miningRatePerCycle > 0) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Mining rate</th>
+							<td>{{ formatter.amount(building.miningRatePerCycle) }} per {{ formatter.duration(building.miningCycleLength) }} cycle</td>
+						</tr>
+					}
+					@if (building.isVehicle) {
+						<tr>
+							<th class="text-muted fw-normal" style="width: 40%;">Type</th>
+							<td>Vehicle</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</codex-section>
+
+		@if (building.fuel.length > 0) {
+			<codex-section heading="Fuel">
+				<ul class="list-unstyled mb-0">
+					@for (fuel of building.fuel; track $index) {
+						<li class="d-flex align-items-center flex-wrap gap-2 py-1">
+							<codex-entity-link [link]="'items/' + fuel.item.className" [icons]="[fuel.item.icon]" [name]="fuel.item.name"/>
+							@if (fuel.supplementalItem) {
+								<span class="text-muted small">+ supplemental</span>
+								<codex-entity-link [link]="'items/' + fuel.supplementalItem.className" [icons]="[fuel.supplementalItem.icon]" [name]="fuel.supplementalItem.name"/>
+							}
+							@if (fuel.byproduct) {
+								<span class="text-muted small"><fa-icon [icon]="faChevronRight"></fa-icon> byproduct</span>
+								<codex-entity-link [link]="'items/' + fuel.byproduct.className" [icons]="[fuel.byproduct.icon]" [name]="fuel.byproduct.name"/>
+							}
+						</li>
+					}
+				</ul>
+			</codex-section>
+		}
+
+		@if (unlockedBy().length > 0) {
+			<codex-section heading="Unlocked by" [flush]="true">
+				<codex-schematic-list [schematics]="unlockedBy()"/>
+			</codex-section>
+		}
+
+		@if (recipes().length > 0) {
+			<codex-section heading="Recipes" [flush]="true">
+				<codex-recipe-list [recipes]="recipes()"/>
+			</codex-section>
+		}
+	</div>
+} @else {
+	<div class="container-fluid py-3">
+		<p class="text-muted">Building not found.</p>
+		<a codexLink="buildings" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Buildings</a>
+	</div>
+}

@@ -1,0 +1,12 @@
+<div class="entry-grid">
+	@for (entry of entries; track entry.link) {
+		<a class="card entry" [codexLink]="entry.link">
+			<span class="entry-icons">
+				@for (icon of entry.icons; track $index) {
+					<game-icon [hash]="icon" [size]="48" [alt]="entry.name"></game-icon>
+				}
+			</span>
+			<span class="entry-name">{{ entry.name }}</span>
+		</a>
+	}
+</div>

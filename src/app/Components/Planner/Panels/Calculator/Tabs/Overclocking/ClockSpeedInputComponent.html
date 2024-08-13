@@ -1,0 +1,22 @@
+<div class="input-group input-group-sm flex-nowrap">
+	<input
+		type="number"
+		class="form-control form-control-sm bg-dark text-light border-secondary"
+		style="min-width: 80px;"
+		[id]="inputId"
+		min="1"
+		max="250"
+		step="any"
+		[value]="value"
+		(change)="onInput($any($event.target).value)"
+	/>
+	@for (preset of presets; track preset) {
+		<button
+			class="btn btn-outline-secondary px-2"
+			type="button"
+			[class.active]="value === preset"
+			[title]="preset + '%'"
+			(click)="set(preset)"
+		>{{ preset }}</button>
+	}
+</div>

@@ -1,0 +1,237 @@
+<div class="container mt-4" style="max-width: 900px;">
+	<a routerLink="/" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Versions</a>
+
+	<h2 class="mt-3">Create custom version</h2>
+	<p class="text-secondary">
+		Derives a new game version from a public one. Mods are merged into the data first;
+		the cost modifiers apply afterwards, so they also affect mod-added content.
+	</p>
+
+	<div class="card border-secondary">
+		<div class="card-body d-flex flex-column gap-3">
+
+			<div>
+				<label class="form-label small mb-1">Base version</label>
+				<select class="form-select form-select-sm bg-dark text-light border-secondary" [(ngModel)]="baseId" (ngModelChange)="onBaseChanged()">
+					@for (version of baseVersions; track version.id) {
+						<option [ngValue]="version.id">{{ version.name }}</option>
+					}
+				</select>
+			</div>
+
+			<div class="row g-2">
+				<div class="col">
+					<label class="form-label small mb-1">Recipe cost</label>
+					<select class="form-select form-select-sm bg-dark text-light border-secondary" [(ngModel)]="recipeCost">
+						@for (cost of recipeCostOptions; track cost) {
+							<option [ngValue]="cost">×{{ cost }}</option>
+						}
+					</select>
+				</div>
+				<div class="col">
+					<label class="form-label small mb-1">Power cost</label>
+					<select class="form-select form-select-sm bg-dark text-light border-secondary" [(ngModel)]="powerCost">
+						@for (cost of powerCostOptions; track cost) {
+							<option [ngValue]="cost">×{{ cost }}</option>
+						}
+					</select>
+				</div>
+			</div>
+
+			<div>
+				<label class="form-label small mb-1">Mods</label>
+				@for (entry of picked; track entry.mod.id; let i = $index) {
+					<div class="d-flex align-items-center gap-2 mb-1">
+						<span class="flex-grow-1 text-truncate">
+							{{ entry.mod.name }}
+							@if (!entry.mod.public) {
+								<span class="badge bg-info ms-1">custom</span>
+							}
+						</span>
+						<select
+							class="form-select form-select-sm bg-dark text-light border-secondary"
+							style="width: 150px; flex: none;"
+							[(ngModel)]="entry.versionId"
+						>
+							@for (version of entry.mod.versions; track version.id) {
+								<option [ngValue]="version.id">{{ version.name }}</option>
+							}
+						</select>
+						<button type="button" class="btn btn-sm btn-outline-danger py-0" (click)="removeMod(i)">✕</button>
+					</div>
+				}
+				@if (availableModOptions.length > 0) {
+					<item-picker [options]="availableModOptions" value="" placeholder="+ Add a mod…" (valueChange)="addMod($event)"></item-picker>
+				} @else if (picked.length === 0) {
+					<div class="text-secondary small fst-italic">No mods available.</div>
+				}
+			</div>
+
+			<div>
+				<label class="form-label small mb-1">World resource nodes</label>
+				<div class="border border-secondary rounded p-2">
+					<div class="row g-2 align-items-end">
+						<div class="col-3">
+							<label class="form-label small mb-1">Seed</label>
+							<input
+								type="number"
+								class="form-control form-control-sm bg-dark text-light border-secondary"
+								[class.is-invalid]="!worldSeedValid"
+								[(ngModel)]="worldSeed"
+								step="1"
+							/>
+						</div>
+						<div class="col-3">
+							<label class="form-label small mb-1">Mode</label>
+							<select class="form-select form-select-sm bg-dark text-light border-secondary" [(ngModel)]="worldMode">
+								@for (option of worldModeOptions; track option.value) {
+									<option [ngValue]="option.value">{{ option.label }}</option>
+								}
+							</select>
+						</div>
+						<div class="col-3">
+							<label class="form-label small mb-1">Purity</label>
+							<select class="form-select form-select-sm bg-dark text-light border-secondary" [(ngModel)]="worldPurity">
+								@for (option of worldPurityOptions; track option.value) {
+									<option [ngValue]="option.value">{{ option.label }}</option>
+								}
+							</select>
+						</div>
+						<div class="col-3">
+							<button type="button" class="btn btn-sm btn-outline-primary w-100" [disabled]="worldLoading || !worldSeedValid" (click)="loadWorldPreview()">
+								@if (worldLoading) {
+									<span class="spinner-border spinner-border-sm me-1" role="status"></span>Loading…
+								} @else {
+									Load from world settings
+								}
+							</button>
+						</div>
+					</div>
+					@if (!worldSeedValid) {
+						<div class="small text-danger mt-1">Seed must be a whole number between −2147483648 and 2147483647.</div>
+					}
+					@if (worldError; as message) {
+						<div class="alert alert-danger py-2 px-3 mt-2 mb-0" role="alert">{{ message }}</div>
+					}
+				</div>
+
+				<div class="form-check mt-2 mb-1">
+					<input class="form-check-input" type="checkbox" id="world-customise" [(ngModel)]="worldCustomise"/>
+					<label class="form-check-label" for="world-customise">Customise world resource nodes</label>
+				</div>
+
+				<div class="table-responsive">
+					<table class="table table-sm mb-0">
+						<thead>
+							<tr class="small">
+								<th class="fw-normal text-muted">Resource</th>
+								<th class="fw-normal text-muted" title="impure / normal / pure">Nodes</th>
+								<th class="fw-normal text-muted" title="cores · impure / normal / pure satellites">Wells</th>
+								<th class="fw-normal text-muted text-end">Limit</th>
+							</tr>
+						</thead>
+						<tbody>
+							@if (worldRows.length === 0) {
+								<tr>
+									<td colspan="4" class="text-secondary">Load from world settings to fill in the node counts.</td>
+								</tr>
+							}
+							@for (row of worldRows; track row.className) {
+								<tr>
+									<td class="text-nowrap align-middle">
+										<game-icon [hash]="row.iconHash" [size]="18" [alt]="row.name"></game-icon>
+										{{ row.name }}
+									</td>
+									<td class="text-nowrap align-middle">
+										@if (!row.hasNodes) {
+											-
+										} @else if (worldCustomise) {
+											<span class="d-inline-flex align-items-center gap-1">
+												<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 62px;" [(ngModel)]="row.nodes.impure" (ngModelChange)="onCountChange(row)"/>
+												<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 62px;" [(ngModel)]="row.nodes.normal" (ngModelChange)="onCountChange(row)"/>
+												<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 62px;" [(ngModel)]="row.nodes.pure" (ngModelChange)="onCountChange(row)"/>
+											</span>
+										} @else {
+											{{ countsText(row.nodes) }}
+										}
+									</td>
+									<td class="text-nowrap align-middle">
+										@if (!row.hasWells) {
+											-
+										} @else if (worldCustomise) {
+											<span class="d-inline-flex align-items-center gap-1">
+												<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 56px;" [(ngModel)]="row.cores" (ngModelChange)="onCountChange(row)" title="Well cores"/>
+												<span class="text-secondary">·</span>
+												<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 62px;" [(ngModel)]="row.satellites.impure" (ngModelChange)="onCountChange(row)"/>
+												<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 62px;" [(ngModel)]="row.satellites.normal" (ngModelChange)="onCountChange(row)"/>
+												<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary" style="width: 62px;" [(ngModel)]="row.satellites.pure" (ngModelChange)="onCountChange(row)"/>
+											</span>
+										} @else {
+											{{ row.cores }} cores · {{ countsText(row.satellites) }}
+										}
+									</td>
+									<td class="text-nowrap align-middle text-end">
+										@if (worldCustomise) {
+											<div class="d-inline-flex flex-column align-items-end">
+												<div class="input-group input-group-sm" style="width: 160px;">
+													<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary text-end" [(ngModel)]="row.limit" (ngModelChange)="onLimitChange()"/>
+													<span class="input-group-text bg-dark text-secondary border-secondary">/min</span>
+												</div>
+												@if (!limitMatches(row)) {
+													<span class="small text-secondary opacity-50">doesn't match the node counts</span>
+												}
+											</div>
+										} @else {
+											{{ formatter.amount(row.limit) }}/min
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+
+				@if (worldRows.length > 0) {
+					@if (geyserSummary; as geysers) {
+						<div class="small text-secondary mt-1">
+							Geysers (impure / normal / pure): {{ geysers }} - not part of the limits.
+						</div>
+					}
+					<div class="small text-secondary mt-1">
+						Limits assume the best extractor on every node at 250% clock, capped by one
+						belt (1200/min) or pipe (600/min) per node. They become the default resource
+						limits for plans in this version - except water, which stays unlimited.
+					</div>
+				}
+			</div>
+
+			<div class="small text-secondary">
+				Recipe cost scales every recipe's ingredient amounts; power cost scales every machine's
+				power draw. Change at least one modifier, add a mod, or customise the world.
+			</div>
+
+			<div>
+				<label class="form-label small mb-1">Name (optional)</label>
+				<input
+					type="text"
+					class="form-control form-control-sm bg-dark text-light border-secondary"
+					[(ngModel)]="name"
+					[placeholder]="namePlaceholder"
+					maxlength="200"
+				/>
+			</div>
+
+			@if (error; as message) {
+				<div class="alert alert-danger py-2 px-3 mb-0" role="alert">{{ message }}</div>
+			}
+
+			<div class="d-flex justify-content-end gap-2">
+				<a routerLink="/" class="btn btn-sm btn-outline-secondary">Cancel</a>
+				<button type="button" class="btn btn-sm btn-primary" [disabled]="!canCreate" (click)="create()">
+					{{ saving ? 'Creating…' : 'Create version' }}
+				</button>
+			</div>
+
+		</div>
+	</div>
+</div>

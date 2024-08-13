@@ -1,0 +1,32 @@
+<div class="row py-3 g-3">
+	<div class="col-12 col-md-4 col-lg-3">
+		<h4 class="mb-3">Settings</h4>
+		<div class="list-group">
+			@for (section of sections; track section.id) {
+				<button
+					type="button"
+					class="list-group-item list-group-item-action d-flex align-items-center gap-2"
+					[class.active]="activeSection() === section.id"
+					(click)="selectSection(section.id)"
+				>
+					<fa-icon [icon]="section.icon"></fa-icon>
+					<span>{{ section.label }}</span>
+				</button>
+			}
+		</div>
+	</div>
+
+	<div class="col-12 col-md-8 col-lg-9">
+		@switch (activeSection()) {
+			@case ('numbers') {
+				<settings-numbers></settings-numbers>
+			}
+			@case ('graph') {
+				<settings-graph></settings-graph>
+			}
+			@case ('planner') {
+				<settings-planner></settings-planner>
+			}
+		}
+	</div>
+</div>

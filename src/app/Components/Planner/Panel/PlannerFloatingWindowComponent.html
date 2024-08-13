@@ -1,0 +1,61 @@
+<div class="fw-tabbar" #tabbarEl (pointerdown)="onWindowDragStart($event)">
+	<div class="fw-tabs">
+		@for (tab of visibleTabs; track tab.id) {
+			<div
+				class="tab"
+				[class.active]="tab.id === group.activeTabId"
+				(pointerdown)="onTabPointerDown($event, tab.id)"
+			>
+				<fa-icon class="tab-icon" [icon]="tab.icon"></fa-icon>
+				<span class="tab-label">{{ tab.label }}</span>
+				<button
+					class="tab-close"
+					type="button"
+					tooltip="Close" placement="bottom"
+					(pointerdown)="$event.stopPropagation()"
+					(click)="layout.closePanel(tab.id)"
+				><fa-icon [icon]="faXmark"></fa-icon></button>
+			</div>
+		}
+	</div>
+	@if (overflowTabs.length > 0) {
+		<div class="tab-overflow" dropdown container="body" placement="bottom right">
+			<button
+				class="tab-more"
+				[class.active]="overflowHasActive"
+				type="button"
+				dropdownToggle
+				tooltip="More panels" placement="left"
+				(pointerdown)="$event.stopPropagation()"
+			><fa-icon [icon]="faAnglesRight"></fa-icon></button>
+			<div *dropdownMenu class="dropdown-menu dropdown-menu-end">
+				@for (tab of overflowTabs; track tab.id) {
+					<button
+						type="button"
+						class="dropdown-item d-flex align-items-center gap-2"
+						(click)="selectOverflowTab(tab.id)"
+					><fa-icon [icon]="tab.icon" [fixedWidth]="true"></fa-icon> {{ tab.label }}</button>
+				}
+			</div>
+		</div>
+	}
+	<div class="fw-grab"></div>
+	<!-- Invisible copy of every tab at natural width, used to decide how many fit -->
+	<div class="fw-tabs tab-measure" #measureEl aria-hidden="true">
+		@for (tab of tabs; track tab.id) {
+			<div class="tab">
+				<fa-icon class="tab-icon" [icon]="tab.icon"></fa-icon>
+				<span class="tab-label">{{ tab.label }}</span>
+				<span class="tab-close"></span>
+			</div>
+		}
+	</div>
+</div>
+<div class="fw-scroll">
+	@if (activePanel; as panel) {
+		<ng-container [ngComponentOutlet]="panel.component"></ng-container>
+	}
+</div>
+<div class="fw-resize-e" (pointerdown)="onResizeStart($event, true, false)"></div>
+<div class="fw-resize-s" (pointerdown)="onResizeStart($event, false, true)"></div>
+<div class="fw-resize-se" (pointerdown)="onResizeStart($event, true, true)"></div>

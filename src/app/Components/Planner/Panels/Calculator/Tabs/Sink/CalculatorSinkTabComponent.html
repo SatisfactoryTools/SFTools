@@ -1,0 +1,50 @@
+<div class="p-2">
+	<div class="d-flex align-items-center gap-2 mb-2">
+		<input
+			type="search"
+			class="form-control form-control-sm bg-dark text-light border-secondary"
+			name="sink-filter"
+			placeholder="Filter by item name…"
+			[(ngModel)]="filter"
+		/>
+		<div class="btn-group" role="group">
+			<button
+				class="btn btn-sm btn-outline-secondary"
+				[class.active]="sortBy === 'name'"
+				type="button"
+				(click)="setSortBy('name')"
+			>Name</button>
+			<button
+				class="btn btn-sm btn-outline-secondary"
+				[class.active]="sortBy === 'points'"
+				type="button"
+				(click)="setSortBy('points')"
+			>Points</button>
+		</div>
+		<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(items, true)">All</button>
+		<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(items, false)">None</button>
+	</div>
+
+	<div class="row g-1">
+		@for (item of items; track item.className) {
+			<div class="col-6 col-lg-4 col-xxl-3">
+				<div class="form-check d-flex align-items-center gap-1 mb-0">
+					<input
+						class="form-check-input"
+						type="checkbox"
+						[id]="'sink-' + item.className"
+						[checked]="isEnabled(item)"
+						(change)="toggle(item)"
+					/>
+					<label class="form-check-label flex-grow-1 text-truncate d-flex align-items-center gap-1" [for]="'sink-' + item.className">
+						<game-icon [hash]="item.icon" [size]="18" [alt]="item.name"></game-icon>
+						<span class="text-truncate">{{ item.name }}</span>
+					</label>
+					<span class="text-secondary flex-shrink-0 pe-2">{{ rateFormatter.amount(item.sinkPoints) }}</span>
+				</div>
+			</div>
+		} @empty {
+			<div class="col-12 text-secondary fst-italic">No sinkable items match the filter.</div>
+		}
+	</div>
+</div>

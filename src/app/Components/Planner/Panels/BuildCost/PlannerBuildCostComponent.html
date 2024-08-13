@@ -1,0 +1,98 @@
+<div class="p-2 d-flex flex-column gap-2">
+
+	@if (!hasRows()) {
+		<p class="text-secondary mb-0">
+			{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its build cost.' }}
+		</p>
+	} @else {
+		<input
+			type="search"
+			class="form-control form-control-sm bg-dark text-light border-secondary"
+			placeholder="Filter by building or material…"
+			[value]="searchTerm()"
+			(input)="setSearchTerm($any($event.target).value)"
+		/>
+
+		<div class="d-flex gap-3 flex-wrap">
+			<span class="text-secondary">Buildings: <span class="text-light">{{ rateFormatter.amount(breakdown().machines) }}</span></span>
+			<span class="text-secondary d-inline-flex align-items-center gap-1">
+				<game-icon [hash]="shardIcon()" [size]="18" alt="Power Shard"></game-icon>
+				Power shards: <span class="text-light">{{ breakdown().shards }}</span>
+			</span>
+			<span class="text-secondary d-inline-flex align-items-center gap-1">
+				<game-icon [hash]="sloopIcon()" [size]="18" alt="Somersloop"></game-icon>
+				Somersloops: <span class="text-light">{{ breakdown().sloops }}</span>
+			</span>
+		</div>
+
+		<table class="table table-dark table-sm table-hover align-middle mb-0">
+			<thead>
+				<tr>
+					<th>{{ isFolderView() ? 'Plan' : 'Building' }}</th>
+					<th class="text-end" style="width: 70px;">Count</th>
+					<th class="text-end" style="width: 75px;"><game-icon [hash]="shardIcon()" [size]="18" alt="Power Shards"></game-icon></th>
+					<th class="text-end" style="width: 75px;"><game-icon [hash]="sloopIcon()" [size]="18" alt="Somersloops"></game-icon></th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (row of rows(); track row.key) {
+					<tr (click)="toggle(row)" [style.cursor]="row.materials.length > 0 ? 'pointer' : 'default'">
+						<td>
+							<div class="d-flex align-items-center gap-1">
+								<fa-icon
+									[icon]="isExpanded(row) ? faChevronDown : faChevronRight"
+									[fixedWidth]="true"
+									class="text-secondary"
+									[class.invisible]="row.materials.length === 0"
+								></fa-icon>
+								<game-icon [hash]="row.icon" [size]="20" [alt]="row.name"></game-icon>
+								<span>
+									@if (row.kind === 'subplan') {
+										<span class="text-secondary">Subplan:</span>
+									}
+									{{ row.name }}
+								</span>
+							</div>
+						</td>
+						<td class="text-end">{{ rateFormatter.amount(row.machines) }}</td>
+						<td class="text-end" [class.text-secondary]="row.shards === 0">{{ row.shards > 0 ? row.shards : '-' }}</td>
+						<td class="text-end" [class.text-secondary]="row.sloops === 0">{{ row.sloops > 0 ? row.sloops : '-' }}</td>
+					</tr>
+					@if (isExpanded(row)) {
+						@for (material of row.materials; track material.item.className) {
+							<tr>
+								<td class="ps-4">
+									<span class="d-inline-flex align-items-center gap-1">
+										<game-icon [hash]="material.item.icon" [size]="18" [alt]="material.item.name"></game-icon>
+										{{ material.item.name }}
+									</span>
+								</td>
+								<td class="text-end text-secondary">{{ rateFormatter.amount(material.amount) }}</td>
+								<td></td>
+								<td></td>
+							</tr>
+						}
+					}
+				} @empty {
+					<tr><td colspan="4" class="text-secondary fst-italic">Nothing matches the filter.</td></tr>
+				}
+			</tbody>
+		</table>
+
+		<div>
+			<div class="text-secondary mb-1">Total cost</div>
+			@for (material of totalMaterials(); track material.item.className) {
+				<div class="d-flex justify-content-between">
+					<span class="d-inline-flex align-items-center gap-1">
+						<game-icon [hash]="material.item.icon" [size]="18" [alt]="material.item.name"></game-icon>
+						{{ material.item.name }}
+					</span>
+					<span class="text-light">{{ rateFormatter.amount(material.amount) }}</span>
+				</div>
+			} @empty {
+				<div class="fst-italic text-secondary">None</div>
+			}
+		</div>
+	}
+
+</div>

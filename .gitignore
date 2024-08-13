@@ -1,3 +1,6 @@
+# Local environment (CI creates it from env.prod.ts)
+/src/env/env.ts
+
 # Compiled output
 /dist
 /tmp
@@ -34,3 +37,6 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+.claude
+CLAUDE.md

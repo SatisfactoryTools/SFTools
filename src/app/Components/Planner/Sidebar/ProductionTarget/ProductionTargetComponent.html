@@ -1,0 +1,56 @@
+<div class="p-2">
+	<table class="table table-dark table-sm align-middle mb-2">
+		<thead>
+			<tr>
+				<th>Item</th>
+				<th style="width: 90px;">Rate/min</th>
+				<th style="width: 36px;"></th>
+			</tr>
+		</thead>
+		<tbody>
+			@for (row of rows; track $index; let i = $index) {
+				<tr>
+					<td>
+						<select
+							class="form-select form-select-sm bg-dark text-light border-secondary"
+							[name]="'item-' + i"
+							[(ngModel)]="row.itemClassName"
+							(ngModelChange)="sync()"
+						>
+							<option value="">- select item -</option>
+							@for (item of availableItems; track item.className) {
+								<option [value]="item.className">{{ item.name }}</option>
+							}
+						</select>
+					</td>
+					<td>
+						<input
+							type="number"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							[name]="'rate-' + i"
+							[(ngModel)]="row.ratePerMinute"
+							(ngModelChange)="sync()"
+							min="0.01"
+							step="1"
+						>
+					</td>
+					<td>
+						<button
+							class="btn btn-sm btn-outline-danger px-2"
+							type="button"
+							(click)="removeRow(i)"
+						>×</button>
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+
+	@if (rows.length === 0) {
+		<p class="text-secondary text-center mb-2">No production targets. Add an item below.</p>
+	}
+
+	<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addRow()">
+		+ Add Item
+	</button>
+</div>

@@ -1,0 +1,71 @@
+<div class="p-2 d-flex flex-column gap-3" style="max-width: 680px;">
+
+	<div class="d-flex align-items-center gap-2">
+		<label class="form-label mb-0 d-inline-flex align-items-center gap-1" for="sloop-count">
+			<game-icon [hash]="somersloopIcon" [size]="20" alt="Somersloop"></game-icon>
+			Somersloops available
+		</label>
+		<input
+			type="number"
+			class="form-control form-control-sm bg-dark text-light border-secondary"
+			style="width: 100px; flex: none;"
+			id="sloop-count"
+			min="0"
+			step="1"
+			[value]="maxSloops"
+			(change)="setMaxSloops(+$any($event.target).value)"
+		/>
+		@if (maxSloops > 0 && sloopsUsedByLocked > 0) {
+			<span class="text-secondary d-inline-flex align-items-center gap-1">
+				<span class="text-light">{{ sloopsRemaining }}</span> left for the solver
+				<game-icon [hash]="somersloopIcon" [size]="16" alt="Somersloop"></game-icon>
+			</span>
+		}
+	</div>
+	<div class="text-secondary">
+		The solver may slot up to this many somersloops into machines to boost their output.
+		@if (sloopsUsedByLocked > 0) {
+			Locked recipe nodes already use <span class="text-light">{{ sloopsUsedByLocked }}</span>,
+			leaving <span class="text-light">{{ sloopsRemaining }}</span> for the solver to place.
+		}
+	</div>
+
+	<div [class.opacity-50]="maxSloops === 0">
+		<div class="text-secondary mb-1">
+			Solve accuracy - how far the result may deviate from the optimum
+			(only used when somersloops are available):
+		</div>
+		@for (option of accuracyOptions; track option.value) {
+			<div class="form-check">
+				<input
+					class="form-check-input"
+					type="radio"
+					name="sloop-accuracy"
+					[id]="'sloop-accuracy-' + option.value"
+					[checked]="accuracy === option.value"
+					[disabled]="maxSloops === 0"
+					(change)="setAccuracy(option.value)"
+				/>
+				<label class="form-check-label" [for]="'sloop-accuracy-' + option.value">
+					{{ option.label }}
+					<span class="text-secondary">- {{ option.description }}</span>
+				</label>
+			</div>
+		}
+	</div>
+
+	@if (maxSloops > 0 && accuracy === 'high') {
+		<div class="alert alert-warning py-2 px-3 mb-0">
+			High accuracy can take a long time - even a few minutes on larger plans.
+			The calculation can be cancelled next to the calculate button.
+		</div>
+	}
+
+	@if (maxSloops > 0 && producePowerForFactory) {
+		<div class="alert alert-warning py-2 px-3 mb-0">
+			Somersloop optimisation combined with &ldquo;Produce power to run the factory&rdquo;
+			(Power tab) makes the solve much harder - calculations can take very long.
+		</div>
+	}
+
+</div>

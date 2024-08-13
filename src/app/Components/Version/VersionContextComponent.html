@@ -1,0 +1,11 @@
+@if (data.isLoading()) {
+	<p class="text-muted mt-4 text-center">Loading...</p>
+} @else if (data.error()) {
+	<div class="container mt-4">
+		<div class="alert alert-danger">
+			Failed to load version data. Please try again later.
+		</div>
+	</div>
+} @else {
+	<router-outlet/>
+}

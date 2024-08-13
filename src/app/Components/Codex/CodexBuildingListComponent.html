@@ -1,0 +1,10 @@
+<ul class="list-group list-group-flush">
+	@for (building of buildings; track building.className) {
+		<li class="list-group-item px-3 py-2">
+			<codex-entity-link [link]="'buildings/' + building.className" [icons]="[building.icon]" [name]="building.name"/>
+			@if (showCost && buildCostOf(building).length > 0) {
+				<codex-item-amount-list class="d-block mt-1 ms-4" [amounts]="buildCostOf(building)"/>
+			}
+		</li>
+	}
+</ul>

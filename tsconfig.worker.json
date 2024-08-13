@@ -1,0 +1,12 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"outDir": "./out-tsc/worker",
+		"lib": ["ES2022", "webworker"],
+		"types": [],
+		"skipLibCheck": true
+	},
+	"files": [
+		"src/app/Model/Planner/Solver/Worker/SolverWorker.ts"
+	]
+}

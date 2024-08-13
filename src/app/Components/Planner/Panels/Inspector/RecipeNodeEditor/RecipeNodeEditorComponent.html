@@ -1,0 +1,185 @@
+<div class="p-2 d-flex flex-column gap-2">
+
+	<div class="d-flex align-items-center justify-content-between">
+		<span class="text-secondary">{{ node.locked ? 'Locked - solver builds around it' : 'Unlocked - solver may replace it' }}</span>
+		<button
+			class="btn btn-sm py-0 px-1"
+			[class.btn-outline-warning]="node.locked"
+			[class.btn-outline-secondary]="!node.locked"
+			type="button"
+			[title]="node.locked ? 'Unlock node' : 'Lock node'"
+			(click)="toggleLock()"
+		><fa-icon [icon]="node.locked ? faLock : faLockOpen"></fa-icon></button>
+	</div>
+
+	<div class="text-secondary">Recipe: <span class="text-light">{{ node.recipe.name }}</span></div>
+
+	@if (machineOptions.length > 1) {
+		<div>
+			<label class="form-label text-secondary mb-1">Machine</label>
+			<select
+				class="form-select form-select-sm bg-dark text-light border-secondary"
+				[(ngModel)]="machineClassName"
+				(ngModelChange)="onMachineChange()"
+			>
+				@for (machine of machineOptions; track machine.className) {
+					<option [value]="machine.className">{{ machine.name }}</option>
+				}
+			</select>
+		</div>
+	} @else if (selectedMachine; as machine) {
+		<div class="text-secondary">Machine: <span class="text-light">{{ machine.name }}</span></div>
+	}
+
+	<div>
+		<div class="text-secondary mb-1">Inputs</div>
+		@for (input of inputRates; track input.item.className; let i = $index) {
+			<div class="d-flex align-items-center gap-2 mb-1">
+				<span class="flex-grow-1 text-truncate">{{ input.item.name }}</span>
+				<div class="input-group input-group-sm" style="width: 150px; flex: none;">
+					<input
+						type="number"
+						class="form-control form-control-sm bg-dark text-light border-secondary"
+						[(ngModel)]="input.rate"
+						(ngModelChange)="onInputRateChange(i)"
+						min="0"
+						step="any"
+					>
+					<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(input.item) }}</span>
+				</div>
+			</div>
+		} @empty {
+			<div class="fst-italic text-secondary">None</div>
+		}
+
+		<div class="text-secondary mb-1 mt-2">Outputs</div>
+		@for (output of outputRates; track output.item.className; let i = $index) {
+			<div class="d-flex align-items-center gap-2 mb-1">
+				<span class="flex-grow-1 text-truncate">{{ output.item.name }}</span>
+				<div class="input-group input-group-sm" style="width: 150px; flex: none;">
+					<input
+						type="number"
+						class="form-control form-control-sm bg-dark text-light border-secondary"
+						[(ngModel)]="output.rate"
+						(ngModelChange)="onOutputRateChange(i)"
+						min="0"
+						step="any"
+					>
+					<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(output.item) }}</span>
+				</div>
+			</div>
+		}
+	</div>
+
+	<div>
+		<div class="d-flex align-items-center justify-content-between mb-1">
+			<span class="text-secondary">Machine groups</span>
+			<div class="d-flex gap-1">
+				<!-- container="body" so the menu overlays the planner instead of
+				     being clipped by the panel's overflow container. -->
+				<div class="btn-group" dropdown container="body" placement="bottom right">
+					<button
+						class="btn btn-sm btn-outline-primary py-0"
+						type="button"
+						[title]="'Calculate machine groups from the target - ' + groupingLabel"
+						(click)="autoGroup()"
+					>Auto</button>
+					<button
+						class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split py-0"
+						type="button"
+						dropdownToggle
+						title="Grouping mode"
+					><span class="visually-hidden">Grouping mode</span></button>
+					<div *dropdownMenu class="dropdown-menu dropdown-menu-end" style="min-width: 260px;">
+						<h6 class="dropdown-header">Grouping mode</h6>
+						@for (option of groupingOptions; track option.mode) {
+							<button
+								class="dropdown-item"
+								[class.active]="groupingMode === option.mode"
+								type="button"
+								(click)="setGroupingMode(option.mode)"
+							>
+								{{ option.label }}
+								<span class="d-block text-wrap opacity-75">{{ option.description }}</span>
+							</button>
+						}
+					</div>
+				</div>
+				<button
+					class="btn btn-sm btn-outline-success py-0 px-1"
+					type="button"
+					title="Add machine group"
+					(click)="addGroup()"
+				><fa-icon [icon]="faPlus"></fa-icon></button>
+			</div>
+		</div>
+
+		<div class="d-flex gap-1 text-secondary mb-1">
+			<span class="flex-fill">Machines</span>
+			<span class="flex-fill">Clock %</span>
+			@if ((selectedMachine?.sloopSlots ?? 0) > 0) {
+				<span class="flex-fill">Sloops</span>
+			}
+			<span style="width: 26px;"></span>
+		</div>
+
+		@for (group of groups; track $index) {
+			<div class="d-flex gap-1 mb-1">
+				<input
+					type="number"
+					class="form-control form-control-sm bg-dark text-light border-secondary flex-fill"
+					[(ngModel)]="group.machines"
+					(ngModelChange)="onGroupsChange()"
+					min="1"
+					step="1"
+				>
+				<input
+					type="number"
+					class="form-control form-control-sm bg-dark text-light border-secondary flex-fill"
+					[(ngModel)]="group.clockSpeed"
+					(ngModelChange)="onGroupsChange()"
+					min="1"
+					max="250"
+					step="0.0001"
+				>
+				@if ((selectedMachine?.sloopSlots ?? 0) > 0) {
+					<input
+						type="number"
+						class="form-control form-control-sm bg-dark text-light border-secondary flex-fill"
+						[(ngModel)]="group.sloops"
+						(ngModelChange)="onGroupsChange()"
+						min="0"
+						[max]="selectedMachine?.sloopSlots ?? 0"
+						step="1"
+					>
+				}
+				<button
+					class="btn btn-sm btn-outline-danger py-0 px-1"
+					type="button"
+					title="Remove machine group"
+					[disabled]="groups.length === 1"
+					(click)="removeGroup($index)"
+				><fa-icon [icon]="faXmark"></fa-icon></button>
+			</div>
+		}
+	</div>
+
+	<div class="text-secondary">
+		Efficiency:
+		<span class="text-light">{{ rateFormatter.percent(efficiency) }}</span>
+	</div>
+
+	@if (hasCapacityShortage) {
+		<div class="text-danger">
+			Not enough machines to reach the target - add machines or raise clock speeds.
+		</div>
+	}
+
+	<button
+		class="btn btn-sm btn-primary w-100"
+		type="button"
+		[disabled]="!isModified"
+		(click)="apply()"
+	>Update graph</button>
+
+</div>

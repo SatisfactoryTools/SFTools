@@ -1,0 +1,44 @@
+<!-- container="body" so the menu overlays the planner instead of being clipped
+     by the panel's overflow container; insideClick keeps it open while typing. -->
+<div class="dropdown w-100" dropdown container="body" [insideClick]="true" (onShown)="onShown()" #dropdown="bs-dropdown">
+	<button
+		type="button"
+		class="form-select form-select-sm bg-dark text-light border-secondary text-start d-flex align-items-center gap-2"
+		dropdownToggle
+	>
+		@if (selected; as option) {
+			<game-icon [hash]="option.iconHash" [size]="18" [alt]="option.label"></game-icon>
+			<span class="text-truncate">{{ option.label }}</span>
+		} @else {
+			<span class="text-secondary text-truncate">{{ placeholder }}</span>
+		}
+	</button>
+
+	<div *dropdownMenu class="dropdown-menu p-0" style="min-width: 320px;">
+		<div class="p-2">
+			<input
+				#searchInput
+				focusOnInit
+				type="search"
+				class="form-control form-control-sm bg-dark text-light border-secondary"
+				placeholder="Search…"
+				[(ngModel)]="search"
+			/>
+		</div>
+		<div style="max-height: 320px; overflow-y: auto;">
+			@for (option of filtered; track option.value) {
+				<button
+					type="button"
+					class="dropdown-item d-flex align-items-center gap-2"
+					[class.active]="option.value === value"
+					(click)="select(option, dropdown)"
+				>
+					<game-icon [hash]="option.iconHash" [size]="20" [alt]="option.label"></game-icon>
+					<span class="text-truncate">{{ option.label }}</span>
+				</button>
+			} @empty {
+				<div class="px-3 py-2 text-secondary fst-italic">No items match.</div>
+			}
+		</div>
+	</div>
+</div>

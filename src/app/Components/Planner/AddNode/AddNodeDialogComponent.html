@@ -1,0 +1,83 @@
+<div class="add-node-backdrop">
+	<div class="add-node-dialog card border-secondary">
+		<div class="card-header d-flex align-items-center gap-2">
+			<span class="fw-semibold flex-grow-1 d-flex align-items-center gap-2">
+				@if (filter; as connectFilter) {
+					<span>Add {{ connectFilter.role }} of</span>
+					<game-icon [hash]="filterItem?.icon ?? null" [size]="20"></game-icon>
+					<span>{{ filterItem?.name ?? connectFilter.itemClassName }}</span>
+				} @else {
+					Add node
+				}
+			</span>
+			<button type="button" class="btn-close btn-close-white" aria-label="Close" (click)="close.emit()"></button>
+		</div>
+
+		<div class="p-3 d-flex flex-column gap-3" style="overflow-y: auto;">
+			<div class="d-flex flex-wrap gap-1">
+				@for (option of types; track option.type) {
+					<button
+						type="button"
+						class="btn btn-sm d-flex align-items-center gap-2"
+						[class.btn-primary]="nodeType === option.type"
+						[class.btn-dark]="nodeType !== option.type"
+						(click)="setType(option.type)"
+					>
+						<fa-icon [icon]="option.icon"></fa-icon>
+						<span>{{ option.label }}</span>
+					</button>
+				}
+			</div>
+
+			@switch (nodeType) {
+				@case ('recipe') {
+					<div>
+						<label class="form-label small mb-1">Recipe</label>
+						<item-picker [options]="recipeOptions" [value]="recipeClassName" placeholder="- select a recipe -" (valueChange)="recipeClassName = $event"></item-picker>
+					</div>
+				}
+				@case ('generator') {
+					<div>
+						<label class="form-label small mb-1">Generator</label>
+						<item-picker [options]="generatorOptions" [value]="generatorClassName" placeholder="- select a generator -" (valueChange)="onGeneratorChange($event)"></item-picker>
+					</div>
+					@if (generatorClassName) {
+						<div>
+							<label class="form-label small mb-1">Fuel</label>
+							<item-picker [options]="fuelOptions" [value]="fuelItemClassName" placeholder="- select a fuel -" (valueChange)="onFuelChange($event)"></item-picker>
+						</div>
+						<div>
+							<label class="form-label small mb-1">{{ amountLabel }}</label>
+							<input type="number" min="0" step="any" class="form-control form-control-sm bg-dark text-light border-secondary" [(ngModel)]="amount" />
+						</div>
+					}
+				}
+				@default {
+					<div>
+						<label class="form-label small mb-1">Item</label>
+						@if (filter; as connectFilter) {
+							<!-- The connect gesture fixed the item - show it instead of offering a choice. -->
+							<div class="form-control form-control-sm bg-dark text-light border-secondary d-flex align-items-center gap-2">
+								<game-icon [hash]="filterItem?.icon ?? null" [size]="18"></game-icon>
+								<span>{{ filterItem?.name ?? connectFilter.itemClassName }}</span>
+							</div>
+						} @else {
+							<item-picker [options]="itemOptions" [value]="itemClassName" placeholder="- select an item -" (valueChange)="itemClassName = $event"></item-picker>
+						}
+					</div>
+					@if (itemClassName) {
+						<div>
+							<label class="form-label small mb-1">{{ amountLabel }}</label>
+							<input type="number" min="0" step="any" class="form-control form-control-sm bg-dark text-light border-secondary" [(ngModel)]="amount" />
+						</div>
+					}
+				}
+			}
+		</div>
+
+		<div class="card-footer d-flex justify-content-end gap-2">
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="close.emit()">Cancel</button>
+			<button type="button" class="btn btn-sm btn-primary" [disabled]="!canAdd" (click)="submit()">Add node</button>
+		</div>
+	</div>
+</div>

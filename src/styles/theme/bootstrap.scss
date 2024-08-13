@@ -6,8 +6,9 @@ $primary: $sfOrange;
 
 // import bootstrap
 @import "./variables";
-@import "~bootstrap/scss/bootstrap";
+@import "bootstrap/scss/bootstrap";
 
+$web-font-path: false;
 $font-size-sm: $font-size-base;
 @import "./bootswatch";
 $font-size-sm: $font-size-base * .875;

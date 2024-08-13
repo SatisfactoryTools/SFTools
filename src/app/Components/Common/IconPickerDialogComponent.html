@@ -1,0 +1,31 @@
+<div class="icon-picker-backdrop" (click)="close.emit()">
+	<div class="icon-picker-dialog card bg-dark border-secondary" (click)="$event.stopPropagation()">
+		<div class="card-header d-flex align-items-center gap-2">
+			<span class="fw-semibold flex-grow-1">Pick an icon</span>
+			<button type="button" class="btn-close btn-close-white" aria-label="Close" (click)="close.emit()"></button>
+		</div>
+		<div class="p-2 d-flex gap-2">
+			<input
+				type="search"
+				class="form-control form-control-sm bg-dark text-light border-secondary"
+				placeholder="Search items and buildings…"
+				[(ngModel)]="search"
+			/>
+			<button type="button" class="btn btn-sm btn-outline-secondary flex-shrink-0" (click)="none.emit()">None (default)</button>
+		</div>
+		<div class="icon-picker-grid p-2">
+			@for (option of filtered; track option.value) {
+				<button
+					type="button"
+					class="icon-picker-cell btn btn-sm btn-outline-secondary border-0"
+					[title]="option.label"
+					(click)="pick.emit(option.value)"
+				>
+					<game-icon [hash]="option.iconHash" [size]="40" [alt]="option.label"></game-icon>
+				</button>
+			} @empty {
+				<div class="text-secondary p-2">No items or buildings match.</div>
+			}
+		</div>
+	</div>
+</div>

@@ -1,0 +1,46 @@
+<span class="stat">Power <b>{{ powerText() }}</b></span>
+<span class="stat">Buildings <b>{{ buildings() }}</b></span>
+<span class="stat" title="Somersloops"><game-icon [hash]="sloopIcon()" [size]="16" alt="Sloops"></game-icon> <b>{{ sloops() }}</b></span>
+<span class="stat" title="Power shards"><game-icon [hash]="shardIcon()" [size]="16" alt="Shards"></game-icon> <b>{{ shards() }}</b></span>
+
+<span class="right">
+	@if (warningCount() > 0) {
+		<!-- container="body" so the dropup overlays the canvas instead of being
+		     clipped by the status bar's own box. -->
+		<span dropdown container="body" placement="top right" [dropup]="true">
+			<button
+				class="warnings-toggle"
+				type="button"
+				dropdownToggle
+				title="Plan warnings"
+			><fa-icon [icon]="faTriangleExclamation"></fa-icon> {{ warningCount() }}</button>
+			<div *dropdownMenu class="dropdown-menu dropdown-menu-end" style="min-width: 320px; max-width: 460px;">
+				<h6 class="dropdown-header">Plan warnings</h6>
+				@for (entry of warningEntries(); track entry.nodeId) {
+					<button
+						class="dropdown-item"
+						type="button"
+						(click)="focusWarning(entry)"
+					>
+						{{ entry.nodeName }}
+						@for (line of entry.lines; track $index) {
+							<span class="d-block text-wrap opacity-75">{{ line }}</span>
+						}
+					</button>
+				}
+			</div>
+		</span>
+	}
+
+	@if (actions.isCalculating()) {
+		<span class="state state-busy"><span class="dot"></span>calculating…</span>
+	} @else if (actions.solveError(); as error) {
+		<span class="state state-error"><span class="dot"></span>{{ error }}</span>
+	} @else if (hasGraph() && graphDirty()) {
+		<span class="state state-modified"><span class="dot"></span>solved · modified</span>
+	} @else if (hasGraph()) {
+		<span class="state state-solved"><span class="dot"></span>solved · up to date</span>
+	} @else {
+		<span class="state state-idle"><span class="dot"></span>no graph</span>
+	}
+</span>

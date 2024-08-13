@@ -1,0 +1,109 @@
+@if (schematic(); as schematic) {
+	<div class="container-fluid py-3">
+		<a codexLink="schematics" class="btn btn-sm btn-outline-secondary mb-3"><fa-icon [icon]="faChevronLeft"></fa-icon> Schematics</a>
+
+		<div class="d-flex align-items-start gap-3 mb-4">
+			<game-icon [hash]="schematic.icon" [size]="96" [alt]="schematic.name"></game-icon>
+			<div>
+				<h2 class="mb-0">{{ schematic.name }}</h2>
+				@if (schematic.description) {
+					<p class="mt-2 mb-0" style="white-space: pre-line;">{{ schematic.description }}</p>
+				}
+			</div>
+		</div>
+
+		<codex-section heading="Properties" [flush]="true">
+			<table class="table table-sm">
+				<tbody>
+					<tr>
+						<th class="text-muted fw-normal" style="width: 40%;">Type</th>
+						<td>{{ typeLabel(schematic.type) }}</td>
+					</tr>
+					@if (schematic.tier > 0) {
+						<tr>
+							<th class="text-muted fw-normal">Tier</th>
+							<td>{{ schematic.tier }}</td>
+						</tr>
+					}
+					@if (schematic.time > 0) {
+						<tr>
+							<th class="text-muted fw-normal">Research time</th>
+							<td>{{ formatter.duration(schematic.time) }}</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		</codex-section>
+
+		@if (schematic.cost.length > 0) {
+			<codex-section heading="Cost">
+				<codex-item-amount-list [amounts]="schematic.cost"/>
+			</codex-section>
+		}
+
+		@if (requiredSchematics().length > 0) {
+			<codex-section heading="Requires" [flush]="true">
+				@if (requiredSchematics().length > 1) {
+					<p class="text-muted small mb-0 px-3 pt-2">
+						{{ schematic.dependency.requireAll ? 'All of the following are required:' : 'Any of the following suffices:' }}
+					</p>
+				}
+				<codex-schematic-list [schematics]="requiredSchematics()"/>
+			</codex-section>
+		}
+
+		@if (unlockedRecipes().length > 0) {
+			<codex-section heading="Unlocks recipes" [flush]="true">
+				<codex-recipe-list [recipes]="unlockedRecipes()"/>
+			</codex-section>
+		}
+
+		@if (unlockedBuildings().length > 0) {
+			<codex-section heading="Unlocks buildings" [flush]="true">
+				<codex-building-list [buildings]="unlockedBuildings()" [showCost]="true"/>
+			</codex-section>
+		}
+
+		@if (unlockedSchematics().length > 0) {
+			<codex-section heading="Unlocks schematics" [flush]="true">
+				<codex-schematic-list [schematics]="unlockedSchematics()"/>
+			</codex-section>
+		}
+
+		@if (schematic.unlock.items.length > 0) {
+			<codex-section heading="Gives items">
+				<codex-item-amount-list [amounts]="schematic.unlock.items"/>
+			</codex-section>
+		}
+
+		@if (schematic.unlock.scannableResources.length > 0) {
+			<codex-section heading="Unlocks resource scanning">
+				<ul class="list-unstyled mb-0">
+					@for (item of schematic.unlock.scannableResources; track item.className) {
+						<li class="py-1">
+							<codex-entity-link [link]="'items/' + item.className" [icons]="[item.icon]" [name]="item.name"/>
+						</li>
+					}
+				</ul>
+			</codex-section>
+		}
+
+		@if (schematic.unlock.inventorySlots > 0 || schematic.unlock.equipmentSlots > 0) {
+			<codex-section heading="Unlocks slots">
+				<ul class="list-unstyled mb-0">
+					@if (schematic.unlock.inventorySlots > 0) {
+						<li class="py-1">+{{ schematic.unlock.inventorySlots }} inventory slots</li>
+					}
+					@if (schematic.unlock.equipmentSlots > 0) {
+						<li class="py-1">+{{ schematic.unlock.equipmentSlots }} equipment slots</li>
+					}
+				</ul>
+			</codex-section>
+		}
+	</div>
+} @else {
+	<div class="container-fluid py-3">
+		<p class="text-muted">Schematic not found.</p>
+		<a codexLink="schematics" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Schematics</a>
+	</div>
+}

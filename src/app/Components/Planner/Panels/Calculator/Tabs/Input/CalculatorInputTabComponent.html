@@ -1,0 +1,72 @@
+<div class="p-2">
+	<table class="table table-dark table-sm align-middle mb-2">
+		<thead>
+			<tr>
+				<th>Item</th>
+				<th style="width: 130px;">Amount</th>
+				<th style="width: 110px;">Weight</th>
+				<th style="width: 36px;"></th>
+			</tr>
+		</thead>
+		<tbody>
+			@for (row of rows; track $index; let i = $index) {
+				<tr>
+					<td>
+						<item-picker
+							[options]="itemOptions"
+							[value]="row.itemClassName"
+							placeholder="- select item -"
+							(valueChange)="onItemChange(row, $event)"
+						></item-picker>
+					</td>
+					<td>
+						<div class="input-group input-group-sm">
+							<input
+								type="number"
+								class="form-control form-control-sm bg-dark text-light border-secondary"
+								[name]="'input-amount-' + i"
+								[(ngModel)]="row.amount"
+								(ngModelChange)="sync()"
+								min="0"
+								step="1"
+							>
+							<span class="input-group-text bg-dark text-secondary border-secondary">/min</span>
+						</div>
+					</td>
+					<td>
+						<input
+							type="number"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							[name]="'input-weight-' + i"
+							[(ngModel)]="row.weight"
+							(ngModelChange)="sync()"
+							min="0"
+							step="0.001"
+						>
+					</td>
+					<td>
+						<button
+							class="btn btn-sm btn-outline-danger px-2"
+							type="button"
+							(click)="removeRow(i)"
+						><fa-icon [icon]="faXmark"></fa-icon></button>
+					</td>
+				</tr>
+			}
+		</tbody>
+	</table>
+
+	@if (rows.length === 0) {
+		<p class="text-secondary text-center mb-2">No inputs yet.</p>
+	}
+
+	<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addRow()">
+		+ Add Input
+	</button>
+
+	<p class="text-secondary small mt-2 mb-0">
+		Inputs are item sources the solver may draw from, up to the amount you set. The weight is their
+		cost in the optimisation - a low weight (default 0.001) makes an input a cheap alternative to
+		mining or crafting.
+	</p>
+</div>

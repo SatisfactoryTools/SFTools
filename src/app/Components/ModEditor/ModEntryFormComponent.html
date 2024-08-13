@@ -1,0 +1,131 @@
+<div class="d-flex flex-column gap-2">
+
+	<div class="text-secondary small">className: <code>{{ entry['className'] }}</code></div>
+
+	@for (field of requiredFields; track field.key) {
+		<ng-container *ngTemplateOutlet="fieldTemplate; context: {field}"></ng-container>
+	}
+
+	@if (optionalFields.length > 0) {
+		<button type="button" class="btn btn-sm btn-outline-secondary align-self-start" (click)="showOptional = !showOptional">
+			{{ showOptional ? 'Hide' : 'Show' }} more fields ({{ optionalFields.length }})
+		</button>
+	}
+
+	@if (showOptional) {
+		@for (field of optionalFields; track field.key) {
+			<ng-container *ngTemplateOutlet="fieldTemplate; context: {field}"></ng-container>
+		}
+	}
+
+</div>
+
+<ng-template #fieldTemplate let-field="field">
+	<div>
+		@if (field.kind !== 'boolean') {
+			<label class="form-label small text-secondary mb-1">{{ field.label }}</label>
+		}
+		@switch (field.kind) {
+			@case ('text') {
+				<input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+					[ngModel]="text(field)" (ngModelChange)="setText(field, $event)" />
+			}
+			@case ('multiline') {
+				<textarea rows="2" class="form-control form-control-sm bg-dark text-light border-secondary"
+					[ngModel]="text(field)" (ngModelChange)="setText(field, $event)"></textarea>
+			}
+			@case ('number') {
+				<input type="number" step="any" class="form-control form-control-sm bg-dark text-light border-secondary" style="max-width: 200px;"
+					[ngModel]="numberValue(field)" (ngModelChange)="setNumber(field, $event)" />
+			}
+			@case ('boolean') {
+				<div class="form-check">
+					<input type="checkbox" class="form-check-input" [id]="'field-' + field.key"
+						[ngModel]="booleanValue(field)" (ngModelChange)="setValue(field.key, $event)" />
+					<label class="form-check-label" [for]="'field-' + field.key">{{ field.label }}</label>
+				</div>
+			}
+			@case ('enum') {
+				<select class="form-select form-select-sm bg-dark text-light border-secondary" style="max-width: 240px;"
+					[ngModel]="value(field.key)" (ngModelChange)="setValue(field.key, $event)">
+					@for (option of field.options; track option.value) {
+						<option [ngValue]="option.value">{{ option.label }}</option>
+					}
+				</select>
+			}
+			@case ('color') {
+				<div class="d-flex gap-1 align-items-center" style="max-width: 380px;">
+					@for (channel of ['r', 'g', 'b', 'a']; track channel) {
+						<div class="input-group input-group-sm">
+							<span class="input-group-text bg-dark text-secondary border-secondary text-uppercase">{{ channel }}</span>
+							<input type="number" min="0" max="255" step="1" class="form-control form-control-sm bg-dark text-light border-secondary"
+								[(ngModel)]="$any(colorOf(field))[channel]" />
+						</div>
+					}
+				</div>
+			}
+			@case ('stringList') {
+				<input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+					placeholder="comma-separated"
+					[ngModel]="stringListText(field)" (ngModelChange)="setStringListText(field, $event)" />
+			}
+			@case ('itemAmounts') {
+				<div class="d-flex flex-column gap-1">
+					@for (row of itemAmounts(field); track $index) {
+						<div class="d-flex gap-1">
+							<input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+								placeholder="item className" [(ngModel)]="row.item" />
+							<input type="number" step="any" class="form-control form-control-sm bg-dark text-light border-secondary" style="max-width: 110px; flex: none;"
+								[(ngModel)]="row.amount" />
+							<button type="button" class="btn btn-sm btn-outline-danger py-0" (click)="removeItemAmount(field, $index)">✕</button>
+						</div>
+					}
+					<button type="button" class="btn btn-sm btn-outline-success align-self-start py-0" (click)="addItemAmount(field)">+ Add</button>
+				</div>
+			}
+			@case ('fuels') {
+				<div class="d-flex flex-column gap-2">
+					@for (fuel of fuels(field); track $index) {
+						<div class="border border-secondary rounded p-2 d-flex flex-column gap-1">
+							<div class="d-flex gap-1">
+								<input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+									placeholder="fuel item className" [(ngModel)]="fuel.item" />
+								<button type="button" class="btn btn-sm btn-outline-danger py-0" (click)="removeFuel(field, $index)">✕</button>
+							</div>
+							<div class="d-flex gap-1">
+								<input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+									placeholder="supplemental item (optional)"
+									[ngModel]="fuel.supplementalItem ?? ''" (ngModelChange)="setFuelNullable(fuel, 'supplementalItem', $event)" />
+								<input type="text" class="form-control form-control-sm bg-dark text-light border-secondary"
+									placeholder="byproduct (optional)"
+									[ngModel]="fuel.byproduct ?? ''" (ngModelChange)="setFuelNullable(fuel, 'byproduct', $event)" />
+								<input type="number" step="any" class="form-control form-control-sm bg-dark text-light border-secondary" style="max-width: 110px; flex: none;"
+									placeholder="byproduct amount" [(ngModel)]="fuel.byproductAmount" />
+							</div>
+							<div class="form-check">
+								<input type="checkbox" class="form-check-input" [id]="'fuel-any-' + field.key + $index" [(ngModel)]="fuel.acceptsAnySolidFuel" />
+								<label class="form-check-label small" [for]="'fuel-any-' + field.key + $index">Accepts any solid fuel</label>
+							</div>
+						</div>
+					}
+					<button type="button" class="btn btn-sm btn-outline-success align-self-start py-0" (click)="addFuel(field)">+ Add fuel</button>
+				</div>
+			}
+			@case ('image') {
+				<mod-image-field [value]="imageValue(field)" [nullable]="field.nullable ?? false"
+					(valueChange)="setValue(field.key, $event)"></mod-image-field>
+			}
+			@case ('json') {
+				<textarea rows="4" class="form-control form-control-sm bg-dark text-light border-secondary font-monospace"
+					[class.is-invalid]="isJsonBroken(field)"
+					[ngModel]="jsonText(field)" (ngModelChange)="setJsonText(field, $event)"></textarea>
+				@if (isJsonBroken(field)) {
+					<div class="text-danger small">Not valid JSON - the last valid value is kept.</div>
+				}
+			}
+		}
+		@if (field.help) {
+			<div class="form-text text-secondary small">{{ field.help }}</div>
+		}
+	</div>
+</ng-template>

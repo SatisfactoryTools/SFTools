@@ -1,0 +1,56 @@
+<div class="position-relative">
+	<input
+		class="form-control"
+		style="width: 360px; max-width: 100%;"
+		type="search"
+		placeholder="Search&hellip;"
+		autocomplete="off"
+		[(ngModel)]="query"
+		(focus)="onFocus()"
+		(blur)="onBlur()"
+		(keydown)="onKeydown($event)"
+	/>
+	@if (showResults) {
+		<div class="position-absolute bg-dark border border-secondary rounded shadow mt-1 py-1" style="width: 360px; max-width: 100%; z-index: 1060; left: 0; max-height: 70vh; overflow-y: auto;">
+			@if (query.trim().length < 2) {
+				<div class="px-3 py-2 text-muted small">Start typing to search&hellip;</div>
+			} @else if (flatResults().length === 0) {
+				<div class="px-3 py-2 text-muted small">No results for &ldquo;{{ query }}&rdquo;</div>
+			} @else {
+				@for (group of groups(); track group.label) {
+					<div class="px-3 pt-2 pb-1 text-muted small text-uppercase">{{ group.label }}</div>
+					@for (result of group.results; track result.type + result.id) {
+						<button
+							type="button"
+							class="search-result d-flex align-items-center gap-2 w-100 border-0 text-start px-3 py-1"
+							[class.active]="flatResults()[activeIndex()] === result"
+							(click)="open(result)"
+						>
+							@switch (result.type) {
+								@case ('plan') {
+									<fa-icon [icon]="faDiagramProject" [fixedWidth]="true" class="text-muted"></fa-icon>
+								}
+								@case ('folder') {
+									<fa-icon [icon]="faFolder" [fixedWidth]="true" class="text-muted"></fa-icon>
+								}
+								@default {
+									<span class="d-inline-flex align-items-center gap-1 flex-shrink-0">
+										@for (icon of result.icons; track $index) {
+											<game-icon [hash]="icon" [size]="20" [alt]="result.name"></game-icon>
+										}
+									</span>
+								}
+							}
+							<span class="d-flex flex-column" style="min-width: 0;">
+								<span class="text-truncate">@for (fragment of result.nameFragments; track $index) {@if (fragment.match) {<strong>{{ fragment.text }}</strong>} @else {{{ fragment.text }}}}</span>
+								@if (result.snippet; as snippet) {
+									<span class="small text-muted text-truncate">@for (fragment of snippet; track $index) {@if (fragment.match) {<strong>{{ fragment.text }}</strong>} @else {{{ fragment.text }}}}</span>
+								}
+							</span>
+						</button>
+					}
+				}
+			}
+		</div>
+	}
+</div>

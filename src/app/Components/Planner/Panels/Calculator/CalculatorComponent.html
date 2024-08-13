@@ -1,0 +1,213 @@
+@if (activePlan()) {
+
+	<div class="req-controls">
+		<button
+			class="btn btn-sm btn-outline-secondary"
+			type="button"
+			tooltip="Reset all solver settings (mode, recipes, resources, power) to the defaults" placement="bottom"
+			(click)="resetSettings()"
+		><fa-icon [icon]="faRotateLeft"></fa-icon> Reset to defaults</button>
+		<button
+			class="btn btn-sm btn-outline-secondary"
+			type="button"
+			tooltip="Replace all solver settings with those of the parent plan or folder" placement="bottom"
+			(click)="inheritSettings()"
+		><fa-icon [icon]="faCopy"></fa-icon> Inherit from {{ parentLabel() }}</button>
+
+		<span class="flex-grow-1"></span>
+
+		<button
+			class="btn btn-sm btn-outline-secondary"
+			type="button"
+			tooltip="Re-layout graph - repositions nodes and edges without changing any amounts" placement="bottom"
+			[disabled]="actions.isCalculating() || !hasGraph()"
+			(click)="relayout()"
+		><fa-icon [icon]="faSitemap"></fa-icon> Re-layout</button>
+
+		<!-- container="body" so the menu overlays the planner instead of being
+		     clipped (and scrolled) by the panel's overflow container. -->
+		<div class="btn-group" dropdown container="body" placement="bottom right">
+			<button
+				class="btn btn-sm btn-primary"
+				type="button"
+				[disabled]="actions.isCalculating() || (mode() === 'automatic' && !graphDirty())"
+				(click)="calculate()"
+			>
+				@if (actions.isCalculating()) {
+					<span class="spinner-border spinner-border-sm me-1" role="status"></span>Calculating…
+				} @else {
+					<fa-icon [icon]="faPlay"></fa-icon> {{ buttonLabel() }}
+				}
+			</button>
+
+			@if (actions.isCalculating()) {
+				<button
+					class="btn btn-sm btn-danger"
+					type="button"
+					tooltip="Cancel calculation" placement="bottom"
+					(click)="cancel()"
+				><fa-icon [icon]="faXmark"></fa-icon></button>
+			} @else {
+				<button
+					class="btn btn-sm btn-primary dropdown-toggle dropdown-toggle-split"
+					type="button"
+					dropdownToggle
+					tooltip="Calculation mode" placement="bottom"
+				><span class="visually-hidden">Calculation mode</span></button>
+			}
+
+			<div *dropdownMenu class="dropdown-menu dropdown-menu-end" style="min-width: 280px;">
+				<h6 class="dropdown-header">Calculation mode</h6>
+				@for (option of modeOptions; track option.mode) {
+					<button
+						class="dropdown-item"
+						[class.active]="mode() === option.mode"
+						type="button"
+						(click)="setMode(option.mode)"
+					>
+						{{ option.label }}
+						<span class="d-block text-wrap opacity-75">{{ option.description }}</span>
+					</button>
+				}
+			</div>
+		</div>
+	</div>
+
+	@if (actions.solveError(); as error) {
+		<div class="alert alert-danger d-flex align-items-start gap-2 py-2 px-3 mx-2 mt-2 mb-0">
+			<span class="flex-grow-1">{{ actions.solveErrorDetail() ?? 'The solver could not find a solution (' + error + ').' }}</span>
+			<button type="button" class="btn-close btn-close-white flex-shrink-0" aria-label="Dismiss" (click)="actions.setSolveError(null)"></button>
+		</div>
+	}
+
+	<ul class="nav nav-tabs calc-tabs">
+		@for (tab of tabs; track tab.id) {
+			<li class="nav-item"><button class="nav-link" type="button" [class.active]="activeTab() === tab.id" (click)="setTab(tab.id)"><fa-icon [icon]="tab.icon"></fa-icon> {{ tab.label }}</button></li>
+		}
+	</ul>
+
+	@switch (activeTab()) {
+		@case ('request') { <calculator-production-tab></calculator-production-tab> }
+		@case ('input') { <calculator-input-tab></calculator-input-tab> }
+		@case ('recipes') { <calculator-recipes-tab></calculator-recipes-tab> }
+		@case ('resources') { <calculator-resources-tab></calculator-resources-tab> }
+		@case ('power') { <calculator-power-tab></calculator-power-tab> }
+		@case ('sink') { <calculator-sink-tab></calculator-sink-tab> }
+		@case ('sloops') { <calculator-sloops-tab></calculator-sloops-tab> }
+		@case ('overclocking') { <calculator-overclocking-tab></calculator-overclocking-tab> }
+		@case ('optimisation') { <calculator-optimisation-tab></calculator-optimisation-tab> }
+	}
+
+} @else if (activeFolder(); as folder) {
+
+	@if (folderHasCustomSettings()) {
+		<div class="req-controls">
+			<button
+				class="btn btn-sm btn-outline-secondary"
+				type="button"
+				tooltip="Reset all default settings (mode, recipes, resources, power) to the defaults" placement="bottom"
+				(click)="resetSettings()"
+			><fa-icon [icon]="faRotateLeft"></fa-icon> Reset to defaults</button>
+			<button
+				class="btn btn-sm btn-outline-secondary"
+				type="button"
+				tooltip="Replace all default settings with those of the parent folder" placement="bottom"
+				(click)="inheritSettings()"
+			><fa-icon [icon]="faCopy"></fa-icon> Inherit from {{ parentLabel() }}</button>
+
+			<div class="btn-group" dropdown container="body" placement="bottom left">
+				<button
+					class="btn btn-sm btn-outline-secondary dropdown-toggle"
+					type="button"
+					dropdownToggle
+					tooltip="Default calculation mode for new plans" placement="bottom"
+				>Mode: {{ modeLabel() }}</button>
+				<div *dropdownMenu class="dropdown-menu" style="min-width: 280px;">
+					<h6 class="dropdown-header">Default calculation mode</h6>
+					@for (option of modeOptions; track option.mode) {
+						<button
+							class="dropdown-item"
+							[class.active]="mode() === option.mode"
+							type="button"
+							(click)="setMode(option.mode)"
+						>
+							{{ option.label }}
+							<span class="d-block text-wrap opacity-75">{{ option.description }}</span>
+						</button>
+					}
+				</div>
+			</div>
+
+			<span class="flex-grow-1"></span>
+
+			<button
+				class="btn btn-sm btn-outline-secondary"
+				type="button"
+				tooltip="Remove the custom settings - the folder inherits from its parent again" placement="bottom"
+				(click)="disableFolderSettings()"
+			>Remove custom settings</button>
+		</div>
+		<div class="px-3 pt-2 text-secondary">
+			These settings are the defaults for new plans and subfolders created in "{{ folder.name }}".
+		</div>
+	} @else {
+		<div class="req-controls">
+			<span class="text-secondary">This folder inherits its solver settings from {{ parentLabel() }}.</span>
+			<span class="flex-grow-1"></span>
+			<button
+				class="btn btn-sm btn-primary"
+				type="button"
+				tooltip="Give this folder its own settings - they become the defaults for new plans and subfolders created here" placement="bottom"
+				(click)="enableFolderSettings()"
+			>Set default settings for folder</button>
+		</div>
+	}
+
+	<ul class="nav nav-tabs calc-tabs">
+		@for (tab of tabs; track tab.id) {
+			<li class="nav-item"><button class="nav-link" type="button" [class.active]="activeTab() === tab.id" (click)="setTab(tab.id)"><fa-icon [icon]="tab.icon"></fa-icon> {{ tab.label }}</button></li>
+		}
+	</ul>
+
+	@switch (activeTab()) {
+		@case ('request') {
+			<div class="p-3 text-secondary">
+				A folder has no production request - open one of its plans, or
+				<button
+					class="btn btn-sm btn-outline-success ms-1"
+					type="button"
+					(click)="createPlanInFolder()"
+				>Create a plan in "{{ folder.name }}"</button>
+			</div>
+		}
+		@case ('input') {
+			<div class="p-3 text-secondary">
+				A folder has no inputs - open one of its plans to add item sources for the solver.
+			</div>
+		}
+		@default {
+			@if (folderHasCustomSettings()) {
+				@switch (activeTab()) {
+					@case ('recipes') { <calculator-recipes-tab></calculator-recipes-tab> }
+					@case ('resources') { <calculator-resources-tab></calculator-resources-tab> }
+					@case ('power') { <calculator-power-tab></calculator-power-tab> }
+					@case ('sink') { <calculator-sink-tab></calculator-sink-tab> }
+					@case ('sloops') { <calculator-sloops-tab></calculator-sloops-tab> }
+					@case ('overclocking') { <calculator-overclocking-tab></calculator-overclocking-tab> }
+					@case ('optimisation') { <calculator-optimisation-tab></calculator-optimisation-tab> }
+				}
+			} @else {
+				<div class="p-3 text-secondary">
+					This folder inherits its solver settings from {{ parentLabel() }}.
+					Use "Set default settings for folder" above to customize them - they become
+					the defaults for new plans and subfolders created here.
+				</div>
+			}
+		}
+	}
+
+} @else {
+	<div class="p-3 text-secondary">
+		Select a plan or create a new one.
+	</div>
+}

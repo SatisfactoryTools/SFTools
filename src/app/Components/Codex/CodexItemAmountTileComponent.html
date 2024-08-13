@@ -1,0 +1,8 @@
+@if (entry.item) {
+	<a class="io-tile" [codexLink]="'items/' + entry.item.className" [title]="entry.item.name">
+		<span class="io-amount text-nowrap">{{ formatter.amount(entry.amount) }}&times; <game-icon [hash]="entry.item.icon" [size]="24" [alt]="entry.item.name"></game-icon></span>
+		@if (caption !== null) {
+			<span class="small text-muted text-nowrap">{{ caption }}</span>
+		}
+	</a>
+}

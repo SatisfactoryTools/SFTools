@@ -1,0 +1,25 @@
+@if (contextMenu.menu(); as menu) {
+	<div
+		class="dropdown-menu show shadow"
+		style="position: fixed; z-index: 1050; min-width: 180px;"
+		[style.left.px]="left"
+		[style.top.px]="top"
+	>
+		@if (menu.getTitle(); as title) {
+			<h6 class="dropdown-header">{{ title }}</h6>
+		}
+		@for (item of menu.getItems(); track item.label) {
+			<button
+				type="button"
+				class="dropdown-item d-flex align-items-center gap-2"
+				[disabled]="item.disabled"
+				(click)="run(item)"
+			>
+				@if (item.icon) {
+					<fa-icon [icon]="item.icon" [fixedWidth]="true"></fa-icon>
+				}
+				{{ item.label }}
+			</button>
+		}
+	</div>
+}

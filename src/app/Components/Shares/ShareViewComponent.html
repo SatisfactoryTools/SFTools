@@ -1,0 +1,87 @@
+<div class="container-fluid py-3">
+
+	@if (error(); as message) {
+		<div class="alert alert-danger">{{ message }}</div>
+	} @else if (payload(); as share) {
+
+		<div class="d-flex align-items-center flex-wrap gap-2 mb-3">
+			<h4 class="mb-0">
+				Shared {{ share.type }}:
+				{{ share.type === 'folder' ? share.root.name : (selectedPlan()?.name ?? share.root.name) }}
+			</h4>
+			<span class="badge bg-secondary">{{ share.version.name }}</span>
+			@if (share.version.experimental) {
+				<span class="badge bg-warning text-dark">Experimental</span>
+			}
+			@if (share.version.custom) {
+				<span class="badge bg-info">Custom</span>
+			}
+			<span class="text-secondary small">shared {{ share.sharedAt | date:'medium' }}</span>
+
+			<span class="flex-grow-1"></span>
+
+			@if (ownedVersion(); as accessibleVersion) {
+				<button type="button" class="btn btn-sm" [class.btn-primary]="!copied" [class.btn-success]="copied" [disabled]="copied" (click)="copyToMyPlans()">
+					<fa-icon [icon]="copied ? faCheck : faCopy"></fa-icon>
+					{{ copied ? 'Copied to your plans' : 'Copy to my plans' }}
+				</button>
+				@if (copied) {
+					<a class="btn btn-sm btn-outline-primary" [routerLink]="['/', versionManager.urlSlug(accessibleVersion), 'planner']">Open planner</a>
+				}
+			}
+		</div>
+
+		@if (versionUnavailable()) {
+			<div class="alert alert-warning py-2 px-3">
+				This share belongs to a game version that is no longer available, the plan graphs cannot be shown
+				and copying is unavailable. You can still see what the share contains below.
+			</div>
+		} @else if (version() !== null && ownedVersion() === null) {
+			<div class="alert alert-info py-2 px-3">
+				This share belongs to a game version you don't have, you can view it, but copying it
+				to your own plans is not available.
+			</div>
+		}
+
+		<div class="d-flex gap-3 align-items-stretch">
+			<div class="share-tree card bg-dark border-secondary p-2">
+				@for (row of treeRows(); track row.id) {
+					<div
+						class="share-tree-row d-flex align-items-center gap-1 text-truncate"
+						[class.selectable]="row.plan !== null"
+						[class.active]="row.plan !== null && row.plan === selectedPlan()"
+						[style.padding-left.rem]="row.depth * 1 + 0.35"
+						(click)="selectPlan(row)"
+					>
+						<span class="text-secondary">
+							<fa-icon [icon]="row.kind === 'folder' ? faFolder : faFileLines" [fixedWidth]="true"></fa-icon>
+						</span>
+						<span class="text-truncate">{{ row.name }}</span>
+					</div>
+				}
+			</div>
+
+			<div class="flex-grow-1 d-flex flex-column gap-2" style="min-width: 0;">
+				@if (selectedPlan(); as plan) {
+					@if (plan.description) {
+						<div class="text-secondary">{{ plan.description }}</div>
+					}
+					@if (version() !== null) {
+						<div #graphContainer class="share-graph border border-secondary rounded position-relative overflow-hidden"></div>
+						@if (!dataReady()) {
+							<div class="text-secondary small">Loading game data&hellip;</div>
+						}
+					}
+				} @else {
+					<div class="text-secondary p-3">Select a plan on the left.</div>
+				}
+			</div>
+		</div>
+
+	} @else {
+		<p class="text-muted">Loading share&hellip;</p>
+	}
+
+</div>
+
+<planner-node-tooltip/>

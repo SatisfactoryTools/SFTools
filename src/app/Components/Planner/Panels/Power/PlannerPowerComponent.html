@@ -1,0 +1,75 @@
+<div class="p-2 d-flex flex-column gap-2">
+
+	@if (!hasRows()) {
+		<p class="text-secondary mb-0">
+			{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its power usage.' }}
+		</p>
+	} @else {
+		<input
+			type="search"
+			class="form-control form-control-sm bg-dark text-light border-secondary"
+			placeholder="Filter by building or recipe…"
+			[value]="searchTerm()"
+			(input)="setSearchTerm($any($event.target).value)"
+		/>
+
+		<div class="d-flex gap-3 flex-wrap">
+			<span class="text-secondary">Consumption: <span class="text-warning">{{ rateFormatter.power(breakdown().consumption) }}</span></span>
+			@if (breakdown().production > 0) {
+				<span class="text-secondary">Production: <span class="text-success">{{ rateFormatter.power(breakdown().production) }}</span></span>
+				<span class="text-secondary">Net: <span [class]="netIsSurplus() ? 'text-success' : 'text-warning'">{{ netText() }}</span></span>
+			}
+		</div>
+
+		<table class="table table-dark table-sm table-hover align-middle mb-0">
+			<thead>
+				<tr>
+					<th>{{ isFolderView() ? 'Plan' : 'Building' }}</th>
+					<th class="text-end" style="width: 80px;">Count</th>
+					<th class="text-end" style="width: 110px;">Power</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (row of rows(); track row.key) {
+					<tr (click)="toggle(row)" [style.cursor]="row.entries.length > 0 ? 'pointer' : 'default'">
+						<td>
+							<div class="d-flex">
+								<fa-icon
+									[icon]="isExpanded(row) ? faChevronDown : faChevronRight"
+									[fixedWidth]="true"
+									class="text-secondary"
+									[class.invisible]="row.entries.length === 0"
+								></fa-icon>
+								<span>
+									@if (row.kind === 'subplan') {
+										<span class="text-secondary">Subplan:</span>
+									}
+									{{ row.name }}
+								</span>
+							</div>
+						</td>
+						<td class="text-end">{{ rateFormatter.amount(row.machines) }}</td>
+						<td class="text-end" [class.text-success]="isProduction(row.megawatts)">{{ powerText(row.megawatts) }}</td>
+					</tr>
+					@if (isExpanded(row)) {
+						@for (entry of row.entries; track entry.key) {
+							<tr>
+								<td class="ps-4">
+									{{ entry.name }}
+									@if (entry.detail !== '') {
+										<small class="text-secondary d-block ps-3">{{ entry.detail }}</small>
+									}
+								</td>
+								<td class="text-end text-secondary">{{ rateFormatter.amount(entry.machines) }}</td>
+								<td class="text-end text-secondary" [class.text-success]="isProduction(entry.megawatts)">{{ powerText(entry.megawatts) }}</td>
+							</tr>
+						}
+					}
+				} @empty {
+					<tr><td colspan="3" class="text-secondary fst-italic">Nothing matches the filter.</td></tr>
+				}
+			</tbody>
+		</table>
+	}
+
+</div>

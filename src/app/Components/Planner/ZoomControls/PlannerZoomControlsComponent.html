@@ -1,0 +1,5 @@
+<button class="zb" type="button" tooltip="Undo (Ctrl+Z)" placement="right" [disabled]="!history.canUndo()" (click)="undo()"><fa-icon [icon]="faArrowRotateLeft"></fa-icon></button>
+<button class="zb" type="button" tooltip="Redo (Ctrl+Shift+Z)" placement="right" [disabled]="!history.canRedo()" (click)="redo()"><fa-icon [icon]="faArrowRotateRight"></fa-icon></button>
+<button class="zb" type="button" tooltip="Zoom in" placement="right" (click)="zoomIn()"><fa-icon [icon]="faPlus"></fa-icon></button>
+<button class="zb" type="button" tooltip="Zoom out" placement="right" (click)="zoomOut()"><fa-icon [icon]="faMinus"></fa-icon></button>
+<button class="zb" type="button" tooltip="Zoom to fit" placement="right" (click)="zoomFit()"><fa-icon [icon]="faExpand"></fa-icon></button>

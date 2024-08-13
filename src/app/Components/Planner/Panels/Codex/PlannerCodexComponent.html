@@ -1,0 +1,11 @@
+@if (popOutLink(); as link) {
+	<div class="position-sticky top-0" style="height: 0; z-index: 5;">
+		<a
+			class="btn btn-sm btn-secondary position-absolute top-0 end-0 mt-2 me-2"
+			[routerLink]="link"
+			tooltip="Open fullscreen" placement="left" container="body"
+			aria-label="Open fullscreen codex"
+		><fa-icon [icon]="faUpRightFromSquare"></fa-icon></a>
+	</div>
+}
+<codex-browser/>

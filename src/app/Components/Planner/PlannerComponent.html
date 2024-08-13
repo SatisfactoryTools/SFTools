@@ -1,0 +1,22 @@
+<!-- user-select/dragstart: shift+rubberband must not start a text selection over
+     the SVG labels - dragging afterwards would trigger the browser's native
+     drag-of-selection instead of moving the nodes. -->
+<div
+	#graphContainer
+	style="position: absolute; inset: 0; user-select: none;"
+	(contextmenu)="$event.preventDefault()"
+	(dragstart)="$event.preventDefault()"
+></div>
+
+<planner-panel-container></planner-panel-container>
+<planner-context-menu></planner-context-menu>
+<planner-node-tooltip></planner-node-tooltip>
+
+@if (addNodeOpen()) {
+	<add-node-dialog
+		[filter]="addNodeFilter()"
+		[suggestedAmount]="addNodeSuggestedAmount()"
+		(add)="onAddNode($event)"
+		(close)="closeAddNode()"
+	></add-node-dialog>
+}

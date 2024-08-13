@@ -1,0 +1,10 @@
+@for (panel of layout.registered(); track panel.id) {
+	<button
+		class="rail-btn"
+		[class.active]="layout.isOpen(panel.id)"
+		type="button"
+		[tooltip]="panel.label"
+		placement="right"
+		(click)="layout.focusPanel(panel.id)"
+	><fa-icon [icon]="panel.icon"></fa-icon></button>
+}

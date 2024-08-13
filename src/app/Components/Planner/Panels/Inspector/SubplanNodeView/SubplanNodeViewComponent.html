@@ -1,0 +1,28 @@
+<div class="p-2 d-flex flex-column gap-2">
+
+	<div class="text-secondary">Subplan: <span class="text-light">{{ displayName }}</span></div>
+	<div class="text-secondary">Double-click the node to open the subplan; its inputs and outputs come from the subplan's graph.</div>
+
+	<div>
+		<div class="text-secondary mb-1">Inputs</div>
+		@for (input of node.inputs; track input.item.className) {
+			<div class="d-flex justify-content-between">
+				<span>{{ input.item.name }}</span>
+				<span class="text-info">{{ rateFormatter.rate(input.maxAmount, input.item) }}</span>
+			</div>
+		} @empty {
+			<div class="fst-italic text-secondary">None</div>
+		}
+
+		<div class="text-secondary mb-1 mt-2">Outputs</div>
+		@for (output of node.outputs; track output.item.className) {
+			<div class="d-flex justify-content-between">
+				<span>{{ output.item.name }}</span>
+				<span class="text-success">{{ rateFormatter.rate(output.maxAmount, output.item) }}</span>
+			</div>
+		} @empty {
+			<div class="fst-italic text-secondary">None</div>
+		}
+	</div>
+
+</div>

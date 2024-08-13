@@ -1,0 +1,15 @@
+<ul class="list-group list-group-flush">
+	@for (schematic of schematics; track schematic.className) {
+		<li class="list-group-item px-3 py-2">
+			<div class="d-flex align-items-center flex-wrap gap-2">
+				<codex-entity-link [link]="'schematics/' + schematic.className" [icons]="[schematic.icon]" [name]="schematic.name"/>
+				@if (schematic.tier > 0) {
+					<span class="badge bg-secondary">Tier {{ schematic.tier }}</span>
+				}
+			</div>
+			@if (showCost && schematic.cost.length > 0) {
+				<codex-item-amount-list class="d-block mt-1 ms-4" [amounts]="schematic.cost"/>
+			}
+		</li>
+	}
+</ul>

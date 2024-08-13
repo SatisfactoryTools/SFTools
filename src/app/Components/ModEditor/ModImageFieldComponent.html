@@ -1,0 +1,16 @@
+<div class="d-flex align-items-center gap-2">
+	@if (previewUrl; as url) {
+		<img [src]="url" alt="" style="width: 32px; height: 32px; object-fit: contain;" class="border border-secondary rounded bg-dark" />
+	}
+	<input
+		type="text"
+		class="form-control form-control-sm bg-dark text-light border-secondary"
+		placeholder="image id"
+		[ngModel]="value ?? ''"
+		(ngModelChange)="onIdChange($event)"
+	/>
+	<label class="btn btn-sm btn-outline-secondary mb-0">
+		Upload…
+		<input type="file" accept="image/*" class="d-none" (change)="onFilePicked($event)" />
+	</label>
+</div>

@@ -1,0 +1,16 @@
+<navbar/>
+
+@if (notifications.message()) {
+	<div class="position-fixed top-0 start-50 translate-middle-x" style="margin-top: 64px; z-index: 1055; min-width: 320px; max-width: 600px;">
+		<div class="alert alert-danger alert-dismissible mb-0 shadow-sm py-2 px-3" role="alert">
+			{{ notifications.message() }}
+			<button type="button" class="btn-close btn-close-white" (click)="notifications.dismiss()"></button>
+		</div>
+	</div>
+}
+
+<div class="container-fluid" style="margin-top: 60px;">
+	<router-outlet/>
+</div>
+
+<settings-conflict-dialog/>

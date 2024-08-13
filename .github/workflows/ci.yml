@@ -1,0 +1,84 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        # Skip duplicate runs for PRs from branches in this repo (the push event already builds them)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+        steps:
+            -   uses: actions/checkout@v5
+
+            -   uses: actions/setup-node@v5
+                with:
+                    node-version: 24
+                    cache: npm
+
+            -   run: npm ci
+
+            -   name: Create env.ts from env.prod.ts
+                run: cp src/env/env.prod.ts src/env/env.ts
+
+            -   name: Build
+                run: npm run build
+
+            -   name: Upload build artifact
+                if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+                uses: actions/upload-artifact@v4
+                with:
+                    name: dist
+                    path: dist
+                    retention-days: 1
+
+    deploy:
+        needs: build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        runs-on: ubuntu-latest
+        concurrency:
+            group: production-deploy
+            cancel-in-progress: false
+        steps:
+            -   name: Download build artifact
+                uses: actions/download-artifact@v4
+                with:
+                    name: dist
+                    path: dist
+
+            -   name: Set up SSH
+                env:
+                    DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                    DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                run: |
+                    mkdir -p ~/.ssh
+                    printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
+                    chmod 600 ~/.ssh/id_deploy
+                    ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+                    printf 'Host deploy-target\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n' \
+                      "$DEPLOY_HOST" "${{ secrets.DEPLOY_USER }}" >> ~/.ssh/config
+
+            -   name: Upload release
+                env:
+                    DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+                run: |
+                    RELEASE="$(date +%Y%m%d-%H%M%S)-${GITHUB_SHA:0:7}"
+                    echo "RELEASE=$RELEASE" >> "$GITHUB_ENV"
+                    ssh deploy-target "mkdir -p '$DEPLOY_PATH/releases/$RELEASE'"
+                    rsync -az --delete dist/ "deploy-target:$DEPLOY_PATH/releases/$RELEASE/"
+
+            -   name: Switch symlink and prune old releases
+                env:
+                    DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+                run: |
+                    ssh deploy-target "
+                      cd '$DEPLOY_PATH' &&
+                      ln -s 'releases/$RELEASE' current.tmp &&
+                      mv -T current.tmp current &&
+                      ls -1dt releases/*/ | tail -n +6 | xargs -r rm -rf
+                    "

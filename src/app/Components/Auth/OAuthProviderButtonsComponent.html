@@ -1,0 +1,17 @@
+@if (error; as message) {
+	<div class="alert alert-danger py-2">{{ message }}</div>
+}
+
+<div class="d-flex flex-column gap-2">
+	@for (provider of displayedProviders; track provider.key) {
+		<button
+			type="button"
+			class="btn btn-primary d-flex align-items-center justify-content-center gap-2"
+			[disabled]="startingProvider !== null"
+			(click)="start(provider)"
+		>
+			<fa-icon [icon]="provider.icon" [fixedWidth]="true"></fa-icon>
+			{{ startingProvider === provider.key ? 'Redirecting…' : verb + ' ' + provider.label }}
+		</button>
+	}
+</div>

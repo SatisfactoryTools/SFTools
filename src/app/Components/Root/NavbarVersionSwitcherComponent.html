@@ -1,0 +1,34 @@
+<li class="nav-item dropdown" dropdown>
+	<a class="nav-link dropdown-toggle" dropdownToggle href="javascript: void(0);">
+		<fa-icon [icon]="faCodeBranch"></fa-icon>
+		@if (versionManager.activeVersion(); as version) {
+			{{ version.name }}
+		} @else {
+			Version
+		}
+	</a>
+	<ul *dropdownMenu class="dropdown-menu">
+		@for (version of versionManager.versions(); track version.id) {
+			<li>
+				<a class="dropdown-item" [routerLink]="['/', versionManager.urlSlug(version)]">
+					{{ version.name }}
+					@if (version.experimental) {
+						<span class="badge bg-warning text-dark ms-1">Experimental</span>
+					}
+					@if (version.custom) {
+						<span class="badge bg-info ms-1">Custom</span>
+					}
+				</a>
+			</li>
+		}
+		@if (versionManager.versions().length > 0) {
+			<li><hr class="dropdown-divider"></li>
+		}
+		<li>
+			<a class="dropdown-item" routerLink="/">
+				<fa-icon [icon]="faList"></fa-icon>
+				All versions
+			</a>
+		</li>
+	</ul>
+</li>

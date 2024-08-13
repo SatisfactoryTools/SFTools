@@ -1,0 +1,19 @@
+@if (selectedNodes().length === 0) {
+	<div class="p-3 text-secondary">
+		Select a node on the canvas to inspect it.
+	</div>
+} @else if (selectedNodes().length > 1) {
+	<div class="p-3 text-secondary">
+		{{ selectedNodes().length }} nodes selected - multi-node editing is coming later.
+	</div>
+} @else if (singleRecipeNode(); as node) {
+	<recipe-node-editor [node]="node"></recipe-node-editor>
+} @else if (singleSubplanNode(); as node) {
+	<subplan-node-view [node]="node"></subplan-node-view>
+} @else if (singleAmountNode(); as node) {
+	<amount-node-editor [node]="node"></amount-node-editor>
+} @else {
+	<div class="p-3 text-secondary">
+		Editing this node type is coming later.
+	</div>
+}

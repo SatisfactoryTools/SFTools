@@ -36,7 +36,7 @@ $success:       $green !default;
 $info:          $cyan !default;
 $warning:       $yellow !default;
 $danger:        $red !default;
-$light:         lighten($gray-200, 35%) !default;
+$light:         #abb6c2 !default;
 $dark:          #20374c !default;
 
 $min-contrast-ratio:   1.6 !default;

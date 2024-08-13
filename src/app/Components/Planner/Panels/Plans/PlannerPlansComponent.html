@@ -1,0 +1,164 @@
+<div class="p-2">
+
+	<div
+		class="d-flex align-items-center gap-1 mb-2 tree-row"
+		[class.tree-drag-over]="dragOverId() === '__root__'"
+		(dragover)="onDragOver($event, '__root__')"
+		(dragleave)="onDragLeave($event, '__root__')"
+		(drop)="onDrop($event, null)"
+	>
+		<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleRoot()" [tooltip]="rootOpen() ? 'Collapse' : 'Expand'" placement="top">
+			<fa-icon [icon]="rootOpen() ? faCaretDown : faCaretRight"></fa-icon>
+		</button>
+		<span class="fw-semibold flex-grow-1">Your plans</span>
+		<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreateFolder(null)" tooltip="New folder" placement="top"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
+		<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreatePlan(null)" tooltip="New plan" placement="top"><fa-icon [icon]="faPlus"></fa-icon></button>
+	</div>
+
+	@for (item of treeItems(); track item.type + ':' + (item.type === 'plan' ? item.plan.id : item.type === 'folder' ? item.id : item.parentId + ':' + item.mode)) {
+		@if (item.type === 'input') {
+			<div class="d-flex align-items-center gap-1 tree-row" [style.padding-left.rem]="item.depth * 1 + (item.mode === 'folder' ? 1.5 : 1.5)">
+				<span class="text-secondary"><fa-icon [icon]="item.mode === 'folder' ? faFolder : faFileLines"></fa-icon></span>
+				<input
+					#editInput
+					class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"
+					[(ngModel)]="editValue"
+					(keydown)="onEditKeydown($event)"
+					(blur)="commitEdit()"
+					placeholder="{{ item.mode === 'folder' ? 'Folder name' : 'Plan name' }}"
+				/>
+			</div>
+		} @else if (item.type === 'folder') {
+			<div
+				class="d-flex align-items-center gap-1 tree-row"
+				[class.tree-drag-over]="dragOverId() === item.id"
+				[class.tree-plan-active]="item.id === activeFolderId()"
+				[class.tree-ancestor]="activeAncestorIds().has(item.id)"
+				[style.padding-left.rem]="item.depth * 1 + 0.25"
+				role="button"
+				draggable="true"
+				(click)="selectFolder(item.id)"
+				(contextmenu)="onFolderContextMenu($event, item.id, item.name)"
+				(dragstart)="onDragStart($event, 'folder', item.id)"
+				(dragover)="onDragOver($event, item.id)"
+				(dragleave)="onDragLeave($event, item.id)"
+				(drop)="onDrop($event, item.id)"
+				(dragend)="onDragEnd()"
+			>
+				<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.id); $event.stopPropagation()">
+					<fa-icon [icon]="item.isOpen ? faCaretDown : faCaretRight"></fa-icon>
+				</button>
+				@if (item.isEditing) {
+					<span class="text-secondary"><fa-icon [icon]="item.isOpen ? faFolderOpen : faFolder"></fa-icon></span>
+					<input
+						#editInput
+						class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"
+						[(ngModel)]="editValue"
+						(click)="$event.stopPropagation()"
+						(keydown)="onEditKeydown($event)"
+						(blur)="commitEdit()"
+					/>
+				} @else {
+					<span class="text-secondary"><fa-icon [icon]="item.isOpen ? faFolderOpen : faFolder"></fa-icon></span>
+					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name"><span (dblclick)="startRenameFolder(item.id, item.name)">{{ item.name }}</span></span>
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Folder menu" (click)="onFolderContextMenu($event, item.id, item.name)">
+						<fa-icon [icon]="faEllipsisVertical"></fa-icon>
+					</button>
+				}
+			</div>
+		} @else {
+			<div
+				class="d-flex align-items-center gap-1 tree-row"
+				[class.tree-plan-active]="item.plan.id === activePlanId()"
+				[class.tree-ancestor]="activeAncestorIds().has(item.plan.id)"
+				[style.padding-left.rem]="item.depth * 1 + 0.25"
+				role="button"
+				draggable="true"
+				(click)="selectPlan(item.plan)"
+				(contextmenu)="onPlanContextMenu($event, item.plan)"
+				(dragstart)="onDragStart($event, 'plan', item.plan.id)"
+				(dragend)="onDragEnd()"
+			>
+				@if (item.hasSubplans) {
+					<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.plan.id); $event.stopPropagation()">
+						<fa-icon [icon]="item.isOpen ? faCaretDown : faCaretRight"></fa-icon>
+					</button>
+				} @else {
+					<span class="tree-toggle"></span>
+				}
+				@if (item.isEditing) {
+					<span class="text-secondary tree-plan-icon">
+						@if (planIconHash(item.plan); as hash) {
+							<game-icon [hash]="hash" [size]="18" [alt]="planDisplayName(item.plan)"></game-icon>
+						} @else {
+							<fa-icon [icon]="faFileLines"></fa-icon>
+						}
+					</span>
+					<input
+						#editInput
+						class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"
+						[(ngModel)]="editValue"
+						(click)="$event.stopPropagation()"
+						(keydown)="onEditKeydown($event)"
+						(blur)="commitEdit()"
+					/>
+				} @else {
+					<span class="text-secondary tree-plan-icon">
+						@if (planIconHash(item.plan); as hash) {
+							<game-icon [hash]="hash" [size]="18" [alt]="planDisplayName(item.plan)"></game-icon>
+						} @else {
+							<fa-icon [icon]="faFileLines"></fa-icon>
+						}
+					</span>
+					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="planDisplayName(item.plan)"><span (dblclick)="startRenamePlan(item.plan.id, item.plan.name)">{{ planDisplayName(item.plan) }}</span></span>
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Plan menu" (click)="onPlanContextMenu($event, item.plan)">
+						<fa-icon [icon]="faEllipsisVertical"></fa-icon>
+					</button>
+				}
+			</div>
+		}
+	}
+
+	@if (showLocalSection()) {
+		<div class="d-flex align-items-center gap-1 mt-3 mb-2 tree-row">
+			<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleLocal()" [tooltip]="localOpen() ? 'Collapse' : 'Expand'" placement="top">
+				<fa-icon [icon]="localOpen() ? faCaretDown : faCaretRight"></fa-icon>
+			</button>
+			<span class="fw-semibold flex-grow-1">Local plans</span>
+		</div>
+
+		@if (localOpen()) {
+			<div class="text-secondary small px-1 mb-1">On this device only, not synced. Drag a plan or folder onto &ldquo;Your plans&rdquo; to move it into your account.</div>
+
+			@for (item of localTreeItems(); track item.kind + ':' + item.id) {
+				<div
+					class="d-flex align-items-center gap-1 tree-row"
+					[style.padding-left.rem]="item.depth * 1 + 1.5"
+					draggable="true"
+					(dragstart)="onDragStart($event, item.kind, item.id, 'local')"
+					(dragend)="onDragEnd()"
+				>
+					<span class="text-secondary">
+						@if (item.kind === 'folder') {
+							<fa-icon [icon]="faFolder"></fa-icon>
+						} @else if (item.iconHash) {
+							<game-icon [hash]="item.iconHash" [size]="18" [alt]="item.name"></game-icon>
+						} @else {
+							<fa-icon [icon]="faFileLines"></fa-icon>
+						}
+					</span>
+					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>
+				</div>
+			}
+		}
+	}
+
+</div>
+
+@if (iconPickerOpen()) {
+	<icon-picker-dialog (pick)="onIconPicked($event)" (none)="onIconNone()" (close)="closeIconPicker()"></icon-picker-dialog>
+}
+
+@if (shareLink(); as share) {
+	<share-link-dialog [link]="share.link" [subjectName]="share.name" (close)="closeShareDialog()"></share-link-dialog>
+}

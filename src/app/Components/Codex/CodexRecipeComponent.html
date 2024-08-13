@@ -1,0 +1,48 @@
+@if (showName) {
+	<td class="align-middle">
+		<span class="d-inline-flex align-items-center flex-wrap gap-2 fw-semibold">
+			<codex-entity-link [link]="'recipes/' + recipe.className" [name]="recipe.name"/>
+			@if (recipe.alternate) {
+				<span class="badge bg-warning text-dark">Alternate</span>
+			}
+		</span>
+	</td>
+}
+<td class="align-middle">
+	<div class="d-flex align-items-center flex-wrap column-gap-3 row-gap-2">
+		@for (entry of recipe.ingredients; track $index) {
+			<codex-item-amount-tile [entry]="entry" [caption]="perMinute(entry)"/>
+		}
+	</div>
+</td>
+<td class="align-middle text-center text-muted">
+	<fa-icon [icon]="faChevronRight"></fa-icon>
+</td>
+<td class="align-middle">
+	<div class="d-flex align-items-center flex-wrap column-gap-3 row-gap-2">
+		@for (entry of recipe.products; track $index) {
+			<codex-item-amount-tile [entry]="entry" [caption]="perMinute(entry)"/>
+		}
+	</div>
+</td>
+<td class="align-middle">
+	<div class="d-flex align-items-center flex-wrap column-gap-3 row-gap-2">
+		@for (building of recipe.producedIn; track building.className) {
+			<a class="io-tile" [codexLink]="'buildings/' + building.className" [title]="building.name">
+				<span class="io-amount"><game-icon [hash]="building.icon" [size]="24" [alt]="building.name"></game-icon></span>
+				<span class="small text-muted text-nowrap">{{ formatter.duration(recipe.time) }} ({{ cyclesPerMinute(recipe) }}/min)</span>
+			</a>
+		}
+		@if (recipe.producedIn.length === 0) {
+			@for (place of handcraftPlaces(recipe); track place) {
+				<span class="io-tile">
+					<span class="small">{{ place }}</span>
+					<span class="small text-muted text-nowrap">{{ formatter.duration(recipe.time) }} ({{ cyclesPerMinute(recipe) }}/min)</span>
+				</span>
+			}
+		}
+	</div>
+	@if (recipe.producedIn.length > 0 && handcraftPlaces(recipe).length > 0) {
+		<div class="small text-muted">also: {{ handcraftPlaces(recipe).join(', ') }}</div>
+	}
+</td>

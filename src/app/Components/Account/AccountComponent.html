@@ -1,0 +1,59 @@
+<div class="container mt-4" style="max-width: 720px;">
+	<h2>Account</h2>
+
+	@if (justLinked; as provider) {
+		<div class="alert alert-success py-2">{{ provider }} connected successfully.</div>
+	}
+	@if (error; as message) {
+		<div class="alert alert-danger py-2">{{ message }}</div>
+	}
+
+	@if (loading) {
+		<p class="text-secondary">Loading…</p>
+	} @else if (loadError) {
+		<div class="alert alert-danger">Could not load your sign-in methods.</div>
+	} @else {
+		<h5 class="mt-4">Sign-in methods</h5>
+		<div class="list-group">
+			@for (provider of allProviders; track provider.key) {
+				<div class="list-group-item bg-dark border-secondary d-flex align-items-center gap-2">
+					<fa-icon [icon]="provider.icon" [fixedWidth]="true"></fa-icon>
+					<span class="fw-semibold" style="width: 90px;">{{ provider.label }}</span>
+					@if (connectionOf(provider); as connection) {
+						<span class="text-secondary small flex-grow-1">
+							{{ connection.email ?? 'connected' }} · since {{ connection.connectedAt | date:'mediumDate' }}
+						</span>
+						<button
+							type="button"
+							class="btn btn-sm btn-outline-danger py-0"
+							[disabled]="!connection.canDisconnect"
+							[title]="connection.canDisconnect ? '' : 'Your only sign-in method cannot be removed.'"
+							(click)="disconnect(provider)"
+						>Disconnect</button>
+					} @else {
+						<span class="text-secondary small flex-grow-1 fst-italic">Not connected</span>
+						<button
+							type="button"
+							class="btn btn-sm btn-outline-primary py-0"
+							[disabled]="startingProvider !== null"
+							(click)="connect(provider)"
+						>{{ startingProvider === provider.key ? 'Redirecting…' : 'Connect' }}</button>
+					}
+				</div>
+			}
+			<div class="list-group-item bg-dark border-secondary d-flex align-items-center gap-2">
+				<span class="fw-semibold" style="width: 90px; margin-left: 25px;">Password</span>
+				<span class="text-secondary small flex-grow-1">
+					{{ hasPassword ? 'Set - you can sign in with username & password.' : 'Not set.' }}
+				</span>
+			</div>
+		</div>
+
+		@if (!hasPassword) {
+			<p class="text-secondary small mt-2">
+				To set a password (needed before removing your last connected account),
+				contact <code>greeny.dev</code> on Discord.
+			</p>
+		}
+	}
+</div>

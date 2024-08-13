@@ -1,0 +1,48 @@
+@if (conflictService.conflict()) {
+	<div class="conflict-backdrop">
+		<div class="conflict-dialog card border-secondary">
+			<div class="card-header">
+				<h5 class="mb-0">Settings differ</h5>
+			</div>
+
+			<div class="p-3" style="overflow-y: auto;">
+				<p class="text-secondary">
+					Your account has different settings from this device. Choose which set to keep -
+					the other is replaced. This does not affect your plans or panel layout.
+				</p>
+
+				<div class="table-responsive">
+					<table class="table table-sm align-middle mb-0">
+						<thead>
+							<tr>
+								<th>Setting</th>
+								<th>Account</th>
+								<th>This device</th>
+							</tr>
+						</thead>
+						<tbody>
+							@for (row of rows; track row.label) {
+								<tr>
+									<td>{{ row.label }}</td>
+									<td>
+										@if (row.remoteColor) { <span class="swatch" [style.background]="row.remoteColor"></span> }
+										{{ row.remote }}
+									</td>
+									<td>
+										@if (row.localColor) { <span class="swatch" [style.background]="row.localColor"></span> }
+										{{ row.local }}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+
+			<div class="card-footer d-flex justify-content-end gap-2">
+				<button type="button" class="btn btn-sm btn-outline-light" (click)="acceptRemote()">Use account settings</button>
+				<button type="button" class="btn btn-sm btn-primary" (click)="acceptLocal()">Keep this device's settings</button>
+			</div>
+		</div>
+	</div>
+}

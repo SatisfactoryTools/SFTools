@@ -1,0 +1,105 @@
+@if (isMobile()) {
+
+	<!-- ══ MOBILE (F1): bottom view tabs + plans drawer + request sheet ══ -->
+
+	<!-- Plans drawer trigger -->
+	<button class="mob-menu-btn" type="button" tooltip="Plans" placement="right" (click)="openDrawer()"><fa-icon [icon]="faBars"></fa-icon></button>
+
+	<!-- Active full-screen view (Power / Items / Cost) -->
+	@if (layout.mobileActivePanel(); as panel) {
+		<div class="mob-view">
+			<ng-container [ngComponentOutlet]="panel.component"></ng-container>
+		</div>
+	}
+
+	<!-- Request bottom sheet - only over the graph view -->
+	@if (!layout.mobileActivePanel()) {
+		<div class="mob-sheet" [class.expanded]="sheetOpen()">
+			<div class="mob-sheet-head" (click)="toggleSheet()">
+				<div class="mob-grab"></div>
+				<div class="mob-sheet-title">
+					<span>Production request</span>
+					<span class="mob-sheet-caret"><fa-icon [icon]="sheetOpen() ? faChevronDown : faChevronUp"></fa-icon></span>
+				</div>
+			</div>
+			@if (sheetOpen()) {
+				<div class="mob-sheet-body">
+					@if (layout.panelById('calculator'); as calc) {
+						<ng-container [ngComponentOutlet]="calc.component"></ng-container>
+					}
+				</div>
+			}
+		</div>
+	}
+
+	<!-- Bottom view tab bar -->
+	<div class="mob-nav">
+		<button class="mob-tab" [class.active]="!layout.mobileActivePanel()" type="button" (click)="layout.setMobilePanel(null)">Graph</button>
+		<button class="mob-tab" [class.active]="layout.mobileActivePanel()?.id === 'power'" type="button" (click)="layout.setMobilePanel('power')">Power</button>
+		<button class="mob-tab" [class.active]="layout.mobileActivePanel()?.id === 'items'" type="button" (click)="layout.setMobilePanel('items')">Items</button>
+		<button class="mob-tab" [class.active]="layout.mobileActivePanel()?.id === 'build-cost'" type="button" (click)="layout.setMobilePanel('build-cost')">Cost</button>
+	</div>
+
+	<!-- Plans drawer -->
+	@if (drawerOpen()) {
+		<div class="mob-scrim" (click)="closeDrawer()"></div>
+		<div class="mob-drawer">
+			@if (layout.panelById('plans'); as plans) {
+				<ng-container [ngComponentOutlet]="plans.component"></ng-container>
+			}
+		</div>
+	}
+
+} @else {
+
+	<!-- ══ DESKTOP (D1): icon rail + pinned panels + floating panels ══ -->
+
+	<div class="rail">
+		<planner-rail></planner-rail>
+	</div>
+
+	@if (leftOpen()) {
+		<div [style]="leftPanelStyle">
+			<panel-content-area [side]="'left'"></panel-content-area>
+		</div>
+	}
+
+	@if (rightOpen()) {
+		<div [style]="rightPanelStyle">
+			<panel-content-area [side]="'right'"></panel-content-area>
+		</div>
+	}
+
+	@if (topOpen()) {
+		<div [style]="topPanelStyle">
+			<panel-content-area [side]="'top'"></panel-content-area>
+		</div>
+	}
+
+	<!-- Status bar along the bottom of the center column -->
+	<div [style]="statusBarStyle">
+		<planner-status-bar></planner-status-bar>
+	</div>
+
+	<!-- Zoom controls, bottom-left of the canvas -->
+	<div [style]="zoomStyle">
+		<planner-zoom-controls></planner-zoom-controls>
+	</div>
+
+	<!-- Floating windows; array order is the stacking order -->
+	@for (group of layout.floatingGroups(); track group.id; let i = $index) {
+		<div
+			[style]="floatWrapStyle(group, i)"
+			[class.fw-merge]="layout.mergePreview() === group.id"
+			(pointerdown)="layout.bringToFront(group.id)"
+		>
+			<planner-floating-window [group]="group"></planner-floating-window>
+		</div>
+	}
+
+	<!-- Dock-preview overlay while dragging a floating panel near an edge -->
+	@if (layout.dockPreview(); as side) {
+		<div [style]="dockPreviewStyle(side)"></div>
+	}
+
+}

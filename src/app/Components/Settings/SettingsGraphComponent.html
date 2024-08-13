@@ -1,0 +1,83 @@
+<div class="card">
+	<div class="card-header">
+		<h5 class="mb-0">Graph</h5>
+	</div>
+	<div class="card-body">
+		<h6 class="mb-2">Icons</h6>
+		<div class="row g-2 mb-4">
+			@for (item of iconToggles; track item.key) {
+				<div class="col-12 col-lg-6">
+					<div class="form-check">
+						<input
+							[id]="item.key"
+							type="checkbox"
+							class="form-check-input"
+							[ngModel]="toggle(item.key)"
+							(ngModelChange)="setToggle(item.key, $event)"
+						/>
+						<label class="form-check-label" [for]="item.key">{{ item.label }}</label>
+					</div>
+				</div>
+			}
+		</div>
+
+		<h6 class="mb-2">Effects</h6>
+		<div class="form-check mb-4">
+			<input
+				id="sloopGlow"
+				type="checkbox"
+				class="form-check-input"
+				[ngModel]="graph.sloopGlow"
+				(ngModelChange)="setToggle('sloopGlow', $event)"
+			/>
+			<label class="form-check-label" for="sloopGlow">Glow around slooped recipe nodes</label>
+		</div>
+
+		<h6 class="mb-2">Recipe nodes</h6>
+		<div class="row g-3 mb-4">
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="machine-display">Machine count display</label>
+				<select
+					id="machine-display"
+					class="form-select"
+					[ngModel]="graph.machineDisplay"
+					(ngModelChange)="setMachineDisplay($event)"
+				>
+					@for (option of machineDisplayOptions; track option.value) {
+						<option [value]="option.value">{{ option.label }}</option>
+					}
+				</select>
+				<div class="form-text">{{ machineDisplayDescription }}</div>
+			</div>
+			<div class="col-12 col-lg-6">
+				<div class="form-label">Preview</div>
+				<div class="node-preview" [style.border-color]="graph.nodeColors.recipe">
+					<div class="fw-bold">Iron Plate</div>
+					@if (previewBoldLine !== '') {
+						<div class="fw-bold small">{{ previewBoldLine }}</div>
+					}
+					@for (line of previewGroupLines; track $index) {
+						<div class="small group-line">{{ line }}</div>
+					}
+				</div>
+			</div>
+		</div>
+
+		<h6 class="mb-2">Node colours</h6>
+		<div class="row g-2">
+			@for (type of nodeTypes; track type.key) {
+				<div class="col-6 col-md-4 col-xl-3">
+					<label class="form-label small mb-1" [for]="'color-' + type.key">{{ type.label }}</label>
+					<input
+						[id]="'color-' + type.key"
+						type="color"
+						class="form-control form-control-color w-100"
+						[ngModel]="graph.nodeColors[type.key]"
+						(ngModelChange)="setNodeColor(type.key, $event)"
+					/>
+				</div>
+			}
+		</div>
+		<div class="form-text mt-2">Per-machine recipe colours are configured per plan, in the Planner settings panel.</div>
+	</div>
+</div>
