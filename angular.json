@@ -27,6 +27,11 @@
             "assets": [
               "src/assets",
               {
+                "glob": ".htaccess",
+                "input": "src",
+                "output": ""
+              },
+              {
                 "glob": "highs.wasm",
                 "input": "node_modules/highs/build",
                 "output": "assets"
