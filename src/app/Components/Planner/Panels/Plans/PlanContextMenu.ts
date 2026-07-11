@@ -57,13 +57,13 @@ export class PlanContextMenu extends PlannerContextMenu
 			});
 		}
 
-		if (this.plan.parentPlanId === null) {
-			items.push({
-				label: 'Delete plan',
-				icon: faXmark,
-				action: () => this.host.deletePlan(this.plan),
-			});
-		}
+		// Deleting a subplan also removes its node from the parent plan's graph
+		// (see PlanManager.deletePlan).
+		items.push({
+			label: this.plan.parentPlanId !== null ? 'Delete subplan' : 'Delete plan',
+			icon: faXmark,
+			action: () => this.host.deletePlan(this.plan),
+		});
 
 		return items;
 	}

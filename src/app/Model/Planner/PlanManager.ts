@@ -1,6 +1,6 @@
 import {Injectable, Signal, computed, signal} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
-import {distinctUntilChanged, map, skip} from 'rxjs';
+import {Observable, Subject, distinctUntilChanged, map, skip} from 'rxjs';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {FoldersApiService} from '@src/Model/API/FoldersApiService';
 import {PlansApiService} from '@src/Model/API/PlansApiService';
@@ -73,6 +73,14 @@ export class PlanManager extends SyncableService<PlanStore>
 	public readonly isAuthenticated: Signal<boolean> = computed(() => this.authService.isAuthenticated());
 
 	private readonly localPlanBackend: LocalStorageDataBackend<PlanStore>;
+
+	/**
+	 * Plan ids whose stored graphs just lost subplan nodes because the
+	 * referenced subplan was deleted - the planner re-renders the canvas when
+	 * the active plan is among them.
+	 */
+	private readonly scrubbedGraphsSubject = new Subject<string[]>();
+	public readonly scrubbedGraphs: Observable<string[]> = this.scrubbedGraphsSubject.asObservable();
 
 	public constructor(
 		authService: AuthService,
@@ -241,9 +249,11 @@ export class PlanManager extends SyncableService<PlanStore>
 			directPlanIds.flatMap(planId => [planId, ...this.collectDescendantPlanIds(planId, store.plans)]),
 		);
 
+		const scrubbed = this.scrubSubplanNodes(store.plans.filter(p => !deletedPlanIds.has(p.id)), deletedPlanIds);
+
 		this.mutate(() => ({
 			folders: store.folders.filter(f => !deletedIds.has(f.id)),
-			plans: store.plans.filter(p => !deletedPlanIds.has(p.id)),
+			plans: scrubbed.plans,
 		}));
 
 		if (this.activePlanId() !== null && deletedPlanIds.has(this.activePlanId()!)) {
@@ -252,6 +262,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		if (this.activeFolderId() !== null && deletedIds.has(this.activeFolderId()!)) {
 			this.activeFolderIdSignal.set(null);
 		}
+		this.notifyScrubbed(scrubbed.scrubbedIds);
 	}
 
 	/** New plans start from the folder chain's effective default settings. */
@@ -442,14 +453,17 @@ export class PlanManager extends SyncableService<PlanStore>
 		}));
 	}
 
+	/** Deletes the plan and its subplans; their nodes are scrubbed from every remaining graph. */
 	public deletePlan(id: string): void
 	{
 		const store = this.data();
 		const deletedIds = new Set([id, ...this.collectDescendantPlanIds(id, store.plans)]);
-		this.mutate(s => ({...s, plans: s.plans.filter(p => !deletedIds.has(p.id))}));
+		const scrubbed = this.scrubSubplanNodes(store.plans.filter(p => !deletedIds.has(p.id)), deletedIds);
+		this.mutate(s => ({...s, plans: scrubbed.plans}));
 		if (this.activePlanIdSignal() !== null && deletedIds.has(this.activePlanIdSignal()!)) {
 			this.activePlanIdSignal.set(null);
 		}
+		this.notifyScrubbed(scrubbed.scrubbedIds);
 	}
 
 	public renamePlan(id: string, name: string): void
@@ -532,6 +546,81 @@ export class PlanManager extends SyncableService<PlanStore>
 				.sort(byPlanName)
 				.map(buildPlan),
 		};
+	}
+
+	/** The plan's descendant subplans (all levels), e.g. for undo/redo snapshots. */
+	public subplansOf(planId: string): Plan[]
+	{
+		const plans = this.data().plans;
+		const ids = new Set(this.collectDescendantPlanIds(planId, plans));
+		return plans.filter(p => ids.has(p.id));
+	}
+
+	/**
+	 * Restores the descendant-subplan set of `parentId` to `target` (an undo/
+	 * redo snapshot): subplans missing from the store are recreated, ones not
+	 * in the snapshot are deleted, and surviving ones stay untouched so edits
+	 * made outside the snapshotted operation are not reverted. Recreated plans
+	 * are new to the API again, so their revision restarts.
+	 */
+	public reconcileSubplans(parentId: string, target: Plan[]): void
+	{
+		const store = this.data();
+		const currentIds = new Set(this.collectDescendantPlanIds(parentId, store.plans));
+		const targetIds = new Set(target.map(p => p.id));
+		const missing = target.filter(p => !currentIds.has(p.id)).map(p => ({...p, revision: null}));
+		const extraIds = new Set([...currentIds].filter(id => !targetIds.has(id)));
+		if (missing.length === 0 && extraIds.size === 0) {
+			return;
+		}
+		const scrubbed = this.scrubSubplanNodes(store.plans.filter(p => !extraIds.has(p.id)), extraIds);
+		this.mutate(s => ({...s, plans: [...scrubbed.plans, ...missing]}));
+		if (this.activePlanIdSignal() !== null && extraIds.has(this.activePlanIdSignal()!)) {
+			this.activePlanIdSignal.set(null);
+		}
+		this.notifyScrubbed(scrubbed.scrubbedIds);
+	}
+
+	/**
+	 * Removes subplan nodes referencing any of `deletedPlanIds` (with every
+	 * edge touching them) from all given plans' graphs; affected graphs are
+	 * marked dirty. Works on hydrated and raw-JSON graphs alike - both carry
+	 * type and subplanId.
+	 */
+	private scrubSubplanNodes(plans: Plan[], deletedPlanIds: Set<string>): {plans: Plan[]; scrubbedIds: string[]}
+	{
+		const scrubbedIds: string[] = [];
+		const result = plans.map(plan => {
+			if (!plan.graph) {
+				return plan;
+			}
+			const nodeIds = new Set(plan.graph.nodes
+				.filter(node => {
+					const raw = node as unknown as {type?: string; subplanId?: string};
+					return raw.type === 'subplan' && raw.subplanId !== undefined && deletedPlanIds.has(raw.subplanId);
+				})
+				.map(node => node.id));
+			if (nodeIds.size === 0) {
+				return plan;
+			}
+			scrubbedIds.push(plan.id);
+			return {
+				...plan,
+				graph: {
+					nodes: plan.graph.nodes.filter(node => !nodeIds.has(node.id)),
+					edges: plan.graph.edges.filter(edge => !nodeIds.has(edge.sourceId) && !nodeIds.has(edge.targetId)),
+				},
+				metadata: {...plan.metadata, graphDirty: true},
+			};
+		});
+		return {plans: result, scrubbedIds};
+	}
+
+	private notifyScrubbed(planIds: string[]): void
+	{
+		if (planIds.length > 0) {
+			this.scrubbedGraphsSubject.next(planIds);
+		}
 	}
 
 	private collectDescendantIds(folderId: string, folders: Folder[]): string[]

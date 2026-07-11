@@ -935,17 +935,31 @@ export class PlannerGraphService implements OnDestroy
 		});
 	}
 
-	/** Fills in{i}/out{i} icon slots and the {prefix}More overflow text for one side of a subplan node. */
+	/**
+	 * Fills in{i}/out{i} icon slots and the {prefix}More overflow text for one
+	 * side of a subplan node. Each column is centered vertically in the node
+	 * (the registered shape's static y values are placeholders for the full
+	 * five-row case).
+	 */
 	private applySubplanIoIcons(attrs: Record<string, Record<string, string | number>>, prefix: 'in' | 'out', ios: NodeIO[]): void
 	{
 		const show = this.settings.graph().showSubplanItemIcons;
 		const shown = !show ? 0 : (ios.length <= SUBPLAN_IO_MAX ? ios.length : SUBPLAN_IO_MAX - 1);
+		const more = show ? ios.length - shown : 0;
+		const rows = shown + (more > 0 ? 1 : 0);
+		const top = Math.max(0, (GraphMetrics.SUBPLAN_NODE_HEIGHT - rows * SUBPLAN_IO_ROW_H) / 2);
 		for (let i = 0; i < SUBPLAN_IO_MAX; i++) {
 			const io = i < shown ? ios[i] : null;
-			attrs[`${prefix}${i}`] = this.iconAttrs(io ? (this.iconUrls.url(io.item.icon, 64) ?? '') : '');
+			attrs[`${prefix}${i}`] = {
+				...this.iconAttrs(io ? (this.iconUrls.url(io.item.icon, 64) ?? '') : ''),
+				y: top + i * SUBPLAN_IO_ROW_H,
+			};
 		}
-		const more = show ? ios.length - shown : 0;
-		attrs[`${prefix}More`] = {text: more > 0 ? `+${more}` : '', display: more > 0 ? 'inline' : 'none'};
+		attrs[`${prefix}More`] = {
+			text: more > 0 ? `+${more}` : '',
+			display: more > 0 ? 'inline' : 'none',
+			y: top + shown * SUBPLAN_IO_ROW_H + SUBPLAN_IO_ICON / 2,
+		};
 	}
 
 	/**

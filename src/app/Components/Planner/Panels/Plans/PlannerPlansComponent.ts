@@ -462,7 +462,11 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	public deletePlan(plan: Plan): void
 	{
-		if (!confirm(`Delete plan "${this.planNames.displayName(plan)}"?`)) return;
+		const name = this.planNames.displayName(plan);
+		const message = plan.parentPlanId !== null
+			? `Delete subplan "${name}"? Its node is removed from the parent plan too.`
+			: `Delete plan "${name}"?`;
+		if (!confirm(message)) return;
 		this.planManager.deletePlan(plan.id);
 	}
 

@@ -72,8 +72,8 @@ export class NodeContextMenu extends PlannerContextMenu
 		items.push(this.resizeItem('Minimise to edges', faCompress, this.resize.minimise));
 		items.push(this.resizeItem('Maximise to edges', faExpand, this.resize.maximise));
 
-		// Deleting a subplan node only detaches it from this graph - the
-		// subplan itself stays in the plans tree.
+		// Deleting a subplan node deletes the subplan from the plans tree too
+		// (the planner confirms first).
 		items.push({
 			label: 'Delete node',
 			icon: faTrashCan,

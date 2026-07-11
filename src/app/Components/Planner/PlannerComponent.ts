@@ -419,6 +419,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			}),
 		);
 
+		// Deleting a subplan from the plans panel (or via a folder cascade)
+		// scrubs its node out of the parent's stored graph; when that parent
+		// is on the canvas, re-render it to drop the node there too.
+		this.subscription.add(
+			this.planManager.scrubbedGraphs.subscribe(planIds => this.refreshScrubbedGraph(planIds)),
+		);
+
 		// Renaming a subplan must relabel its node in the parent graph, which
 		// may be the plan currently on the canvas.
 		this.subscription.add(
@@ -791,8 +798,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	}
 
 	/**
-	 * Removes nodes together with every edge touching them. A subplan node
-	 * only detaches from this graph - its plan stays in the plans tree.
+	 * Removes nodes together with every edge touching them. Deleting a subplan
+	 * node deletes the subplan (and its own subplans) from the plans tree too,
+	 * after confirmation. Undo only restores the parent graph - the subplan
+	 * node comes back dangling (see SubplanIOResolver).
 	 */
 	private applyNodeDelete(nodeIds: string[]): void
 	{
@@ -810,8 +819,20 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		}
 
 		const ids = new Set(nodeIds);
-		if (!graph.nodes.some(node => ids.has(node.id))) {
+		const removed = graph.nodes.filter(node => ids.has(node.id));
+		if (removed.length === 0) {
 			return;
+		}
+
+		const subplans = removed.filter((node): node is SubplanNode => node instanceof SubplanNode);
+		if (subplans.length > 0) {
+			const names = subplans.map(node => `"${node.getDisplayName()}"`).join(', ');
+			const message = subplans.length === 1
+				? `Delete subplan ${names}? This removes it from your plans as well.`
+				: `Delete subplans ${names}? This removes them from your plans as well.`;
+			if (!confirm(message)) {
+				return;
+			}
 		}
 
 		this.history.push(this.snapshotOf(plan));
@@ -822,6 +843,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		};
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
 		this.planManager.setGraph(plan.id, updated, true);
+		subplans.forEach(node => this.planManager.deletePlan(node.subplanId));
 	}
 
 	/**
@@ -888,6 +910,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		return {
 			planId: plan.id,
 			graphJson: plan.graph ? JSON.stringify(plan.graph) : null,
+			subplansJson: JSON.stringify(this.planManager.subplansOf(plan.id)),
 		};
 	}
 
@@ -917,6 +940,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		if (snapshot.graphJson === null) {
 			this.plannerGraph.clear();
 			this.planManager.setGraph(plan.id, null, true);
+			this.restoreSubplans(plan.id, snapshot);
 			return;
 		}
 
@@ -929,6 +953,23 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		}
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
 		this.planManager.setGraph(plan.id, graph, true);
+		this.restoreSubplans(plan.id, snapshot);
+	}
+
+	/**
+	 * Undo/redo companion to the graph restore: recreates subplan entities the
+	 * banked operation deleted and deletes ones it created, so the plans panel
+	 * and the API stay consistent with the subplan nodes on the canvas. Runs
+	 * after the graph restore - the redo-side entity delete then finds the
+	 * node already gone and scrubs nothing.
+	 */
+	private restoreSubplans(planId: string, snapshot: GraphSnapshot): void
+	{
+		try {
+			this.planManager.reconcileSubplans(planId, JSON.parse(snapshot.subplansJson) as Plan[]);
+		} catch (err) {
+			this.notifications.show('Could not restore subplans: ' + String(err));
+		}
 	}
 
 	/** Toggles user ownership of nodes; a lock change is a manual graph edit and persists as such. */
@@ -1324,6 +1365,22 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			return refreshed;
 		});
 		return changed ? {nodes, edges: graph.edges} : graph;
+	}
+
+	/** Re-renders the canvas after a stored-graph scrub hit the rendered plan. */
+	private refreshScrubbedGraph(planIds: string[]): void
+	{
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId || !planIds.includes(plan.id)) {
+			return;
+		}
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch {
+			return;
+		}
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
 	}
 
 	/** Re-renders the canvas when a subplan rename left a node label stale. */
