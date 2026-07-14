@@ -39,7 +39,9 @@ export class NodeContextMenu extends PlannerContextMenu
 				icon: faCrosshairs,
 				action: () => {
 					this.plannerGraph.selectNodeById(this.node.id);
-					this.panelLayout.openPanel('inspector');
+					// focusPanel, not openPanel: an already-open inspector hidden
+					// behind another tab on its side must still come to the front.
+					this.panelLayout.focusPanel('inspector');
 				},
 			},
 		];

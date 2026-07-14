@@ -8,4 +8,7 @@ export interface ItemPickerOption
 
 	readonly iconHash: string | null;
 
+	/** Rendered struck through and dimmed - the plan cannot currently produce this item. */
+	readonly strike?: boolean;
+
 }

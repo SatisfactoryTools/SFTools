@@ -1,4 +1,4 @@
-import {GroupingMode} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/GroupingMode';
+import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 
 export interface GroupingModeOption
 {

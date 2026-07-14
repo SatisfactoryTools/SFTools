@@ -20,6 +20,7 @@
     "@angular/router": "^22.0.2",
     "@antv/layout": "^2.0.0",
     "@antv/x6": "^3.1.7",
+    "@etothepii/satisfactory-file-parser": "^4.1.1",
     "@fortawesome/angular-fontawesome": "^5.0.0",
     "@fortawesome/fontawesome-svg-core": "^7.2.0",
     "@fortawesome/free-brands-svg-icons": "^7.2.0",

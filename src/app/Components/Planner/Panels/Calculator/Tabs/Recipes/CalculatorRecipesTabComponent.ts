@@ -1,6 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
+import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Data} from '@src/Model/Data/Data';
@@ -20,7 +21,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'calculator-recipes-tab',
 	templateUrl: './CalculatorRecipesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, GameIconComponent],
+	imports: [FaIconComponent, FormsModule, GameIconComponent, TooltipDirective],
 })
 export class CalculatorRecipesTabComponent
 {
@@ -56,6 +57,22 @@ export class CalculatorRecipesTabComponent
 	public isEnabled(recipe: Recipe): boolean
 	{
 		return this.enabledSet()?.has(recipe.className) ?? false;
+	}
+
+	/** The recipe's every machine is disabled in the Machines tab - the solver ignores it. */
+	public isMachineDisabled(recipe: Recipe): boolean
+	{
+		const settings = this.planManager.activeSettings();
+		return settings !== null && this.resolver.isDisabledByMachine(recipe, settings);
+	}
+
+	public machineDisabledTitle(recipe: Recipe): string
+	{
+		if (!this.isMachineDisabled(recipe)) {
+			return '';
+		}
+		const names = recipe.producedIn.filter(building => building !== undefined).map(building => building.name);
+		return `Not available to the solver - ${names.join(', ')} ${names.length > 1 ? 'are' : 'is'} disabled in the Machines tab`;
 	}
 
 	public toggle(recipe: Recipe): void

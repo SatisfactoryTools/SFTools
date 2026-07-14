@@ -165,13 +165,16 @@ export class GraphComposer
 		let node: Node;
 
 		if (existing instanceof RecipeNode && incoming instanceof RecipeNode) {
-			node = new RecipeNode(
+			const merged = new RecipeNode(
 				existing.id,
 				existing.target + incoming.target,
 				this.coalesceGroups([...existing.groups, ...incoming.groups]),
 				existing.machine,
 				existing.recipe,
 			);
+			// The existing node may carry a user-chosen grouping mode - keep it.
+			merged.groupingMode = existing.groupingMode;
+			node = merged;
 		} else if (existing instanceof MineNode) {
 			node = new MineNode(existing.id, amount, existing.item);
 		} else if (existing instanceof ProductNode) {
@@ -197,7 +200,9 @@ export class GraphComposer
 		let node: Node;
 
 		if (incoming instanceof RecipeNode) {
-			node = new RecipeNode(match.id, incoming.target, incoming.groups, incoming.machine, incoming.recipe);
+			const adopted = new RecipeNode(match.id, incoming.target, incoming.groups, incoming.machine, incoming.recipe);
+			adopted.groupingMode = incoming.groupingMode;
+			node = adopted;
 		} else if (incoming instanceof MineNode) {
 			node = new MineNode(match.id, incoming.amount, incoming.item);
 		} else if (incoming instanceof ProductNode) {

@@ -233,7 +233,7 @@ export class ShareViewComponent implements AfterViewInit, OnDestroy
 		}
 		this.shareImport.import(payload);
 		this.copied = true;
-		this.notifications.show('Copied to your plans.');
+		this.notifications.showSuccess('Copied to your plans.');
 	}
 
 	private renderSelectedPlan(): void

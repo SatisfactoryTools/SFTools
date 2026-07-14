@@ -13,6 +13,12 @@
 			tooltip="Replace all solver settings with those of the parent plan or folder" placement="bottom"
 			(click)="inheritSettings()"
 		><fa-icon [icon]="faCopy"></fa-icon> Inherit from {{ parentLabel() }}</button>
+		<button
+			class="btn btn-sm btn-outline-secondary"
+			type="button"
+			tooltip="Set the machine, recipe and generator fuel selections from a game save's unlocks" placement="bottom"
+			(click)="openLoadFromSave()"
+		><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
 
 		<span class="flex-grow-1"></span>
 
@@ -90,6 +96,7 @@
 		@case ('request') { <calculator-production-tab></calculator-production-tab> }
 		@case ('input') { <calculator-input-tab></calculator-input-tab> }
 		@case ('recipes') { <calculator-recipes-tab></calculator-recipes-tab> }
+		@case ('machines') { <calculator-machines-tab></calculator-machines-tab> }
 		@case ('resources') { <calculator-resources-tab></calculator-resources-tab> }
 		@case ('power') { <calculator-power-tab></calculator-power-tab> }
 		@case ('sink') { <calculator-sink-tab></calculator-sink-tab> }
@@ -114,6 +121,12 @@
 				tooltip="Replace all default settings with those of the parent folder" placement="bottom"
 				(click)="inheritSettings()"
 			><fa-icon [icon]="faCopy"></fa-icon> Inherit from {{ parentLabel() }}</button>
+			<button
+				class="btn btn-sm btn-outline-secondary"
+				type="button"
+				tooltip="Set the machine, recipe and generator fuel selections from a game save's unlocks" placement="bottom"
+				(click)="openLoadFromSave()"
+			><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
 
 			<div class="btn-group" dropdown container="body" placement="bottom left">
 				<button
@@ -155,6 +168,12 @@
 			<span class="text-secondary">This folder inherits its solver settings from {{ parentLabel() }}.</span>
 			<span class="flex-grow-1"></span>
 			<button
+				class="btn btn-sm btn-outline-secondary"
+				type="button"
+				tooltip="Give this folder custom settings with the machine, recipe and generator fuel selections of a game save's unlocks" placement="bottom"
+				(click)="openLoadFromSave()"
+			><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
+			<button
 				class="btn btn-sm btn-primary"
 				type="button"
 				tooltip="Give this folder its own settings - they become the defaults for new plans and subfolders created here" placement="bottom"
@@ -189,6 +208,7 @@
 			@if (folderHasCustomSettings()) {
 				@switch (activeTab()) {
 					@case ('recipes') { <calculator-recipes-tab></calculator-recipes-tab> }
+					@case ('machines') { <calculator-machines-tab></calculator-machines-tab> }
 					@case ('resources') { <calculator-resources-tab></calculator-resources-tab> }
 					@case ('power') { <calculator-power-tab></calculator-power-tab> }
 					@case ('sink') { <calculator-sink-tab></calculator-sink-tab> }
@@ -210,4 +230,8 @@
 	<div class="p-3 text-secondary">
 		Select a plan or create a new one.
 	</div>
+}
+
+@if (loadFromSave(); as target) {
+	<load-from-save-dialog [targetName]="target.name" [baseSettings]="target.baseSettings" (apply)="onLoadFromSaveApply($event)" (close)="closeLoadFromSave()"></load-from-save-dialog>
 }

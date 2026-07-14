@@ -8,6 +8,7 @@ import {GraphDirection} from '@src/Model/Planner/GraphDirection';
 import {GraphEdgeShape} from '@src/Model/Planner/GraphEdgeShape';
 import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
+import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
@@ -96,6 +97,20 @@ export class PlannerSettingsComponent
 			next.has(section) ? next.delete(section) : next.add(section);
 			return next;
 		});
+	}
+
+	public get defaultGroupingMode(): GroupingMode
+	{
+		return this.activePlan()?.settings.defaultGroupingMode ?? 'underclock-last';
+	}
+
+	/** New nodes (manual or solver-built) start with this machine-group arrangement. */
+	public setDefaultGroupingMode(mode: GroupingMode): void
+	{
+		const plan = this.activePlan();
+		if (plan) {
+			this.planManager.setSettings(plan.id, {...plan.settings, defaultGroupingMode: mode});
+		}
 	}
 
 	public setDirection(direction: GraphDirection): void

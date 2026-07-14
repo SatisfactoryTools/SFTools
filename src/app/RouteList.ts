@@ -74,8 +74,9 @@ export class RouteList
 					component: AboutComponent,
 				},
 				{
+					// Open to anonymous users too - their created versions are
+					// tracked in localStorage instead of the account.
 					path: 'create-version',
-					canActivate: [AuthGuard],
 					component: CreateVersionPageComponent,
 				},
 				// Mod management - signed-in users only. All of these must

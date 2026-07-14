@@ -7,6 +7,7 @@ import {faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 import {Item} from '@src/Model/Data/Entities/Item';
+import {MakeableItemsResolver} from '@src/Model/Planner/MakeableItemsResolver';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {ProductionRequest} from '@src/Model/Planner/ProductionRequest';
@@ -36,6 +37,7 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		public readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
 		private readonly rateFormatter: RateFormatter,
+		private readonly makeableItems: MakeableItemsResolver,
 	)
 	{
 		const initial = this.planManager.activePlan();
@@ -71,7 +73,11 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		return [...(this.versionManager.activeVersionData()?.getAutomatableItems() ?? [])].sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	/** Picker choices: the two special targets first, then every automatable item with its icon. */
+	/**
+	 * Picker choices: the two special targets first (never filtered), then
+	 * every automatable item, struck through or hidden per the unmakeable-items
+	 * display setting.
+	 */
 	public get itemOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();
@@ -82,7 +88,9 @@ export class CalculatorProductionTabComponent implements OnDestroy
 				label: 'Sink points (AWESOME Sink)',
 				iconHash: data?.iconForClassName(SpecialClasses.SinkCouponItem) ?? null,
 			},
-			...this.availableItems.map(item => ({value: item.className, label: item.name, iconHash: item.icon})),
+			...this.makeableItems.applyToActivePlan(
+				this.availableItems.map(item => ({value: item.className, label: item.name, iconHash: item.icon})),
+			),
 		];
 	}
 

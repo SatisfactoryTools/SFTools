@@ -7,6 +7,7 @@ import {faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {MakeableItemsResolver} from '@src/Model/Planner/MakeableItemsResolver';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanInput} from '@src/Model/Planner/PlanInput';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
@@ -39,6 +40,7 @@ export class CalculatorInputTabComponent implements OnDestroy
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
+		private readonly makeableItems: MakeableItemsResolver,
 	)
 	{
 		const initial = this.planManager.activePlan();
@@ -56,12 +58,14 @@ export class CalculatorInputTabComponent implements OnDestroy
 		);
 	}
 
-	/** Any item may be an input source. */
+	/** Any item may be an input source, subject to the unmakeable-items display setting. */
 	public get itemOptions(): ItemPickerOption[]
 	{
-		return [...(this.versionManager.activeVersionData()?.items ?? [])]
-			.sort((a, b) => a.name.localeCompare(b.name))
-			.map(item => ({value: item.className, label: item.name, iconHash: item.icon}));
+		return this.makeableItems.applyToActivePlan(
+			[...(this.versionManager.activeVersionData()?.items ?? [])]
+				.sort((a, b) => a.name.localeCompare(b.name))
+				.map(item => ({value: item.className, label: item.name, iconHash: item.icon})),
+		);
 	}
 
 	public onItemChange(row: PlanInput, value: string): void

@@ -385,6 +385,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			calculationMode: settings.calculationMode ?? 'automatic',
 			graph: settings.graph ? {...settings.graph} : undefined,
 			enabledRecipes: settings.enabledRecipes ? [...settings.enabledRecipes] : undefined,
+			disabledMachines: settings.disabledMachines ? [...settings.disabledMachines] : undefined,
 			resourceLimits: settings.resourceLimits ? {...settings.resourceLimits} : undefined,
 			enabledFuels: settings.enabledFuels
 				? Object.fromEntries(Object.entries(settings.enabledFuels).map(([generator, fuels]) => [generator, [...fuels]]))
@@ -398,6 +399,7 @@ export class PlanManager extends SyncableService<PlanStore>
 					resourceWeights: settings.optimisation.resourceWeights ? {...settings.optimisation.resourceWeights} : undefined,
 				}
 				: undefined,
+			defaultGroupingMode: settings.defaultGroupingMode,
 			defaultClockSpeed: settings.defaultClockSpeed,
 			recipeClockSpeeds: settings.recipeClockSpeeds ? settings.recipeClockSpeeds.map(entry => ({...entry})) : undefined,
 			maxSloops: settings.maxSloops,

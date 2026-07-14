@@ -9,6 +9,7 @@ export class ApiService
 {
 
 	private versionDataPathSignal = signal<string | null>(null);
+	public versionDataPath = this.versionDataPathSignal.asReadonly();
 
 	public versionsResource = httpResource<Version[]>(() => `${env.apiUrl}/v1/versions`);
 	public versionDataResource = httpResource<VersionFile>(() => {

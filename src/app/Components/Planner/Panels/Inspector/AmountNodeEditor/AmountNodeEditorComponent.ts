@@ -1,7 +1,9 @@
-import {Component, ChangeDetectionStrategy, Input, OnChanges} from '@angular/core';
+import {Component, ChangeDetectionStrategy, Input, OnChanges, OnDestroy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faLock, faLockOpen} from '@fortawesome/free-solid-svg-icons';
+import {Subject, Subscription} from 'rxjs';
+import {debounceTime} from 'rxjs/operators';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {Formulas} from '@src/Model/Planner/Formulas';
@@ -10,6 +12,9 @@ import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {RateFormatter} from '@src/Model/RateFormatter';
+
+/** Quiet time after the last edit before the draft is applied to the graph. */
+const APPLY_DEBOUNCE_MS = 400;
 
 const TYPE_LABELS: Record<string, string> = {
 	input: 'Input',
@@ -23,11 +28,11 @@ const TYPE_LABELS: Record<string, string> = {
 /**
  * Inspector editor for the single-scalar nodes - input, product, mine,
  * byproduct, sink (item rate) and generator (machine count). Only the amount
- * is editable for now; applying swaps the node into the graph and reconciles
- * its edges, exactly like the recipe editor. Note that input and byproduct
- * nodes are elastic: the reconciler resizes them back to the flow their
- * edges actually carry, so a raise only sticks up to what the connected
- * counterparts can absorb.
+ * is editable for now; a change is automatically applied to the graph after a
+ * short quiet period, swapping the node in and reconciling its edges exactly
+ * like the recipe editor. Note that input and byproduct nodes are elastic:
+ * the reconciler resizes them back to the flow their edges actually carry,
+ * so a raise only sticks up to what the connected counterparts can absorb.
  */
 @Component({
 	selector: 'amount-node-editor',
@@ -35,7 +40,7 @@ const TYPE_LABELS: Record<string, string> = {
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FormsModule, FaIconComponent],
 })
-export class AmountNodeEditorComponent implements OnChanges
+export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 {
 
 	public readonly faLock = faLock;
@@ -45,17 +50,49 @@ export class AmountNodeEditorComponent implements OnChanges
 
 	public amount = 0;
 
+	/**
+	 * The node instance the draft was built from - a still-pending apply must
+	 * flush against the node the user actually edited, even when the selection
+	 * has already moved on (see ngOnChanges).
+	 */
+	private loadedNode: Node | null = null;
+
+	private readonly applySubject = new Subject<void>();
+	private readonly applySubscription: Subscription;
+	private applyPending = false;
+
 	public constructor(
 		private readonly actions: PlannerActionsService,
 		private readonly resizer: NodeResizer,
 		public readonly rateFormatter: RateFormatter,
 	)
 	{
+		this.applySubscription = this.applySubject
+			.pipe(debounceTime(APPLY_DEBOUNCE_MS))
+			.subscribe(() => this.applyDraft());
 	}
 
 	public ngOnChanges(): void
 	{
+		if (this.loadedNode?.id === this.node.id) {
+			this.loadedNode = this.node;
+			// An applied update coming back - reflect what actually stuck (the
+			// reconciler may clamp elastic nodes), unless the user kept typing.
+			if (!this.applyPending) {
+				this.amount = this.node.amount;
+			}
+			return;
+		}
+		this.flushPendingApply();
+		this.loadedNode = this.node;
 		this.amount = this.node.amount;
+	}
+
+	/** An edit made just before deselecting the node must still reach the graph. */
+	public ngOnDestroy(): void
+	{
+		this.flushPendingApply();
+		this.applySubscription.unsubscribe();
 	}
 
 	public get typeLabel(): string
@@ -91,24 +128,38 @@ export class AmountNodeEditorComponent implements OnChanges
 		return generator ? Formulas.generatorPowerProduction(generator.generator, this.amount || 0) : null;
 	}
 
-	public get isModified(): boolean
-	{
-		return Math.abs((this.amount || 0) - this.node.amount) > 1e-9;
-	}
-
-	public get canApply(): boolean
-	{
-		return this.isModified && (this.amount || 0) > 0;
-	}
-
 	public toggleLock(): void
 	{
 		this.actions.requestNodeLock({nodeIds: [this.node.id], locked: !this.node.locked});
 	}
 
-	public apply(): void
+	public onAmountChange(): void
 	{
-		const updated = this.resizer.withSize(this.node, this.amount || 0);
+		this.applyPending = true;
+		this.applySubject.next();
+	}
+
+	/** Applies a not-yet-debounced edit immediately - before the draft is replaced or the editor closes. */
+	private flushPendingApply(): void
+	{
+		if (this.applyPending) {
+			this.applyDraft();
+		}
+	}
+
+	private applyDraft(): void
+	{
+		if (!this.applyPending) {
+			return;
+		}
+		this.applyPending = false;
+
+		const node = this.loadedNode;
+		const amount = this.amount || 0;
+		if (!node || amount <= 0 || Math.abs(amount - node.amount) <= 1e-9) {
+			return;
+		}
+		const updated = this.resizer.withSize(node, amount);
 		if (updated) {
 			this.actions.requestNodeUpdate(updated);
 		}

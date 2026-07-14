@@ -17,8 +17,10 @@ export class VersionsResolver
 
 	public resolve(_route: ActivatedRouteSnapshot, _state: RouterStateSnapshot): Observable<unknown>
 	{
-		return toObservable(this.versionManager.versionsResource.isLoading, {injector: this.injector}).pipe(
-			filter(loading => !loading),
+		// ready also covers the anonymous localStorage versions - without them
+		// a deep link into one would 404 against findByUrlSlug.
+		return toObservable(this.versionManager.ready, {injector: this.injector}).pipe(
+			filter(ready => ready),
 			take(1),
 		);
 	}

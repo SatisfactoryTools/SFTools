@@ -65,6 +65,9 @@
 				} @else if (picked.length === 0) {
 					<div class="text-secondary small fst-italic">No mods available.</div>
 				}
+				@if (!auth.isAuthenticated()) {
+					<div class="text-secondary small mt-1">Only public mods are available - <a routerLink="/auth/login">sign in</a> to create and use your own.</div>
+				}
 			</div>
 
 			<div>
@@ -217,7 +220,7 @@
 					class="form-control form-control-sm bg-dark text-light border-secondary"
 					[(ngModel)]="name"
 					[placeholder]="namePlaceholder"
-					maxlength="200"
+					maxlength="100"
 				/>
 			</div>
 

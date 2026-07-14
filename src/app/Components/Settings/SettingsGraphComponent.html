@@ -21,6 +21,18 @@
 			}
 		</div>
 
+		<h6 class="mb-2">Edges</h6>
+		<div class="form-check mb-4">
+			<input
+				id="showEdgeLabelBox"
+				type="checkbox"
+				class="form-check-input"
+				[ngModel]="graph.showEdgeLabelBox"
+				(ngModelChange)="setToggle('showEdgeLabelBox', $event)"
+			/>
+			<label class="form-check-label" for="showEdgeLabelBox">Box behind edge labels</label>
+		</div>
+
 		<h6 class="mb-2">Effects</h6>
 		<div class="form-check mb-4">
 			<input

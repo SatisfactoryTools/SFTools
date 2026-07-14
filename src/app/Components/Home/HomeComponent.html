@@ -14,7 +14,7 @@
 	@if (!auth.isAuthenticated()) {
 		<div class="alert alert-info d-flex align-items-center gap-3 py-2">
 			<span class="flex-grow-1">
-				Sign in to keep your plans synced across devices and to create custom game versions and mods.
+				Sign in to keep your plans and custom versions synced across devices and to create your own mods.
 			</span>
 			<a routerLink="/auth/login" class="btn btn-sm btn-primary flex-shrink-0">Sign in</a>
 		</div>
@@ -22,19 +22,20 @@
 
 	<div class="d-flex align-items-center justify-content-between">
 		<h4 class="mb-0">Game versions</h4>
-		@if (auth.isAuthenticated()) {
-			<a routerLink="/create-version" class="btn btn-sm btn-outline-primary">
-				Create custom version
-			</a>
-		}
+		<a routerLink="/create-version" class="btn btn-sm btn-outline-primary">
+			Create custom version
+		</a>
 	</div>
 	<div class="list-group mt-2">
 		@for (version of publicVersions; track version.id) {
-			<a class="list-group-item list-group-item-action d-flex align-items-center" [routerLink]="['/', versionManager.urlSlug(version)]">
-				{{ version.name }}
-				@if (version.experimental) {
-					<span class="badge bg-warning text-dark ms-2">Experimental</span>
-				}
+			<a class="list-group-item list-group-item-action" [routerLink]="['/', versionManager.urlSlug(version)]">
+				<div class="d-flex align-items-center">
+					{{ version.name }}
+					@if (version.experimental) {
+						<span class="badge bg-warning text-dark ms-2">Experimental</span>
+					}
+				</div>
+				<div class="small text-secondary">{{ versionSummary(version) }}</div>
 			</a>
 		} @empty {
 			<p class="text-muted mt-2">No versions available.</p>
@@ -45,13 +46,16 @@
 		<h5 class="mt-4">Your custom versions</h5>
 		<div class="list-group mt-2">
 			@for (version of customVersions; track version.id) {
-				<a class="list-group-item list-group-item-action" [routerLink]="['/', versionManager.urlSlug(version)]">
-					<div class="d-flex align-items-center">
-						{{ version.name }}
-						<span class="badge bg-info ms-2">Custom</span>
-					</div>
-					<div class="small text-secondary">{{ customSummary(version) }}</div>
-				</a>
+				<div class="list-group-item list-group-item-action d-flex align-items-center gap-2 p-0">
+					<a class="flex-grow-1 text-reset text-decoration-none px-3 py-2" [routerLink]="['/', versionManager.urlSlug(version)]">
+						<div class="d-flex align-items-center">
+							{{ version.name }}
+							<span class="badge bg-info ms-2">Custom</span>
+						</div>
+						<div class="small text-secondary">{{ versionSummary(version) }}</div>
+					</a>
+					<button type="button" class="btn btn-sm btn-outline-danger border-0 me-2 py-0 flex-shrink-0" title="Remove from my versions" (click)="removeVersion(version)">✕</button>
+				</div>
 			}
 		</div>
 	}

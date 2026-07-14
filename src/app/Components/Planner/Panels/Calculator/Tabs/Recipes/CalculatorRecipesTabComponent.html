@@ -25,7 +25,12 @@
 							(change)="toggle(recipe)"
 						/>
 						<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'recipe-' + recipe.className">
-							<span class="text-truncate">{{ displayName(recipe) }}</span>
+							<span
+								class="text-truncate"
+								[class.text-decoration-line-through]="isMachineDisabled(recipe)"
+								[class.text-secondary]="isMachineDisabled(recipe)"
+								[tooltip]="machineDisabledTitle(recipe)" container="body" placement="top"
+							>{{ displayName(recipe) }}</span>
 							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end">
 								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
 									<span class="d-inline-flex align-items-center gap-1" [title]="ingredient.item.name">
@@ -64,7 +69,12 @@
 							(change)="toggle(recipe)"
 						/>
 						<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'recipe-' + recipe.className">
-							<span class="text-truncate">{{ displayName(recipe) }}</span>
+							<span
+								class="text-truncate"
+								[class.text-decoration-line-through]="isMachineDisabled(recipe)"
+								[class.text-secondary]="isMachineDisabled(recipe)"
+								[tooltip]="machineDisabledTitle(recipe)" container="body" placement="top"
+							>{{ displayName(recipe) }}</span>
 							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end">
 								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
 									<span class="d-inline-flex align-items-center gap-1" [title]="ingredient.item.name">

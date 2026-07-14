@@ -182,6 +182,21 @@ export class Data
 		return this.recipes.filter(r => r.producedIn.length > 0);
 	}
 
+	/** Buildings running at least one manufacturing recipe, sorted by name. */
+	public getProductionMachines(): Building[]
+	{
+		const classNames = new Set<string>();
+		this.recipes.forEach(recipe => recipe.producedIn.forEach(building => {
+			// Hydration tolerates dangling references (mods) - skip them here.
+			if (building) {
+				classNames.add(building.className);
+			}
+		}));
+		return this.buildings
+			.filter(building => classNames.has(building.className))
+			.sort((a, b) => a.name.localeCompare(b.name));
+	}
+
 	/** The build-gun recipe constructing the given building; its ingredients are the build cost. */
 	public searchBuildRecipeForBuilding(buildingClassName: string): Recipe|undefined
 	{

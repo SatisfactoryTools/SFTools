@@ -5,7 +5,9 @@ import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {
 	faBolt,
 	faCopy,
+	faFileImport,
 	faGaugeHigh,
+	faIndustry,
 	faListCheck,
 	faMountain,
 	faPlay,
@@ -21,20 +23,24 @@ import {
 import {CalculationModeOption} from '@src/Components/Planner/Panels/Calculator/CalculationModeOption';
 import {CalculatorTab} from '@src/Components/Planner/Panels/Calculator/CalculatorTab';
 import {CalculatorTabDefinition} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinition';
+import {LoadFromSaveDialogComponent} from '@src/Components/Planner/Panels/Calculator/LoadFromSaveDialogComponent';
 import {CalculatorOptimisationTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Optimisation/CalculatorOptimisationTabComponent';
 import {CalculatorOverclockingTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Overclocking/CalculatorOverclockingTabComponent';
 import {CalculatorPowerTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Power/CalculatorPowerTabComponent';
 import {CalculatorInputTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Input/CalculatorInputTabComponent';
+import {CalculatorMachinesTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Machines/CalculatorMachinesTabComponent';
 import {CalculatorProductionTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Production/CalculatorProductionTabComponent';
 import {CalculatorRecipesTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Recipes/CalculatorRecipesTabComponent';
 import {CalculatorResourcesTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Resources/CalculatorResourcesTabComponent';
 import {CalculatorSinkTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Sink/CalculatorSinkTabComponent';
 import {CalculatorSloopsTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Sloops/CalculatorSloopsTabComponent';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
+import {NotificationService} from '@src/Model/NotificationService';
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
 import {Folder} from '@src/Model/Planner/Folder';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 
 @Component({
@@ -44,6 +50,7 @@ import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 	imports: [
 		BsDropdownModule,
 		CalculatorInputTabComponent,
+		CalculatorMachinesTabComponent,
 		CalculatorOptimisationTabComponent,
 		CalculatorOverclockingTabComponent,
 		CalculatorPowerTabComponent,
@@ -53,6 +60,7 @@ import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 		CalculatorSinkTabComponent,
 		CalculatorSloopsTabComponent,
 		FaIconComponent,
+		LoadFromSaveDialogComponent,
 		TooltipDirective,
 	],
 	styles: [`
@@ -75,6 +83,7 @@ export class CalculatorComponent
 {
 
 	public readonly faCopy = faCopy;
+	public readonly faFileImport = faFileImport;
 	public readonly faPlay = faPlay;
 	public readonly faRotateLeft = faRotateLeft;
 	public readonly faSitemap = faSitemap;
@@ -87,6 +96,7 @@ export class CalculatorComponent
 		{id: 'request', label: 'Request', icon: faListCheck},
 		{id: 'input', label: 'Input', icon: faRightToBracket},
 		{id: 'recipes', label: 'Recipes', icon: faScroll},
+		{id: 'machines', label: 'Machines', icon: faIndustry},
 		{id: 'resources', label: 'Resources', icon: faMountain},
 		{id: 'power', label: 'Power', icon: faBolt},
 		{id: 'sink', label: 'Sink', icon: faRecycle},
@@ -117,8 +127,14 @@ export class CalculatorComponent
 
 	public readonly modeLabel: Signal<string>;
 
+	/** The "Load settings from save" dialog's target, or null when closed. */
+	private readonly loadFromSaveSignal = signal<{name: string; baseSettings: PlanSettings} | null>(null);
+	public readonly loadFromSave = this.loadFromSaveSignal.asReadonly();
+
 	public constructor(
 		private readonly planManager: PlanManager,
+		private readonly planNames: PlanNameResolver,
+		private readonly notifications: NotificationService,
 		public readonly actions: PlannerActionsService,
 	)
 	{
@@ -221,6 +237,48 @@ export class CalculatorComponent
 			return;
 		}
 		this.planManager.setFolderSettings(folder.id, null);
+	}
+
+	// ── Load settings from a save file ──────────────────────────────────────
+
+	public openLoadFromSave(): void
+	{
+		const plan = this.activePlan();
+		const folder = this.activeFolder();
+		if (plan) {
+			this.loadFromSaveSignal.set({
+				name: this.planNames.displayName(plan),
+				baseSettings: this.planManager.cloneSettings(plan.settings),
+			});
+		} else if (folder) {
+			// effectiveFolderSettings covers a folder still inheriting - applying
+			// the save then gives it custom settings based on the inherited ones.
+			this.loadFromSaveSignal.set({
+				name: folder.name,
+				baseSettings: this.planManager.effectiveFolderSettings(folder.id),
+			});
+		}
+	}
+
+	public onLoadFromSaveApply(settings: PlanSettings): void
+	{
+		const target = this.loadFromSaveSignal();
+		const plan = this.activePlan();
+		const folder = this.activeFolder();
+		if (target) {
+			if (plan) {
+				this.planManager.updateActiveSettings(settings);
+			} else if (folder) {
+				this.planManager.setFolderSettings(folder.id, settings);
+			}
+			this.notifications.showSuccess(`Loaded settings from the save file into "${target.name}".`);
+		}
+		this.loadFromSaveSignal.set(null);
+	}
+
+	public closeLoadFromSave(): void
+	{
+		this.loadFromSaveSignal.set(null);
 	}
 
 	public createPlanInFolder(): void

@@ -17,6 +17,7 @@ export class SettingsDefaults
 		graph: {
 			sloopGlow: true,
 			showEdgeItemIcons: true,
+			showEdgeLabelBox: true,
 			showNodeItemIcons: true,
 			showNodeBuildingIcons: true,
 			showSubplanItemIcons: true,
@@ -34,6 +35,9 @@ export class SettingsDefaults
 				subplan: '#e07be0',
 			},
 		},
+		planner: {
+			unmakeableItems: 'show',
+		},
 		panels: null,
 	};
 
@@ -47,6 +51,7 @@ export class SettingsDefaults
 				...(data?.graph ?? {}),
 				nodeColors: {...SettingsDefaults.SETTINGS.graph.nodeColors, ...(data?.graph?.nodeColors ?? {})},
 			},
+			planner: {...SettingsDefaults.SETTINGS.planner, ...(data?.planner ?? {})},
 			panels: data?.panels ?? null,
 		};
 	}

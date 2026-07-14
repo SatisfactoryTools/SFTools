@@ -9,6 +9,7 @@ import {GeneratorFuelOption} from '@src/Model/Planner/Solver/Request/GeneratorFu
 import {OptimisationDefaults} from '@src/Model/Planner/OptimisationDefaults';
 import {OptimisationTarget} from '@src/Model/Planner/Solver/Request/OptimisationTarget';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
+import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {HighsSolution} from '@src/Model/Planner/Solver/HighsSolution';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
 import {Plan} from '@src/Model/Planner/Plan';
@@ -101,7 +102,7 @@ export class ProductionSolverService
 		const lp = this.buildLp(request, data, lockedNodes);
 		//console.log(lp);
 		return this.solver.solve(lp, this.solveOptions(request, plan)).pipe(
-			map(solution => this.parseSolution(solution, data)),
+			map(solution => this.parseSolution(solution, data, plan.settings.defaultGroupingMode ?? 'underclock-last')),
 		);
 	}
 
@@ -141,7 +142,7 @@ export class ProductionSolverService
 
 		const unproducible = this.findUnproducibleRequests(plan, data, lockedNodes);
 		if (unproducible.length > 0) {
-			return of(`No solution: ${unproducible.join(', ')} cannot be produced with the currently enabled recipes and available raw resources - check the Recipes and Resources tabs.`);
+			return of(`No solution: ${unproducible.join(', ')} cannot be produced with the currently enabled recipes and available raw resources - check the Recipes, Machines and Resources tabs.`);
 		}
 
 		if ((this.powerDemand(plan) > 0 || (plan.settings.producePowerForFactory ?? false))
@@ -277,7 +278,8 @@ export class ProductionSolverService
 	private allowedRecipes(plan: Plan, data: Data): Recipe[]
 	{
 		const enabled = this.enabledRecipes.resolve(plan.settings, data);
-		return data.getRecipesForMachines().filter(recipe => enabled.has(recipe.className));
+		return data.getRecipesForMachines().filter(recipe => enabled.has(recipe.className)
+			&& !this.enabledRecipes.isDisabledByMachine(recipe, plan.settings));
 	}
 
 	/** Resolves the plan's user inputs, dropping unknown/empty items and merging duplicates (summed amount, cheapest weight). */
@@ -615,7 +617,7 @@ export class ProductionSolverService
 		return lines.join('\n');
 	}
 
-	private parseSolution(solution: HighsSolution, data: Data): SolverResponse
+	private parseSolution(solution: HighsSolution, data: Data, groupingMode: GroupingMode): SolverResponse
 	{
 		const columns: {Primal: number, Name: string}[] = Object.values(solution.Columns) as unknown as {Primal: number, Name: string}[];
 
@@ -666,13 +668,15 @@ export class ProductionSolverService
 
 						// The LP variable counts machines AT the column's clock;
 						// the node's target is machine-equivalents at 100%.
-						return new RecipeNode(
+						const recipeNode = new RecipeNode(
 							id,
 							column.Primal * clock / 100,
-							this.normalizer.fromFractionalAmount(column.Primal, clock, parseInt(sloops)),
+							this.normalizer.generate(column.Primal, clock, parseInt(sloops), groupingMode),
 							data.getBuildingByClassName(machine),
 							data.getRecipeByClassName(recipeClass),
 						);
+						recipeNode.groupingMode = groupingMode;
+						return recipeNode;
 				}
 			});
 

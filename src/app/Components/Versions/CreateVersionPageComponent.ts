@@ -19,6 +19,7 @@ import {WorldDataMode} from '@src/Model/API/Schema/World/WorldDataMode';
 import {WorldDataPayload} from '@src/Model/API/Schema/World/WorldDataPayload';
 import {WorldDataPurity} from '@src/Model/API/Schema/World/WorldDataPurity';
 import {VersionsApiService} from '@src/Model/API/VersionsApiService';
+import {AuthService} from '@src/Model/Auth/AuthService';
 import {Data} from '@src/Model/Data/Data';
 import {DataTransformer} from '@src/Model/Data/DataTransformer';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -78,7 +79,7 @@ export class CreateVersionPageComponent
 
 	public readonly faChevronLeft = faChevronLeft;
 
-	/** The multiplier sets the server accepts (see docs/changes-2026-07-09-custom-versions.md). */
+	/** The multiplier sets the server accepts (see custom-versions.md). */
 	public readonly recipeCostOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 	public readonly powerCostOptions = [0.25, 0.5, 0.75, 1, 2, 5];
 
@@ -136,6 +137,7 @@ export class CreateVersionPageComponent
 	public constructor(
 		private readonly api: VersionsApiService,
 		private readonly modsApi: ModsApiService,
+		protected readonly auth: AuthService,
 		protected readonly versionManager: VersionManager,
 		private readonly transformer: DataTransformer,
 		private readonly limitsCalculator: WorldLimitsCalculator,
@@ -221,7 +223,7 @@ export class CreateVersionPageComponent
 		const settings: LoadedWorldSettings = {seed: this.worldSeed, mode: this.worldMode, purity: this.worldPurity};
 		const baseData = this.baseData !== null && this.baseDataPath === base.dataPath
 			? of(this.baseData)
-			: this.api.fetchVersionFile(base.dataPath);
+			: this.api.loadVersionFile(base);
 
 		forkJoin({
 			preview: this.api.worldDataPreview(settings),
@@ -358,7 +360,7 @@ export class CreateVersionPageComponent
 			parts.push(`${this.picked.length} mod${this.picked.length === 1 ? '' : 's'}`);
 		}
 		if (this.worldRows.length > 0) {
-			parts.push('custom world');
+			parts.push('modified resources');
 		}
 		return parts.length > 0 ? `${base.name} (${parts.join(', ')})` : base.name;
 	}

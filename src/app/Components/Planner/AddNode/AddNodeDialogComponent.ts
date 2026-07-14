@@ -24,11 +24,13 @@ import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
+import {MakeableItemsResolver} from '@src/Model/Planner/MakeableItemsResolver';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
+import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
@@ -83,7 +85,9 @@ export class AddNodeDialogComponent implements OnInit
 
 	public constructor(
 		private readonly versionManager: VersionManager,
+		private readonly planManager: PlanManager,
 		private readonly normalizer: MachineGroupNormalizer,
+		private readonly makeableItems: MakeableItemsResolver,
 	)
 	{
 	}
@@ -209,7 +213,11 @@ export class AddNodeDialogComponent implements OnInit
 			.sort((a, b) => a.label.localeCompare(b.label));
 	}
 
-	/** Raw resources for a mine, sinkable items for a sink, every item otherwise. */
+	/**
+	 * Raw resources for a mine, sinkable items for a sink, every item
+	 * otherwise - subject to the unmakeable-items display setting (raw
+	 * resources always count as makeable, so mines are unaffected).
+	 */
 	public get itemOptions(): ItemPickerOption[]
 	{
 		const data = this.data;
@@ -222,9 +230,9 @@ export class AddNodeDialogComponent implements OnInit
 		} else if (this.nodeType === 'sink') {
 			items = data.items.filter(item => item.sinkPoints > 0);
 		}
-		return items
+		return this.makeableItems.applyToActivePlan(items
 			.map(item => ({value: item.className, label: item.name, iconHash: item.icon}))
-			.sort((a, b) => a.label.localeCompare(b.label));
+			.sort((a, b) => a.label.localeCompare(b.label)));
 	}
 
 	public get generatorOptions(): ItemPickerOption[]
@@ -355,13 +363,16 @@ export class AddNodeDialogComponent implements OnInit
 				const recipe = data.getRecipeByClassName(this.recipeClassName);
 				const machine = recipe.producedIn[0];
 				const target = this.recipeTargetFor(recipe, machine);
-				node = new RecipeNode(
+				const groupingMode = this.planManager.activeSettings()?.defaultGroupingMode ?? 'underclock-last';
+				const recipeNode = new RecipeNode(
 					id,
 					target,
-					this.normalizer.fromFractionalAmount(target, 100, 0),
+					this.normalizer.generate(target, 100, 0, groupingMode),
 					machine,
 					recipe,
 				);
+				recipeNode.groupingMode = groupingMode;
+				node = recipeNode;
 				break;
 			}
 			case 'input':

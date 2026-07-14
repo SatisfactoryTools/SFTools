@@ -25,10 +25,18 @@ const NUMBER_FIELDS: {label: string; get: (c: SettingsConflict['local']['numbers
 const GRAPH_BOOL_FIELDS: {label: string; get: (g: SettingsConflict['local']['graph']) => boolean}[] = [
 	{label: 'Sloop glow', get: g => g.sloopGlow},
 	{label: 'Item icons on edges', get: g => g.showEdgeItemIcons},
+	{label: 'Box behind edge labels', get: g => g.showEdgeLabelBox},
 	{label: 'Item icons on nodes', get: g => g.showNodeItemIcons},
 	{label: 'Building icons on nodes', get: g => g.showNodeBuildingIcons},
 	{label: 'Input/output icons on subplans', get: g => g.showSubplanItemIcons},
 	{label: 'Sloop icon in node corner', get: g => g.showSloopCornerIcon},
+];
+
+const PLANNER_FIELDS: {label: string; get: (p: SettingsConflict['local']['planner']) => string}[] = [
+	{
+		label: 'Items the plan cannot produce',
+		get: p => ({show: 'Show all', strike: 'Strike through', hide: 'Hide'} as const)[p.unmakeableItems],
+	},
 ];
 
 const NODE_COLOR_FIELDS: {label: string; key: keyof NodeColors}[] = [
@@ -84,6 +92,14 @@ export class SettingsConflictDialogComponent
 			const local = field.get(conflict.local.graph);
 			if (remote !== local) {
 				rows.push({label: field.label, remote: YES_NO(remote), local: YES_NO(local)});
+			}
+		});
+
+		PLANNER_FIELDS.forEach(field => {
+			const remote = field.get(conflict.remote.planner);
+			const local = field.get(conflict.local.planner);
+			if (remote !== local) {
+				rows.push({label: field.label, remote, local});
 			}
 		});
 

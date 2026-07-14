@@ -1,5 +1,6 @@
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Formulas} from '@src/Model/Planner/Formulas';
+import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
@@ -9,6 +10,14 @@ export class RecipeNode extends Node
 {
 
 	public readonly type = 'recipe' as const;
+
+	/**
+	 * How this node's machine groups are arranged when they are regenerated
+	 * (the inspector's Calculate/Autofill, resize assists). Seeded from the
+	 * plan's default when the node is created; like x/y/locked it is carried
+	 * over to replacement instances, not constructed.
+	 */
+	public groupingMode: GroupingMode = 'underclock-last';
 
 	/**
 	 * @param target Exact production rate in machine-equivalents at 100% clock -
@@ -110,6 +119,7 @@ export class RecipeNode extends Node
 			machineClassName: this.machine.className,
 			target: this.target,
 			groups: this.groups,
+			groupingMode: this.groupingMode,
 			x: this.x,
 			y: this.y,
 			...this.serializeLock(),

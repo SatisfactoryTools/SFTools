@@ -25,6 +25,7 @@
 				type="number"
 				class="form-control form-control-sm bg-dark text-light border-secondary"
 				[(ngModel)]="amount"
+				(ngModelChange)="onAmountChange()"
 				min="0"
 				step="any"
 			>
@@ -37,12 +38,5 @@
 	@if (draftPower !== null) {
 		<div class="text-secondary">Power: <span class="text-light">{{ rateFormatter.power(draftPower!) }}</span></div>
 	}
-
-	<button
-		class="btn btn-sm btn-primary w-100"
-		type="button"
-		[disabled]="!canApply"
-		(click)="apply()"
-	>Update graph</button>
 
 </div>

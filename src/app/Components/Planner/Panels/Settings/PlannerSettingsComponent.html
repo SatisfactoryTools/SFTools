@@ -74,6 +74,34 @@
 		}
 
 		<div class="d-flex align-items-center gap-1">
+			<button class="btn btn-link btn-sm p-0 text-body" type="button" (click)="toggleSection('machine-groups')">
+				<fa-icon [icon]="isOpen('machine-groups') ? faCaretDown : faCaretRight"></fa-icon>
+			</button>
+			<span class="fw-semibold flex-grow-1" role="button" (click)="toggleSection('machine-groups')">Machine groups</span>
+		</div>
+
+		@if (isOpen('machine-groups')) {
+			<div class="d-flex flex-column gap-2 ps-3 pb-2">
+
+				<div>
+					<label class="form-label text-secondary mb-1">Default machine group setting</label>
+					<select
+						class="form-select form-select-sm bg-dark text-light border-secondary"
+						[ngModel]="defaultGroupingMode"
+						(ngModelChange)="setDefaultGroupingMode($event)"
+					>
+						<option value="underclock-last">Underclock last</option>
+						<option value="clock-equally">Clock equally</option>
+						<option value="no-clocking">No clocking</option>
+					</select>
+				</div>
+
+				<div class="text-secondary">Every new node - added manually or built by the calculator - starts with this machine group arrangement. Each node's own setting can be changed later in the inspector.</div>
+
+			</div>
+		}
+
+		<div class="d-flex align-items-center gap-1">
 			<button class="btn btn-link btn-sm p-0 text-body" type="button" (click)="toggleSection('colors')">
 				<fa-icon [icon]="isOpen('colors') ? faCaretDown : faCaretRight"></fa-icon>
 			</button>

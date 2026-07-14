@@ -2,9 +2,16 @@
 
 @if (notifications.message()) {
 	<div class="position-fixed top-0 start-50 translate-middle-x" style="margin-top: 64px; z-index: 1055; min-width: 320px; max-width: 600px;">
-		<div class="alert alert-danger alert-dismissible mb-0 shadow-sm py-2 px-3" role="alert">
-			{{ notifications.message() }}
-			<button type="button" class="btn-close btn-close-white" (click)="notifications.dismiss()"></button>
+		<div
+			class="alert mb-0 shadow-sm py-2 px-3 d-flex align-items-center gap-2"
+			[class.alert-danger]="notifications.type() === 'error'"
+			[class.alert-success]="notifications.type() === 'success'"
+			role="alert"
+		>
+			<span class="flex-grow-1">{{ notifications.message() }}</span>
+			<button type="button" class="btn btn-link btn-sm p-0 text-reset flex-shrink-0" aria-label="Dismiss" (click)="notifications.dismiss()">
+				<fa-icon [icon]="faXmark"></fa-icon>
+			</button>
 		</div>
 	</div>
 }

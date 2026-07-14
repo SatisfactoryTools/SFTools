@@ -82,8 +82,8 @@
 						class="btn btn-sm btn-outline-primary py-0"
 						type="button"
 						[title]="'Calculate machine groups from the target - ' + groupingLabel"
-						(click)="autoGroup()"
-					>Auto</button>
+						(click)="calculate()"
+					>Calculate</button>
 					<button
 						class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split py-0"
 						type="button"
@@ -162,6 +162,15 @@
 				><fa-icon [icon]="faXmark"></fa-icon></button>
 			</div>
 		}
+
+		@if (hasCapacityShortage) {
+			<button
+				class="btn btn-sm btn-outline-primary w-100"
+				type="button"
+				[title]="'Add the missing machines, arranged per the grouping mode - ' + groupingLabel"
+				(click)="autofill()"
+			>Autofill</button>
+		}
 	</div>
 
 	<div class="text-secondary">
@@ -171,15 +180,8 @@
 
 	@if (hasCapacityShortage) {
 		<div class="text-danger">
-			Not enough machines to reach the target - add machines or raise clock speeds.
+			Not enough machines to reach the target - use Autofill, add machines or raise clock speeds.
 		</div>
 	}
-
-	<button
-		class="btn btn-sm btn-primary w-100"
-		type="button"
-		[disabled]="!isModified"
-		(click)="apply()"
-	>Update graph</button>
 
 </div>

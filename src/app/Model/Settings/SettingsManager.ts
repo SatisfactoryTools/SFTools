@@ -8,6 +8,7 @@ import {PanelLayoutState} from '@src/Components/Planner/Panel/PanelLayoutState';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {InteractiveSettingsConflictResolver} from '@src/Model/Settings/InteractiveSettingsConflictResolver';
 import {NumberSettings} from '@src/Model/Settings/NumberSettings';
+import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
 import {Settings} from '@src/Model/Settings/Settings';
 import {SettingsApiDataBackend} from '@src/Model/Settings/SettingsApiDataBackend';
 import {SettingsConflictService} from '@src/Model/Settings/SettingsConflictService';
@@ -26,6 +27,7 @@ export class SettingsManager extends SyncableService<Settings>
 	public readonly settings: Signal<Settings> = computed(() => SettingsDefaults.normalize(this.data()));
 	public readonly numbers: Signal<NumberSettings> = computed(() => this.settings().numbers);
 	public readonly graph: Signal<GraphSettings> = computed(() => this.settings().graph);
+	public readonly planner: Signal<PlannerSettings> = computed(() => this.settings().planner);
 	public readonly panels: Signal<PanelLayoutState | null> = computed(() => this.settings().panels);
 
 	public constructor(
@@ -52,6 +54,11 @@ export class SettingsManager extends SyncableService<Settings>
 	public updateGraph(patch: Partial<GraphSettings>): void
 	{
 		this.persist({...this.settings(), graph: {...this.graph(), ...patch}});
+	}
+
+	public updatePlanner(patch: Partial<PlannerSettings>): void
+	{
+		this.persist({...this.settings(), planner: {...this.planner(), ...patch}});
 	}
 
 	/** Replaces the remembered panel layout; null resets it to the defaults. */

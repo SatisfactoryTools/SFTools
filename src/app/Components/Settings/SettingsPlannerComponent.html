@@ -3,6 +3,26 @@
 		<h5 class="mb-0">Planner</h5>
 	</div>
 	<div class="card-body">
+		<h6 class="mb-2">Items</h6>
+		<div class="mb-4" style="max-width: 480px;">
+			<label class="form-label" for="unmakeable-items">Items the plan cannot produce</label>
+			<select
+				id="unmakeable-items"
+				class="form-select"
+				[ngModel]="unmakeableItems"
+				(ngModelChange)="setUnmakeableItems($event)"
+			>
+				@for (option of unmakeableItemsOptions; track option.value) {
+					<option [value]="option.value">{{ option.label }}</option>
+				}
+			</select>
+			<div class="form-text">
+				{{ unmakeableItemsDescription }}
+				Applies to the production request, input and add-node item pickers, based on each plan's
+				enabled recipes, machines and generator fuels.
+			</div>
+		</div>
+
 		<h6 class="mb-2">Panels</h6>
 		<p class="text-secondary">
 			Panel positions and sizes are remembered automatically as you arrange them.

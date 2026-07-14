@@ -49,7 +49,9 @@
             "webWorkerTsConfig": "tsconfig.worker.json",
             "allowedCommonJsDependencies": [
               "elkjs",
-              "mousetrap"
+              "mousetrap",
+              "@etothepii/satisfactory-file-parser",
+              "pako"
             ],
             "externalDependencies": [
               "node:fs",

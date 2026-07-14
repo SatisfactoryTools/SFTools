@@ -7,8 +7,8 @@ import {SettingsDefaults} from '@src/Model/Settings/SettingsDefaults';
 
 /**
  * On login, if this device's preferences differ from the account's, ask the
- * user which to keep. Only the visible preferences (numbers, graph) count -
- * the panel layout is device-specific and never triggers a prompt.
+ * user which to keep. Only the visible preferences (numbers, graph, planner)
+ * count - the panel layout is device-specific and never triggers a prompt.
  */
 export class InteractiveSettingsConflictResolver implements ConflictResolver<Settings>
 {
@@ -29,8 +29,8 @@ export class InteractiveSettingsConflictResolver implements ConflictResolver<Set
 
 	private samePreferences(a: Settings, b: Settings): boolean
 	{
-		return JSON.stringify({numbers: a.numbers, graph: a.graph})
-			=== JSON.stringify({numbers: b.numbers, graph: b.graph});
+		return JSON.stringify({numbers: a.numbers, graph: a.graph, planner: a.planner})
+			=== JSON.stringify({numbers: b.numbers, graph: b.graph, planner: b.planner});
 	}
 
 }

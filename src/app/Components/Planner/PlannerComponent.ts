@@ -303,6 +303,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 						requests: plan.requests,
 						inputs: plan.inputs,
 						recipes: plan.settings.enabledRecipes,
+						machines: plan.settings.disabledMachines,
 						limits: plan.settings.resourceLimits,
 						fuels: plan.settings.enabledFuels,
 						sinkable: plan.settings.sinkableItems,
@@ -310,6 +311,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 						optimisation: plan.settings.optimisation,
 						sloops: [plan.settings.maxSloops, plan.settings.sloopAccuracy],
 						clocks: [plan.settings.defaultClockSpeed, plan.settings.recipeClockSpeeds],
+						grouping: plan.settings.defaultGroupingMode,
 					}),
 				};
 			})).pipe(
@@ -570,6 +572,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			return;
 		}
 
+		// Auto-applied inspector edits are debounced - the node may have been
+		// deleted by the time the update lands.
+		if (!current.nodes.some(node => node.id === updated.id)) {
+			return;
+		}
+
 		// Snapshot before reconciliation - it adjusts edge amounts in place.
 		this.history.push(this.snapshotOf(plan));
 
@@ -579,8 +587,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		};
 		const reconciled = this.graphReconciler.reconcile(replaced, updated.id);
 
+		// Keep whatever is selected NOW - a debounced inspector edit may land
+		// after the user already selected another node. Updates arriving with
+		// nothing selected (context-menu resizes) select the updated node.
+		const selectedIds = this.plannerGraph.selectedNodes().map(node => node.id);
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
-		this.plannerGraph.selectNodeById(updated.id);
+		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [updated.id]);
 		this.planManager.setGraph(plan.id, reconciled, true);
 	}
 

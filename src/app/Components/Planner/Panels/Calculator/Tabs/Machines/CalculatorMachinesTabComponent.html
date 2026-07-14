@@ -1,0 +1,30 @@
+<div class="p-2">
+	<div class="d-flex align-items-center gap-1 mb-1">
+		<span class="fw-semibold flex-grow-1">Production machines</span>
+		<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(true)">All</button>
+		<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(false)">None</button>
+	</div>
+	<div class="small text-secondary mb-2">
+		Recipes producible only in disabled machines are not available to the solver.
+	</div>
+	<div>
+		@for (machine of machines; track machine.className) {
+			<div class="form-check">
+				<input
+					class="form-check-input"
+					type="checkbox"
+					[id]="'machine-' + machine.className"
+					[checked]="isEnabled(machine)"
+					(change)="toggle(machine)"
+				/>
+				<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'machine-' + machine.className">
+					<game-icon [hash]="machine.icon" [size]="18" [alt]="machine.name"></game-icon>
+					<span class="text-truncate">{{ machine.name }}</span>
+					<span class="small text-secondary ms-auto">{{ recipeCount(machine) }} recipe{{ recipeCount(machine) === 1 ? '' : 's' }}</span>
+				</label>
+			</div>
+		} @empty {
+			<div class="text-secondary">This version has no production machines.</div>
+		}
+	</div>
+</div>

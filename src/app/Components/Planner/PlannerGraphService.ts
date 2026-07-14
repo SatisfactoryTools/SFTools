@@ -553,6 +553,19 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
+	/** Replaces the selection with the given nodes (an empty list clears it), e.g. to carry it across a re-render. */
+	public selectNodesById(ids: string[]): void
+	{
+		const cells: Cell[] = [];
+		ids.forEach(id => {
+			const cell = this.x6Graph?.getCellById(id);
+			if (cell?.isNode()) {
+				cells.push(cell);
+			}
+		});
+		this.selection?.reset(cells);
+	}
+
 	/** Centers the viewport on a node (e.g. from the status bar warning list) and selects it. */
 	public focusNode(id: string): void
 	{
@@ -715,7 +728,9 @@ export class PlannerGraphService implements OnDestroy
 				this.actions.requestSubplanOpen(modelNode.subplanId);
 			} else {
 				this.selectNodeById(modelNode.id);
-				this.panelLayout.openPanel('inspector');
+				// focusPanel, not openPanel: an already-open inspector hidden
+				// behind another tab on its side must still come to the front.
+				this.panelLayout.focusPanel('inspector');
 			}
 		});
 
@@ -1269,6 +1284,7 @@ export class PlannerGraphService implements OnDestroy
 		this.edgeById.set(id, edge);
 		const hasIcon = label.iconUrl !== null && this.settings.graph().showEdgeItemIcons;
 		const textShift = hasIcon ? (EDGE_ICON_SIZE + EDGE_ICON_GAP) / 2 : 0;
+		const showBox = this.settings.graph().showEdgeLabelBox;
 
 		x6Graph.addEdge({
 			id,
@@ -1312,7 +1328,9 @@ export class PlannerGraphService implements OnDestroy
 					// The default label rect is sized from the measured text
 					// bbox, which drifts with font metrics and load timing.
 					// Give it the same explicit size the layout reserved,
-					// centered on the label point like the text is.
+					// centered on the label point like the text is. With the
+					// box hidden it stays transparent (not removed) so the
+					// label keeps its hover/right-click hit area.
 					rect: {
 						ref: null,
 						refX: null,
@@ -1323,9 +1341,9 @@ export class PlannerGraphService implements OnDestroy
 						y: -size.height / 2,
 						width: size.width,
 						height: size.height,
-						fill: '#141c28',
-						stroke: '#2e3d52',
-						strokeWidth: 1,
+						fill: showBox ? '#141c28' : 'transparent',
+						stroke: showBox ? '#2e3d52' : 'none',
+						strokeWidth: showBox ? 1 : 0,
 						rx: 4,
 						ry: 4,
 					},

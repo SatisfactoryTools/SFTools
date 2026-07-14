@@ -15,6 +15,9 @@ export interface GraphSettings
 	/** Item icons on graph edge labels. */
 	readonly showEdgeItemIcons: boolean;
 
+	/** Background box behind edge labels; off leaves just the text and icon. */
+	readonly showEdgeLabelBox: boolean;
+
 	/** Item icons on the item-source/product nodes that carry one. */
 	readonly showNodeItemIcons: boolean;
 

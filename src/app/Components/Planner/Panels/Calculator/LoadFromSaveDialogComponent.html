@@ -1,0 +1,67 @@
+<div class="save-backdrop" (click)="close.emit()">
+	<div class="save-dialog card bg-dark border-secondary" (click)="$event.stopPropagation()">
+		<div class="card-header d-flex align-items-center gap-2">
+			<span class="fw-semibold flex-grow-1 text-truncate">Load settings from a save file</span>
+			<button type="button" class="btn-close btn-close-white" aria-label="Close" (click)="close.emit()"></button>
+		</div>
+		<div class="card-body d-flex flex-column gap-2">
+			<div class="text-secondary small">
+				Pick a Satisfactory save file (.sav) and its unlocked machines, recipes and
+				generator fuels replace the current selections of &ldquo;{{ targetName }}&rdquo;.
+				Unlocks the active version does not know (e.g. from mods) are ignored.
+			</div>
+
+			@switch (state()) {
+				@case ('parsing') {
+					<div class="d-flex align-items-center gap-2 py-2">
+						<div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+						<span>Reading the save file&hellip; large saves can take a while.</span>
+					</div>
+				}
+				@case ('ready') {
+					@if (result(); as mapped) {
+						@if (mapped.summary.sessionName) {
+							<div>Session: <strong>{{ mapped.summary.sessionName }}</strong></div>
+						}
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="load-save-machines" [(ngModel)]="loadMachines"/>
+							<label class="form-check-label" for="load-save-machines">
+								Machines &mdash; {{ mapped.summary.machinesEnabled }} of {{ mapped.summary.machinesTotal }} enabled
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="load-save-recipes" [(ngModel)]="loadRecipes"/>
+							<label class="form-check-label" for="load-save-recipes">
+								Recipes &mdash; {{ mapped.summary.recipesEnabled }} of {{ mapped.summary.recipesTotal }} enabled
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="load-save-generators" [(ngModel)]="loadGenerators"/>
+							<label class="form-check-label" for="load-save-generators">
+								Power generators &mdash; {{ mapped.summary.generatorsEnabled }} of {{ mapped.summary.generatorsTotal }} enabled
+							</label>
+						</div>
+						@if (mapped.summary.unknownEntries > 0) {
+							<div class="text-warning small">
+								<fa-icon [icon]="faTriangleExclamation"></fa-icon>
+								{{ mapped.summary.unknownEntries }} unlocks from the save are unknown to this version and were ignored
+								(usually mods that are not enabled here).
+							</div>
+						}
+					}
+				}
+				@case ('error') {
+					<div class="alert alert-danger mb-0 py-2">{{ error() }}</div>
+				}
+			}
+
+			@if (state() !== 'parsing') {
+				<input type="file" accept=".sav" class="form-control bg-dark text-light border-secondary" (change)="onFilePicked($event)"/>
+			}
+		</div>
+		<div class="card-footer d-flex justify-content-end gap-2">
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="close.emit()">Cancel</button>
+			<button type="button" class="btn btn-sm btn-primary" [disabled]="!canApply()" (click)="applySettings()">Apply</button>
+		</div>
+	</div>
+</div>

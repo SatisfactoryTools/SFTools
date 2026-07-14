@@ -1,6 +1,7 @@
 import {Injectable} from '@angular/core';
 import {Data} from '@src/Model/Data/Data';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
@@ -108,13 +109,16 @@ export class PlanSerializer
 					?? (raw['groups']
 						? groups.reduce((sum, g) => sum + g.machines * (g.clockSpeed / 100), 0)
 						: amount * (raw['clockSpeed'] as number) / 100);
-				node = new RecipeNode(
+				const recipeNode = new RecipeNode(
 					id,
 					target,
 					groups,
 					data.getBuildingByClassName(raw['machineClassName'] as string),
 					data.getRecipeByClassName(raw['recipeClassName'] as string),
 				);
+				// Fallback covers nodes saved before grouping modes existed.
+				recipeNode.groupingMode = (raw['groupingMode'] as GroupingMode | undefined) ?? 'underclock-last';
+				node = recipeNode;
 				break;
 			}
 			case 'mine':

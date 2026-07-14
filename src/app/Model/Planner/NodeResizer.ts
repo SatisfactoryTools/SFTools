@@ -73,10 +73,9 @@ export class NodeResizer
 
 	/**
 	 * Replacement scaled to `factor` times the node's current size. For
-	 * recipes the machine groups are regenerated at 100% clock (uniform
-	 * sloops kept, mixed ones reset to 0 - matching the inspector's "Auto"),
-	 * so mixed-sloop nodes scale their target exactly but their boosted
-	 * output only approximately.
+	 * recipes the machine groups are regenerated per the node's grouping mode
+	 * (uniform sloops kept, mixed ones reset to 0), so mixed-sloop nodes scale
+	 * their target exactly but their boosted output only approximately.
 	 */
 	public scaled(node: Node, factor: number): Node | null
 	{
@@ -155,10 +154,13 @@ export class NodeResizer
 		if (target <= 0) {
 			return null;
 		}
-		return this.placed(node, new RecipeNode(node.id, target, this.normalizer.fromFractionalAmount(target, 100, sloops), node.machine, node.recipe), true);
+		const groups = this.normalizer.generate(target, 100, sloops, node.groupingMode);
+		const replacement = new RecipeNode(node.id, target, groups, node.machine, node.recipe);
+		replacement.groupingMode = node.groupingMode;
+		return this.placed(node, replacement, true);
 	}
 
-	/** The shared sloop count when all groups agree; 0 otherwise (mirrors the inspector's Auto regeneration). */
+	/** The shared sloop count when all groups agree; 0 otherwise. */
 	private uniformSloops(groups: MachineGroup[]): number
 	{
 		if (groups.length === 0) {
