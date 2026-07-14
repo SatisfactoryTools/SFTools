@@ -123,7 +123,7 @@ export class VersionManager
 	);
 	public activeVersionData = computed<Data | null>(() => {
 		const file = this.api.versionDataResource.value();
-		return file ? this.transformer.transform(file) : null;
+		return file ? this.transformer.transform(file, this.activeVersion()?.worldData?.limits ?? null) : null;
 	});
 
 	/** The URL segment addressing a version: its slug, or its id for custom versions without one. */

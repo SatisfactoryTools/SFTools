@@ -16,7 +16,12 @@ export class Data
 	public readonly buildings: Building[];
 	public readonly materials: Material[];
 	public readonly resources: string[];
-	/** Per-minute resource caps from metadata.world.limits; null when the version has none. */
+	/**
+	 * Per-minute resource caps from metadata.world.limits, falling back to the
+	 * caps passed by the caller (the version record's worldData.limits - data
+	 * files of official versions carry the generator's raw world output without
+	 * limits); null when neither has any.
+	 */
 	public readonly worldLimits: Record<string, number> | null;
 
 	private readonly itemMap: Map<string, Item>;
@@ -35,9 +40,9 @@ export class Data
 	private recipesByBuilding: Map<string, Recipe[]> | null = null;
 	private buildingsByBuildRecipe: Map<string, Building> | null = null;
 
-	public constructor(schema: DataSchema, metadata?: VersionMetadata)
+	public constructor(schema: DataSchema, metadata?: VersionMetadata, fallbackWorldLimits: Record<string, number> | null = null)
 	{
-		this.worldLimits = metadata?.world?.limits ?? null;
+		this.worldLimits = metadata?.world?.limits ?? fallbackWorldLimits;
 
 		// Items have no entity dependencies - build first
 		this.items = Object.values(schema.items).map(s => new Item(s));
