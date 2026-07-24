@@ -48,6 +48,13 @@ fa-icon {
 	--bs-btn-disabled-border-color: #7e8f9e;
 }
 
+// Bootstrap's select arrow is a dark-gray SVG baked in for light backgrounds;
+// on our bg-dark selects (e.g. the rate-mode picker in the production request
+// panel) it all but disappears. Swap in the same chevron with a white stroke.
+.form-select.bg-dark {
+	--bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
+}
+
 // Edge corner handles advertise click-to-remove with a pointer cursor (set
 // as a presentation attribute by the vertices tool); once a drag starts the
 // handle is the active element, so :active flips it to the move cursor.
