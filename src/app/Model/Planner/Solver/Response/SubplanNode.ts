@@ -49,6 +49,8 @@ export class SubplanNode extends Node
 			outputs: this.outputs.map(io => ({itemClassName: io.item.className, amount: io.maxAmount})),
 			x: this.x,
 			y: this.y,
+			// Subplan nodes are always locked, so the flag is unconditional here.
+			...this.serializeFlags(),
 			locked: true,
 		};
 	}

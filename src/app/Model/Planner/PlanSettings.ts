@@ -32,6 +32,11 @@ export interface PlanSettings
 	 */
 	readonly enabledFuels?: Record<string, string[]>;
 	/**
+	 * Item class names the solver may not overproduce as byproducts. Absent =
+	 * every item may become a byproduct.
+	 */
+	readonly disabledByproducts?: string[];
+	/**
 	 * Item class names the solver may feed into the AWESOME Sink to earn sink
 	 * points. Absent = nothing may be sinked.
 	 */

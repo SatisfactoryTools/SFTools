@@ -68,6 +68,12 @@ export class CalculatorSloopsTabComponent
 		return this.planManager.activeSettings()?.producePowerForFactory ?? false;
 	}
 
+	/** A maximised request (Production tab) runs several MIP solves in a row - much harder with sloops. */
+	public get hasMaximiseRequest(): boolean
+	{
+		return this.planManager.activePlan()?.requests.some(request => request.mode === 'maximise') ?? false;
+	}
+
 	public setMaxSloops(value: number): void
 	{
 		const settings = this.planManager.activeSettings();

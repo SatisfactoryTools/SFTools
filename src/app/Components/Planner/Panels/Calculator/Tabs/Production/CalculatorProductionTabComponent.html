@@ -3,7 +3,7 @@
 		<thead>
 			<tr>
 				<th>Item</th>
-				<th style="width: 205px;">Rate</th>
+				<th style="width: 235px;">Rate</th>
 				<th style="width: 36px;"></th>
 			</tr>
 		</thead>
@@ -20,16 +20,59 @@
 					</td>
 					<td>
 						<div class="input-group input-group-sm">
-							<input
-								type="number"
-								class="form-control form-control-sm bg-dark text-light border-secondary"
-								[name]="'rate-' + i"
-								[(ngModel)]="row.ratePerMinute"
-								(ngModelChange)="sync()"
-								min="0"
-								step="1"
-							>
-							<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateUnit(row.itemClassName) }}</span>
+							@if (modeOf(row) === 'rate') {
+								@if (row.itemClassName === powerTargetClass) {
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[name]="'rate-' + i"
+										[ngModel]="powerRateOf(row)"
+										(ngModelChange)="setPowerRate(row, $event)"
+										min="0"
+										step="1"
+									>
+								} @else {
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[name]="'rate-' + i"
+										[(ngModel)]="row.ratePerMinute"
+										(ngModelChange)="sync()"
+										min="0"
+										step="1"
+									>
+								}
+							} @else {
+								<span
+									class="input-group-text bg-dark text-secondary border-secondary flex-grow-1"
+									[title]="achievedFor(row) === null ? 'Calculated after the next solve' : 'Achieved by the last calculation'"
+								>{{ achievedFor(row) ?? '?' }}</span>
+							}
+							@if (row.itemClassName === powerTargetClass) {
+								<select
+									class="form-select bg-dark text-light border-secondary"
+									style="flex: 0 0 auto; width: auto;"
+									[name]="'mode-' + i"
+									[ngModel]="powerSelectionOf(row)"
+									(ngModelChange)="setPowerSelection(row, $event)"
+								>
+									<option value="MW">MW</option>
+									<option value="GW">GW</option>
+									<option value="TW">TW</option>
+									<option value="maximise" [disabled]="maximiseDisabled(row)">maximise</option>
+								</select>
+							} @else {
+								<select
+									class="form-select bg-dark text-light border-secondary"
+									style="flex: 0 0 auto; width: auto;"
+									[name]="'mode-' + i"
+									[ngModel]="modeOf(row)"
+									(ngModelChange)="setMode(row, $event)"
+								>
+									<option value="rate">{{ rateUnit(row.itemClassName) }}</option>
+									<option value="maximise" [disabled]="maximiseDisabled(row)">maximise</option>
+								</select>
+							}
 						</div>
 					</td>
 					<td>
@@ -47,4 +90,11 @@
 	<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addRow()">
 		+ Add Item
 	</button>
+
+	@if (showSloopWarning) {
+		<div class="alert alert-warning py-2 px-3 mb-0 mt-2">
+			Somersloop optimisation combined with a maximised production target
+			makes the solve much harder - calculations can take very long.
+		</div>
+	}
 </div>

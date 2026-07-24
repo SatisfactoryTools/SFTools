@@ -1,5 +1,5 @@
 import {Injectable, OnDestroy, Signal, signal} from '@angular/core';
-import {faLock, faTriangleExclamation, IconDefinition} from '@fortawesome/free-solid-svg-icons';
+import {faCircleCheck, faLock, faTriangleExclamation, IconDefinition} from '@fortawesome/free-solid-svg-icons';
 import {Cell, Edge as X6Edge, EdgeToolNativeItem, EdgeView, Graph as X6Graph, Node as X6Node, Selection} from '@antv/x6';
 import type {Metadata as PortsMetadata, PortMetadata} from '@antv/x6/lib/model/port';
 import type {Handle as VertexHandle} from '@antv/x6/lib/registry/tool/vertices';
@@ -81,6 +81,13 @@ const SLOOP_GLOW_COLOR = '#c56cf0';
 const LOCK_ICON_SIZE = 18;
 const SLOOP_ICON_SIZE = 20;
 const CORNER_INSET = 5;
+// Done ("already built") nodes trade their accent colour for neutral grey and
+// fade to this opacity; edges between two done nodes fade with them. The
+// green check itself stays fully opaque.
+const DONE_OPACITY = 0.4;
+const DONE_ICON_SIZE = 20;
+const DONE_FILL = '#1b212a';
+const DONE_STROKE = '#525e6c';
 // Second row of the top-right stack, where the lock drops when a sloop icon
 // occupies the top row.
 const LOCK_ROW2_Y = CORNER_INSET + SLOOP_ICON_SIZE + 3;
@@ -124,6 +131,10 @@ const STAT_SLOOP_CENTER_OFFSET = 5;
 const CORNER_PREVIEW_SNAP = 10;
 const EDGE_STROKE = '#5c718a';
 const EDGE_STROKE_WIDTH = 1.5;
+// Straight edges sharing a node pair (A→B + B→A, or two items one way) are
+// fanned out perpendicular to their line, this far apart, so they don't cover
+// each other - a pair sits at ±half this gap.
+const PARALLEL_EDGE_GAP = 40;
 const SELECTED_STROKE = '#f0ad4e';
 const SELECTED_STROKE_WIDTH = 3;
 const SELECTED_EDGE_STROKE_WIDTH = 2.5;
@@ -162,6 +173,7 @@ X6Graph.registerNode('planner-node', {
 		{tagName: 'image', selector: 'machineIcon', className: 'pn-machine'},
 		{tagName: 'image', selector: 'sloop', className: 'pn-sloop'},
 		{tagName: 'image', selector: 'lock', className: 'pn-lock'},
+		{tagName: 'image', selector: 'done', className: 'pn-done'},
 		{tagName: 'image', selector: 'inputWarning', className: 'pn-input-warning'},
 		{tagName: 'image', selector: 'outputWarning', className: 'pn-output-warning'},
 		{tagName: 'image', selector: 'capacityWarning', className: 'pn-capacity-warning'},
@@ -195,6 +207,13 @@ X6Graph.registerNode('planner-node', {
 			width: LOCK_ICON_SIZE,
 			height: LOCK_ICON_SIZE,
 			cursor: 'help',
+		},
+		// Bottom-right; the capacity warning yields (shifts left) when both show.
+		done: {
+			refDx: -(DONE_ICON_SIZE + CORNER_INSET),
+			refDy: -(DONE_ICON_SIZE + CORNER_INSET),
+			width: DONE_ICON_SIZE,
+			height: DONE_ICON_SIZE,
 		},
 		inputWarning: {
 			refX: 0,
@@ -274,6 +293,7 @@ X6Graph.registerNode('planner-subplan-node', {
 		{tagName: 'text', selector: 'inMore'},
 		{tagName: 'text', selector: 'outMore'},
 		{tagName: 'image', selector: 'lock', className: 'pn-lock'},
+		{tagName: 'image', selector: 'done', className: 'pn-done'},
 	],
 	attrs: {
 		body: {refWidth: '100%', refHeight: '100%'},
@@ -285,10 +305,11 @@ X6Graph.registerNode('planner-subplan-node', {
 		inMore: {refX: 0, x: 10, refY: 0, y: SUBPLAN_MORE_Y, textAnchor: 'start', textVerticalAnchor: 'middle', fontSize: 11, fill: '#aab8cc'},
 		outMore: {refDx: -10, refY: 0, y: SUBPLAN_MORE_Y, textAnchor: 'end', textVerticalAnchor: 'middle', fontSize: 11, fill: '#aab8cc'},
 		lock: {refDx: -(LOCK_ICON_SIZE + CORNER_INSET), refY: 0, y: CORNER_INSET, width: LOCK_ICON_SIZE, height: LOCK_ICON_SIZE, cursor: 'help'},
+		done: {refDx: -(DONE_ICON_SIZE + CORNER_INSET), refDy: -(DONE_ICON_SIZE + CORNER_INSET), width: DONE_ICON_SIZE, height: DONE_ICON_SIZE},
 	},
 }, true);
 
-/** lock/inputWarning/outputWarning/capacityWarning carry icon data URIs; empty string hides the icon. */
+/** lock/done/inputWarning/outputWarning/capacityWarning carry icon data URIs; empty string hides the icon. */
 interface NodeStyle {
 	bodyFill: string;
 	bodyStroke: string;
@@ -297,6 +318,7 @@ interface NodeStyle {
 	machines: string;
 	stats: string;
 	lock: string;
+	done: string;
 	inputWarning: string;
 	outputWarning: string;
 	capacityWarning: string;
@@ -333,7 +355,11 @@ export class PlannerGraphService implements OnDestroy
 	 */
 	private vertexDragAnchorId: string | null = null;
 	private readonly nodeById = new Map<string, Node>();
+	/** Ids of done nodes in the rendered graph - edges between two of them render faded. */
+	private doneNodeIds = new Set<string>();
 	private readonly edgeById = new Map<string, GraphEdge>();
+	/** Per-edge sideways anchor shift separating straight edges that share a node pair. */
+	private parallelOffsets = new Map<GraphEdge, GraphPoint>();
 
 	private readonly selectedNodesSignal = signal<Node[]>([]);
 	public readonly selectedNodes: Signal<Node[]> = this.selectedNodesSignal.asReadonly();
@@ -372,6 +398,7 @@ export class PlannerGraphService implements OnDestroy
 	private dimmedNodeIds: string[] = [];
 
 	private readonly lockIconUri = this.iconDataUri(faLock, '#c9962e');
+	private readonly doneIconUri = this.iconDataUri(faCircleCheck, '#4caf50');
 	private readonly warningIconUri = this.iconDataUri(faTriangleExclamation, '#e58a72');
 
 	public constructor(
@@ -501,6 +528,11 @@ export class PlannerGraphService implements OnDestroy
 
 		this.warningsById = this.reconciler.computeWarnings(graph);
 		const x6Graph = this.createGraph(container);
+
+		// Known before the edges render, so an edge between two done nodes can
+		// fade with them (nodeById itself fills later, in trackNodeMoves).
+		this.doneNodeIds = new Set(graph.nodes.filter(node => node.done).map(node => node.id));
+		this.parallelOffsets = this.computeParallelOffsets(graph);
 
 		graph.nodes.forEach(node => this.addNode(x6Graph, node));
 		graph.edges.forEach((edge, i) => this.addEdge(x6Graph, edge, i));
@@ -890,6 +922,9 @@ export class PlannerGraphService implements OnDestroy
 				},
 			}
 			: {name: {}, machines: {}, stats: {}};
+		// A done node fades element by element - the green check (the `done`
+		// selector itself) stays fully opaque on top of the faded body.
+		const fade = node.done ? {opacity: DONE_OPACITY} : {};
 		x6Graph.addNode({
 			id: node.id,
 			shape: 'planner-node',
@@ -909,18 +944,26 @@ export class PlannerGraphService implements OnDestroy
 					...(sloopGlow
 						? {filter: {name: 'dropShadow', args: {dx: 0, dy: 0, blur: 9, color: SLOOP_GLOW_COLOR, opacity: 0.55}}}
 						: {}),
+					...fade,
 				},
-				name: {text: style.name, ...recipeLabelAttrs.name, x: textShift},
-				machines: {text: style.machines, ...recipeLabelAttrs.machines, x: textShift},
-				stats: {text: style.stats, ...recipeLabelAttrs.stats, x: textShift},
-				machineIcon: {...this.iconAttrs(this.nodeIconFor(node)), ...this.leftIconAttrs(node)},
-				...this.recipeSloopBadges(node, textShift, labelOffset),
-				sloop: this.iconAttrs(cornerSloop),
+				name: {text: style.name, ...recipeLabelAttrs.name, x: textShift, ...fade},
+				machines: {text: style.machines, ...recipeLabelAttrs.machines, x: textShift, ...fade},
+				stats: {text: style.stats, ...recipeLabelAttrs.stats, x: textShift, ...fade},
+				machineIcon: {...this.iconAttrs(this.nodeIconFor(node)), ...this.leftIconAttrs(node), ...fade},
+				...this.recipeSloopBadges(node, textShift, labelOffset, fade),
+				sloop: {...this.iconAttrs(cornerSloop), ...fade},
 				// The lock drops to the second row when the sloop icon holds the top.
-				lock: {...this.iconAttrs(style.lock), y: cornerSloop ? LOCK_ROW2_Y : CORNER_INSET},
-				inputWarning: this.iconAttrs(style.inputWarning),
-				outputWarning: this.iconAttrs(style.outputWarning),
-				capacityWarning: this.iconAttrs(style.capacityWarning),
+				lock: {...this.iconAttrs(style.lock), y: cornerSloop ? LOCK_ROW2_Y : CORNER_INSET, ...fade},
+				done: this.iconAttrs(style.done),
+				inputWarning: {...this.iconAttrs(style.inputWarning), ...fade},
+				outputWarning: {...this.iconAttrs(style.outputWarning), ...fade},
+				// The capacity warning shares the bottom-right corner with the
+				// done check - it steps left when both are shown.
+				capacityWarning: {
+					...this.iconAttrs(style.capacityWarning),
+					...(node.done ? {refDx: -(14 + CORNER_INSET + DONE_ICON_SIZE + 4)} : {}),
+					...fade,
+				},
 			},
 		});
 	}
@@ -938,6 +981,11 @@ export class PlannerGraphService implements OnDestroy
 		};
 		this.applySubplanIoIcons(attrs, 'in', node.inputs);
 		this.applySubplanIoIcons(attrs, 'out', node.outputs);
+		// A done node fades wholesale; only the green check stays fully opaque.
+		if (node.done) {
+			Object.values(attrs).forEach(attr => attr['opacity'] = DONE_OPACITY);
+		}
+		attrs['done'] = this.iconAttrs(style.done);
 		x6Graph.addNode({
 			id: node.id,
 			shape: 'planner-subplan-node',
@@ -1276,6 +1324,65 @@ export class PlannerGraphService implements OnDestroy
 		return ios.some(io => io.item.className === gesture.itemClassName);
 	}
 
+	/**
+	 * Sideways shifts for straight (vertex-less) edges sharing the same
+	 * unordered node pair - a reciprocal A→B/B→A pair, or several items
+	 * flowing one way - which would otherwise draw on top of each other.
+	 * Each group fans out perpendicular to its centre line in PARALLEL_EDGE_GAP
+	 * steps. The perpendicular comes from the canonical (lower node id first)
+	 * orientation so both directions of a pair split to opposite sides, and
+	 * members are sorted so an edge keeps its side across re-renders.
+	 */
+	private computeParallelOffsets(graph: Graph): Map<GraphEdge, GraphPoint>
+	{
+		const centers = new Map<string, GraphPoint>();
+		graph.nodes.forEach(node => {
+			const size = this.sizeFor(node);
+			centers.set(node.id, {x: node.x + size.width / 2, y: node.y + size.height / 2});
+		});
+
+		const groups = new Map<string, GraphEdge[]>();
+		graph.edges.forEach(edge => {
+			if (edge.vertices && edge.vertices.length > 0) {
+				return;
+			}
+			const key = edge.sourceId < edge.targetId
+				? `${edge.sourceId}|${edge.targetId}`
+				: `${edge.targetId}|${edge.sourceId}`;
+			const group = groups.get(key);
+			if (group) {
+				group.push(edge);
+			} else {
+				groups.set(key, [edge]);
+			}
+		});
+
+		const offsets = new Map<GraphEdge, GraphPoint>();
+		groups.forEach(group => {
+			if (group.length < 2) {
+				return;
+			}
+			const [lowId, highId] = [group[0].sourceId, group[0].targetId].sort();
+			const a = centers.get(lowId);
+			const b = centers.get(highId);
+			if (!a || !b) {
+				return;
+			}
+			const length = Math.hypot(b.x - a.x, b.y - a.y);
+			if (length < 1) {
+				return;
+			}
+			const perpX = -(b.y - a.y) / length;
+			const perpY = (b.x - a.x) / length;
+			group.sort((e1, e2) => `${e1.sourceId}|${e1.itemClassName}`.localeCompare(`${e2.sourceId}|${e2.itemClassName}`));
+			group.forEach((edge, i) => {
+				const delta = (i - (group.length - 1) / 2) * PARALLEL_EDGE_GAP;
+				offsets.set(edge, {x: perpX * delta, y: perpY * delta});
+			});
+		});
+		return offsets;
+	}
+
 	private addEdge(x6Graph: X6Graph, edge: GraphEdge, index: number): void
 	{
 		const label = this.labelTextFor(edge);
@@ -1285,15 +1392,25 @@ export class PlannerGraphService implements OnDestroy
 		const hasIcon = label.iconUrl !== null && this.settings.graph().showEdgeItemIcons;
 		const textShift = hasIcon ? (EDGE_ICON_SIZE + EDGE_ICON_GAP) / 2 : 0;
 		const showBox = this.settings.graph().showEdgeLabelBox;
+		// An edge whose both endpoints are done is implicitly built too - it
+		// fades like the nodes (edges carry no done flag of their own).
+		const fade = this.doneNodeIds.has(edge.sourceId) && this.doneNodeIds.has(edge.targetId)
+			? {opacity: DONE_OPACITY}
+			: {};
+		// The same sideways shift on both anchors keeps the line parallel to
+		// the centre-to-centre one; boundary clipping follows the shifted line.
+		const offset = this.parallelOffsets.get(edge);
+		const anchor = offset ? {name: 'center', args: {dx: offset.x, dy: offset.y}} : undefined;
 
 		x6Graph.addEdge({
 			id,
-			source: edge.sourceId,
-			target: edge.targetId,
+			source: anchor ? {cell: edge.sourceId, anchor} : edge.sourceId,
+			target: anchor ? {cell: edge.targetId, anchor} : edge.targetId,
 			attrs: {
 				line: {
 					stroke: EDGE_STROKE,
 					strokeWidth: EDGE_STROKE_WIDTH,
+					...fade,
 				},
 			},
 			labels: [{
@@ -1312,6 +1429,7 @@ export class PlannerGraphService implements OnDestroy
 						textAnchor: 'middle',
 						textVerticalAnchor: 'middle',
 						x: textShift,
+						...fade,
 					},
 					// The flowing item's icon, pinned just inside the left edge
 					// of the label rect and vertically centered; zero-sized when
@@ -1323,6 +1441,7 @@ export class PlannerGraphService implements OnDestroy
 							height: EDGE_ICON_SIZE,
 							x: -size.width / 2 + 6,
 							y: -EDGE_ICON_SIZE / 2,
+							...fade,
 						}
 						: {'xlink:href': '', width: 0, height: 0},
 					// The default label rect is sized from the measured text
@@ -1346,6 +1465,7 @@ export class PlannerGraphService implements OnDestroy
 						strokeWidth: showBox ? 1 : 0,
 						rx: 4,
 						ry: 4,
+						...fade,
 					},
 				},
 			}],
@@ -1797,7 +1917,7 @@ export class PlannerGraphService implements OnDestroy
 	 * placed just past the line's "+K", so the icon reads as the unit (replacing
 	 * the old "S"). Empty for non-recipe or unslooped nodes.
 	 */
-	private recipeSloopBadges(node: Node, textShift: number, labelOffset = 0): Record<string, Record<string, string | number>>
+	private recipeSloopBadges(node: Node, textShift: number, labelOffset = 0, fade: {opacity?: number} = {}): Record<string, Record<string, string | number>>
 	{
 		// Decimal machine display shows no group lines to badge; the corner
 		// sloop icon and glow still mark the node as slooped.
@@ -1820,6 +1940,7 @@ export class PlannerGraphService implements OnDestroy
 				// The stat line centers at nodeCenter + textShift; the badge follows its right edge.
 				x: textShift + lineWidth / 2 + STAT_SLOOP_GAP,
 				y: RECIPE_STATS_Y + labelOffset + i * RECIPE_STATS_LINE_HEIGHT + STAT_SLOOP_CENTER_OFFSET - STAT_SLOOP_SIZE / 2,
+				...fade,
 			};
 		});
 		return badges;
@@ -1887,9 +2008,13 @@ export class PlannerGraphService implements OnDestroy
 	{
 		// Colours come from settings: the accent is the border, the fill is a
 		// darkened version of it. The rest of the style (labels) is per type.
+		// Done nodes lose the accent entirely - neutral grey plus the fade and
+		// the green check makes "already built" readable at a glance.
 		const accent = this.accentColor(node);
-		const colors = {bodyFill: this.darken(accent), bodyStroke: accent};
-		const icons = {lock: '', inputWarning: '', outputWarning: '', capacityWarning: ''};
+		const colors = node.done
+			? {bodyFill: DONE_FILL, bodyStroke: DONE_STROKE}
+			: {bodyFill: this.darken(accent), bodyStroke: accent};
+		const icons = {lock: '', done: node.done ? this.doneIconUri : '', inputWarning: '', outputWarning: '', capacityWarning: ''};
 
 		if (node instanceof SubplanNode) {
 			return {...colors, name: node.getDisplayName(), stats: this.subplanStats(node), machines: '', ...icons};

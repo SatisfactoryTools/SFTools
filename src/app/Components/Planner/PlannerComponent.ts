@@ -19,12 +19,14 @@ import {PlannerContextMenuComponent} from '@src/Components/Planner/ContextMenu/P
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
 import {PlannerNodeTooltipComponent} from '@src/Components/Planner/Tooltip/PlannerNodeTooltipComponent';
 import {PlannerNodeTooltipService} from '@src/Components/Planner/Tooltip/PlannerNodeTooltipService';
+import {FuelDisableRequest} from '@src/Components/Planner/FuelDisableRequest';
 import {GraphConnectToBlankRequest} from '@src/Components/Planner/GraphConnectToBlankRequest';
 import {GraphContextMenuRequest} from '@src/Components/Planner/GraphContextMenuRequest';
 import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {GraphEdgeAmountRequest} from '@src/Components/Planner/GraphEdgeAmountRequest';
 import {GraphHistoryService} from '@src/Components/Planner/GraphHistoryService';
 import {PreparedEdgeAdd} from '@src/Components/Planner/PreparedEdgeAdd';
+import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
@@ -40,6 +42,7 @@ import {PlannerPowerComponent} from '@src/Components/Planner/Panels/Power/Planne
 import {PlannerSettingsComponent} from '@src/Components/Planner/Panels/Settings/PlannerSettingsComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
+import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {GraphComposer} from '@src/Model/Planner/Graph/GraphComposer';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
@@ -131,6 +134,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		private readonly history: GraphHistoryService,
 		private readonly contextMenu: PlannerContextMenuService,
 		private readonly versionManager: VersionManager,
+		private readonly enabledRecipes: EnabledRecipesResolver,
 		private readonly subplanResolver: SubplanIOResolver,
 		private readonly notifications: NotificationService,
 		private readonly rateFormatter: RateFormatter,
@@ -228,6 +232,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		);
 
 		this.subscription.add(
+			this.actions.nodeDoneRequests.subscribe(request => this.applyDoneChange(request)),
+		);
+
+		this.subscription.add(
 			this.actions.relayoutRequests.subscribe(() => void this.relayoutGraph()),
 		);
 
@@ -253,6 +261,40 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 		this.subscription.add(
 			this.actions.nodeDeleteRequests.subscribe(nodeIds => this.applyNodeDelete(nodeIds)),
+		);
+
+		// Production-request shortcuts from node context menus: each edits the
+		// plan's solver inputs; the automatic-mode effect below then re-solves.
+		this.subscription.add(
+			this.actions.recipeDisableRequests.subscribe(recipeClassName => this.disableRecipe(recipeClassName)),
+		);
+
+		this.subscription.add(
+			this.actions.machineDisableRequests.subscribe(machineClassName => this.disableMachine(machineClassName)),
+		);
+
+		this.subscription.add(
+			this.actions.byproductDisableRequests.subscribe(itemClassName => this.disableByproduct(itemClassName)),
+		);
+
+		this.subscription.add(
+			this.actions.fuelDisableRequests.subscribe(request => this.disableFuel(request)),
+		);
+
+		this.subscription.add(
+			this.actions.generatorDisableRequests.subscribe(generatorClassName => this.disableGenerator(generatorClassName)),
+		);
+
+		this.subscription.add(
+			this.actions.productRemoveRequests.subscribe(itemClassName => this.removeProduct(itemClassName)),
+		);
+
+		this.subscription.add(
+			this.actions.resourceDisableRequests.subscribe(resourceClassName => this.disableResource(resourceClassName)),
+		);
+
+		this.subscription.add(
+			this.actions.inputRemoveRequests.subscribe(itemClassName => this.removeInput(itemClassName)),
 		);
 
 		// Node appearance settings (global colours/glow/machine display, number
@@ -300,12 +342,14 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 					id: plan.id,
 					mode: this.modeOf(plan),
 					requestsKey: JSON.stringify({
-						requests: plan.requests,
+						// powerUnit is a display-only input scale - switching it must not re-solve.
+						requests: plan.requests.map(r => ({itemClassName: r.itemClassName, ratePerMinute: r.ratePerMinute, mode: r.mode})),
 						inputs: plan.inputs,
 						recipes: plan.settings.enabledRecipes,
 						machines: plan.settings.disabledMachines,
 						limits: plan.settings.resourceLimits,
 						fuels: plan.settings.enabledFuels,
+						byproducts: plan.settings.disabledByproducts,
 						sinkable: plan.settings.sinkableItems,
 						factoryPower: [plan.settings.producePowerForFactory, plan.settings.excessPowerPercent],
 						optimisation: plan.settings.optimisation,
@@ -915,6 +959,18 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 				this.applyNodeDelete(nodeIds);
 			}
 		}
+		// Enter toggles the built ("done") marker: a mixed selection is
+		// unified to done first, a fully done one is cleared.
+		if (event.key === 'Enter') {
+			const selected = this.plannerGraph.selectedNodes();
+			if (selected.length > 0) {
+				event.preventDefault();
+				this.applyDoneChange({
+					nodeIds: selected.map(node => node.id),
+					done: !selected.every(node => node.done),
+				});
+			}
+		}
 	}
 
 	private snapshotOf(plan: Plan): GraphSnapshot
@@ -1015,6 +1071,138 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			this.plannerGraph.selectNodeById(request.nodeIds[0]);
 		}
 		this.planManager.setGraph(plan.id, graph, true);
+	}
+
+	/**
+	 * Marks nodes as built ("done") in the game. Like a lock change it is a
+	 * manual graph edit: it persists with the graph and undo covers it. The
+	 * selection is restored so repeated Enter presses keep toggling.
+	 */
+	private applyDoneChange(request: NodeDoneRequest): void
+	{
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not change node done state: ' + String(err));
+			return;
+		}
+
+		// Snapshot before the in-place flag flips.
+		this.history.push(this.snapshotOf(plan));
+
+		const ids = new Set(request.nodeIds);
+		graph.nodes.forEach(node => {
+			if (ids.has(node.id)) {
+				node.done = request.done;
+			}
+		});
+
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
+		this.plannerGraph.selectNodesById(request.nodeIds);
+		this.planManager.setGraph(plan.id, graph, true);
+	}
+
+	// ── Production-request shortcuts (node context menus) ───────────────────
+	// Each edits the active plan's solver inputs exactly like the matching
+	// calculator tab would; automatic mode re-solves via the requestsKey effect.
+
+	private disableRecipe(recipeClassName: string): void
+	{
+		const settings = this.planManager.activeSettings();
+		const data = this.versionManager.activeVersionData();
+		if (!settings || !data) {
+			return;
+		}
+		const enabled = this.enabledRecipes.resolve(settings, data);
+		enabled.delete(recipeClassName);
+		this.planManager.updateActiveSettings({...settings, enabledRecipes: [...enabled].sort()});
+	}
+
+	private disableMachine(machineClassName: string): void
+	{
+		const settings = this.planManager.activeSettings();
+		if (!settings) {
+			return;
+		}
+		const disabled = new Set(settings.disabledMachines ?? []);
+		disabled.add(machineClassName);
+		this.planManager.updateActiveSettings({...settings, disabledMachines: [...disabled].sort()});
+	}
+
+	private disableByproduct(itemClassName: string): void
+	{
+		const settings = this.planManager.activeSettings();
+		if (!settings) {
+			return;
+		}
+		const disabled = new Set(settings.disabledByproducts ?? []);
+		disabled.add(itemClassName);
+		this.planManager.updateActiveSettings({...settings, disabledByproducts: [...disabled].sort()});
+	}
+
+	private disableFuel(request: FuelDisableRequest): void
+	{
+		const settings = this.planManager.activeSettings();
+		if (!settings) {
+			return;
+		}
+		const fuels = {...(settings.enabledFuels ?? {})};
+		// A generator with no enabled fuel left is disabled entirely - drop its
+		// key, matching the Power tab's persistence.
+		const remaining = (fuels[request.generatorClassName] ?? []).filter(fuel => fuel !== request.fuelItemClassName);
+		if (remaining.length > 0) {
+			fuels[request.generatorClassName] = remaining;
+		} else {
+			delete fuels[request.generatorClassName];
+		}
+		this.planManager.updateActiveSettings({...settings, enabledFuels: Object.keys(fuels).length > 0 ? fuels : undefined});
+	}
+
+	private disableGenerator(generatorClassName: string): void
+	{
+		const settings = this.planManager.activeSettings();
+		if (!settings) {
+			return;
+		}
+		const fuels = {...(settings.enabledFuels ?? {})};
+		delete fuels[generatorClassName];
+		this.planManager.updateActiveSettings({...settings, enabledFuels: Object.keys(fuels).length > 0 ? fuels : undefined});
+	}
+
+	private disableResource(resourceClassName: string): void
+	{
+		const settings = this.planManager.activeSettings();
+		if (!settings) {
+			return;
+		}
+		this.planManager.updateActiveSettings({
+			...settings,
+			resourceLimits: {...(settings.resourceLimits ?? {}), [resourceClassName]: 0},
+		});
+	}
+
+	private removeProduct(itemClassName: string): void
+	{
+		const plan = this.planManager.activePlan();
+		if (!plan) {
+			return;
+		}
+		this.planManager.setRequests(plan.id, plan.requests.filter(request => request.itemClassName !== itemClassName));
+	}
+
+	private removeInput(itemClassName: string): void
+	{
+		const plan = this.planManager.activePlan();
+		if (!plan) {
+			return;
+		}
+		this.planManager.setInputs(plan.id, plan.inputs.filter(input => input.itemClassName !== itemClassName));
 	}
 
 	/**
@@ -1504,6 +1692,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 				void this.applyResult(plan, result, existing).then(graph => {
 					this.renderedPlanId = plan.id;
 					this.planManager.setGraph(plan.id, graph, false);
+					// Undefined clears stale maximise results of earlier solves.
+					this.planManager.setAchievedMaximums(plan.id, result.achievedMaximums);
 				}).catch(err => {
 					this.actions.setSolveError('graph render failed', 'Graph render failed: ' + String(err));
 				});

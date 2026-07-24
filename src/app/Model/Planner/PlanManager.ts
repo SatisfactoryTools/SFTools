@@ -287,6 +287,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			enabledFuels: parent?.settings.enabledFuels
 				? Object.fromEntries(Object.entries(parent.settings.enabledFuels).map(([gen, fuels]) => [gen, [...fuels]]))
 				: undefined,
+			disabledByproducts: parent?.settings.disabledByproducts ? [...parent.settings.disabledByproducts] : undefined,
 		};
 		return this.insertPlan(name, null, parentPlanId, settings);
 	}
@@ -390,6 +391,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			enabledFuels: settings.enabledFuels
 				? Object.fromEntries(Object.entries(settings.enabledFuels).map(([generator, fuels]) => [generator, [...fuels]]))
 				: undefined,
+			disabledByproducts: settings.disabledByproducts ? [...settings.disabledByproducts] : undefined,
 			sinkableItems: settings.sinkableItems ? [...settings.sinkableItems] : undefined,
 			producePowerForFactory: settings.producePowerForFactory,
 			excessPowerPercent: settings.excessPowerPercent,
@@ -431,6 +433,15 @@ export class PlanManager extends SyncableService<PlanStore>
 			plans: store.plans.map(p => p.id === planId
 				? {...p, graph, metadata: graphDirty === undefined ? p.metadata : {...p.metadata, graphDirty}}
 				: p),
+		}));
+	}
+
+	/** Stores the achieved rates of a maximise solve; undefined clears them (non-maximise solve). */
+	public setAchievedMaximums(planId: string, achievedMaximums: Record<string, number> | undefined): void
+	{
+		this.mutate(store => ({
+			...store,
+			plans: store.plans.map(p => p.id === planId ? {...p, metadata: {...p.metadata, achievedMaximums}} : p),
 		}));
 	}
 

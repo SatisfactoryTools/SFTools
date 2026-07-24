@@ -1,6 +1,7 @@
 import {GeneratorFuelOption} from '@src/Model/Planner/Solver/Request/GeneratorFuelOption';
 import {InputSource} from '@src/Model/Planner/Solver/Request/InputSource';
 import {Item} from '@src/Model/Data/Entities/Item';
+import {MaximiseTarget} from '@src/Model/Planner/Solver/Request/MaximiseTarget';
 import {OptimisationTarget} from '@src/Model/Planner/Solver/Request/OptimisationTarget';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {ProductionTarget} from '@src/Model/Planner/Solver/Request/ProductionTarget';
@@ -10,6 +11,14 @@ export interface SolverRequest
 
 	optimisation: OptimisationTarget;
 	productions: ProductionTarget[];
+	/** When set, the objective becomes "maximise this" and `optimisation` is ignored. */
+	maximise: MaximiseTarget | null;
+	/**
+	 * Byproducts carried over from earlier maximise rounds: free item sources
+	 * capped at `amount` (weight is ignored). Kept separate from `inputs` so
+	 * the final graph can net them against the byproducts that created them.
+	 */
+	carryInputs: InputSource[];
 	recipes: Recipe[];
 	/** User-supplied item sources: available up to `amount`/min, priced at `weight` in the objective. */
 	inputs: InputSource[];
@@ -28,6 +37,8 @@ export interface SolverRequest
 	producePowerForFactory: boolean;
 	/** Extra generation margin as a fraction of the factory draw (0.1 = 10%). */
 	excessPowerFraction: number;
+	/** Item class names that get no overproduction slack - they may not appear as byproducts. */
+	disabledByproducts: string[];
 	/** Items the solver may feed into the AWESOME Sink. */
 	sinkableItems: Item[];
 	/** Requested sink points per minute the sinkable items must earn. */

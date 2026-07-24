@@ -11,6 +11,9 @@ export abstract class Node
 	/** Locked nodes are user-owned: the solver builds around them and never replaces them. */
 	public locked = false;
 
+	/** Done nodes are already built in the game - a purely visual progress marker. */
+	public done = false;
+
 	public abstract readonly type: string;
 
 	protected constructor(
@@ -26,10 +29,13 @@ export abstract class Node
 
 	public abstract toJSON(): object;
 
-	/** Spread into subclass toJSON() results; omits the key entirely when unlocked. */
-	protected serializeLock(): {locked?: true}
+	/** Spread into subclass toJSON() results; omits unset flags entirely. */
+	protected serializeFlags(): {locked?: true; done?: true}
 	{
-		return this.locked ? {locked: true} : {};
+		return {
+			...(this.locked ? {locked: true as const} : {}),
+			...(this.done ? {done: true as const} : {}),
+		};
 	}
 
 }

@@ -12,6 +12,7 @@ import {
 	faMountain,
 	faPlay,
 	faRecycle,
+	faRightFromBracket,
 	faRightToBracket,
 	faRotateLeft,
 	faScroll,
@@ -24,6 +25,7 @@ import {CalculationModeOption} from '@src/Components/Planner/Panels/Calculator/C
 import {CalculatorTab} from '@src/Components/Planner/Panels/Calculator/CalculatorTab';
 import {CalculatorTabDefinition} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinition';
 import {LoadFromSaveDialogComponent} from '@src/Components/Planner/Panels/Calculator/LoadFromSaveDialogComponent';
+import {CalculatorByproductsTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Byproducts/CalculatorByproductsTabComponent';
 import {CalculatorOptimisationTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Optimisation/CalculatorOptimisationTabComponent';
 import {CalculatorOverclockingTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Overclocking/CalculatorOverclockingTabComponent';
 import {CalculatorPowerTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Power/CalculatorPowerTabComponent';
@@ -49,6 +51,7 @@ import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [
 		BsDropdownModule,
+		CalculatorByproductsTabComponent,
 		CalculatorInputTabComponent,
 		CalculatorMachinesTabComponent,
 		CalculatorOptimisationTabComponent,
@@ -97,6 +100,7 @@ export class CalculatorComponent
 		{id: 'input', label: 'Input', icon: faRightToBracket},
 		{id: 'recipes', label: 'Recipes', icon: faScroll},
 		{id: 'machines', label: 'Machines', icon: faIndustry},
+		{id: 'byproducts', label: 'Byproducts', icon: faRightFromBracket},
 		{id: 'resources', label: 'Resources', icon: faMountain},
 		{id: 'power', label: 'Power', icon: faBolt},
 		{id: 'sink', label: 'Sink', icon: faRecycle},

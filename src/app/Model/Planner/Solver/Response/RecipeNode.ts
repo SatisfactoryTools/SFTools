@@ -122,7 +122,7 @@ export class RecipeNode extends Node
 			groupingMode: this.groupingMode,
 			x: this.x,
 			y: this.y,
-			...this.serializeLock(),
+			...this.serializeFlags(),
 		};
 	}
 

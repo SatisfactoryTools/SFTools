@@ -169,6 +169,7 @@ export class PlanSerializer
 		node.y = y;
 		// Subplan nodes are user-owned by definition and stay locked forever.
 		node.locked = raw['locked'] === true || node instanceof SubplanNode;
+		node.done = raw['done'] === true;
 		return node;
 	}
 

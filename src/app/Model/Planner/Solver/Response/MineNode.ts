@@ -20,7 +20,7 @@ export class MineNode extends ItemAmountNode
 			amount: this.amount,
 			x: this.x,
 			y: this.y,
-			...this.serializeLock(),
+			...this.serializeFlags(),
 		};
 	}
 

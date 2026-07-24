@@ -198,6 +198,8 @@ export class NodeResizer
 		replacement.x = original.x;
 		replacement.y = original.y;
 		replacement.locked = locked;
+		// Resizing a built node does not un-build it - the done marker stays.
+		replacement.done = original.done;
 		return replacement;
 	}
 

@@ -19,6 +19,9 @@ import {SolverWorkerOptions} from '@src/Model/Planner/Solver/Worker/SolverWorker
 import {SolverWorkerResponseType} from '@src/Model/Planner/Solver/Worker/SolverWorkerResponseType';
 import {SolverService} from '@src/Model/Planner/Solver/SolverService';
 import {InputSource} from '@src/Model/Planner/Solver/Request/InputSource';
+import {MaximiseCategory} from '@src/Model/Planner/Solver/Request/MaximiseCategory';
+import {MaximiseTarget} from '@src/Model/Planner/Solver/Request/MaximiseTarget';
+import {SolveRunHandle} from '@src/Model/Planner/Solver/SolveRunHandle';
 import {SolverRequest} from '@src/Model/Planner/Solver/Request/SolverRequest';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {Item} from '@src/Model/Data/Entities/Item';
@@ -37,6 +40,9 @@ import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 @Injectable({providedIn: 'root'})
 export class ProductionSolverService
 {
+
+	/** Rates below this (per minute / MW / points) count as "nothing more can be produced". */
+	private static readonly MAXIMISE_EPSILON = 0.001;
 
 	public constructor(
 		private readonly solver: SolverService,
@@ -73,10 +79,30 @@ export class ProductionSolverService
 			throw new Error('No optimisation goal is enabled - enable at least one in the Optimisation tab.');
 		}
 
-		const request: SolverRequest = {
+		const request = this.buildRequest(plan, data, optimisation);
+		const maximise = this.maximiseTarget(plan, data);
+		if (maximise !== null) {
+			return this.solveMaximise(plan, data, request, maximise, lockedNodes);
+		}
+
+		const lp = this.buildLp(request, data, lockedNodes);
+		//console.log(lp);
+		return this.solver.solve(lp, this.solveOptions(request, plan)).pipe(
+			map(solution => this.parseSolution(solution, data, plan.settings.defaultGroupingMode ?? 'underclock-last')),
+		);
+	}
+
+	private buildRequest(plan: Plan, data: Data, optimisation: OptimisationTarget): SolverRequest
+	{
+		return {
 			optimisation,
+			maximise: null,
+			carryInputs: [],
 			recipes: this.allowedRecipes(plan, data),
+			// Maximised rows never become hard targets here - the maximise loop
+			// turns them into MaxRate constraints / per-round fixed rates itself.
 			productions: plan.requests
+				.filter(request => (request.mode ?? 'rate') === 'rate')
 				.filter(request => request.itemClassName !== SpecialClasses.PowerTarget
 					&& request.itemClassName !== SpecialClasses.SinkPointsTarget)
 				.map(request => {
@@ -95,15 +121,42 @@ export class ProductionSolverService
 			powerDemand: this.powerDemand(plan),
 			producePowerForFactory: plan.settings.producePowerForFactory ?? false,
 			excessPowerFraction: (plan.settings.excessPowerPercent ?? 10) / 100,
+			disabledByproducts: plan.settings.disabledByproducts ?? [],
 			sinkableItems: this.sinkableItems(plan, data),
 			sinkPointsDemand: this.sinkPointsDemand(plan),
 		};
+	}
 
-		const lp = this.buildLp(request, data, lockedNodes);
-		//console.log(lp);
-		return this.solver.solve(lp, this.solveOptions(request, plan)).pipe(
-			map(solution => this.parseSolution(solution, data, plan.settings.defaultGroupingMode ?? 'underclock-last')),
-		);
+	/**
+	 * The plan's maximise requests as a solver target. Only one category can
+	 * be maximised at a time - the UI enforces it, but synced data may not.
+	 */
+	private maximiseTarget(plan: Plan, data: Data): MaximiseTarget | null
+	{
+		const rows = plan.requests.filter(request => request.mode === 'maximise' && request.itemClassName !== '');
+		if (rows.length === 0) {
+			return null;
+		}
+		const categories = new Set<MaximiseCategory>(rows.map(row => this.categoryOf(row.itemClassName)));
+		if (categories.size > 1) {
+			throw new Error('Only one category (items, power or sink points) can be maximised at a time.');
+		}
+		const category = [...categories][0];
+		const items = category !== 'items' ? [] : [...new Set(rows.map(row => row.itemClassName))]
+			.map(className => data.searchItemByClassName(className))
+			.filter((item): item is Item => item !== undefined);
+		return {category, items};
+	}
+
+	private categoryOf(itemClassName: string): MaximiseCategory
+	{
+		if (itemClassName === SpecialClasses.PowerTarget) {
+			return 'power';
+		}
+		if (itemClassName === SpecialClasses.SinkPointsTarget) {
+			return 'sinkPoints';
+		}
+		return 'items';
 	}
 
 	/**
@@ -154,7 +207,9 @@ export class ProductionSolverService
 			return of('No solution: sink points are requested but no sinkable items are enabled - enable some in the Sink tab.');
 		}
 
-		if (Object.keys(plan.settings.resourceLimits ?? {}).length > 0) {
+		// Dropping the limits from a maximise plan makes it unbounded rather
+		// than solvable, so the attribution re-solve only applies to fixed rates.
+		if (Object.keys(plan.settings.resourceLimits ?? {}).length > 0 && this.maximiseTarget(plan, data) === null) {
 			const unlimited: Plan = {...plan, settings: {...plan.settings, resourceLimits: undefined}};
 			return this.solve(unlimited, lockedNodes).pipe(
 				map(result => result.status === 'Optimal'
@@ -252,19 +307,19 @@ export class ProductionSolverService
 		};
 	}
 
-	/** Total requested power in MW across the plan's requests. */
+	/** Total requested power in MW across the plan's fixed-rate requests. */
 	private powerDemand(plan: Plan): number
 	{
 		return plan.requests
-			.filter(request => request.itemClassName === SpecialClasses.PowerTarget)
+			.filter(request => request.itemClassName === SpecialClasses.PowerTarget && (request.mode ?? 'rate') === 'rate')
 			.reduce((sum, request) => sum + request.ratePerMinute, 0);
 	}
 
-	/** Total requested sink points per minute across the plan's requests. */
+	/** Total requested sink points per minute across the plan's fixed-rate requests. */
 	private sinkPointsDemand(plan: Plan): number
 	{
 		return plan.requests
-			.filter(request => request.itemClassName === SpecialClasses.SinkPointsTarget)
+			.filter(request => request.itemClassName === SpecialClasses.SinkPointsTarget && (request.mode ?? 'rate') === 'rate')
 			.reduce((sum, request) => sum + request.ratePerMinute, 0);
 	}
 
@@ -347,45 +402,51 @@ export class ProductionSolverService
 	{
 		const lines: string[] = ['\\\\ Production Plan', 'Minimize'];
 
-		// optimisation goal - solve() guarantees at least one enabled goal
-		const optimisation: string[] = [];
+		if (request.maximise !== null) {
+			// Maximise phase: the sole objective is the maximised rate; the
+			// optimisation goals are applied by the follow-up fixed-rate solve.
+			lines.push('- 1 MaxRate');
+		} else {
+			// optimisation goal - solve() guarantees at least one enabled goal
+			const optimisation: string[] = [];
 
-		Object.keys(request.optimisation.rawResources).forEach(className => {
-			if (request.optimisation.rawResources[className] > 0) {
-				optimisation.push(request.optimisation.rawResources[className] + ' ' + className + '@Mine');
-			}
-		})
+			Object.keys(request.optimisation.rawResources).forEach(className => {
+				if (request.optimisation.rawResources[className] > 0) {
+					optimisation.push(request.optimisation.rawResources[className] + ' ' + className + '@Mine');
+				}
+			})
 
-		// User inputs are priced by their weight, so the solver prefers cheaper
-		// sources (a low weight makes an input attractive over mining/crafting).
-		request.inputs.forEach(input => {
-			if (input.weight > 0) {
-				optimisation.push(input.weight + ' ' + input.item.className + '@Input');
-			}
-		});
-
-		// Power and machine goals price every column by its machines and their
-		// average draw (a recipe column is valued in machine counts).
-		if (request.optimisation.power > 0 || request.optimisation.machines > 0) {
-			request.recipes.forEach(recipe => {
-				const clockSpeed = this.clockFor(request, recipe);
-				recipe.producedIn.forEach(machine => {
-					for (let sloops = 0; sloops <= Math.min(request.maxSloops, machine.sloopSlots); sloops++) {
-						const cost = request.optimisation.power * Formulas.machinePowerUsage(recipe, machine, clockSpeed, sloops)
-							+ request.optimisation.machines;
-						if (cost > 0) {
-							optimisation.push(cost + ' ' + recipe.className + '@' + machine.className + '%' + clockSpeed + '#' + sloops);
-						}
-					}
-				});
+			// User inputs are priced by their weight, so the solver prefers cheaper
+			// sources (a low weight makes an input attractive over mining/crafting).
+			request.inputs.forEach(input => {
+				if (input.weight > 0) {
+					optimisation.push(input.weight + ' ' + input.item.className + '@Input');
+				}
 			});
-			if (request.optimisation.machines > 0) {
-				request.generators.forEach(({generator, fuel}) =>
-					optimisation.push(request.optimisation.machines + ' ' + fuel.item.className + '@Gen%' + generator.className));
-			}
-		}
 
-		lines.push(optimisation.join('\n+ '));
+			// Power and machine goals price every column by its machines and their
+			// average draw (a recipe column is valued in machine counts).
+			if (request.optimisation.power > 0 || request.optimisation.machines > 0) {
+				request.recipes.forEach(recipe => {
+					const clockSpeed = this.clockFor(request, recipe);
+					recipe.producedIn.forEach(machine => {
+						for (let sloops = 0; sloops <= Math.min(request.maxSloops, machine.sloopSlots); sloops++) {
+							const cost = request.optimisation.power * Formulas.machinePowerUsage(recipe, machine, clockSpeed, sloops)
+								+ request.optimisation.machines;
+							if (cost > 0) {
+								optimisation.push(cost + ' ' + recipe.className + '@' + machine.className + '%' + clockSpeed + '#' + sloops);
+							}
+						}
+					});
+				});
+				if (request.optimisation.machines > 0) {
+					request.generators.forEach(({generator, fuel}) =>
+						optimisation.push(request.optimisation.machines + ' ' + fuel.item.className + '@Gen%' + generator.className));
+				}
+			}
+
+			lines.push(optimisation.join('\n+ '));
+		}
 
 		// recipes
 		lines.push('\nSubject To');
@@ -469,6 +530,13 @@ export class ProductionSolverService
 			add(input.item.className, '+ 1 ' + input.item.className + '@Input');
 		});
 
+		// Byproducts carried over from earlier maximise rounds: free sources,
+		// capped in Bounds. Separate from @Input so the final graph can net
+		// them against the byproducts they came from.
+		request.carryInputs.forEach(input => {
+			add(input.item.className, '+ 1 ' + input.item.className + '@Carry');
+		});
+
 		// AWESOME Sink: one column per sinkable item, valued in items/min
 		// sinked. Sinking consumes the item and feeds the sink-point balance.
 		const sinkTerms: string[] = [];
@@ -484,6 +552,14 @@ export class ProductionSolverService
 		request.productions.forEach(production => {
 			if (!items.has(production.item.className)) {
 				items.set(production.item.className, []);
+			}
+		});
+
+		// Same for maximised items - an unproducible one then correctly pins
+		// MaxRate (and with it every equally-maximised item) to 0.
+		request.maximise?.items.forEach(item => {
+			if (!items.has(item.className)) {
+				items.set(item.className, []);
 			}
 		});
 
@@ -520,38 +596,66 @@ export class ProductionSolverService
 		});
 
 		const byproducts: string[] = [];
+		const disabledByproducts = new Set(request.disabledByproducts);
 
 		items.forEach((usage, itemClass) => {
 			lines.push('\\\\ ' + itemClass);
 			lines.push(...usage)
-			lines.push('- 1 ' + itemClass + '@Byproduct');
-			byproducts.push(itemClass);
+			// A disabled byproduct gets no overproduction slack - its balance
+			// must settle exactly, so the solver cannot leave the item over.
+			if (!disabledByproducts.has(itemClass)) {
+				lines.push('- 1 ' + itemClass + '@Byproduct');
+				byproducts.push(itemClass);
+			}
 
 			const item = data.getItemByClassName(itemClass);
 			if (item && request.productions.some(production => production.item === item)) {
 				lines.push('- 1 ' + itemClass + '@Product');
 			}
 
+			// Separate from @Product so an item can be fixed-rate and
+			// maximised at the same time (the fixed part stays a hard bound).
+			if (request.maximise?.items.some(maximised => maximised.className === itemClass)) {
+				lines.push('- 1 ' + itemClass + '@Maximise');
+			}
+
 			lines.push(' = 0');
 		});
 
+		// Equal-amounts coupling: every maximised item is produced at the one
+		// MaxRate the objective pushes up.
+		request.maximise?.items.forEach(item => {
+			lines.push('\\\\ Maximise ' + item.className);
+			lines.push(item.className + '@Maximise - 1 MaxRate = 0');
+		});
+
 		// Power balance in MW: generation minus discarded surplus must equal
-		// the requested power. Emitted whenever there is demand, so an
-		// uncoverable request (no generators) is correctly infeasible.
-		if (powerTerms.length > 0 || request.powerDemand > 0) {
+		// the requested power (plus MaxRate when power is being maximised).
+		// Emitted whenever there is demand, so an uncoverable request (no
+		// generators) is correctly infeasible.
+		const maximisePower = request.maximise?.category === 'power';
+		if (powerTerms.length > 0 || request.powerDemand > 0 || maximisePower) {
 			lines.push('\\\\ Power');
 			lines.push(...powerTerms);
 			lines.push('- 1 PowerSurplus');
+			if (maximisePower) {
+				lines.push('- 1 MaxRate');
+			}
 			lines.push(' = ' + request.powerDemand);
 		}
 
 		// Sink-point balance: points earned minus discarded surplus must equal
-		// the requested points. Emitted whenever there is demand, so an
-		// uncoverable request (nothing sinkable) is correctly infeasible.
-		if (sinkTerms.length > 0 || request.sinkPointsDemand > 0) {
+		// the requested points (plus MaxRate when sink points are being
+		// maximised). Emitted whenever there is demand, so an uncoverable
+		// request (nothing sinkable) is correctly infeasible.
+		const maximiseSinkPoints = request.maximise?.category === 'sinkPoints';
+		if (sinkTerms.length > 0 || request.sinkPointsDemand > 0 || maximiseSinkPoints) {
 			lines.push('\\\\ SinkPoints');
 			lines.push(...sinkTerms);
 			lines.push('- 1 SinkPointsSurplus');
+			if (maximiseSinkPoints) {
+				lines.push('- 1 MaxRate');
+			}
 			lines.push(' = ' + request.sinkPointsDemand);
 		}
 
@@ -575,10 +679,10 @@ export class ProductionSolverService
 		byproducts.forEach(byproduct => {
 			lines.push(byproduct + '@Byproduct >= 0');
 		});
-		if (powerTerms.length > 0 || request.powerDemand > 0) {
+		if (powerTerms.length > 0 || request.powerDemand > 0 || maximisePower) {
 			lines.push('PowerSurplus >= 0');
 		}
-		if (sinkTerms.length > 0 || request.sinkPointsDemand > 0) {
+		if (sinkTerms.length > 0 || request.sinkPointsDemand > 0 || maximiseSinkPoints) {
 			lines.push('SinkPointsSurplus >= 0');
 		}
 
@@ -596,6 +700,11 @@ export class ProductionSolverService
 		// User-input caps: available only up to the specified amount per minute.
 		request.inputs.forEach(input => {
 			lines.push(input.item.className + '@Input <= ' + input.amount);
+		});
+
+		// Carried byproducts: only what earlier maximise rounds left over.
+		request.carryInputs.forEach(input => {
+			lines.push(input.item.className + '@Carry <= ' + input.amount);
 		});
 
 		lockedNodes.forEach(node => {
@@ -617,28 +726,47 @@ export class ProductionSolverService
 		return lines.join('\n');
 	}
 
-	private parseSolution(solution: HighsSolution, data: Data, groupingMode: GroupingMode): SolverResponse
+	/** All LP columns of a solution as name → primal, float dust snapped away. */
+	private columnsOf(solution: HighsSolution): Map<string, number>
 	{
-		const columns: {Primal: number, Name: string}[] = Object.values(solution.Columns) as unknown as {Primal: number, Name: string}[];
-
-		const kept = columns
+		const columns = new Map<string, number>();
+		(Object.values(solution.Columns) as unknown as {Primal: number, Name: string}[])
 			// Snap away float dust below the LP's meaningful precision, so node
 			// targets (and everything serialized from them) stay clean. The grid
 			// must stay much finer than the warning tolerances: rounding every
 			// column independently unbalances items by rate × grid/2 per column.
-			.map(column => ({...column, Primal: Math.round(column.Primal * 1e9) / 1e9}))
+			.forEach(column => columns.set(column.Name, Math.round(column.Primal * 1e9) / 1e9));
+		return columns;
+	}
+
+	private parseSolution(solution: HighsSolution, data: Data, groupingMode: GroupingMode): SolverResponse
+	{
+		console.log('Objective: ', solution.ObjectiveValue);
+		return {
+			status: this.mapStatus(solution.Status),
+			nodes: this.nodesFromColumns(this.columnsOf(solution), data, groupingMode),
+		};
+	}
+
+	private nodesFromColumns(columns: Map<string, number>, data: Data, groupingMode: GroupingMode): Node[]
+	{
+		const kept = [...columns.entries()]
+			.map(([Name, Primal]) => ({Name, Primal}))
 			.filter(column => Math.abs(column.Primal) > 1e-6)
 			.filter(column => !column.Name.endsWith('_count'))
 			// Locked nodes pass through from the existing graph, never rebuilt.
 			.filter(column => !column.Name.startsWith('locked_'))
-			// Discarded excess power and sink points are not graph nodes.
-			.filter(column => column.Name !== 'PowerSurplus' && column.Name !== 'SinkPointsSurplus')
+			// Discarded excess power and sink points are not graph nodes, and
+			// neither is the maximise loop's bookkeeping (MaxRate; @Carry
+			// columns are netted against @Byproduct before parsing).
+			.filter(column => column.Name !== 'PowerSurplus' && column.Name !== 'SinkPointsSurplus' && column.Name !== 'MaxRate')
+			.filter(column => !column.Name.endsWith('@Carry'))
 			// Byproduct slack picks up the solver's feasibility-tolerance
 			// noise; slivers below a thousandth per minute are not real
 			// byproducts and would render as pointless "0.00/min" nodes.
 			.filter(column => !(column.Name.endsWith('@Byproduct') && Math.abs(column.Primal) < 0.0005));
 
-		const result: Node[] = kept
+		return kept
 			.map(column => {
 				// Globally unique so nodes can be appended/merged into an
 				// existing graph without id collisions.
@@ -679,13 +807,288 @@ export class ProductionSolverService
 						return recipeNode;
 				}
 			});
+	}
 
-		console.log('Objective: ', solution.ObjectiveValue);
+	/**
+	 * Maximise solve: iterative max-min fairness. Each round finds the highest
+	 * common rate of the remaining maximised set, re-optimises that rate with
+	 * the user's optimisation goals, subtracts what the round consumed from
+	 * the world (resource limits, input caps, somersloop budget) and carries
+	 * its byproducts over, then probes which items can still be produced from
+	 * the leftovers. The rounds' plans are summed into one response.
+	 */
+	private solveMaximise(plan: Plan, data: Data, base: SolverRequest, maximise: MaximiseTarget, lockedNodes: Node[]): Observable<SolverResponse>
+	{
+		return new Observable<SolverResponse>(subscriber => {
+			const run: SolveRunHandle = {cancelled: false, cancelCurrent: null};
+			this.runMaximiseRounds(plan, data, base, maximise, lockedNodes, run)
+				.then(response => {
+					subscriber.next(response);
+					subscriber.complete();
+				})
+				.catch((err: unknown) => {
+					if (!run.cancelled) {
+						subscriber.error(err);
+					}
+				});
+			return () => {
+				run.cancelled = true;
+				run.cancelCurrent?.();
+			};
+		});
+	}
+
+	private async runMaximiseRounds(
+		plan: Plan,
+		data: Data,
+		base: SolverRequest,
+		maximise: MaximiseTarget,
+		lockedNodes: Node[],
+		run: SolveRunHandle,
+	): Promise<SolverResponse>
+	{
+		const epsilon = ProductionSolverService.MAXIMISE_EPSILON;
+		const specialKey = maximise.category === 'power' ? SpecialClasses.PowerTarget : SpecialClasses.SinkPointsTarget;
+		const achieved: Record<string, number> = {};
+		maximise.items.forEach(item => achieved[item.className] = 0);
+		if (maximise.category !== 'items') {
+			achieved[specialKey] = 0;
+		}
+
+		const merged = new Map<string, number>();
+		let limits = {...base.resourceLimits};
+		let inputs = base.inputs.map(input => ({...input}));
+		let carries = new Map<string, number>();
+		let sloops = base.maxSloops;
+		let items = [...maximise.items];
+
+		// Each round exhausts at least one binding constraint for the set, so
+		// items drop out round by round; the cap only guards float slivers.
+		const maxRounds = Math.max(4, items.length + 2);
+		for (let round = 1; round <= maxRounds; round++) {
+			const first = round === 1;
+			// Fixed targets, demanded power/sink points and locked nodes are
+			// built (and accounted) exactly once, in the first round.
+			const roundBase: SolverRequest = {
+				...base,
+				productions: first ? base.productions : [],
+				powerDemand: first ? base.powerDemand : 0,
+				sinkPointsDemand: first ? base.sinkPointsDemand : 0,
+				resourceLimits: limits,
+				inputs,
+				carryInputs: this.carrySources(carries, data),
+				maxSloops: sloops,
+			};
+			const roundLocked = first ? lockedNodes : [];
+
+			// Max phase: the highest common rate of this round's set, ignoring
+			// the optimisation goals.
+			const maxRequest: SolverRequest = {...roundBase, maximise: {category: maximise.category, items}};
+			const maxSolution = await this.awaitSolve(this.buildLp(maxRequest, data, roundLocked), this.solveOptions(maxRequest, plan), run);
+			const maxStatus = this.mapStatus(maxSolution.Status);
+			if (maxStatus === 'Unbounded') {
+				throw new Error('The maximised production is unbounded - limit the raw resources (Resources tab) so "as much as possible" is a finite amount.');
+			}
+			if (maxStatus !== 'Optimal') {
+				if (first) {
+					return {status: maxStatus, nodes: [], achievedMaximums: achieved};
+				}
+				break;
+			}
+			// Fixing slightly below the found maximum keeps the re-optimisation
+			// solve feasible despite float noise.
+			const rate = Math.floor((this.columnsOf(maxSolution).get('MaxRate') ?? 0) * 1e6) / 1e6;
+			if (!first && rate < epsilon) {
+				break;
+			}
+
+			// Re-optimisation phase: the achieved rates become fixed targets and
+			// the user's optimisation goals pick the actual production.
+			const fixRequest: SolverRequest = {
+				...roundBase,
+				productions: [...roundBase.productions, ...items.map(item => ({item, amount: rate}))],
+				powerDemand: roundBase.powerDemand + (maximise.category === 'power' ? rate : 0),
+				sinkPointsDemand: roundBase.sinkPointsDemand + (maximise.category === 'sinkPoints' ? rate : 0),
+			};
+			const fixSolution = await this.awaitSolve(this.buildLp(fixRequest, data, roundLocked), this.solveOptions(fixRequest, plan), run);
+			const fixStatus = this.mapStatus(fixSolution.Status);
+			if (fixStatus !== 'Optimal') {
+				return {status: fixStatus, nodes: [], achievedMaximums: achieved};
+			}
+
+			items.forEach(item => achieved[item.className] += rate);
+			if (maximise.category !== 'items') {
+				achieved[specialKey] += rate;
+			}
+
+			// This round's plan joins the final graph; its consumption shrinks
+			// the next round's world.
+			const columns = this.columnsOf(fixSolution);
+			columns.forEach((primal, name) => merged.set(name, (merged.get(name) ?? 0) + primal));
+			({limits, inputs, sloops, carries} = this.leftoversAfter(columns, limits, inputs, sloops, carries));
+
+			if (maximise.category === 'items') {
+				const probeBase: SolverRequest = {
+					...base,
+					productions: [],
+					powerDemand: 0,
+					sinkPointsDemand: 0,
+					resourceLimits: limits,
+					inputs,
+					carryInputs: this.carrySources(carries, data),
+					maxSloops: 0,
+				};
+				items = await this.probeProducible(items, probeBase, data, run);
+				if (items.length === 0) {
+					break;
+				}
+			} else if (rate < epsilon) {
+				break;
+			}
+		}
+
+		this.netCarries(merged);
+		return {
+			status: 'Optimal',
+			nodes: this.nodesFromColumns(merged, data, plan.settings.defaultGroupingMode ?? 'underclock-last'),
+			achievedMaximums: achieved,
+		};
+	}
+
+	/**
+	 * Which of the maximised items can still be produced from the leftovers?
+	 * One cheap LP per item - somersloops only multiply output, they never
+	 * make an unproducible item producible, so the probes stay pure LPs.
+	 */
+	private async probeProducible(items: Item[], probeBase: SolverRequest, data: Data, run: SolveRunHandle): Promise<Item[]>
+	{
+		const producible: Item[] = [];
+		for (const item of items) {
+			const request: SolverRequest = {...probeBase, maximise: {category: 'items', items: [item]}};
+			const solution = await this.awaitSolve(this.buildLp(request, data, []), {}, run);
+			if (this.mapStatus(solution.Status) === 'Optimal'
+				&& (this.columnsOf(solution).get('MaxRate') ?? 0) >= ProductionSolverService.MAXIMISE_EPSILON) {
+				producible.push(item);
+			}
+		}
+		return producible;
+	}
+
+	/**
+	 * The next round's world after building this round's plan: mined amounts
+	 * shrink the resource limits, consumed inputs shrink the input caps,
+	 * byproducts grow the carry-over (and consumed carries shrink it), and
+	 * placed somersloops leave the shared budget.
+	 */
+	private leftoversAfter(
+		columns: Map<string, number>,
+		limits: Record<string, number>,
+		inputs: InputSource[],
+		sloops: number,
+		carries: Map<string, number>,
+	): {limits: Record<string, number>; inputs: InputSource[]; sloops: number; carries: Map<string, number>}
+	{
+		const nextLimits = {...limits};
+		const nextInputs = inputs.map(input => ({...input}));
+		const nextCarries = new Map(carries);
+		let usedSloops = 0;
+
+		columns.forEach((primal, name) => {
+			if (primal <= 0) {
+				return;
+			}
+			if (name.endsWith('_count')) {
+				// recipe@machine%clock#S_count - S somersloops per counted machine
+				const sloopCount = parseInt(name.slice(name.lastIndexOf('#') + 1), 10);
+				if (isFinite(sloopCount)) {
+					usedSloops += sloopCount * primal;
+				}
+				return;
+			}
+			const separator = name.indexOf('@');
+			if (separator < 0) {
+				return;
+			}
+			const itemClass = name.slice(0, separator);
+			const kind = name.slice(separator + 1);
+			if (kind === 'Mine' && nextLimits[itemClass] !== undefined) {
+				nextLimits[itemClass] = Math.max(0, nextLimits[itemClass] - primal);
+			} else if (kind === 'Input') {
+				const input = nextInputs.find(source => source.item.className === itemClass);
+				if (input) {
+					input.amount = Math.max(0, input.amount - primal);
+				}
+			} else if (kind === 'Carry') {
+				nextCarries.set(itemClass, Math.max(0, (nextCarries.get(itemClass) ?? 0) - primal));
+			} else if (kind === 'Byproduct') {
+				nextCarries.set(itemClass, (nextCarries.get(itemClass) ?? 0) + primal);
+			}
+		});
 
 		return {
-			status: this.mapStatus(solution.Status),
-			nodes: result,
+			limits: nextLimits,
+			inputs: nextInputs.filter(input => input.amount > ProductionSolverService.MAXIMISE_EPSILON),
+			sloops: Math.max(0, sloops - Math.round(usedSloops)),
+			carries: nextCarries,
 		};
+	}
+
+	/** The accumulated leftover byproducts as free, capped item sources. */
+	private carrySources(carries: Map<string, number>, data: Data): InputSource[]
+	{
+		const sources: InputSource[] = [];
+		carries.forEach((amount, className) => {
+			const item = data.searchItemByClassName(className);
+			if (item && amount > ProductionSolverService.MAXIMISE_EPSILON) {
+				sources.push({item, amount, weight: 0});
+			}
+		});
+		return sources;
+	}
+
+	/**
+	 * A byproduct one round makes and a later round consumes is solver
+	 * bookkeeping, not something the user asked for - net the pairs so the
+	 * final graph only shows what is genuinely left over.
+	 */
+	private netCarries(columns: Map<string, number>): void
+	{
+		[...columns.keys()].filter(name => name.endsWith('@Carry')).forEach(name => {
+			const itemClass = name.slice(0, name.indexOf('@'));
+			const carried = columns.get(name) ?? 0;
+			const byproductKey = itemClass + '@Byproduct';
+			columns.set(byproductKey, Math.max(0, (columns.get(byproductKey) ?? 0) - carried));
+			columns.delete(name);
+		});
+	}
+
+	/**
+	 * One solve inside the maximise loop as an awaitable step. Cancelling the
+	 * outer Observable unsubscribes the in-flight solve (which kills the
+	 * worker) and rejects, so the loop stops immediately.
+	 */
+	private awaitSolve(lp: string, options: {workerOptions?: SolverWorkerOptions; timeoutMs?: number}, run: SolveRunHandle): Promise<HighsSolution>
+	{
+		return new Promise<HighsSolution>((resolve, reject) => {
+			if (run.cancelled) {
+				reject(new Error('Calculation cancelled'));
+				return;
+			}
+			const subscription = this.solver.solve(lp, options).subscribe({
+				next: solution => {
+					run.cancelCurrent = null;
+					resolve(solution);
+				},
+				error: (err: unknown) => {
+					run.cancelCurrent = null;
+					reject(err instanceof Error ? err : new Error(String(err)));
+				},
+			});
+			run.cancelCurrent = () => {
+				subscription.unsubscribe();
+				reject(new Error('Calculation cancelled'));
+			};
+		});
 	}
 
 	private mapStatus(highsStatus: string): SolverWorkerResponseType

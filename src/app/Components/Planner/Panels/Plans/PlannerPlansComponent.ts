@@ -2,10 +2,11 @@ import {AfterViewChecked, Component, ElementRef, Signal, ViewChild, ChangeDetect
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {TooltipDirective} from 'ngx-bootstrap/tooltip';
-import {faCaretDown, faCaretRight, faEllipsisVertical, faFileLines, faFolder, faFolderOpen, faFolderPlus, faPlus} from '@fortawesome/free-solid-svg-icons';
+import {faCaretDown, faCaretRight, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faPlus} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {IconPickerDialogComponent} from '@src/Components/Common/IconPickerDialogComponent';
 import {TruncateTitleDirective} from '@src/Components/Common/TruncateTitleDirective';
+import {ImportOldPlansDialogComponent} from '@src/Components/Planner/Panels/Plans/ImportOldPlansDialogComponent';
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
 import {FolderContextMenu} from '@src/Components/Planner/Panels/Plans/FolderContextMenu';
 import {PlanContextMenu} from '@src/Components/Planner/Panels/Plans/PlanContextMenu';
@@ -16,6 +17,7 @@ import {ShareType} from '@src/Model/API/Schema/Shares/ShareType';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {NotificationService} from '@src/Model/NotificationService';
+import {Folder} from '@src/Model/Planner/Folder';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanIconResolver} from '@src/Model/Planner/PlanIconResolver';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
@@ -79,7 +81,7 @@ const LOCAL_ID = '__local__';
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPlansComponent.html',
 	styleUrl: './PlannerPlansComponent.scss',
-	imports: [FormsModule, FaIconComponent, TooltipDirective, GameIconComponent, IconPickerDialogComponent, ShareLinkDialogComponent, TruncateTitleDirective],
+	imports: [FormsModule, FaIconComponent, TooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, ShareLinkDialogComponent, TruncateTitleDirective],
 })
 export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 {
@@ -87,6 +89,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public readonly faCaretDown = faCaretDown;
 	public readonly faCaretRight = faCaretRight;
 	public readonly faEllipsisVertical = faEllipsisVertical;
+	public readonly faFileImport = faFileImport;
 	public readonly faFileLines = faFileLines;
 	public readonly faFolder = faFolder;
 	public readonly faFolderOpen = faFolderOpen;
@@ -222,6 +225,9 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	private readonly shareLinkSignal = signal<{link: string; name: string} | null>(null);
 	public readonly shareLink = this.shareLinkSignal.asReadonly();
 
+	private readonly importDialogOpenSignal = signal(false);
+	public readonly importDialogOpen: Signal<boolean> = this.importDialogOpenSignal.asReadonly();
+
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly contextMenu: PlannerContextMenuService,
@@ -271,6 +277,43 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public closeShareDialog(): void
 	{
 		this.shareLinkSignal.set(null);
+	}
+
+	// ── Import from old Satisfactory Tools ──────────────────────────────────
+
+	public openImportDialog(): void
+	{
+		this.importDialogOpenSignal.set(true);
+	}
+
+	public closeImportDialog(): void
+	{
+		this.importDialogOpenSignal.set(false);
+	}
+
+	/** Files the imported plans into a fresh "Import ([datetime])" folder. */
+	public onImportApply(plans: Plan[]): void
+	{
+		this.importDialogOpenSignal.set(false);
+		if (plans.length === 0) {
+			return;
+		}
+		const folder: Folder = {
+			id: crypto.randomUUID(),
+			name: `Import (${this.formatImportTimestamp(new Date())})`,
+			parentId: null,
+			settings: null,
+			revision: null,
+		};
+		this.planManager.importTree([folder], plans.map(plan => ({...plan, folderId: folder.id})));
+		this.planManager.setActiveFolder(folder.id);
+		this.notifications.showSuccess(`Imported ${plans.length} plan${plans.length === 1 ? '' : 's'} into "${folder.name}".`);
+	}
+
+	private formatImportTimestamp(date: Date): string
+	{
+		const pad = (value: number): string => String(value).padStart(2, '0');
+		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 	}
 
 	/** Icon hash for a plan row; null falls back to the generic file icon. */

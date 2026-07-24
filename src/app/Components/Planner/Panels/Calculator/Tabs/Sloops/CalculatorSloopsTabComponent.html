@@ -68,4 +68,11 @@
 		</div>
 	}
 
+	@if (maxSloops > 0 && hasMaximiseRequest) {
+		<div class="alert alert-warning py-2 px-3 mb-0">
+			Somersloop optimisation combined with a maximised production target
+			(Production tab) makes the solve much harder - calculations can take very long.
+		</div>
+	}
+
 </div>

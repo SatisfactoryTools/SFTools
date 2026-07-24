@@ -1,4 +1,4 @@
-import {faDiagramProject, faLock, faLockOpen, faTrashCan} from '@fortawesome/free-solid-svg-icons';
+import {faCheck, faDiagramProject, faLock, faLockOpen, faRotateLeft, faTrashCan} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -28,6 +28,8 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 	public getItems(): ContextMenuItem[]
 	{
 		const lockableIds = this.nodes.filter(node => node instanceof RecipeNode).map(node => node.id);
+		// A mixed selection is unified to done first; only a fully done one clears.
+		const allDone = this.nodes.every(node => node.done);
 		return [
 			{
 				label: 'Convert to subplan',
@@ -48,6 +50,11 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 				icon: faLockOpen,
 				disabled: lockableIds.length === 0,
 				action: () => this.actions.requestNodeLock({nodeIds: lockableIds, locked: false}),
+			},
+			{
+				label: allDone ? 'Mark all as not done' : 'Mark all as done',
+				icon: allDone ? faRotateLeft : faCheck,
+				action: () => this.actions.requestNodeDone({nodeIds: this.nodes.map(node => node.id), done: !allDone}),
 			},
 			{
 				label: `Delete ${this.nodes.length} nodes`,

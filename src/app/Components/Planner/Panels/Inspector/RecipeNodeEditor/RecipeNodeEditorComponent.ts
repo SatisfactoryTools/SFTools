@@ -335,6 +335,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		// A manual edit makes the node user-owned: the solver must build
 		// around it. Calculate/Autofill keep the ownership as it is.
 		updated.locked = node.locked || locks;
+		updated.done = node.done;
 		updated.groupingMode = this.groupingMode;
 		this.actions.requestNodeUpdate(updated);
 	}

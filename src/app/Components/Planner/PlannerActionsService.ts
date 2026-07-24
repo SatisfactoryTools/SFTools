@@ -3,6 +3,8 @@ import {Observable, Subject} from 'rxjs';
 import {GraphConnectToBlankRequest} from '@src/Components/Planner/GraphConnectToBlankRequest';
 import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {GraphEdgeAmountRequest} from '@src/Components/Planner/GraphEdgeAmountRequest';
+import {FuelDisableRequest} from '@src/Components/Planner/FuelDisableRequest';
+import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
@@ -29,6 +31,10 @@ export class PlannerActionsService
 
 	private readonly nodeLockSubject = new Subject<NodeLockRequest>();
 	public readonly nodeLockRequests: Observable<NodeLockRequest> = this.nodeLockSubject.asObservable();
+
+	/** Mark nodes as built ("done") in the game - a visual progress marker. */
+	private readonly nodeDoneSubject = new Subject<NodeDoneRequest>();
+	public readonly nodeDoneRequests: Observable<NodeDoneRequest> = this.nodeDoneSubject.asObservable();
 
 	/** Re-lay the active plan's graph through ELK without changing any amounts. */
 	private readonly relayoutSubject = new Subject<void>();
@@ -69,6 +75,42 @@ export class PlannerActionsService
 	/** Id of the subplan (plan) to open as the active plan. */
 	private readonly subplanOpenSubject = new Subject<string>();
 	public readonly subplanOpenRequests: Observable<string> = this.subplanOpenSubject.asObservable();
+
+	// Production-request shortcuts from node context menus: each edits the
+	// plan's solver inputs (settings/requests/inputs); automatic mode then
+	// recalculates on its own.
+
+	/** Recipe class name to remove from the enabled-recipes selection. */
+	private readonly recipeDisableSubject = new Subject<string>();
+	public readonly recipeDisableRequests: Observable<string> = this.recipeDisableSubject.asObservable();
+
+	/** Machine class name to add to the disabled-machines selection. */
+	private readonly machineDisableSubject = new Subject<string>();
+	public readonly machineDisableRequests: Observable<string> = this.machineDisableSubject.asObservable();
+
+	/** Item class name the solver may no longer overproduce as a byproduct. */
+	private readonly byproductDisableSubject = new Subject<string>();
+	public readonly byproductDisableRequests: Observable<string> = this.byproductDisableSubject.asObservable();
+
+	/** One generator+fuel combination to remove from the enabled fuels. */
+	private readonly fuelDisableSubject = new Subject<FuelDisableRequest>();
+	public readonly fuelDisableRequests: Observable<FuelDisableRequest> = this.fuelDisableSubject.asObservable();
+
+	/** Generator class name whose fuels are all removed from the enabled fuels. */
+	private readonly generatorDisableSubject = new Subject<string>();
+	public readonly generatorDisableRequests: Observable<string> = this.generatorDisableSubject.asObservable();
+
+	/** Item class name whose production requests are removed from the plan. */
+	private readonly productRemoveSubject = new Subject<string>();
+	public readonly productRemoveRequests: Observable<string> = this.productRemoveSubject.asObservable();
+
+	/** Raw resource class name whose mining limit is set to zero. */
+	private readonly resourceDisableSubject = new Subject<string>();
+	public readonly resourceDisableRequests: Observable<string> = this.resourceDisableSubject.asObservable();
+
+	/** Item class name whose input rows are removed from the plan. */
+	private readonly inputRemoveSubject = new Subject<string>();
+	public readonly inputRemoveRequests: Observable<string> = this.inputRemoveSubject.asObservable();
 
 	private readonly undoSubject = new Subject<void>();
 	public readonly undoRequests: Observable<void> = this.undoSubject.asObservable();
@@ -111,6 +153,11 @@ export class PlannerActionsService
 	public requestNodeLock(request: NodeLockRequest): void
 	{
 		this.nodeLockSubject.next(request);
+	}
+
+	public requestNodeDone(request: NodeDoneRequest): void
+	{
+		this.nodeDoneSubject.next(request);
 	}
 
 	public requestRelayout(): void
@@ -161,6 +208,46 @@ export class PlannerActionsService
 	public requestSubplanOpen(subplanId: string): void
 	{
 		this.subplanOpenSubject.next(subplanId);
+	}
+
+	public requestRecipeDisable(recipeClassName: string): void
+	{
+		this.recipeDisableSubject.next(recipeClassName);
+	}
+
+	public requestMachineDisable(machineClassName: string): void
+	{
+		this.machineDisableSubject.next(machineClassName);
+	}
+
+	public requestByproductDisable(itemClassName: string): void
+	{
+		this.byproductDisableSubject.next(itemClassName);
+	}
+
+	public requestFuelDisable(request: FuelDisableRequest): void
+	{
+		this.fuelDisableSubject.next(request);
+	}
+
+	public requestGeneratorDisable(generatorClassName: string): void
+	{
+		this.generatorDisableSubject.next(generatorClassName);
+	}
+
+	public requestProductRemove(itemClassName: string): void
+	{
+		this.productRemoveSubject.next(itemClassName);
+	}
+
+	public requestResourceDisable(resourceClassName: string): void
+	{
+		this.resourceDisableSubject.next(resourceClassName);
+	}
+
+	public requestInputRemove(itemClassName: string): void
+	{
+		this.inputRemoveSubject.next(itemClassName);
 	}
 
 	public requestUndo(): void

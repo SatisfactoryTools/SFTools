@@ -13,6 +13,7 @@
 		<span class="fw-semibold flex-grow-1">Your plans</span>
 		<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreateFolder(null)" tooltip="New folder" placement="top"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
 		<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreatePlan(null)" tooltip="New plan" placement="top"><fa-icon [icon]="faPlus"></fa-icon></button>
+		<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="openImportDialog()" tooltip="Import from old Satisfactory Tools" placement="top"><fa-icon [icon]="faFileImport"></fa-icon></button>
 	</div>
 
 	@for (item of treeItems(); track item.type + ':' + (item.type === 'plan' ? item.plan.id : item.type === 'folder' ? item.id : item.parentId + ':' + item.mode)) {
@@ -161,4 +162,8 @@
 
 @if (shareLink(); as share) {
 	<share-link-dialog [link]="share.link" [subjectName]="share.name" (close)="closeShareDialog()"></share-link-dialog>
+}
+
+@if (importDialogOpen()) {
+	<import-old-plans-dialog (apply)="onImportApply($event)" (close)="closeImportDialog()"></import-old-plans-dialog>
 }

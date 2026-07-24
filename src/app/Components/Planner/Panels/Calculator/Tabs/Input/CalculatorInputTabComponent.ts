@@ -35,6 +35,8 @@ export class CalculatorInputTabComponent implements OnDestroy
 	public rows: PlanInput[] = [];
 
 	private loadedPlanId: string | null = null;
+	/** JSON of the inputs the rows were last built from or synced to - external changes rebuild the rows. */
+	private loadedInputs: string | null = null;
 	private readonly subscription = new Subscription();
 
 	public constructor(
@@ -51,7 +53,9 @@ export class CalculatorInputTabComponent implements OnDestroy
 
 		this.subscription.add(
 			toObservable(this.planManager.activePlan).subscribe(plan => {
-				if (!plan || plan.id === this.loadedPlanId) return;
+				// Skip echoes of this tab's own sync(); anything else (plan
+				// switch, context-menu removal, undo) replaces the row drafts.
+				if (!plan || (plan.id === this.loadedPlanId && JSON.stringify(plan.inputs) === this.loadedInputs)) return;
 				this.loadedPlanId = plan.id;
 				this.loadRows(plan);
 			}),
@@ -90,6 +94,7 @@ export class CalculatorInputTabComponent implements OnDestroy
 	{
 		const plan = this.planManager.activePlan();
 		if (plan) {
+			this.loadedInputs = JSON.stringify(this.rows);
 			this.planManager.setInputs(plan.id, this.rows);
 		}
 	}
@@ -101,6 +106,7 @@ export class CalculatorInputTabComponent implements OnDestroy
 
 	private loadRows(plan: Plan): void
 	{
+		this.loadedInputs = JSON.stringify(plan.inputs);
 		this.rows = plan.inputs.map(input => ({...input}));
 	}
 

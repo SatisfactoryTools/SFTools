@@ -285,7 +285,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			inputs: data.inputs ?? [],
 			graph: data.graph ?? null,
 			// Fallback covers plans saved before metadata existed.
-			metadata: {graphDirty: data.metadata?.graphDirty ?? false},
+			metadata: {graphDirty: data.metadata?.graphDirty ?? false, achievedMaximums: data.metadata?.achievedMaximums},
 			iconClassName: data.iconClassName,
 			revision: schema.revision,
 		};
