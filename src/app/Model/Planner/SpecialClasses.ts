@@ -9,6 +9,9 @@ export const SpecialClasses = {
 	SinkPointsTarget: '__sink_points_target',
 	/** Water is effectively unlimited (extractors need no node) - world limits never apply to it. */
 	WaterItem: 'Desc_Water_C',
+	/** The Converter building and the Reanimated SAM it burns - together they define resource conversion recipes. */
+	ConverterBuilding: 'Desc_Converter_C',
+	ReanimatedSamItem: 'Desc_SAMIngot_C',
 	/** Real game item classes whose icons stand in for build-cost quantities. */
 	PowerShardItem: 'Desc_CrystalShard_C',
 	SomersloopItem: 'Desc_WAT1_C',

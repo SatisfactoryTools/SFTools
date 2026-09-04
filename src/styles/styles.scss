@@ -55,6 +55,42 @@ fa-icon {
 	--bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
 }
 
+// Table content sat right against the table's edge (Bootstrap pads cells
+// 0.5rem, compact tables only 0.25rem), which reads cramped inside cards and
+// panels. Give the outer cells of every row some breathing room; the gaps
+// between columns stay as they are.
+.table > :not(caption) > * > :first-child { padding-left: 0.75rem; }
+.table > :not(caption) > * > :last-child { padding-right: 0.75rem; }
+.table-sm > :not(caption) > * > :first-child { padding-left: 0.6rem; }
+.table-sm > :not(caption) > * > :last-child { padding-right: 0.6rem; }
+
+// Numeric inputs are almost always followed by a unit ("/min", "%"), so the
+// number sits against it.
+input[type="number"].form-control {
+	text-align: right;
+}
+
+// Dark form controls (the planner's inputs, selects and item pickers) sat on
+// the same #20374c as the cards and tables around them and vanished. Lift
+// them one step so they read as interactive. !important matches Bootstrap's
+// own utility rules (bg-dark / border-secondary) they are combined with.
+.form-control.bg-dark,
+.form-select.bg-dark,
+.input-group-text.bg-dark {
+	background-color: #2a4661 !important;
+	border-color: #5d7189 !important;
+}
+.form-control.bg-dark:focus,
+.form-select.bg-dark:focus {
+	border-color: #4c9be8 !important;
+	box-shadow: 0 0 0 0.2rem rgba(76, 155, 232, 0.25);
+}
+.form-control.bg-dark:disabled,
+.form-select.bg-dark:disabled {
+	background-color: #24384f !important;
+	border-color: #46576b !important;
+}
+
 // Edge corner handles advertise click-to-remove with a pointer cursor (set
 // as a presentation attribute by the vertices tool); once a drag starts the
 // handle is the active element, so :active flips it to the move cursor.
@@ -101,4 +137,70 @@ fa-icon {
 circle.pg-port-adsorbed {
 	stroke: #f0ad4e;
 	stroke-width: 2.5px;
+}
+
+// ── Narrow-panel responsiveness ─────────────────────────────────────────────
+// Every panel scroll wrapper (docked area, floating window, mobile view) is a
+// `panel` container, so panel content adapts to the width it actually has -
+// a docked panel resized to 300px on desktop behaves like a phone screen.
+//
+// .table-stack / .table-stack-sm: below the threshold the table drops its
+// header and every row becomes a wrapping flex line. Cells marked
+// .stack-full take a whole line, .stack-grow fill the rest, and a
+// data-label attribute prints as a small prefix so the number keeps its
+// meaning without the column header. Rows marked .stack-sub indent (the
+// expandable detail rows).
+@mixin table-stacked {
+	thead { display: none; }
+	tbody, tfoot { display: block; }
+	tr {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.2rem 0.75rem;
+		padding: 0.35rem 0.5rem;
+		border-bottom: 1px solid var(--bs-table-border-color);
+		background-color: var(--bs-table-bg);
+		color: var(--bs-table-color);
+	}
+	tr:last-child { border-bottom: 0; }
+	tr.stack-sub { padding-left: 1.75rem; }
+	td, th {
+		display: block;
+		flex: 0 1 auto;
+		width: auto !important;
+		min-width: 0;
+		padding: 0 !important;
+		border: 0 !important;
+		background-color: transparent !important;
+		box-shadow: none !important;
+		text-align: left !important;
+	}
+	td:empty, td.stack-hide { display: none; }
+	td.stack-full { flex-basis: 100%; }
+	td.stack-grow { flex: 1 1 auto; }
+	td[data-label]::before {
+		content: attr(data-label);
+		display: inline-block;
+		margin-right: 0.35rem;
+		color: #9fb0c0;
+		font-size: 0.8em;
+	}
+	td.ps-4 { padding-left: 1.5rem !important; }
+}
+
+@container panel (max-width: 600px) {
+	.table-stack { @include table-stacked; }
+	// Recipe rows: the ingredient → product icons drop under the name.
+	.recipe-line { flex-wrap: wrap; }
+	.recipe-line .recipe-io {
+		flex-basis: 100%;
+		margin-left: 0 !important;
+		justify-content: flex-start !important;
+	}
+}
+// Three/four-column figure tables still fit a 320px docked panel; only
+// narrower panels stack them.
+@container panel (max-width: 300px) {
+	.table-stack-sm { @include table-stacked; }
 }

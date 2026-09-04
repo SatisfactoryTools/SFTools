@@ -62,10 +62,25 @@ export class SettingsGraphComponent
 			description: 'A single line with the exact fractional machine count, ignoring machine groups.',
 		},
 		{
+			value: 'percent',
+			label: 'Total clock percentage',
+			description: 'A single line with the total clock speed needed - 375% is 3.75 machines at 100% - ignoring machine groups.',
+		},
+		{
 			value: 'groups-only',
 			label: 'Machine groups only',
 			description: 'The machine name, then one line per machine group - no total.',
 		},
+	];
+
+	/** Node/edge size multipliers offered; 1 is the original size. */
+	public readonly scaleOptions: {value: number; label: string}[] = [
+		{value: 0.75, label: '75%'},
+		{value: 1, label: '100% (default)'},
+		{value: 1.25, label: '125%'},
+		{value: 1.5, label: '150%'},
+		{value: 1.75, label: '175%'},
+		{value: 2, label: '200%'},
 	];
 
 	public constructor(
@@ -85,6 +100,16 @@ export class SettingsGraphComponent
 		this.settings.updateGraph({machineDisplay: value});
 	}
 
+	public setNodeScale(value: string | number): void
+	{
+		this.settings.updateGraph({nodeScale: Number(value)});
+	}
+
+	public setEdgeScale(value: string | number): void
+	{
+		this.settings.updateGraph({edgeScale: Number(value)});
+	}
+
 	public get machineDisplayDescription(): string
 	{
 		return this.machineDisplayOptions.find(option => option.value === this.graph.machineDisplay)?.description ?? '';
@@ -96,6 +121,8 @@ export class SettingsGraphComponent
 		switch (this.graph.machineDisplay) {
 			case 'decimal':
 				return `${this.rateFormatter.machineCount(3.85)}× Constructor @ ${this.rateFormatter.clock(150)}%`;
+			case 'percent':
+				return `${this.rateFormatter.clock(577.5)}% Constructor`;
 			case 'groups-only':
 				return 'Constructor';
 			default:
@@ -103,10 +130,10 @@ export class SettingsGraphComponent
 		}
 	}
 
-	/** Preview node machine-group lines; none in decimal display. */
+	/** Preview node machine-group lines; none in the single-line (decimal, percent) displays. */
 	public get previewGroupLines(): string[]
 	{
-		if (this.graph.machineDisplay === 'decimal') {
+		if (this.graph.machineDisplay === 'decimal' || this.graph.machineDisplay === 'percent') {
 			return [];
 		}
 		return [`3 @ ${this.rateFormatter.clock(150)}%`, `1 @ ${this.rateFormatter.clock(127.5)}%`];

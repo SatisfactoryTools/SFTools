@@ -1,0 +1,8 @@
+<div class="card h-100">
+	<div class="card-header d-flex align-items-center gap-2 py-1 px-2" role="button" (click)="toggle.emit()">
+		<fa-icon [icon]="open ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary"></fa-icon>
+		<span class="fw-semibold flex-grow-1 text-truncate">{{ title }}</span>
+		<span class="d-flex align-items-center gap-1" (click)="$event.stopPropagation()"><ng-content select="[card-actions]"></ng-content></span>
+	</div>
+	<ng-content></ng-content>
+</div>

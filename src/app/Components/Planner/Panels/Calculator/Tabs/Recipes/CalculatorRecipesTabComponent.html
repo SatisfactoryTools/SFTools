@@ -1,20 +1,21 @@
-<div class="p-2">
+<div class="p-2 d-flex flex-column gap-2">
+	<info-note>
+		Recipes the solver may build. Struck-through recipes need a machine that is disabled in the Machines tab.
+	</info-note>
 	<input
 		type="search"
-		class="form-control form-control-sm bg-dark text-light border-secondary mb-2"
+		class="form-control form-control-sm bg-dark text-light border-secondary"
 		name="recipe-filter"
 		placeholder="Filter by recipe or product name…"
 		[(ngModel)]="filter"
 	/>
 
-	<div class="row g-3">
-		<div class="col-6">
-			<div class="d-flex align-items-center gap-1 mb-1">
-				<span class="fw-semibold flex-grow-1">Alternate recipes</span>
-				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, true)">All</button>
-				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, false)">None</button>
-			</div>
-			<div>
+	<div class="recipe-columns">
+		<collapsible-card title="Alternate recipes" [open]="alternateOpen" (toggle)="alternateOpen = !alternateOpen">
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, true)">All</button>
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, false)">None</button>
+			@if (alternateOpen) {
+			<div class="card-body p-2">
 				@for (recipe of alternateRecipes; track recipe.className) {
 					<div class="form-check">
 						<input
@@ -24,22 +25,22 @@
 							[checked]="isEnabled(recipe)"
 							(change)="toggle(recipe)"
 						/>
-						<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'recipe-' + recipe.className">
+						<label class="form-check-label d-flex align-items-center gap-2 w-100 recipe-line" [for]="'recipe-' + recipe.className">
 							<span
 								class="text-truncate"
 								[class.text-decoration-line-through]="isMachineDisabled(recipe)"
 								[class.text-secondary]="isMachineDisabled(recipe)"
 								[tooltip]="machineDisabledTitle(recipe)" container="body" placement="top"
 							>{{ displayName(recipe) }}</span>
-							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end">
+							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end recipe-io">
 								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
-									<span class="d-inline-flex align-items-center gap-1" [title]="ingredient.item.name">
+									<span class="d-inline-flex align-items-center gap-1" [tooltip]="ingredient.item.name" container="body" placement="top">
 										{{ rateFormatter.amount(ingredient.amount) }}<game-icon [hash]="ingredient.item.icon" [size]="18" [alt]="ingredient.item.name"></game-icon>
 									</span>
 								}
 								<span class="mx-1"><fa-icon [icon]="faChevronRight"></fa-icon></span>
 								@for (product of recipe.products; track product.item.className) {
-									<span class="d-inline-flex align-items-center gap-1" [title]="product.item.name">
+									<span class="d-inline-flex align-items-center gap-1" [tooltip]="product.item.name" container="body" placement="top">
 										{{ rateFormatter.amount(product.amount) }}<game-icon [hash]="product.item.icon" [size]="18" [alt]="product.item.name"></game-icon>
 									</span>
 								}
@@ -47,18 +48,28 @@
 						</label>
 					</div>
 				} @empty {
-					<div class="text-secondary">No alternate recipes match the filter.</div>
+					<div class="text-secondary fst-italic">No alternate recipes match the filter.</div>
 				}
 			</div>
-		</div>
+			}
+		</collapsible-card>
 
-		<div class="col-6">
-			<div class="d-flex align-items-center gap-1 mb-1">
-				<span class="fw-semibold flex-grow-1">Standard recipes</span>
-				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, true)">All</button>
-				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, false)">None</button>
-			</div>
-			<div>
+		<collapsible-card title="Standard recipes" [open]="standardOpen" (toggle)="standardOpen = !standardOpen">
+			@if (conversionRecipes.length > 0) {
+				<button
+					card-actions
+					type="button"
+					class="btn btn-sm btn-outline-info py-0 text-nowrap me-1"
+					[tooltip]="conversionTooltip"
+					container="body"
+					placement="top"
+					(click)="toggleConversions()"
+				><fa-icon [icon]="faRecycle"></fa-icon> {{ conversionsAllDisabled ? 'Enable' : 'Disable' }} resource conversion</button>
+			}
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, true)">All</button>
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, false)">None</button>
+			@if (standardOpen) {
+			<div class="card-body p-2">
 				@for (recipe of standardRecipes; track recipe.className) {
 					<div class="form-check">
 						<input
@@ -68,22 +79,22 @@
 							[checked]="isEnabled(recipe)"
 							(change)="toggle(recipe)"
 						/>
-						<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'recipe-' + recipe.className">
+						<label class="form-check-label d-flex align-items-center gap-2 w-100 recipe-line" [for]="'recipe-' + recipe.className">
 							<span
 								class="text-truncate"
 								[class.text-decoration-line-through]="isMachineDisabled(recipe)"
 								[class.text-secondary]="isMachineDisabled(recipe)"
 								[tooltip]="machineDisabledTitle(recipe)" container="body" placement="top"
 							>{{ displayName(recipe) }}</span>
-							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end">
+							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end recipe-io">
 								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
-									<span class="d-inline-flex align-items-center gap-1" [title]="ingredient.item.name">
+									<span class="d-inline-flex align-items-center gap-1" [tooltip]="ingredient.item.name" container="body" placement="top">
 										{{ rateFormatter.amount(ingredient.amount) }}<game-icon [hash]="ingredient.item.icon" [size]="18" [alt]="ingredient.item.name"></game-icon>
 									</span>
 								}
 								<span class="mx-1"><fa-icon [icon]="faChevronRight"></fa-icon></span>
 								@for (product of recipe.products; track product.item.className) {
-									<span class="d-inline-flex align-items-center gap-1" [title]="product.item.name">
+									<span class="d-inline-flex align-items-center gap-1" [tooltip]="product.item.name" container="body" placement="top">
 										{{ rateFormatter.amount(product.amount) }}<game-icon [hash]="product.item.icon" [size]="18" [alt]="product.item.name"></game-icon>
 									</span>
 								}
@@ -91,9 +102,10 @@
 						</label>
 					</div>
 				} @empty {
-					<div class="text-secondary">No standard recipes match the filter.</div>
+					<div class="text-secondary fst-italic">No standard recipes match the filter.</div>
 				}
 			</div>
-		</div>
+			}
+		</collapsible-card>
 	</div>
 </div>

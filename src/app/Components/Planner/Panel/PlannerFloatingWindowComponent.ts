@@ -84,7 +84,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 		.tab:hover .tab-close, .tab.active .tab-close { color: #8899bb; }
 		.tab-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
 		.fw-grab { flex: 1; }
-		.fw-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
+		.fw-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: panel; }
 		.tab-overflow { display: flex; flex: none; }
 		.tab-more {
 			width: 30px;

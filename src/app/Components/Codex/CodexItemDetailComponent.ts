@@ -1,10 +1,7 @@
 import {Component, ChangeDetectionStrategy, Input, computed, signal} from '@angular/core';
 import {TitleCasePipe} from '@angular/common';
-import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
-import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexBuildingListComponent} from '@src/Components/Codex/CodexBuildingListComponent';
-import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
+import {CodexDetailHeaderComponent} from '@src/Components/Codex/CodexDetailHeaderComponent';
 import {CodexRecipeListComponent} from '@src/Components/Codex/CodexRecipeListComponent';
 import {CodexSchematicListComponent} from '@src/Components/Codex/CodexSchematicListComponent';
 import {CodexSectionComponent} from '@src/Components/Codex/CodexSectionComponent';
@@ -19,20 +16,16 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 	templateUrl: './CodexItemDetailComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [
-		CodexLinkDirective,
 		CodexBuildingListComponent,
+		CodexDetailHeaderComponent,
 		CodexRecipeListComponent,
 		CodexSchematicListComponent,
 		CodexSectionComponent,
-		FaIconComponent,
 		TitleCasePipe,
-		GameIconComponent,
 	],
 })
 export class CodexItemDetailComponent
 {
-
-	public readonly faChevronLeft = faChevronLeft;
 
 	private readonly itemClassNameSignal = signal<string | null>(null);
 

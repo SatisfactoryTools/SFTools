@@ -1,6 +1,7 @@
 import {Injectable} from '@angular/core';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Item} from '@src/Model/Data/Entities/Item';
+import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {BuildCostBreakdown} from '@src/Model/Planner/Breakdown/BuildCostBreakdown';
 import {BuildCostMaterialRow} from '@src/Model/Planner/Breakdown/BuildCostMaterialRow';
@@ -9,12 +10,17 @@ import {ItemFlowRow} from '@src/Model/Planner/Breakdown/ItemFlowRow';
 import {ItemRow} from '@src/Model/Planner/Breakdown/ItemRow';
 import {PowerBreakdown} from '@src/Model/Planner/Breakdown/PowerBreakdown';
 import {PowerRow} from '@src/Model/Planner/Breakdown/PowerRow';
+import {ProductionNodes} from '@src/Model/Planner/Breakdown/ProductionNodes';
+import {ProductionRow} from '@src/Model/Planner/Breakdown/ProductionRow';
+import {RecipeUsageRow} from '@src/Model/Planner/Breakdown/RecipeUsageRow';
+import {ResourceUsageRow} from '@src/Model/Planner/Breakdown/ResourceUsageRow';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {PlanSerializer} from '@src/Model/Planner/PlanSerializer';
+import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
@@ -53,49 +59,49 @@ export class PlanBreakdownService
 	{
 		const graph = this.reviveGraph(plan?.graph ?? null);
 		if (!plan || !graph) {
-			return {rows: [], consumption: 0, production: 0};
+			return {rows: [], consumption: PowerDraw.ZERO, production: 0, net: PowerDraw.ZERO};
 		}
 
 		const machines = new Map<string, {
 			building: Building;
 			machines: number;
-			megawatts: number;
-			entries: Map<string, {name: string; machines: number; megawatts: number; groups: MachineGroup[]}>;
+			power: PowerDraw;
+			entries: Map<string, {name: string; machines: number; power: PowerDraw; groups: MachineGroup[]}>;
 		}>();
 		const generators = new Map<string, {
 			building: Building;
 			machines: number;
-			megawatts: number;
-			entries: Map<string, {name: string; machines: number; megawatts: number}>;
+			power: PowerDraw;
+			entries: Map<string, {name: string; machines: number; power: PowerDraw}>;
 		}>();
 		const subplanNodes: SubplanNode[] = [];
-		let consumption = 0;
+		let consumption = PowerDraw.ZERO;
 		let production = 0;
 
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
-				const megawatts = node.averagePowerUsage();
-				consumption += megawatts;
+				const power = node.powerDraw();
+				consumption = consumption.add(power);
 				const row = this.getOrCreate(machines, node.machine.className,
-					() => ({building: node.machine, machines: 0, megawatts: 0, entries: new Map()}));
+					() => ({building: node.machine, machines: 0, power: PowerDraw.ZERO, entries: new Map()}));
 				row.machines += node.amount;
-				row.megawatts += megawatts;
+				row.power = row.power.add(power);
 				const entry = this.getOrCreate(row.entries, node.recipe.className,
-					() => ({name: node.recipe.name, machines: 0, megawatts: 0, groups: []}));
+					() => ({name: node.recipe.name, machines: 0, power: PowerDraw.ZERO, groups: []}));
 				entry.machines += node.amount;
-				entry.megawatts += megawatts;
+				entry.power = entry.power.add(power);
 				entry.groups.push(...node.groups);
 			} else if (node instanceof GeneratorNode) {
 				const megawatts = node.powerProduction();
 				production += megawatts;
 				const row = this.getOrCreate(generators, node.generator.className,
-					() => ({building: node.generator, machines: 0, megawatts: 0, entries: new Map()}));
+					() => ({building: node.generator, machines: 0, power: PowerDraw.ZERO, entries: new Map()}));
 				row.machines += node.amount;
-				row.megawatts -= megawatts;
+				row.power = row.power.subtract(PowerDraw.fixed(megawatts));
 				const entry = this.getOrCreate(row.entries, node.fuel.item.className,
-					() => ({name: node.fuel.item.name, machines: 0, megawatts: 0}));
+					() => ({name: node.fuel.item.name, machines: 0, power: PowerDraw.ZERO}));
 				entry.machines += node.amount;
-				entry.megawatts -= megawatts;
+				entry.power = entry.power.subtract(PowerDraw.fixed(megawatts));
 			} else if (node instanceof SubplanNode) {
 				subplanNodes.push(node);
 			}
@@ -106,9 +112,10 @@ export class PlanBreakdownService
 		this.sortedByBuildingName(machines).forEach(row => rows.push({
 			key: row.building.className,
 			name: row.building.name,
+			icon: row.building.icon,
 			kind: 'machine',
 			machines: row.machines,
-			megawatts: row.megawatts,
+			power: row.power,
 			entries: [...row.entries.entries()]
 				.sort(([, a], [, b]) => a.name.localeCompare(b.name))
 				.map(([key, entry]) => ({
@@ -116,16 +123,17 @@ export class PlanBreakdownService
 					name: entry.name,
 					machines: entry.machines,
 					detail: this.groupsSummary(entry.groups),
-					megawatts: entry.megawatts,
+					power: entry.power,
 				})),
 		}));
 
 		this.sortedByBuildingName(generators).forEach(row => rows.push({
 			key: row.building.className,
 			name: row.building.name,
+			icon: row.building.icon,
 			kind: 'generator',
 			machines: row.machines,
-			megawatts: row.megawatts,
+			power: row.power,
 			entries: [...row.entries.entries()]
 				.sort(([, a], [, b]) => a.name.localeCompare(b.name))
 				.map(([key, entry]) => ({
@@ -133,27 +141,28 @@ export class PlanBreakdownService
 					name: entry.name,
 					machines: entry.machines,
 					detail: '',
-					megawatts: entry.megawatts,
+					power: entry.power,
 				})),
 		}));
 
 		this.groupSubplans(subplanNodes).forEach(group => {
 			const nodes = this.collectProductionNodes(group.subplanId, new Set([plan.id]));
-			const subConsumption = nodes.recipes.reduce((sum, node) => sum + node.averagePowerUsage(), 0) * group.count;
+			const subConsumption = this.consumptionOf(nodes.recipes).scale(group.count);
 			const subProduction = nodes.generators.reduce((sum, node) => sum + node.powerProduction(), 0) * group.count;
-			consumption += subConsumption;
+			consumption = consumption.add(subConsumption);
 			production += subProduction;
 			rows.push({
 				key: `subplan:${group.subplanId}`,
 				name: group.name,
+				icon: null,
 				kind: 'subplan',
 				machines: this.countMachines(nodes.recipes, nodes.generators) * group.count,
-				megawatts: subConsumption - subProduction,
+				power: subConsumption.subtract(PowerDraw.fixed(subProduction)),
 				entries: [],
 			});
 		});
 
-		return {rows, consumption, production};
+		return {rows, consumption, production, net: PowerDraw.fixed(production).subtract(consumption)};
 	}
 
 	public items(plan: Plan | null): ItemRow[]
@@ -250,30 +259,101 @@ export class PlanBreakdownService
 		};
 	}
 
+	/**
+	 * Overview: every raw resource of the version alphabetically - used or not -
+	 * with the plan's extraction rate (nested subplans included) and its own
+	 * mining cap. Resources are extracted at the plan's mine nodes, so an
+	 * unsolved plan simply reads as unused.
+	 */
+	public resources(plan: Plan | null): ResourceUsageRow[]
+	{
+		const data = this.versionManager.activeVersionData();
+		if (!plan || !data) {
+			return [];
+		}
+
+		const used = new Map<string, number>();
+		this.collectProductionNodes(plan.id, new Set()).mines.forEach(node => {
+			used.set(node.item.className, (used.get(node.item.className) ?? 0) + node.amount);
+		});
+		const limits = plan.settings.resourceLimits ?? {};
+		const disabled = new Set(plan.settings.disabledResources ?? []);
+
+		return data.resources
+			.map(className => data.searchItemByClassName(className))
+			.filter((item): item is Item => item !== undefined)
+			.sort((a, b) => a.name.localeCompare(b.name))
+			.map(item => ({
+				item,
+				used: used.get(item.className) ?? 0,
+				limit: limits[item.className] ?? null,
+				disabled: disabled.has(item.className),
+			}));
+	}
+
+	/** Overview: what leaves the plan - requested products first, then byproducts, each alphabetical. */
+	public production(plan: Plan | null): ProductionRow[]
+	{
+		const graph = this.reviveGraph(plan?.graph ?? null);
+		if (!graph) {
+			return [];
+		}
+
+		const rows = new Map<string, {item: Item; kind: 'product' | 'byproduct'; amount: number}>();
+		graph.nodes.forEach(node => {
+			if (!(node instanceof ProductNode) && !(node instanceof ByproductNode)) {
+				return;
+			}
+			const kind = node instanceof ProductNode ? 'product' : 'byproduct';
+			const row = this.getOrCreate(rows, `${kind}:${node.item.className}`, () => ({item: node.item, kind, amount: 0}));
+			row.amount += node.amount;
+		});
+
+		return [...rows.values()].sort((a, b) =>
+			(a.kind === b.kind ? 0 : a.kind === 'product' ? -1 : 1) || a.item.name.localeCompare(b.item.name));
+	}
+
+	/** Overview: recipes in use with their machine counts, nested subplans included. */
+	public recipes(plan: Plan | null): RecipeUsageRow[]
+	{
+		if (!plan) {
+			return [];
+		}
+
+		const rows = new Map<string, {recipe: Recipe; machines: number}>();
+		this.collectProductionNodes(plan.id, new Set()).recipes.forEach(node => {
+			const row = this.getOrCreate(rows, node.recipe.className, () => ({recipe: node.recipe, machines: 0}));
+			row.machines += node.amount;
+		});
+
+		return [...rows.values()].sort((a, b) => a.recipe.name.localeCompare(b.recipe.name));
+	}
+
 	/** Folder overview: one row per plan in the folder, each summed like a subplan row. */
 	public powerForFolder(folderId: string): PowerBreakdown
 	{
 		const rows: PowerRow[] = [];
-		let consumption = 0;
+		let consumption = PowerDraw.ZERO;
 		let production = 0;
 
 		this.folderPlans(folderId).forEach(plan => {
 			const nodes = this.collectProductionNodes(plan.id, new Set());
-			const planConsumption = nodes.recipes.reduce((sum, node) => sum + node.averagePowerUsage(), 0);
+			const planConsumption = this.consumptionOf(nodes.recipes);
 			const planProduction = nodes.generators.reduce((sum, node) => sum + node.powerProduction(), 0);
-			consumption += planConsumption;
+			consumption = consumption.add(planConsumption);
 			production += planProduction;
 			rows.push({
 				key: plan.id,
 				name: this.planNames.displayName(plan),
+				icon: null,
 				kind: 'plan',
 				machines: this.countMachines(nodes.recipes, nodes.generators),
-				megawatts: planConsumption - planProduction,
+				power: planConsumption.subtract(PowerDraw.fixed(planProduction)),
 				entries: [],
 			});
 		});
 
-		return {rows, consumption, production};
+		return {rows, consumption, production, net: PowerDraw.fixed(production).subtract(consumption)};
 	}
 
 	/** Folder overview: each plan's outside interface (inputs needed, products/byproducts provided). */
@@ -347,14 +427,30 @@ export class PlanBreakdownService
 		};
 	}
 
+	/**
+	 * Per-building-type rows of everything the plan builds, nested subplans
+	 * folded into the building rows instead of one summary row each - for
+	 * views that sum several plans by building.
+	 */
+	public buildingsRecursive(plan: Plan): BuildCostRow[]
+	{
+		const nodes = this.collectProductionNodes(plan.id, new Set());
+		return this.machineCostRows(nodes.recipes, nodes.generators);
+	}
+
 	/** Recursive power totals of a subplan, e.g. for the solver's factory-power balance. */
 	public subplanPower(subplanId: string): {consumption: number; production: number}
 	{
 		const nodes = this.collectProductionNodes(subplanId, new Set());
 		return {
-			consumption: nodes.recipes.reduce((sum, node) => sum + node.averagePowerUsage(), 0),
+			consumption: this.consumptionOf(nodes.recipes).average,
 			production: nodes.generators.reduce((sum, node) => sum + node.powerProduction(), 0),
 		};
+	}
+
+	private consumptionOf(recipes: RecipeNode[]): PowerDraw
+	{
+		return PowerDraw.sum(recipes.map(node => node.powerDraw()));
 	}
 
 	/** The folder's own plans (subplans belong to their parent plan's rows, not the folder). */
@@ -418,14 +514,14 @@ export class PlanBreakdownService
 	}
 
 	/**
-	 * All machine and generator nodes reachable from the given plan, nested
+	 * All machine, generator and mine nodes reachable from the given plan, nested
 	 * subplans included. The ancestors set carries the plan ids on the current
 	 * path, so a corrupted cyclic reference terminates instead of recursing
 	 * forever - while the same subplan used twice as siblings still counts twice.
 	 */
-	private collectProductionNodes(planId: string, ancestors: ReadonlySet<string>): {recipes: RecipeNode[]; generators: GeneratorNode[]}
+	private collectProductionNodes(planId: string, ancestors: ReadonlySet<string>): ProductionNodes
 	{
-		const result: {recipes: RecipeNode[]; generators: GeneratorNode[]} = {recipes: [], generators: []};
+		const result: ProductionNodes = {recipes: [], generators: [], mines: []};
 		if (ancestors.has(planId)) {
 			return result;
 		}
@@ -441,10 +537,13 @@ export class PlanBreakdownService
 				result.recipes.push(node);
 			} else if (node instanceof GeneratorNode) {
 				result.generators.push(node);
+			} else if (node instanceof MineNode) {
+				result.mines.push(node);
 			} else if (node instanceof SubplanNode) {
 				const nested = this.collectProductionNodes(node.subplanId, path);
 				result.recipes.push(...nested.recipes);
 				result.generators.push(...nested.generators);
+				result.mines.push(...nested.mines);
 			}
 		});
 		return result;

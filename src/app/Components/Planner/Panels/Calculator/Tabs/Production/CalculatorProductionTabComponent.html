@@ -1,5 +1,5 @@
 <div class="p-2">
-	<table class="table table-dark table-sm align-middle mb-2">
+	<table class="table table-dark table-sm align-middle mb-2 table-stack">
 		<thead>
 			<tr>
 				<th>Item</th>
@@ -10,7 +10,7 @@
 		<tbody>
 			@for (row of rows; track $index; let i = $index) {
 				<tr>
-					<td>
+					<td class="stack-full">
 						<item-picker
 							[options]="itemOptions"
 							[value]="row.itemClassName"
@@ -18,8 +18,8 @@
 							(valueChange)="onItemChange(row, $event)"
 						></item-picker>
 					</td>
-					<td>
-						<div class="input-group input-group-sm">
+					<td class="stack-grow">
+						<div class="input-group input-group-sm flex-nowrap">
 							@if (modeOf(row) === 'rate') {
 								@if (row.itemClassName === powerTargetClass) {
 									<input
@@ -29,7 +29,7 @@
 										[ngModel]="powerRateOf(row)"
 										(ngModelChange)="setPowerRate(row, $event)"
 										min="0"
-										step="1"
+										step="any"
 									>
 								} @else {
 									<input
@@ -39,7 +39,7 @@
 										[(ngModel)]="row.ratePerMinute"
 										(ngModelChange)="sync()"
 										min="0"
-										step="1"
+										step="any"
 									>
 								}
 							} @else {
@@ -92,9 +92,9 @@
 	</button>
 
 	@if (showSloopWarning) {
-		<div class="alert alert-warning py-2 px-3 mb-0 mt-2">
+		<info-note kind="warning" class="mt-2">
 			Somersloop optimisation combined with a maximised production target
 			makes the solve much harder - calculations can take very long.
-		</div>
+		</info-note>
 	}
 </div>

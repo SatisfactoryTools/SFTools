@@ -23,6 +23,36 @@
 			</div>
 		</div>
 
+		<h6 class="mb-2">Production request</h6>
+		<div class="mb-3" style="max-width: 480px;">
+			<label class="form-label" for="tab-labels">Tab labels</label>
+			<select
+				id="tab-labels"
+				class="form-select"
+				[ngModel]="tabLabels"
+				(ngModelChange)="setTabLabels($event)"
+			>
+				@for (option of tabLabelsOptions; track option.value) {
+					<option [value]="option.value">{{ option.label }}</option>
+				}
+			</select>
+			<div class="form-text">{{ tabLabelsDescription }}</div>
+		</div>
+		<div class="form-check mb-4">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="tab-badges"
+				[ngModel]="tabBadges"
+				(ngModelChange)="setTabBadges($event)"
+			/>
+			<label class="form-check-label" for="tab-badges">Show counts on the tabs</label>
+			<div class="form-text">
+				A small number on each tab summarises what is set there - items requested, recipes enabled of all,
+				clock-speed overrides and so on.
+			</div>
+		</div>
+
 		<h6 class="mb-2">Panels</h6>
 		<p class="text-secondary">
 			Panel positions and sizes are remembered automatically as you arrange them.

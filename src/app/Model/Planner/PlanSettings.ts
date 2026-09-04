@@ -1,8 +1,10 @@
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
+import {MachineClockSpeed} from '@src/Model/Planner/MachineClockSpeed';
 import {OptimisationSettings} from '@src/Model/Planner/OptimisationSettings';
 import {RecipeClockSpeed} from '@src/Model/Planner/RecipeClockSpeed';
+import {ResourceWeightMode} from '@src/Model/Planner/ResourceWeightMode';
 import {SloopAccuracy} from '@src/Model/Planner/SloopAccuracy';
 
 export interface PlanSettings
@@ -26,6 +28,24 @@ export interface PlanSettings
 	 * absent map) means the resource is unlimited.
 	 */
 	readonly resourceLimits?: Record<string, number>;
+	/**
+	 * Raw resource class names the solver may not mine at all, whatever their
+	 * limit says - the Resources tab's on/off toggle. Absent = every resource
+	 * available.
+	 */
+	readonly disabledResources?: string[];
+	/**
+	 * How raw resources are weighted for the solver. Absent = map weights, or
+	 * manual when `resourceWeights` is present (see ResourceWeightResolver).
+	 */
+	readonly resourceWeightMode?: ResourceWeightMode;
+	/**
+	 * Per-resource optimisation weights (how costly mining one unit is for
+	 * the solver) in manual mode; resources not listed use the map weights.
+	 * Part of the Resources group - plans saved before it moved here carry
+	 * the map inside `optimisation` (see PlanSettingsNormalizer).
+	 */
+	readonly resourceWeights?: Record<string, number>;
 	/**
 	 * Generator fuels the solver may burn, keyed by generator class name with
 	 * the enabled fuel item classes as values. Absent = no generators.
@@ -62,6 +82,8 @@ export interface PlanSettings
 	readonly defaultClockSpeed?: number;
 	/** Per-recipe clock-speed overrides; recipes not listed run at the default. */
 	readonly recipeClockSpeeds?: RecipeClockSpeed[];
+	/** Per-machine clock-speed overrides; a recipe override still wins over its machine's. */
+	readonly machineClockSpeeds?: MachineClockSpeed[];
 	/** Somersloops the solver may slot into machines. Absent = none. */
 	readonly maxSloops?: number;
 	/** Solve accuracy when somersloops are available (MIP gap). Absent = low. */

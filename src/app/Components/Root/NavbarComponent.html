@@ -1,16 +1,34 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-primary fixed-top">
 	<div class="container-fluid">
+		<!-- Brand: full wordmark on desktop, "Tools" on phones, just the S mark on the narrowest screens. -->
 		@if (versionManager.activeVersion() !== null) {
-			<span class="navbar-brand d-flex align-items-center py-0">
+			<span class="navbar-brand d-flex align-items-center py-0 me-2">
 				<img src="/assets/satisfactory.png" alt="Satisfactory" height="40" class="d-none d-md-block me-2">
-				<img src="/assets/tools.png" alt="Tools" height="40">
+				<img src="/assets/tools.png" alt="Tools" height="40" class="brand-full">
+				<img src="/assets/logo-mark.png" alt="Satisfactory Tools" height="40" class="brand-mark">
 			</span>
 		} @else {
-			<a class="navbar-brand d-flex align-items-center py-0" routerLink="/">
+			<a class="navbar-brand d-flex align-items-center py-0 me-2" routerLink="/">
 				<img src="/assets/satisfactory.png" alt="Satisfactory" height="40" class="d-none d-md-block me-2">
-				<img src="/assets/tools.png" alt="Tools" height="40">
+				<img src="/assets/tools.png" alt="Tools" height="40" class="brand-full">
+				<img src="/assets/logo-mark.png" alt="Satisfactory Tools" height="40" class="brand-mark">
 			</a>
 		}
+
+		<!-- Phone shortcuts, reachable without expanding the menu. -->
+		<div class="d-flex d-lg-none align-items-center gap-2 ms-auto me-2">
+			@if (backToPlannerLink(); as plannerLink) {
+				<a class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-1" [routerLink]="plannerLink" aria-label="Back to planner">
+					<fa-icon [icon]="faDiagramProject"></fa-icon>
+					<span class="shortcut-label">Planner</span>
+				</a>
+			}
+			@if (versionManager.activeVersion() !== null) {
+				<button class="btn btn-sm btn-outline-light" type="button" aria-label="Search" (click)="openSearch()">
+					<fa-icon [icon]="faMagnifyingGlass"></fa-icon>
+				</button>
+			}
+		</div>
 
 		<button class="navbar-toggler" type="button" (click)="collapsed = !collapsed">
 			<span class="navbar-toggler-icon"></span>
@@ -29,7 +47,7 @@
 						</li>
 					}
 				</ul>
-				<navbar-search class="my-2 my-lg-0"/>
+				<navbar-search #search class="my-2 my-lg-0"/>
 			} @else if (backToPlannerLink(); as plannerLink) {
 				<ul class="navbar-nav mb-2 mb-lg-0">
 					<li class="nav-item">

@@ -1,25 +1,22 @@
 @if (recipe(); as recipe) {
 	<div class="container-fluid py-3">
-		<a codexLink="recipes" class="btn btn-sm btn-outline-secondary mb-3"><fa-icon [icon]="faChevronLeft"></fa-icon> Recipes</a>
-
-		<div class="d-flex align-items-center flex-wrap gap-2 mb-3">
-			<h2 class="mb-0">{{ recipe.name }}</h2>
+		<codex-detail-header backLink="recipes" backLabel="Recipes" [icons]="productIcons(recipe)" [name]="recipe.name">
 			@if (recipe.alternate) {
-				<span class="badge bg-warning text-dark">Alternate</span>
+				<span class="badge bg-warning text-dark mt-2">Alternate</span>
 			}
-		</div>
+		</codex-detail-header>
 
 		<codex-section heading="Recipe" [flush]="true">
 			<codex-recipe-list [recipes]="[recipe]" [showNames]="false"/>
 		</codex-section>
 
-		@if (recipe.variablePowerDraw) {
+		@if (usesVariablePower()) {
 			<codex-section heading="Details" [flush]="true">
 				<table class="table table-sm">
 					<tbody>
 						<tr>
-							<th class="text-muted fw-normal" style="width: 40%;">Variable power draw</th>
-							<td>{{ variablePowerRange(recipe) }}</td>
+							<th class="text-secondary fw-normal" style="width: 40%;">Power usage</th>
+							<td><power-draw [draw]="variablePowerBand(recipe)"></power-draw> <small class="text-secondary">(varies, averaged)</small></td>
 						</tr>
 					</tbody>
 				</table>
@@ -34,7 +31,7 @@
 	</div>
 } @else {
 	<div class="container-fluid py-3">
-		<p class="text-muted">Recipe not found.</p>
-		<a codexLink="recipes" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Recipes</a>
+		<codex-detail-header backLink="recipes" backLabel="Recipes"/>
+		<p class="text-secondary mb-0">Recipe not found.</p>
 	</div>
 }

@@ -37,6 +37,11 @@ const PLANNER_FIELDS: {label: string; get: (p: SettingsConflict['local']['planne
 		label: 'Items the plan cannot produce',
 		get: p => ({show: 'Show all', strike: 'Strike through', hide: 'Hide'} as const)[p.unmakeableItems],
 	},
+	{label: 'Counts on production request tabs', get: p => p.tabBadges ? 'Yes' : 'No'},
+	{
+		label: 'Production request tab labels',
+		get: p => ({auto: 'Fit to width', icons: 'Icons only', labels: 'Always labels'} as const)[p.tabLabels],
+	},
 ];
 
 const NODE_COLOR_FIELDS: {label: string; key: keyof NodeColors}[] = [

@@ -1,16 +1,22 @@
 import {AfterViewChecked, Component, ElementRef, Signal, ViewChild, ChangeDetectionStrategy, computed, signal} from '@angular/core';
+import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {TooltipDirective} from 'ngx-bootstrap/tooltip';
-import {faCaretDown, faCaretRight, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faPlus} from '@fortawesome/free-solid-svg-icons';
+import {faCaretDown, faCaretRight, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLock, faPlus} from '@fortawesome/free-solid-svg-icons';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {IconPickerDialogComponent} from '@src/Components/Common/IconPickerDialogComponent';
 import {TruncateTitleDirective} from '@src/Components/Common/TruncateTitleDirective';
 import {ImportOldPlansDialogComponent} from '@src/Components/Planner/Panels/Plans/ImportOldPlansDialogComponent';
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
+import {DropPosition} from '@src/Components/Planner/Panels/Plans/DropPosition';
+import {DropTarget} from '@src/Components/Planner/Panels/Plans/DropTarget';
 import {FolderContextMenu} from '@src/Components/Planner/Panels/Plans/FolderContextMenu';
 import {PlanContextMenu} from '@src/Components/Planner/Panels/Plans/PlanContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
+import {VisitedShareContextMenu} from '@src/Components/Planner/Panels/Plans/VisitedShareContextMenu';
 import {ShareLinkDialogComponent} from '@src/Components/Planner/Panels/Plans/ShareLinkDialogComponent';
 import {SharesApiService} from '@src/Model/API/SharesApiService';
 import {ShareType} from '@src/Model/API/Schema/Shares/ShareType';
@@ -25,6 +31,11 @@ import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {PlanTree} from '@src/Model/Planner/PlanTree';
 import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
 import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
+import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
+import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
+import {ActiveShareTreeRow} from '@src/Model/Shares/ActiveShareTreeRow';
+import {VisitedShare} from '@src/Model/Shares/VisitedShare';
+import {VisitedSharesManager} from '@src/Model/Shares/VisitedSharesManager';
 
 interface FolderItem
 {
@@ -34,6 +45,8 @@ interface FolderItem
 	readonly name: string;
 	readonly isOpen: boolean;
 	readonly isEditing: boolean;
+	/** The folder fixes settings groups for everything inside - shown as a lock. */
+	readonly fixedSummary: string | null;
 }
 
 interface PlanItem
@@ -75,13 +88,14 @@ interface EditState
 
 const ROOT_ID = '__root__';
 const LOCAL_ID = '__local__';
+const SHARED_ID = '__shared__';
 
 @Component({
 	selector: 'planner-plans',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPlansComponent.html',
 	styleUrl: './PlannerPlansComponent.scss',
-	imports: [FormsModule, FaIconComponent, TooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, ShareLinkDialogComponent, TruncateTitleDirective],
+	imports: [FormsModule, FaIconComponent, TooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, ShareLinkDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective],
 })
 export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 {
@@ -94,6 +108,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public readonly faFolder = faFolder;
 	public readonly faFolderOpen = faFolderOpen;
 	public readonly faFolderPlus = faFolderPlus;
+	public readonly faLock = faLock;
 	public readonly faPlus = faPlus;
 
 	public readonly activePlanId: Signal<string | null>;
@@ -107,8 +122,8 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	private needsFocus = false;
 	private dragItem: {type: 'plan' | 'folder'; id: string; source: 'account' | 'local'} | null = null;
 
-	private readonly dragOverIdSignal = signal<string | null>(null);
-	public readonly dragOverId: Signal<string | null> = this.dragOverIdSignal.asReadonly();
+	private readonly dropTargetSignal = signal<DropTarget | null>(null);
+	public readonly dropTarget: Signal<DropTarget | null> = this.dropTargetSignal.asReadonly();
 
 	@ViewChild('editInput') private editInputRef?: ElementRef<HTMLInputElement>;
 
@@ -146,7 +161,20 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 		const addFolder = (node: PlanTreeFolder, depth: number): void => {
 			const isOpen = !collapsed.has(node.folder.id);
-			items.push({type: 'folder', depth, id: node.folder.id, name: node.folder.name, isOpen, isEditing: isFolderEditing(node.folder.id)});
+			items.push({
+				type: 'folder',
+				depth,
+				id: node.folder.id,
+				name: node.folder.name,
+				isOpen,
+				isEditing: isFolderEditing(node.folder.id),
+				fixedSummary: node.folder.fixedGroups.length > 0
+					? 'This folder fixes ' + node.folder.fixedGroups
+						.map(group => group === 'resources' && node.folder.resourcePool ? 'Resources (shared pool)' : SettingsGroups.labelOf(group))
+						.join(', ')
+						+ ' for every plan inside - those settings are read-only in the plans and follow the folder.'
+					: null,
+			});
 			if (!isOpen) return;
 
 			if (editing && editing.parentId === node.folder.id && (editing.mode === 'new-folder' || editing.mode === 'new-plan')) {
@@ -165,6 +193,16 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	public readonly rootOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(ROOT_ID));
 	public readonly localOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(LOCAL_ID));
+	public readonly sharedOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(SHARED_ID));
+
+	/** Every share link the user has opened, newest visit first, across all versions. */
+	public readonly sharedList: Signal<VisitedShare[]>;
+
+	/** The share currently open in the planner, or null. */
+	public readonly activeShareId: Signal<string | null>;
+
+	/** The open share's inner tree, shown inline under its list row. */
+	public readonly activeShareRows: Signal<ActiveShareTreeRow[]>;
 
 	/** Shown while signed in AND this device still has local plans to migrate. */
 	public readonly showLocalSection: Signal<boolean> = computed(() =>
@@ -237,10 +275,16 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		private readonly authService: AuthService,
 		private readonly versionManager: VersionManager,
 		private readonly notifications: NotificationService,
+		private readonly visitedShares: VisitedSharesManager,
+		private readonly activeShare: ActiveShareManager,
+		private readonly router: Router,
 	)
 	{
 		this.activePlanId = planManager.activePlanId;
 		this.activeFolderId = planManager.activeFolderId;
+		this.sharedList = visitedShares.visitedShares;
+		this.activeShareId = activeShare.shareId;
+		this.activeShareRows = activeShare.treeRows;
 	}
 
 	// ── Sharing ─────────────────────────────────────────────────────────────
@@ -303,6 +347,8 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 			name: `Import (${this.formatImportTimestamp(new Date())})`,
 			parentId: null,
 			settings: null,
+			fixedGroups: [],
+			resourcePool: false,
 			revision: null,
 		};
 		this.planManager.importTree([folder], plans.map(plan => ({...plan, folderId: folder.id})));
@@ -402,6 +448,62 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public toggleLocal(): void
 	{
 		this.toggleCollapse(LOCAL_ID);
+	}
+
+	public toggleShared(): void
+	{
+		this.toggleCollapse(SHARED_ID);
+	}
+
+	// ── Shared plans (visited share links) ──────────────────────────────────
+
+	/** Opens the share in its version's planner; the version was auto-added on first visit. */
+	public openVisitedShare(share: VisitedShare): void
+	{
+		if (this.activeShareId() === share.share) {
+			return;
+		}
+		const version = this.versionManager.versions().find(v => v.id === share.version.id);
+		if (version) {
+			void this.router.navigate(['/', this.versionManager.urlSlug(version), 'planner', 'shared', share.share]);
+		} else {
+			// The version left the list since the visit - the public entry
+			// point re-adds it before forwarding into the planner.
+			void this.router.navigate(['/shared', share.share]);
+		}
+	}
+
+	/** Selects a plan inside the open share (read-only). */
+	public selectSharedPlan(plan: Plan): void
+	{
+		this.planManager.setActivePlan(plan.id);
+	}
+
+	public onVisitedShareContextMenu(event: MouseEvent, share: VisitedShare): void
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		this.contextMenu.open(new VisitedShareContextMenu(share, this), event.clientX, event.clientY);
+	}
+
+	public copyShareLink(share: VisitedShare): void
+	{
+		navigator.clipboard.writeText(`${window.location.origin}/shared/${share.share}`)
+			.then(() => this.notifications.showSuccess('Share link copied.'))
+			.catch(() => this.notifications.show('Could not copy the share link.'));
+	}
+
+	/** Non-destructive: the share itself is permanent, reopening the link restores the entry. */
+	public removeVisitedShare(share: VisitedShare): void
+	{
+		const wasOpen = this.activeShareId() === share.share;
+		this.visitedShares.remove(share.share);
+		if (wasOpen) {
+			const version = this.versionManager.activeVersion();
+			if (version) {
+				void this.router.navigate(['/', this.versionManager.urlSlug(version), 'planner']);
+			}
+		}
 	}
 
 	public selectPlan(plan: Plan): void
@@ -518,7 +620,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		return this.planManager.planTree();
 	}
 
-	// Drag-and-drop
+	// Drag-and-drop: moving between parents and reordering among siblings
 
 	public onDragStart(event: DragEvent, type: 'plan' | 'folder', id: string, source: 'account' | 'local' = 'account'): void
 	{
@@ -526,50 +628,176 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		event.dataTransfer!.effectAllowed = 'move';
 	}
 
-	public onDragOver(event: DragEvent, targetId: string): void
+	/**
+	 * The pointer's place within the row decides the drop: the outer quarters
+	 * of a folder row (halves of a plan row) insert before/after it, the
+	 * middle of a folder row drops inside. The root header only takes "inside".
+	 */
+	public onDragOver(event: DragEvent, targetId: string, kind: 'root' | 'folder' | 'plan'): void
 	{
 		if (!this.dragItem) return;
-		// Prevent dropping a folder into itself or its descendant (handled in drop)
 		event.preventDefault();
 		event.dataTransfer!.dropEffect = 'move';
-		this.dragOverIdSignal.set(targetId);
+		this.dropTargetSignal.set({id: targetId, position: this.positionIn(event, kind)});
 	}
 
 	public onDragLeave(event: DragEvent, targetId: string): void
 	{
-		if (this.dragOverId() === targetId) {
-			this.dragOverIdSignal.set(null);
+		if (this.dropTarget()?.id === targetId) {
+			this.dropTargetSignal.set(null);
 		}
 	}
 
-	public onDrop(event: DragEvent, targetFolderId: string | null): void
+	/** Position of the current drag over the given row, or null when it hovers elsewhere. */
+	public dropPositionOf(id: string): DropPosition | null
+	{
+		const target = this.dropTarget();
+		return target?.id === id ? target.position : null;
+	}
+
+	public onDrop(event: DragEvent, target: TreeItem | null): void
 	{
 		event.preventDefault();
-		this.dragOverIdSignal.set(null);
+		const drop = this.dropTarget();
+		this.dropTargetSignal.set(null);
 		const item = this.dragItem;
 		this.dragItem = null;
 		if (!item) return;
 
 		// A local plan/folder dropped onto the account migrates it up (placed at
-		// the root; the target folder is ignored for a cross-section move).
+		// the root; the target row is ignored for a cross-section move).
 		if (item.source === 'local') {
 			this.planManager.moveLocalToAccount(item.id, item.type);
 			return;
 		}
 
-		if (item.type === 'plan') {
-			this.planManager.movePlan(item.id, targetFolderId);
-		} else {
-			if (item.id !== targetFolderId) {
-				this.planManager.moveFolder(item.id, targetFolderId);
-			}
+		if (target === null || target.type === 'input') {
+			this.dropInto(item, null);
+			return;
 		}
+		const position = drop?.position ?? 'inside';
+		if (target.type === 'folder' && position === 'inside') {
+			if (item.id !== target.id) {
+				this.dropInto(item, target.id);
+			}
+			return;
+		}
+		this.dropBeside(item, target, position === 'after');
 	}
 
 	public onDragEnd(): void
 	{
 		this.dragItem = null;
-		this.dragOverIdSignal.set(null);
+		this.dropTargetSignal.set(null);
+	}
+
+	private positionIn(event: DragEvent, kind: 'root' | 'folder' | 'plan'): DropPosition
+	{
+		if (kind === 'root') {
+			return 'inside';
+		}
+		const row = event.currentTarget as HTMLElement;
+		const fraction = (event.clientY - row.getBoundingClientRect().top) / Math.max(1, row.offsetHeight);
+		if (kind === 'plan') {
+			return fraction < 0.5 ? 'before' : 'after';
+		}
+		return fraction < 0.25 ? 'before' : fraction > 0.75 ? 'after' : 'inside';
+	}
+
+	/** Appends the dragged item to the folder (null = root). */
+	private dropInto(item: {type: 'plan' | 'folder'; id: string}, folderId: string | null): void
+	{
+		if (item.type === 'plan') {
+			if (this.confirmPlanMove(item.id, folderId, null)) {
+				this.planManager.movePlan(item.id, folderId);
+			}
+		} else if (this.confirmFolderMove(item.id, folderId)) {
+			this.planManager.moveFolder(item.id, folderId);
+		}
+	}
+
+	/**
+	 * Inserts the dragged item right before/after the target row. Folders and
+	 * plans are separate sibling lists, so a plan dropped beside a folder row
+	 * (or a folder beside a plan row) joins the matching list of that parent
+	 * at its end.
+	 */
+	private dropBeside(item: {type: 'plan' | 'folder'; id: string}, target: FolderItem | PlanItem, after: boolean): void
+	{
+		if (target.type === 'folder') {
+			const parentId = this.planManager.folders().find(f => f.id === target.id)?.parentId ?? null;
+			if (item.type === 'folder') {
+				const siblings = this.planManager.siblingFolders(parentId).filter(f => f.id !== item.id);
+				const index = siblings.findIndex(f => f.id === target.id);
+				if (this.confirmFolderMove(item.id, parentId)) {
+					this.planManager.placeFolder(item.id, parentId, index < 0 ? null : index + (after ? 1 : 0));
+				}
+			} else {
+				this.dropInto(item, parentId);
+			}
+			return;
+		}
+
+		const targetPlan = target.plan;
+		if (item.type === 'plan') {
+			const siblings = this.planManager.siblingPlans(targetPlan.folderId, targetPlan.parentPlanId).filter(p => p.id !== item.id);
+			const index = siblings.findIndex(p => p.id === targetPlan.id);
+			if (this.confirmPlanMove(item.id, targetPlan.folderId, targetPlan.parentPlanId)) {
+				this.planManager.placePlan(item.id, targetPlan.folderId, targetPlan.parentPlanId, index < 0 ? null : index + (after ? 1 : 0));
+			}
+		} else {
+			this.dropInto(item, this.planManager.folderIdOfPlan(targetPlan));
+		}
+	}
+
+	/** Entering a folder that fixes settings groups overwrites the plan's copies - ask once. */
+	private confirmPlanMove(planId: string, folderId: string | null, parentPlanId: string | null): boolean
+	{
+		const plans = this.planManager.plans();
+		const plan = plans.find(p => p.id === planId);
+		if (!plan) {
+			return false;
+		}
+		const parent = parentPlanId === null ? null : plans.find(p => p.id === parentPlanId) ?? null;
+		const targetFolderId = parent ? this.planManager.folderIdOfPlan(parent) : folderId;
+		const fixed = this.planManager.fixedFolderForFolder(targetFolderId);
+		if (!fixed || fixed.id === this.planManager.fixedFolderOf(plan)?.id) {
+			return true;
+		}
+		const groups = fixed.fixedGroups.map(group => SettingsGroups.labelOf(group)).join(', ');
+		return confirm(`Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings are replaced by the folder's fixed values.`);
+	}
+
+	/** A folder with custom settings loses them under a folder that fixes settings groups - ask once. */
+	private confirmFolderMove(folderId: string, newParentId: string | null): boolean
+	{
+		const folders = this.planManager.folders();
+		const fixed = this.planManager.fixedFolderForFolder(newParentId);
+		if (!fixed || fixed.id === folderId) {
+			return true;
+		}
+		const moved = folders.find(f => f.id === folderId);
+		const withSettings = folders.filter(f => f.settings !== null && (f.id === folderId || this.isInside(f, folderId, folders)));
+		if (!moved || withSettings.length === 0) {
+			return true;
+		}
+		const names = withSettings.map(f => `"${f.name}"`).join(', ');
+		return confirm(`Move "${moved.name}" into "${fixed.name}"? ${names} ${withSettings.length === 1 ? 'loses its' : 'lose their'} custom settings - `
+			+ `"${fixed.name}" fixes settings for everything inside it.`);
+	}
+
+	private isInside(folder: Folder, ancestorId: string, folders: Folder[]): boolean
+	{
+		const seen = new Set<string>();
+		let id = folder.parentId;
+		while (id !== null && !seen.has(id)) {
+			if (id === ancestorId) {
+				return true;
+			}
+			seen.add(id);
+			id = folders.find(f => f.id === id)?.parentId ?? null;
+		}
+		return false;
 	}
 
 }

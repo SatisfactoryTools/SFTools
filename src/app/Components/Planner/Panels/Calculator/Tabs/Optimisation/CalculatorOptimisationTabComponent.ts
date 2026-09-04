@@ -1,42 +1,41 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
-import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
-import {OptimisationResourceRow} from '@src/Components/Planner/Panels/Calculator/Tabs/Optimisation/OptimisationResourceRow';
-import {VersionManager} from '@src/Model/Data/VersionManager';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {OptimisationDefaults} from '@src/Model/Planner/OptimisationDefaults';
 import {OptimisationSettings} from '@src/Model/Planner/OptimisationSettings';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 
 /**
- * What the solver minimises: raw resources (weighted per resource), power
- * and/or machine count, with weights setting their relative worth (e.g. how
- * much 1 MW costs compared to 1 machine). Defaults: resources + power on
- * with power weighted far below the resource weights. At least one goal must
- * stay enabled - the solver refuses to run otherwise.
+ * What the solver minimises: raw resources (weighted per resource in the
+ * Resources tab), the plan's inputs (weighted per input in the Input tab),
+ * power and/or machine count, with weights setting their relative worth
+ * (e.g. how much 1 MW costs compared to 1 machine). Defaults: resources,
+ * power and input weights on with power weighted far below the resource
+ * weights. At least one goal must stay enabled - the solver refuses to run
+ * otherwise.
  */
 @Component({
 	selector: 'calculator-optimisation-tab',
 	templateUrl: './CalculatorOptimisationTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [GameIconComponent],
+	imports: [InfoNoteComponent],
 })
 export class CalculatorOptimisationTabComponent
 {
 
 	public constructor(
 		private readonly planManager: PlanManager,
-		private readonly versionManager: VersionManager,
 	)
 	{
-	}
-
-	public iconHash(className: string): string | null
-	{
-		return this.versionManager.activeVersionData()?.iconForClassName(className) ?? null;
 	}
 
 	public get resourcesEnabled(): boolean
 	{
 		return this.optimisation()?.rawResources ?? true;
+	}
+
+	public get inputsEnabled(): boolean
+	{
+		return this.optimisation()?.inputs ?? true;
 	}
 
 	public get powerEnabled(): boolean
@@ -49,9 +48,16 @@ export class CalculatorOptimisationTabComponent
 		return this.optimisation()?.machines ?? false;
 	}
 
+	/** Input weights only count as a goal once the plan has inputs, so they do not silence the warning. */
 	public get noneEnabled(): boolean
 	{
-		return !this.resourcesEnabled && !this.powerEnabled && !this.machinesEnabled;
+		return !this.resourcesEnabled && !this.powerEnabled && !this.machinesEnabled && !(this.inputsEnabled && this.hasInputs);
+	}
+
+	/** Whether the active plan has inputs to price; folders have none. */
+	public get hasInputs(): boolean
+	{
+		return (this.planManager.activePlan()?.inputs ?? []).some(input => input.itemClassName !== '' && input.amount > 0);
 	}
 
 	public get powerWeight(): number
@@ -64,25 +70,14 @@ export class CalculatorOptimisationTabComponent
 		return this.optimisation()?.machinesWeight ?? OptimisationDefaults.machinesWeight;
 	}
 
-	public get resourceRows(): OptimisationResourceRow[]
-	{
-		const data = this.versionManager.activeVersionData();
-		if (!data) return [];
-		const overrides = this.optimisation()?.resourceWeights;
-
-		return data.resources
-			.map(className => ({
-				className,
-				name: data.searchItemByClassName(className)?.name ?? className,
-				weight: OptimisationDefaults.resourceWeight(className, overrides),
-				defaultWeight: OptimisationDefaults.resourceWeights[className] ?? 1,
-			}))
-			.sort((a, b) => a.name.localeCompare(b.name));
-	}
-
 	public toggleResources(): void
 	{
 		this.update({rawResources: !this.resourcesEnabled});
+	}
+
+	public toggleInputs(): void
+	{
+		this.update({inputs: !this.inputsEnabled});
 	}
 
 	public togglePower(): void
@@ -109,21 +104,6 @@ export class CalculatorOptimisationTabComponent
 		}
 	}
 
-	/** Values matching the default are stored as "no override", keeping the settings lean. */
-	public setResourceWeight(row: OptimisationResourceRow, value: number): void
-	{
-		if (!isFinite(value) || value < 0) {
-			return;
-		}
-		const weights = {...this.optimisation()?.resourceWeights};
-		if (value === row.defaultWeight) {
-			delete weights[row.className];
-		} else {
-			weights[row.className] = value;
-		}
-		this.update({resourceWeights: Object.keys(weights).length > 0 ? weights : undefined});
-	}
-
 	private optimisation(): OptimisationSettings | undefined
 	{
 		return this.planManager.activeSettings()?.optimisation;
@@ -141,6 +121,7 @@ export class CalculatorOptimisationTabComponent
 				rawResources: this.resourcesEnabled,
 				power: this.powerEnabled,
 				machines: this.machinesEnabled,
+				inputs: this.inputsEnabled,
 				...settings.optimisation,
 				...partial,
 			},

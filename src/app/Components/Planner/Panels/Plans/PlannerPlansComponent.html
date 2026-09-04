@@ -2,8 +2,8 @@
 
 	<div
 		class="d-flex align-items-center gap-1 mb-2 tree-row"
-		[class.tree-drag-over]="dragOverId() === '__root__'"
-		(dragover)="onDragOver($event, '__root__')"
+		[class.tree-drag-over]="dropPositionOf('__root__') !== null"
+		(dragover)="onDragOver($event, '__root__', 'root')"
 		(dragleave)="onDragLeave($event, '__root__')"
 		(drop)="onDrop($event, null)"
 	>
@@ -32,18 +32,21 @@
 		} @else if (item.type === 'folder') {
 			<div
 				class="d-flex align-items-center gap-1 tree-row"
-				[class.tree-drag-over]="dragOverId() === item.id"
+				[class.tree-drag-over]="dropPositionOf(item.id) === 'inside'"
+				[class.tree-drop-before]="dropPositionOf(item.id) === 'before'"
+				[class.tree-drop-after]="dropPositionOf(item.id) === 'after'"
 				[class.tree-plan-active]="item.id === activeFolderId()"
 				[class.tree-ancestor]="activeAncestorIds().has(item.id)"
 				[style.padding-left.rem]="item.depth * 1 + 0.25"
 				role="button"
+				longPressContextMenu
 				draggable="true"
 				(click)="selectFolder(item.id)"
 				(contextmenu)="onFolderContextMenu($event, item.id, item.name)"
 				(dragstart)="onDragStart($event, 'folder', item.id)"
-				(dragover)="onDragOver($event, item.id)"
+				(dragover)="onDragOver($event, item.id, 'folder')"
 				(dragleave)="onDragLeave($event, item.id)"
-				(drop)="onDrop($event, item.id)"
+				(drop)="onDrop($event, item)"
 				(dragend)="onDragEnd()"
 			>
 				<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.id); $event.stopPropagation()">
@@ -62,6 +65,9 @@
 				} @else {
 					<span class="text-secondary"><fa-icon [icon]="item.isOpen ? faFolderOpen : faFolder"></fa-icon></span>
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name"><span (dblclick)="startRenameFolder(item.id, item.name)">{{ item.name }}</span></span>
+					@if (item.fixedSummary; as summary) {
+						<span class="small text-secondary flex-shrink-0" [tooltip]="summary" container="body" placement="top"><fa-icon [icon]="faLock"></fa-icon></span>
+					}
 					<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Folder menu" (click)="onFolderContextMenu($event, item.id, item.name)">
 						<fa-icon [icon]="faEllipsisVertical"></fa-icon>
 					</button>
@@ -70,14 +76,20 @@
 		} @else {
 			<div
 				class="d-flex align-items-center gap-1 tree-row"
+				[class.tree-drop-before]="dropPositionOf(item.plan.id) === 'before'"
+				[class.tree-drop-after]="dropPositionOf(item.plan.id) === 'after'"
 				[class.tree-plan-active]="item.plan.id === activePlanId()"
 				[class.tree-ancestor]="activeAncestorIds().has(item.plan.id)"
 				[style.padding-left.rem]="item.depth * 1 + 0.25"
 				role="button"
+				longPressContextMenu
 				draggable="true"
 				(click)="selectPlan(item.plan)"
 				(contextmenu)="onPlanContextMenu($event, item.plan)"
 				(dragstart)="onDragStart($event, 'plan', item.plan.id)"
+				(dragover)="onDragOver($event, item.plan.id, 'plan')"
+				(dragleave)="onDragLeave($event, item.plan.id)"
+				(drop)="onDrop($event, item)"
 				(dragend)="onDragEnd()"
 			>
 				@if (item.hasSubplans) {
@@ -120,6 +132,63 @@
 		}
 	}
 
+	@if (sharedList().length > 0) {
+		<div class="d-flex align-items-center gap-1 mt-3 mb-2 tree-row">
+			<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleShared()" [tooltip]="sharedOpen() ? 'Collapse' : 'Expand'" placement="top">
+				<fa-icon [icon]="sharedOpen() ? faCaretDown : faCaretRight"></fa-icon>
+			</button>
+			<span class="fw-semibold flex-grow-1">Shared plans</span>
+		</div>
+
+		@if (sharedOpen()) {
+			@for (share of sharedList(); track share.share) {
+				<div
+					class="d-flex align-items-center gap-1 tree-row"
+					[class.tree-plan-active]="share.share === activeShareId() && activeShareRows().length <= 1"
+					[class.tree-ancestor]="share.share === activeShareId() && activeShareRows().length > 1"
+					style="padding-left: 0.25rem"
+					role="button"
+					longPressContextMenu
+					(click)="openVisitedShare(share)"
+					(contextmenu)="onVisitedShareContextMenu($event, share)"
+				>
+					<span class="tree-toggle"></span>
+					<span class="text-secondary"><fa-icon [icon]="share.type === 'folder' ? faFolder : faFileLines"></fa-icon></span>
+					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="share.name">{{ share.name }}</span>
+					<span class="badge bg-secondary text-truncate flex-shrink-0" style="max-width: 7rem" [truncateTitle]="share.version.name">{{ share.version.name }}</span>
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Shared plan menu" (click)="onVisitedShareContextMenu($event, share)">
+						<fa-icon [icon]="faEllipsisVertical"></fa-icon>
+					</button>
+				</div>
+
+				<!-- The open share's frozen tree; a lone-plan share needs no
+				     inner row, its list row above already is the plan. -->
+				@if (share.share === activeShareId() && activeShareRows().length > 1) {
+					@for (row of activeShareRows(); track $index) {
+						<div
+							class="d-flex align-items-center gap-1 tree-row"
+							[class.tree-plan-active]="row.plan !== null && row.plan.id === activePlanId()"
+							[style.padding-left.rem]="row.depth * 1 + 1.5"
+							[attr.role]="row.plan !== null ? 'button' : null"
+							(click)="row.plan !== null && selectSharedPlan(row.plan)"
+						>
+							<span class="text-secondary">
+								@if (row.kind === 'folder') {
+									<fa-icon [icon]="faFolder"></fa-icon>
+								} @else if (row.plan !== null && planIconHash(row.plan); as hash) {
+									<game-icon [hash]="hash" [size]="18" [alt]="row.name"></game-icon>
+								} @else {
+									<fa-icon [icon]="faFileLines"></fa-icon>
+								}
+							</span>
+							<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="row.name">{{ row.name }}</span>
+						</div>
+					}
+				}
+			}
+		}
+	}
+
 	@if (showLocalSection()) {
 		<div class="d-flex align-items-center gap-1 mt-3 mb-2 tree-row">
 			<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleLocal()" [tooltip]="localOpen() ? 'Collapse' : 'Expand'" placement="top">
@@ -129,7 +198,7 @@
 		</div>
 
 		@if (localOpen()) {
-			<div class="text-secondary small px-1 mb-1">On this device only, not synced. Drag a plan or folder onto &ldquo;Your plans&rdquo; to move it into your account.</div>
+			<info-note class="mb-1">On this device only, not synced. Drag a plan or folder onto &ldquo;Your plans&rdquo; to move it into your account.</info-note>
 
 			@for (item of localTreeItems(); track item.kind + ':' + item.id) {
 				<div

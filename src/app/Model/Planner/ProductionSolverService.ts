@@ -7,6 +7,7 @@ import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver'
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GeneratorFuelOption} from '@src/Model/Planner/Solver/Request/GeneratorFuelOption';
 import {OptimisationDefaults} from '@src/Model/Planner/OptimisationDefaults';
+import {ResourceWeightResolver} from '@src/Model/Planner/ResourceWeightResolver';
 import {OptimisationTarget} from '@src/Model/Planner/Solver/Request/OptimisationTarget';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
@@ -24,6 +25,7 @@ import {MaximiseTarget} from '@src/Model/Planner/Solver/Request/MaximiseTarget';
 import {SolveRunHandle} from '@src/Model/Planner/Solver/SolveRunHandle';
 import {SolverRequest} from '@src/Model/Planner/Solver/Request/SolverRequest';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
+import {Building} from '@src/Model/Data/Entities/Building';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
@@ -31,6 +33,7 @@ import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
+import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {SloopBudgetService} from '@src/Model/Planner/SloopBudgetService';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
@@ -51,6 +54,8 @@ export class ProductionSolverService
 		private readonly enabledRecipes: EnabledRecipesResolver,
 		private readonly breakdown: PlanBreakdownService,
 		private readonly sloopBudget: SloopBudgetService,
+		private readonly pool: ResourcePoolService,
+		private readonly resourceWeights: ResourceWeightResolver,
 	)
 	{
 	}
@@ -74,12 +79,14 @@ export class ProductionSolverService
 			return of({status: 'Empty' as SolverWorkerResponseType, nodes: []});
 		}
 
-		const optimisation = this.optimisationTarget(plan);
-		if (Object.keys(optimisation.rawResources).length === 0 && optimisation.power <= 0 && optimisation.machines <= 0) {
+		const optimisation = this.optimisationTarget(plan, data);
+		const request = this.buildRequest(plan, data, optimisation);
+		// Weighted inputs are a goal of their own: with every other goal off the
+		// solver still minimises their cost, as long as at least one is priced.
+		const weightedInputs = optimisation.inputs && request.inputs.some(input => input.weight > 0);
+		if (Object.keys(optimisation.rawResources).length === 0 && optimisation.power <= 0 && optimisation.machines <= 0 && !weightedInputs) {
 			throw new Error('No optimisation goal is enabled - enable at least one in the Optimisation tab.');
 		}
-
-		const request = this.buildRequest(plan, data, optimisation);
 		const maximise = this.maximiseTarget(plan, data);
 		if (maximise !== null) {
 			return this.solveMaximise(plan, data, request, maximise, lockedNodes);
@@ -116,7 +123,9 @@ export class ProductionSolverService
 			maxSloops: this.sloopBudget.remaining(Math.max(0, Math.round(plan.settings.maxSloops ?? 0)), plan.graph),
 			defaultClockSpeed: Formulas.clampClock(plan.settings.defaultClockSpeed ?? 100),
 			recipeClockSpeeds: this.recipeClockSpeeds(plan),
-			resourceLimits: plan.settings.resourceLimits ?? {},
+			machineClockSpeeds: this.machineClockSpeeds(plan),
+			// Pooled folders hand the plan only what the sibling plans left.
+			resourceLimits: this.pool.effectiveLimits(plan),
 			generators: this.enabledGenerators(plan, data),
 			powerDemand: this.powerDemand(plan),
 			producePowerForFactory: plan.settings.producePowerForFactory ?? false,
@@ -209,12 +218,20 @@ export class ProductionSolverService
 
 		// Dropping the limits from a maximise plan makes it unbounded rather
 		// than solvable, so the attribution re-solve only applies to fixed rates.
-		if (Object.keys(plan.settings.resourceLimits ?? {}).length > 0 && this.maximiseTarget(plan, data) === null) {
-			const unlimited: Plan = {...plan, settings: {...plan.settings, resourceLimits: undefined}};
+		const constrained = Object.keys(plan.settings.resourceLimits ?? {}).length > 0 || (plan.settings.disabledResources?.length ?? 0) > 0;
+		if (constrained && this.maximiseTarget(plan, data) === null) {
+			const unlimited: Plan = {...plan, settings: {...plan.settings, resourceLimits: undefined, disabledResources: undefined}};
+			const poolFolder = this.pool.status(plan) === null ? null : this.planFolderName(plan);
 			return this.solve(unlimited, lockedNodes).pipe(
-				map(result => result.status === 'Optimal'
-					? 'No solution: the raw resource limits are too low for this request - raise them in the Resources tab.'
-					: generic),
+				map(result => {
+					if (result.status !== 'Optimal') {
+						return generic;
+					}
+					return poolFolder === null
+						? 'No solution: the raw resource limits are too low or a needed resource is switched off - raise them or enable it in the Resources tab.'
+						: `No solution: the shared raw resource pool of folder ${poolFolder} has too little left for this request - `
+							+ 'other plans in the folder already use part of it. Raise the folder limits or reduce the other plans.';
+				}),
 			);
 		}
 
@@ -226,10 +243,16 @@ export class ProductionSolverService
 	 * from the available raw resources (and locked nodes' outputs) - those
 	 * make the LP infeasible no matter the amounts.
 	 */
+	private planFolderName(plan: Plan): string
+	{
+		const folder = this.pool.poolFolderName(plan);
+		return folder === null ? 'the folder' : `"${folder}"`;
+	}
+
 	private findUnproducibleRequests(plan: Plan, data: Data, lockedNodes: Node[]): string[]
 	{
 		const recipes = this.allowedRecipes(plan, data);
-		const limits = plan.settings.resourceLimits ?? {};
+		const limits = this.pool.effectiveLimits(plan);
 
 		const producible = new Set<string>();
 		data.resources.forEach(className => {
@@ -284,26 +307,26 @@ export class ProductionSolverService
 	/**
 	 * Resolves the plan's optimisation settings into concrete solver weights:
 	 * disabled goals become 0 / an empty map, absent values fall back to the
-	 * defaults (resources + power on, machines off).
+	 * defaults (resources, power and input weights on, machines off).
 	 */
-	private optimisationTarget(plan: Plan): OptimisationTarget
+	private optimisationTarget(plan: Plan, data: Data): OptimisationTarget
 	{
 		const settings = plan.settings.optimisation;
 		const resourcesEnabled = settings?.rawResources ?? true;
 		const powerEnabled = settings?.power ?? true;
 		const machinesEnabled = settings?.machines ?? false;
 
-		const rawResources: Record<string, number> = {};
-		if (resourcesEnabled) {
-			Object.keys(OptimisationDefaults.resourceWeights).forEach(className => {
-				rawResources[className] = OptimisationDefaults.resourceWeight(className, settings?.resourceWeights);
-			});
-		}
+		// Weights follow the plan's mode; the limits mode reads the same
+		// effective caps the LP is constrained by.
+		const rawResources = resourcesEnabled
+			? this.resourceWeights.resolve(plan.settings, this.pool.effectiveLimits(plan), data)
+			: {};
 
 		return {
 			rawResources,
 			power: powerEnabled ? settings?.powerWeight ?? OptimisationDefaults.powerWeight : 0,
 			machines: machinesEnabled ? settings?.machinesWeight ?? OptimisationDefaults.machinesWeight : 0,
+			inputs: settings?.inputs ?? true,
 		};
 	}
 
@@ -370,10 +393,24 @@ export class ProductionSolverService
 		return clocks;
 	}
 
-	/** The clock speed the solver runs this recipe's machines at. */
-	private clockFor(request: SolverRequest, recipe: Recipe): number
+	/** Resolves the plan's per-machine clock overrides, dropping blank rows and clamping to 1–250%. Duplicate machines: last row wins. */
+	private machineClockSpeeds(plan: Plan): Record<string, number>
 	{
-		return request.recipeClockSpeeds[recipe.className] ?? request.defaultClockSpeed;
+		const clocks: Record<string, number> = {};
+		for (const entry of plan.settings.machineClockSpeeds ?? []) {
+			if (entry.machineClassName !== '' && isFinite(entry.clockSpeed)) {
+				clocks[entry.machineClassName] = Formulas.clampClock(entry.clockSpeed);
+			}
+		}
+		return clocks;
+	}
+
+	/** The clock speed the solver runs this recipe at in this machine: recipe override, else machine override, else the default. */
+	private clockFor(request: SolverRequest, recipe: Recipe, machine: Building): number
+	{
+		return request.recipeClockSpeeds[recipe.className]
+			?? request.machineClockSpeeds[machine.className]
+			?? request.defaultClockSpeed;
 	}
 
 	private enabledGenerators(plan: Plan, data: Data): GeneratorFuelOption[]
@@ -418,18 +455,20 @@ export class ProductionSolverService
 
 			// User inputs are priced by their weight, so the solver prefers cheaper
 			// sources (a low weight makes an input attractive over mining/crafting).
-			request.inputs.forEach(input => {
-				if (input.weight > 0) {
-					optimisation.push(input.weight + ' ' + input.item.className + '@Input');
-				}
-			});
+			if (request.optimisation.inputs) {
+				request.inputs.forEach(input => {
+					if (input.weight > 0) {
+						optimisation.push(input.weight + ' ' + input.item.className + '@Input');
+					}
+				});
+			}
 
 			// Power and machine goals price every column by its machines and their
 			// average draw (a recipe column is valued in machine counts).
 			if (request.optimisation.power > 0 || request.optimisation.machines > 0) {
 				request.recipes.forEach(recipe => {
-					const clockSpeed = this.clockFor(request, recipe);
 					recipe.producedIn.forEach(machine => {
+						const clockSpeed = this.clockFor(request, recipe, machine);
 						for (let sloops = 0; sloops <= Math.min(request.maxSloops, machine.sloopSlots); sloops++) {
 							const cost = request.optimisation.power * Formulas.machinePowerUsage(recipe, machine, clockSpeed, sloops)
 								+ request.optimisation.machines;
@@ -467,8 +506,8 @@ export class ProductionSolverService
 		const factoryDrawFactor = request.producePowerForFactory ? 1 + request.excessPowerFraction : 0;
 
 		request.recipes.forEach(recipe => {
-			const clockSpeed = this.clockFor(request, recipe);
 			recipe.producedIn.forEach(machine => {
+				const clockSpeed = this.clockFor(request, recipe, machine);
 				const speed = Formulas.referenceCycles(recipe, machine) * clockSpeed / 100;
 
 				for (let sloops = 0; sloops <= Math.min(request.maxSloops, machine.sloopSlots); sloops++) {

@@ -2,6 +2,8 @@ import {Component, ChangeDetectionStrategy, Input, OnChanges, OnDestroy} from '@
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faLock, faLockOpen} from '@fortawesome/free-solid-svg-icons';
+import {TooltipDirective} from 'ngx-bootstrap/tooltip';
+import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -38,7 +40,7 @@ const TYPE_LABELS: Record<string, string> = {
 	selector: 'amount-node-editor',
 	templateUrl: './AmountNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent],
+	imports: [FormsModule, FaIconComponent, TooltipDirective, GameIconComponent],
 })
 export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 {
@@ -108,6 +110,19 @@ export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 	public get generator(): GeneratorNode | null
 	{
 		return this.node instanceof GeneratorNode ? this.node : null;
+	}
+
+	/** The item's icon for item nodes, the generator building's for generators. */
+	public get iconHash(): string | null
+	{
+		return this.item?.icon ?? this.generator?.generator.icon ?? null;
+	}
+
+	public get lockTooltip(): string
+	{
+		return this.node.locked
+			? 'Locked - the solver builds around this node as it is. Click to unlock.'
+			: 'Unlocked - the solver may replace this node. Click to lock it.';
 	}
 
 	public get amountLabel(): string

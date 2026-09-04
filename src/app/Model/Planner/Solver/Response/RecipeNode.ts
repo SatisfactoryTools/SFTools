@@ -1,6 +1,7 @@
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
+import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
@@ -82,12 +83,22 @@ export class RecipeNode extends Node
 		return Formulas.outputBoostRatio(this.machine, this.groups);
 	}
 
-	/** Average draw in MW: throttled machines duty-cycle, so scale by efficiency. */
+	/**
+	 * Draw in MW with its oscillation band, over all machine groups. Throttled
+	 * machines duty-cycle, so the whole band scales by efficiency - the node
+	 * counts as that fraction of a machine, peak included.
+	 */
+	public powerDraw(): PowerDraw
+	{
+		const perClock = PowerDraw.sum(this.groups.map(group =>
+			Formulas.machinePowerDraw(this.recipe, this.machine, group.clockSpeed, group.sloops).scale(group.machines)));
+		return perClock.scale(this.efficiency());
+	}
+
+	/** Average draw in MW - the single figure the solver and the totals count. */
 	public averagePowerUsage(): number
 	{
-		const perClock = this.groups.reduce((sum, group) =>
-			sum + group.machines * Formulas.machinePowerUsage(this.recipe, this.machine, group.clockSpeed, group.sloops), 0);
-		return perClock * this.efficiency();
+		return this.powerDraw().average;
 	}
 
 	protected setupIO(): void

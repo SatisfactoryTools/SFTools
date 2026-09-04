@@ -5,6 +5,8 @@ export interface IORateDraft
 {
 
 	readonly item: Item;
+	/** Amount of the item one recipe cycle takes or makes - shown as context beside the rate. */
+	readonly perCraft: number;
 	rate: number;
 
 }

@@ -1,4 +1,5 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {SloopAccuracyOption} from '@src/Components/Planner/Panels/Calculator/Tabs/Sloops/SloopAccuracyOption';
@@ -16,7 +17,7 @@ import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 	selector: 'calculator-sloops-tab',
 	templateUrl: './CalculatorSloopsTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [GameIconComponent],
+	imports: [GameIconComponent, InfoNoteComponent],
 })
 export class CalculatorSloopsTabComponent
 {

@@ -1,5 +1,5 @@
 <div class="add-node-backdrop">
-	<div class="add-node-dialog card border-secondary">
+	<div class="add-node-dialog card">
 		<div class="card-header d-flex align-items-center gap-2">
 			<span class="fw-semibold flex-grow-1 d-flex align-items-center gap-2">
 				@if (filter; as connectFilter) {
@@ -20,7 +20,7 @@
 						type="button"
 						class="btn btn-sm d-flex align-items-center gap-2"
 						[class.btn-primary]="nodeType === option.type"
-						[class.btn-dark]="nodeType !== option.type"
+						[class.btn-outline-secondary]="nodeType !== option.type"
 						(click)="setType(option.type)"
 					>
 						<fa-icon [icon]="option.icon"></fa-icon>

@@ -1,11 +1,11 @@
-import {AfterViewInit, Component, computed, ElementRef, HostListener, signal, ChangeDetectionStrategy} from '@angular/core';
+import {AfterViewInit, Component, computed, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {NgComponentOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
-import {faBars, faChevronDown, faChevronUp} from '@fortawesome/free-solid-svg-icons';
+import {faBars, faChevronLeft, faChevronRight, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {FloatingGroup} from '@src/Components/Planner/Panel/FloatingGroup';
 import {PanelContentAreaComponent} from '@src/Components/Planner/Panel/PanelContentAreaComponent';
 import {MOBILE_NAV_HEIGHT, PanelLayoutService, RAIL_WIDTH, STATUS_BAR_HEIGHT} from '@src/Components/Planner/Panel/PanelLayoutService';
+import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelSide} from '@src/Components/Planner/Panel/PanelSide';
 import {PlannerFloatingWindowComponent} from '@src/Components/Planner/Panel/PlannerFloatingWindowComponent';
 import {PlannerRailComponent} from '@src/Components/Planner/Panel/PlannerRailComponent';
@@ -15,6 +15,7 @@ import {PlannerZoomControlsComponent} from '@src/Components/Planner/ZoomControls
 const RAIL = RAIL_WIDTH;
 const STATUS = STATUS_BAR_HEIGHT;
 const MOBILE_NAV = MOBILE_NAV_HEIGHT;
+const MOBILE_HEAD = 44; // px - title bar above a full-screen mobile panel view
 const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activates
 
 @Component({
@@ -23,7 +24,6 @@ const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activa
 	imports: [
 		FaIconComponent,
 		NgComponentOutlet,
-		TooltipDirective,
 		PanelContentAreaComponent,
 		PlannerFloatingWindowComponent,
 		PlannerRailComponent,
@@ -48,25 +48,64 @@ const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activa
 			z-index: 10;
 		}
 
-		/* ── Mobile (F1) ── */
-		.mob-nav {
+		/* ── Mobile ── */
+		.mob-nav-wrap {
 			position: absolute;
 			left: 0; right: 0; bottom: 0;
 			height: ${MOBILE_NAV}px;
-			display: flex;
 			background: #10141d;
 			border-top: 1px solid #222b3e;
 			pointer-events: auto;
 			z-index: 12;
 		}
+		.mob-nav {
+			height: 100%;
+			display: flex;
+			align-items: stretch;
+			overflow-x: auto;
+			overflow-y: hidden;
+			scrollbar-width: none;
+		}
+		.mob-nav::-webkit-scrollbar { display: none; }
+		.mob-nav-fade {
+			position: absolute;
+			top: 0; bottom: 0;
+			width: 36px;
+			display: flex;
+			align-items: center;
+			color: #8899bb;
+			font-size: 0.8rem;
+			pointer-events: none;
+		}
+		.mob-nav-fade.left {
+			left: 0;
+			justify-content: flex-start;
+			padding-left: 4px;
+			background: linear-gradient(to right, #10141d 35%, rgba(16,20,29,0));
+		}
+		.mob-nav-fade.right {
+			right: 0;
+			justify-content: flex-end;
+			padding-right: 4px;
+			background: linear-gradient(to left, #10141d 35%, rgba(16,20,29,0));
+		}
 		.mob-tab {
-			flex: 1;
+			flex: none;
+			min-width: 72px;
+			padding: 0 10px;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			gap: 3px;
 			border: none;
 			background: transparent;
 			color: #8899bb;
-			font-size: 1rem;
+			font-size: 0.7rem;
+			white-space: nowrap;
 			cursor: pointer;
 		}
+		.mob-tab fa-icon { font-size: 1.05rem; }
 		.mob-tab.active { color: #fff; box-shadow: inset 0 2px 0 rgba(100,150,255,0.7); }
 		.mob-menu-btn {
 			position: absolute;
@@ -81,44 +120,48 @@ const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activa
 			pointer-events: auto;
 			z-index: 11;
 		}
+		.mob-zoom {
+			position: absolute;
+			left: 12px;
+			bottom: ${MOBILE_NAV + 12}px;
+			pointer-events: auto;
+			z-index: 7;
+		}
+		.mob-head {
+			position: absolute;
+			left: 0; right: 0; top: 0;
+			height: ${MOBILE_HEAD}px;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 0 8px;
+			background: #10141d;
+			border-bottom: 1px solid #222b3e;
+			color: #ccd6ee;
+			font-weight: 600;
+			pointer-events: auto;
+			z-index: 10;
+		}
+		.mob-head-btn {
+			width: 32px; height: 32px;
+			border: 1px solid #222b3e;
+			border-radius: 6px;
+			background: transparent;
+			color: #ccd6ee;
+			cursor: pointer;
+		}
+		.mob-head-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 		.mob-view {
 			position: absolute;
-			left: 0; right: 0; top: 0; bottom: ${MOBILE_NAV}px;
+			left: 0; right: 0; top: ${MOBILE_HEAD}px; bottom: ${MOBILE_NAV}px;
 			background: #141824;
 			overflow-y: auto;
+			overflow-x: hidden;
+			container-type: inline-size;
+			container-name: panel;
 			pointer-events: auto;
 			z-index: 9;
 		}
-		.mob-sheet {
-			position: absolute;
-			left: 0; right: 0; bottom: ${MOBILE_NAV}px;
-			background: #141824;
-			border-top: 1px solid #222b3e;
-			border-radius: 12px 12px 0 0;
-			pointer-events: auto;
-			z-index: 10;
-			display: flex;
-			flex-direction: column;
-		}
-		.mob-sheet.expanded { height: 62%; }
-		.mob-sheet-head { flex: none; cursor: pointer; user-select: none; }
-		.mob-grab {
-			width: 36px; height: 4px;
-			border-radius: 2px;
-			background: #2c3650;
-			margin: 6px auto 0;
-		}
-		.mob-sheet-title {
-			display: flex;
-			align-items: center;
-			justify-content: space-between;
-			padding: 6px 14px 8px;
-			font-size: 1rem;
-			font-weight: 600;
-			color: #ccd6ee;
-		}
-		.mob-sheet-caret { color: #8899bb; }
-		.mob-sheet-body { flex: 1; overflow-y: auto; }
 		.mob-scrim {
 			position: absolute;
 			inset: 0;
@@ -134,17 +177,43 @@ const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activa
 			background: #141824;
 			border-right: 1px solid #222b3e;
 			overflow-y: auto;
+			overflow-x: hidden;
+			container-type: inline-size;
+			container-name: panel;
 			pointer-events: auto;
 			z-index: 15;
 		}
 	`],
 })
-export class PlannerPanelContainerComponent implements AfterViewInit
+export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 {
 
 	public readonly faBars = faBars;
-	public readonly faChevronDown = faChevronDown;
-	public readonly faChevronUp = faChevronUp;
+	public readonly faXmark = faXmark;
+	public readonly faChevronLeft = faChevronLeft;
+	public readonly faChevronRight = faChevronRight;
+
+	private readonly navCanScrollLeftSignal = signal(false);
+	public readonly navCanScrollLeft = this.navCanScrollLeftSignal.asReadonly();
+	private readonly navCanScrollRightSignal = signal(false);
+	public readonly navCanScrollRight = this.navCanScrollRightSignal.asReadonly();
+	private navResizeObserver: ResizeObserver | null = null;
+
+	/** The bottom bar exists only in the mobile layout - the observer follows it. */
+	@ViewChild('mobNav')
+	private set mobNav(element: ElementRef<HTMLElement> | undefined)
+	{
+		this.navResizeObserver?.disconnect();
+		this.navResizeObserver = null;
+		this.navElement = element?.nativeElement ?? null;
+		if (this.navElement && typeof ResizeObserver !== 'undefined') {
+			this.navResizeObserver = new ResizeObserver(() => this.updateNavScroll());
+			this.navResizeObserver.observe(this.navElement);
+		}
+		this.updateNavScroll();
+	}
+
+	private navElement: HTMLElement | null = null;
 
 	private readonly isMobileSignal = signal(false);
 	public readonly isMobile = this.isMobileSignal.asReadonly();
@@ -152,8 +221,9 @@ export class PlannerPanelContainerComponent implements AfterViewInit
 	private readonly drawerOpenSignal = signal(false);
 	public readonly drawerOpen = this.drawerOpenSignal.asReadonly();
 
-	private readonly sheetOpenSignal = signal(false);
-	public readonly sheetOpen = this.sheetOpenSignal.asReadonly();
+	/** Bottom-bar entries: every panel but the plan tree, which lives in the drawer. */
+	public readonly mobilePanels = computed<PanelDefinition[]>(() =>
+		this.layout.registered().filter(panel => panel.id !== 'plans'));
 
 	public constructor(
 		public readonly layout: PanelLayoutService,
@@ -165,6 +235,11 @@ export class PlannerPanelContainerComponent implements AfterViewInit
 	public ngAfterViewInit(): void
 	{
 		this.measureAndUpdate();
+	}
+
+	public ngOnDestroy(): void
+	{
+		this.navResizeObserver?.disconnect();
 	}
 
 	@HostListener('window:resize')
@@ -202,9 +277,32 @@ export class PlannerPanelContainerComponent implements AfterViewInit
 		this.drawerOpenSignal.set(false);
 	}
 
-	public toggleSheet(): void
+	/** A tab opens its panel; tapping the active tab again closes it, showing the graph. */
+	public toggleMobilePanel(id: string): void
 	{
-		this.sheetOpenSignal.update(open => !open);
+		this.layout.setMobilePanel(this.layout.mobileActivePanel()?.id === id ? null : id);
+	}
+
+	/** Which ends of the bottom bar hide more tabs (drives the fade hints). */
+	public updateNavScroll(): void
+	{
+		const nav = this.navElement;
+		if (!nav) {
+			this.navCanScrollLeftSignal.set(false);
+			this.navCanScrollRightSignal.set(false);
+			return;
+		}
+		this.navCanScrollLeftSignal.set(nav.scrollLeft > 2);
+		this.navCanScrollRightSignal.set(nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 2);
+	}
+
+	/** Picking a plan or folder in the drawer closes it; taps on controls (toggles, menus, inputs) keep it open. */
+	public onDrawerClick(event: MouseEvent): void
+	{
+		const target = event.target instanceof Element ? event.target : null;
+		if (target?.closest('.tree-row[role="button"]') && !target.closest('button, input, .tree-menu')) {
+			this.closeDrawer();
+		}
 	}
 
 	// ── Desktop computed styles ──────────────────────────────────────────────

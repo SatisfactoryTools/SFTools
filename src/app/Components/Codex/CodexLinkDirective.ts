@@ -1,5 +1,5 @@
 import {Directive, HostBinding, HostListener, Input} from '@angular/core';
-import {ActivatedRoute, Router, UrlTree} from '@angular/router';
+import {Router} from '@angular/router';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 
 /**
@@ -22,7 +22,6 @@ export class CodexLinkDirective
 	public constructor(
 		private readonly navigation: CodexNavigation,
 		private readonly router: Router,
-		private readonly route: ActivatedRoute,
 	)
 	{
 	}
@@ -33,7 +32,7 @@ export class CodexLinkDirective
 		const key = `${this.codexLink}|${this.router.url}`;
 		if (key !== this.cachedKey) {
 			this.cachedKey = key;
-			this.cachedHref = this.router.serializeUrl(this.urlTree());
+			this.cachedHref = this.router.serializeUrl(this.navigation.urlTree(this.codexLink));
 		}
 		return this.cachedHref;
 	}
@@ -45,18 +44,8 @@ export class CodexLinkDirective
 		if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
 			return true;
 		}
-		void this.router.navigateByUrl(this.urlTree());
+		void this.navigation.navigate(this.codexLink);
 		return false;
-	}
-
-	private urlTree(): UrlTree
-	{
-		const link = this.navigation.linkFor(this.codexLink);
-		return this.router.createUrlTree(link.commands, {
-			relativeTo: this.route,
-			queryParams: link.queryParams ?? undefined,
-			queryParamsHandling: link.queryParamsHandling,
-		});
 	}
 
 }

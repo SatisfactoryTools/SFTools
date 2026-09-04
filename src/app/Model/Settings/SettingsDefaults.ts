@@ -23,6 +23,8 @@ export class SettingsDefaults
 			showSubplanItemIcons: true,
 			showSloopCornerIcon: true,
 			machineDisplay: 'total-and-groups',
+			nodeScale: 1,
+			edgeScale: 1,
 			// The graph's original node accent colours; fills are derived from these.
 			nodeColors: {
 				recipe: '#4a90d9',
@@ -37,6 +39,8 @@ export class SettingsDefaults
 		},
 		planner: {
 			unmakeableItems: 'show',
+			tabBadges: true,
+			tabLabels: 'auto',
 		},
 		panels: null,
 	};

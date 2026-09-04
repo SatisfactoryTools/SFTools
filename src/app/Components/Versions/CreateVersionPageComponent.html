@@ -177,7 +177,7 @@
 										@if (worldCustomise) {
 											<div class="d-inline-flex flex-column align-items-end">
 												<div class="input-group input-group-sm" style="width: 160px;">
-													<input type="number" min="0" step="1" class="form-control form-control-sm bg-dark text-light border-secondary text-end" [(ngModel)]="row.limit" (ngModelChange)="onLimitChange()"/>
+													<input type="number" min="0" step="any" class="form-control form-control-sm bg-dark text-light border-secondary text-end" [(ngModel)]="row.limit" (ngModelChange)="onLimitChange()"/>
 													<span class="input-group-text bg-dark text-secondary border-secondary">/min</span>
 												</div>
 												@if (!limitMatches(row)) {

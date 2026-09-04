@@ -114,6 +114,8 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			flex: 1;
 			overflow-y: auto;
 			overflow-x: hidden;
+			container-type: inline-size;
+			container-name: panel;
 		}
 		.resize-handle {
 			position: absolute;

@@ -7,6 +7,7 @@ import {PlanSchema} from '@src/Model/API/Schema/Plans/PlanSchema';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Folder} from '@src/Model/Planner/Folder';
 import {Plan} from '@src/Model/Planner/Plan';
+import {PlanSettingsNormalizer} from '@src/Model/Planner/PlanSettingsNormalizer';
 import {PlanStore} from '@src/Model/Planner/PlanStore';
 import {NotificationService} from '@src/Model/NotificationService';
 import {DataBackend} from '@src/Model/Sync/DataBackend';
@@ -227,7 +228,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 
 	private hydrateFolder(schema: FolderTreeSchema, parentId: string | null): Folder
 	{
-		let data: {settings?: Folder['settings']} = {};
+		let data: {settings?: Folder['settings']; fixedGroups?: Folder['fixedGroups']; resourcePool?: boolean; order?: number} = {};
 		try {
 			data = JSON.parse(schema.data) as typeof data;
 		} catch {
@@ -237,20 +238,28 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			id: schema.id,
 			name: schema.name,
 			parentId,
-			settings: data.settings ?? null,
+			settings: data.settings ? PlanSettingsNormalizer.normalize(data.settings) : null,
+			fixedGroups: data.settings ? data.fixedGroups ?? [] : [],
+			resourcePool: data.resourcePool ?? false,
+			order: data.order,
 			revision: schema.revision,
 		};
 	}
 
-	/** The "settings" key namespaces the payload so more keys can join later. */
+	/** Namespaced keys ("settings", "fixedGroups", …) so more can join later. */
 	private serializeFolderData(folder: Folder): string
 	{
-		return JSON.stringify({settings: folder.settings ?? undefined});
+		return JSON.stringify({
+			settings: folder.settings ?? undefined,
+			fixedGroups: folder.fixedGroups.length > 0 ? folder.fixedGroups : undefined,
+			resourcePool: folder.resourcePool || undefined,
+			order: folder.order,
+		});
 	}
 
 	private hydratePlan(schema: PlanSchema): Plan
 	{
-		let data: {settings?: Plan['settings']; requests?: Plan['requests']; inputs?: Plan['inputs']; graph?: Plan['graph']; metadata?: Plan['metadata']; iconClassName?: Plan['iconClassName']} = {};
+		let data: {settings?: Plan['settings']; requests?: Plan['requests']; inputs?: Plan['inputs']; graph?: Plan['graph']; metadata?: Plan['metadata']; iconClassName?: Plan['iconClassName']; order?: number} = {};
 		try {
 			data = JSON.parse(schema.data) as typeof data;
 		} catch {
@@ -264,13 +273,17 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			folderId: schema.folder,
 			parentPlanId: schema.parent,
 			// Fallback covers plans saved before calculationMode existed.
-			settings: {
+			settings: PlanSettingsNormalizer.normalize({
 				calculationMode: data.settings?.calculationMode ?? 'automatic',
 				graph: data.settings?.graph,
 				enabledRecipes: data.settings?.enabledRecipes,
 				disabledMachines: data.settings?.disabledMachines,
 				resourceLimits: data.settings?.resourceLimits,
+				disabledResources: data.settings?.disabledResources,
+				resourceWeightMode: data.settings?.resourceWeightMode,
+				resourceWeights: data.settings?.resourceWeights,
 				enabledFuels: data.settings?.enabledFuels,
+				disabledByproducts: data.settings?.disabledByproducts,
 				sinkableItems: data.settings?.sinkableItems,
 				producePowerForFactory: data.settings?.producePowerForFactory,
 				excessPowerPercent: data.settings?.excessPowerPercent,
@@ -278,15 +291,21 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 				defaultGroupingMode: data.settings?.defaultGroupingMode,
 				defaultClockSpeed: data.settings?.defaultClockSpeed,
 				recipeClockSpeeds: data.settings?.recipeClockSpeeds,
+				machineClockSpeeds: data.settings?.machineClockSpeeds,
 				maxSloops: data.settings?.maxSloops,
 				sloopAccuracy: data.settings?.sloopAccuracy,
-			},
+			}),
 			requests: data.requests ?? [],
 			inputs: data.inputs ?? [],
 			graph: data.graph ?? null,
 			// Fallback covers plans saved before metadata existed.
-			metadata: {graphDirty: data.metadata?.graphDirty ?? false, achievedMaximums: data.metadata?.achievedMaximums},
+			metadata: {
+				graphDirty: data.metadata?.graphDirty ?? false,
+				achievedMaximums: data.metadata?.achievedMaximums,
+				recalculationNeeded: data.metadata?.recalculationNeeded,
+			},
 			iconClassName: data.iconClassName,
+			order: data.order,
 			revision: schema.revision,
 		};
 	}
@@ -300,6 +319,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			graph: plan.graph,
 			metadata: plan.metadata,
 			iconClassName: plan.iconClassName,
+			order: plan.order,
 		});
 	}
 

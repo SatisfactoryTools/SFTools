@@ -1,10 +1,9 @@
 import {Component, ChangeDetectionStrategy, Input, computed, signal} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft, faChevronRight} from '@fortawesome/free-solid-svg-icons';
-import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {CodexEntityLinkComponent} from '@src/Components/Codex/CodexEntityLinkComponent';
 import {CodexItemAmountListComponent} from '@src/Components/Codex/CodexItemAmountListComponent';
-import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
+import {CodexDetailHeaderComponent} from '@src/Components/Codex/CodexDetailHeaderComponent';
 import {CodexRecipeListComponent} from '@src/Components/Codex/CodexRecipeListComponent';
 import {CodexSchematicListComponent} from '@src/Components/Codex/CodexSchematicListComponent';
 import {CodexSectionComponent} from '@src/Components/Codex/CodexSectionComponent';
@@ -25,20 +24,18 @@ const SHARD_SLOTS = 3;
 	templateUrl: './CodexBuildingDetailComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [
-		CodexLinkDirective,
+		CodexDetailHeaderComponent,
 		CodexEntityLinkComponent,
 		CodexItemAmountListComponent,
 		CodexRecipeListComponent,
 		CodexSchematicListComponent,
 		CodexSectionComponent,
 		FaIconComponent,
-		GameIconComponent,
 	],
 })
 export class CodexBuildingDetailComponent
 {
 
-	public readonly faChevronLeft = faChevronLeft;
 	public readonly faChevronRight = faChevronRight;
 
 	private readonly buildingClassNameSignal = signal<string | null>(null);
@@ -79,6 +76,28 @@ export class CodexBuildingDetailComponent
 			return [];
 		}
 		return this.versionManager.activeVersionData()?.getRecipesForBuilding(className) ?? [];
+	});
+
+	/**
+	 * Variable-power machines (Converter, Particle Accelerator, …) draw per
+	 * recipe: the span from the lowest to the highest band over their recipes,
+	 * or null for a fixed-draw machine.
+	 */
+	protected readonly variablePowerRange = computed<string | null>(() => {
+		const building = this.building();
+		if (building === null) {
+			return null;
+		}
+		const bands = this.recipes()
+			.filter(recipe => Formulas.usesVariablePower(recipe, building))
+			.map(recipe => Formulas.variablePowerBand(recipe));
+		if (bands.length === 0) {
+			return null;
+		}
+		return this.formatter.powerRange(
+			Math.min(...bands.map(band => band.min)),
+			Math.max(...bands.map(band => band.max)),
+		);
 	});
 
 	/** Overclock range in percent, including the three power shard slots ("1% – 250%"). */

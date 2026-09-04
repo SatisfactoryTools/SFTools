@@ -1,14 +1,13 @@
 import {Component, computed, ChangeDetectionStrategy} from '@angular/core';
 import {CodexEntry} from '@src/Components/Codex/CodexEntry';
 import {CodexEntryListComponent} from '@src/Components/Codex/CodexEntryListComponent';
-import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
 @Component({
 	selector: 'codex-buildings',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './CodexBuildingsComponent.html',
-	imports: [CodexLinkDirective, CodexEntryListComponent],
+	imports: [CodexEntryListComponent],
 })
 export class CodexBuildingsComponent
 {

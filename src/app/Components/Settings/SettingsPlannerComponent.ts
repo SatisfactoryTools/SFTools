@@ -1,6 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {TabLabelsMode} from '@src/Model/Settings/TabLabelsMode';
 import {UnmakeableItemsDisplay} from '@src/Model/Settings/UnmakeableItemsDisplay';
 
 /** "Planner" settings section - unmakeable-items display and the panel-layout reset. */
@@ -43,6 +44,37 @@ export class SettingsPlannerComponent
 	public setUnmakeableItems(value: UnmakeableItemsDisplay): void
 	{
 		this.settings.updatePlanner({unmakeableItems: value});
+	}
+
+	public readonly tabLabelsOptions: {value: TabLabelsMode; label: string; description: string}[] = [
+		{value: 'auto', label: 'Fit to width', description: 'Labels when the whole row fits; otherwise icons with the active tab labelled, and a dropdown on narrow panels.'},
+		{value: 'icons', label: 'Icons only', description: 'Icons with the active tab labelled whenever they fit; a dropdown on narrow panels.'},
+		{value: 'labels', label: 'Always labels', description: 'Every tab labelled, wrapping onto more rows when needed; a dropdown on panels too narrow even for icons.'},
+	];
+
+	public get tabLabels(): TabLabelsMode
+	{
+		return this.settings.planner().tabLabels;
+	}
+
+	public setTabLabels(value: TabLabelsMode): void
+	{
+		this.settings.updatePlanner({tabLabels: value});
+	}
+
+	public get tabLabelsDescription(): string
+	{
+		return this.tabLabelsOptions.find(option => option.value === this.tabLabels)?.description ?? '';
+	}
+
+	public get tabBadges(): boolean
+	{
+		return this.settings.planner().tabBadges;
+	}
+
+	public setTabBadges(value: boolean): void
+	{
+		this.settings.updatePlanner({tabBadges: value});
 	}
 
 	public get unmakeableItemsDescription(): string

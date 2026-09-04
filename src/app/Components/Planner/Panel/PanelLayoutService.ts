@@ -21,7 +21,7 @@ const TAB_BAR_HEIGHT = 36;
 
 export const RAIL_WIDTH = 40;        // px - icon-rail width (desktop)
 export const STATUS_BAR_HEIGHT = 32; // px - status-bar height (desktop)
-export const MOBILE_NAV_HEIGHT = 48; // px - bottom tab-bar height (mobile)
+export const MOBILE_NAV_HEIGHT = 56; // px - bottom tab-bar height (mobile)
 
 @Injectable()
 export class PanelLayoutService implements OnDestroy
@@ -74,6 +74,7 @@ export class PanelLayoutService implements OnDestroy
 	public readonly activeTop = computed(() => this.activeDockedPanel('top'));
 
 	private readonly mobileSignal = signal(false);
+	public readonly isMobile = this.mobileSignal.asReadonly();
 
 	/**
 	 * How much of the canvas is covered by pinned chrome on each side -
@@ -201,11 +202,45 @@ export class PanelLayoutService implements OnDestroy
 
 	/**
 	 * Rail-click behavior: opens the panel if closed, selects its tab if it is
+	 * open but not the visible tab of its side or window, and closes it if it
+	 * is already the visible one - the rail button toggles.
+	 */
+	public toggleFromRail(id: string): void
+	{
+		if (this.isVisible(id)) {
+			this.closePanel(id);
+		} else {
+			this.focusPanel(id);
+		}
+	}
+
+	/** Open and the selected tab of its side, or of a floating window that is in front. */
+	public isVisible(id: string): boolean
+	{
+		const state = this.statesSignal().get(id);
+		if (!state?.open) {
+			return false;
+		}
+		if (!state.floating) {
+			return this.activeTabIdsSignal()[state.side] === id;
+		}
+		const groups = this.floatingGroupsSignal();
+		const group = groups.find(g => g.tabIds.includes(id));
+		return group !== undefined && group.activeTabId === id && groups[groups.length - 1] === group;
+	}
+
+	/**
+	 * Brings a panel into view: opens it if closed, selects its tab if it is
 	 * open but not the visible tab of its side or window, and does nothing if
 	 * already visible.
 	 */
 	public focusPanel(id: string): void
 	{
+		// On mobile every panel is a full-screen view - focusing means showing it.
+		if (this.mobileSignal() && id !== 'plans') {
+			this.setMobilePanel(id);
+			return;
+		}
 		const state = this.statesSignal().get(id);
 		if (!state) return;
 		if (!state.open) {
@@ -225,6 +260,10 @@ export class PanelLayoutService implements OnDestroy
 
 	public openPanel(id: string): void
 	{
+		if (this.mobileSignal() && id !== 'plans') {
+			this.setMobilePanel(id);
+			return;
+		}
 		const state = this.statesSignal().get(id);
 		if (!state || state.open) return;
 		this.setState(id, {...state, open: true});
@@ -238,6 +277,12 @@ export class PanelLayoutService implements OnDestroy
 
 	public closePanel(id: string): void
 	{
+		if (this.mobileSignal()) {
+			if (this.mobileActivePanelIdSignal() === id) {
+				this.setMobilePanel(null);
+			}
+			return;
+		}
 		const state = this.statesSignal().get(id);
 		if (!state || !state.open) return;
 		this.setState(id, {...state, open: false});

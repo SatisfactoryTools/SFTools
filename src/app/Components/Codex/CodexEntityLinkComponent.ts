@@ -5,7 +5,10 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 /**
  * Inline icon+name reference to any codex entity, linked to its detail -
  * THE way to display an entity anywhere in the codex, so every mention is
- * a cross-link. Multi-icon supports recipes (their products).
+ * a cross-link. Body-coloured with an underline on hover, like every other
+ * link in the codex (tiles, recipe names) - everything here is a link, so
+ * accent-coloured text would be noise. Multi-icon supports recipes (their
+ * products).
  */
 @Component({
 	selector: 'codex-entity-link',
@@ -20,6 +23,7 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 			align-items: center;
 			gap: 0.35rem;
 			text-decoration: none;
+			color: inherit;
 			min-width: 0;
 		}
 		a.entity-link:not(.btn):hover .entity-name {

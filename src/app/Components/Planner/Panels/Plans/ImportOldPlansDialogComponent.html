@@ -1,15 +1,15 @@
 <div class="import-backdrop" (click)="requestClose()">
-	<div class="import-dialog card bg-dark border-secondary" (click)="$event.stopPropagation()">
+	<div class="import-dialog card" (click)="$event.stopPropagation()">
 		<div class="card-header d-flex align-items-center gap-2">
 			<span class="fw-semibold flex-grow-1 text-truncate">Import from old Satisfactory Tools</span>
 			<button type="button" class="btn-close btn-close-white" aria-label="Close" [disabled]="importing()" (click)="requestClose()"></button>
 		</div>
 		<div class="card-body d-flex flex-column gap-2">
-			<div class="text-secondary small">
+			<info-note>
 				Paste share links (one per line) and/or pick an exported .sft file, then choose
 				which production lines to import. Each becomes a plan with the requested items,
 				inputs and recipe selection of the original.
-			</div>
+			</info-note>
 
 			<textarea
 				class="form-control bg-dark text-light border-secondary"
@@ -57,11 +57,10 @@
 					}
 				</div>
 				@if (hasMaximiseRows()) {
-					<div class="text-secondary small">
-						<span class="text-warning"><fa-icon [icon]="faTriangleExclamation"></fa-icon></span>
+					<info-note kind="warning">
 						Plans marked with a warning use maximise, which worked differently in the old
 						tools - they may import with different results here.
-					</div>
+					</info-note>
 				}
 			}
 		</div>

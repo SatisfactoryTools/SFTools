@@ -1,28 +1,50 @@
 <div class="p-2 d-flex flex-column gap-2">
 
-	<div class="text-secondary">Subplan: <span class="text-light">{{ displayName }}</span></div>
-	<div class="text-secondary">Double-click the node to open the subplan; its inputs and outputs come from the subplan's graph.</div>
+	<info-note>Double-click the node to open the subplan. Its inputs and outputs come from the subplan's own graph.</info-note>
 
-	<div>
-		<div class="text-secondary mb-1">Inputs</div>
-		@for (input of node.inputs; track input.item.className) {
-			<div class="d-flex justify-content-between">
-				<span>{{ input.item.name }}</span>
-				<span class="text-info">{{ rateFormatter.rate(input.maxAmount, input.item) }}</span>
-			</div>
-		} @empty {
-			<div class="fst-italic text-secondary">None</div>
-		}
-
-		<div class="text-secondary mb-1 mt-2">Outputs</div>
-		@for (output of node.outputs; track output.item.className) {
-			<div class="d-flex justify-content-between">
-				<span>{{ output.item.name }}</span>
-				<span class="text-success">{{ rateFormatter.rate(output.maxAmount, output.item) }}</span>
-			</div>
-		} @empty {
-			<div class="fst-italic text-secondary">None</div>
-		}
+	<div class="card">
+		<div class="card-header d-flex align-items-center gap-2 py-1 px-2">
+			<span class="fw-semibold flex-grow-1 text-truncate" [title]="displayName">{{ displayName }}</span>
+			<span class="badge text-bg-secondary">Subplan</span>
+		</div>
+		<table class="table table-dark table-sm align-middle mb-0">
+			<thead>
+				<tr><th>Inputs</th><th class="text-end" style="width: 45%;">Rate</th></tr>
+			</thead>
+			<tbody>
+				@for (input of node.inputs; track input.item.className) {
+					<tr>
+						<td>
+							<span class="d-inline-flex align-items-center gap-1">
+								<game-icon [hash]="input.item.icon" [size]="18" [alt]="input.item.name"></game-icon>
+								{{ input.item.name }}
+							</span>
+						</td>
+						<td class="text-end text-nowrap text-info">{{ rateFormatter.rate(input.maxAmount, input.item) }}</td>
+					</tr>
+				} @empty {
+					<tr><td colspan="2" class="fst-italic text-secondary">None</td></tr>
+				}
+			</tbody>
+			<thead>
+				<tr><th>Outputs</th><th class="text-end">Rate</th></tr>
+			</thead>
+			<tbody>
+				@for (output of node.outputs; track output.item.className) {
+					<tr>
+						<td>
+							<span class="d-inline-flex align-items-center gap-1">
+								<game-icon [hash]="output.item.icon" [size]="18" [alt]="output.item.name"></game-icon>
+								{{ output.item.name }}
+							</span>
+						</td>
+						<td class="text-end text-nowrap text-success">{{ rateFormatter.rate(output.maxAmount, output.item) }}</td>
+					</tr>
+				} @empty {
+					<tr><td colspan="2" class="fst-italic text-secondary">None</td></tr>
+				}
+			</tbody>
+		</table>
 	</div>
 
 </div>

@@ -7,5 +7,7 @@ export interface OptimisationTarget
 	machines: number;
 	/** Weight per MW of average machine draw; 0 disables. */
 	power: number;
+	/** Whether user inputs cost their weight; false makes them free. */
+	inputs: boolean;
 
 }

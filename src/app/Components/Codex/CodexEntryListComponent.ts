@@ -1,18 +1,21 @@
 import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
+import {FaIconComponent} from '@fortawesome/angular-fontawesome';
+import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexEntry} from '@src/Components/Codex/CodexEntry';
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 
 /**
- * The one list layout for all codex sections. Adapts to its *container*
- * (the codex lives in a resizable panel, so the viewport is meaningless):
- * a card grid when wide, compact icon rows when narrow.
+ * The one list page layout for all codex sections: heading with a back link
+ * to the section menu, then the entries. Adapts to its *container* (the
+ * codex lives in a resizable panel, so the viewport is meaningless): a card
+ * grid when wide, compact icon rows - in the same card colours - when narrow.
  */
 @Component({
 	selector: 'codex-entry-list',
 	templateUrl: './CodexEntryListComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [CodexLinkDirective, GameIconComponent],
+	imports: [CodexLinkDirective, FaIconComponent, GameIconComponent],
 	styles: `
 		:host {
 			display: block;
@@ -31,6 +34,7 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 			padding: 0.5rem 0.25rem;
 			text-align: center;
 			text-decoration: none;
+			color: var(--bs-body-color);
 			min-width: 0;
 		}
 		a.entry:hover {
@@ -52,7 +56,7 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 		@container (max-width: 480px) {
 			.entry-grid {
 				grid-template-columns: 1fr;
-				gap: 2px;
+				gap: 0.25rem;
 			}
 			a.entry {
 				flex-direction: row;
@@ -60,11 +64,6 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 				text-align: start;
 				gap: 0.5rem;
 				padding: 0.25rem 0.5rem;
-				background: transparent;
-				border: 0;
-			}
-			a.entry:hover {
-				background: rgba(255, 255, 255, 0.08);
 			}
 			a.entry ::ng-deep img {
 				width: 24px;
@@ -76,6 +75,9 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 export class CodexEntryListComponent
 {
 
+	public readonly faChevronLeft = faChevronLeft;
+
+	@Input({required: true}) public heading = '';
 	@Input({required: true}) public entries: CodexEntry[] = [];
 
 }

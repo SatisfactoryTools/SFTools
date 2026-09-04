@@ -2,6 +2,7 @@ import {Component, ChangeDetectionStrategy, Signal, computed, signal} from '@ang
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {ItemRow} from '@src/Model/Planner/Breakdown/ItemRow';
 import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
@@ -16,7 +17,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'planner-items',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerItemsComponent.html',
-	imports: [FaIconComponent, GameIconComponent],
+	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent],
 })
 export class PlannerItemsComponent
 {
@@ -68,21 +69,6 @@ export class PlannerItemsComponent
 		const keys = new Set(this.expandedKeysSignal());
 		keys.has(row.item.className) ? keys.delete(row.item.className) : keys.add(row.item.className);
 		this.expandedKeysSignal.set(keys);
-	}
-
-	/** Balanced means the net displays as zero - solver float noise must not read as surplus/deficit. */
-	public isBalanced(row: ItemRow): boolean
-	{
-		return this.rateFormatter.isZero(row.net);
-	}
-
-	public netText(row: ItemRow): string
-	{
-		if (this.isBalanced(row)) {
-			return this.rateFormatter.rate(0, row.item);
-		}
-		const rate = this.rateFormatter.rate(row.net, row.item);
-		return row.net > 0 ? `+${rate}` : rate;
 	}
 
 	private filterRows(rows: ItemRow[], term: string): ItemRow[]

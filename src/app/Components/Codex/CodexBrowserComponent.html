@@ -28,23 +28,19 @@
 		}
 	}
 	@default {
-		<div class="d-grid gap-2 p-3 mx-auto" style="max-width: 420px;">
-			<a class="btn btn-outline-primary btn-lg" codexLink="items">
-				<fa-icon [icon]="faCubes"></fa-icon>
-				Items
-			</a>
-			<a class="btn btn-outline-primary btn-lg" codexLink="recipes">
-				<fa-icon [icon]="faScroll"></fa-icon>
-				Recipes
-			</a>
-			<a class="btn btn-outline-primary btn-lg" codexLink="buildings">
-				<fa-icon [icon]="faIndustry"></fa-icon>
-				Buildings
-			</a>
-			<a class="btn btn-outline-primary btn-lg" codexLink="schematics">
-				<fa-icon [icon]="faGraduationCap"></fa-icon>
-				Schematics
-			</a>
+		<div class="container-fluid py-3">
+			<h2 class="mb-3">Codex</h2>
+			<div class="section-grid">
+				@for (entry of sections(); track entry.link) {
+					<a class="card section" [codexLink]="entry.link">
+						<fa-icon [icon]="entry.icon" class="section-icon"></fa-icon>
+						<span class="section-text">
+							<span class="section-name">{{ entry.name }}</span>
+							<span class="small text-secondary">{{ entry.count }}</span>
+						</span>
+					</a>
+				}
+			</div>
 		</div>
 	}
 }

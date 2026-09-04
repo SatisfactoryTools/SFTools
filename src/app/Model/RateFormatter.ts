@@ -58,6 +58,12 @@ export class RateFormatter
 	}
 
 	/** A 0–1 fraction as a percentage ("87.5%"). */
+	/** Resource/optimisation weights: 4 decimals at most. */
+	public weight(weight: number): string
+	{
+		return this.format(weight, 4);
+	}
+
 	public percent(fraction: number): string
 	{
 		return `${this.amount(fraction * 100)}%`;
@@ -77,17 +83,39 @@ export class RateFormatter
 	/** Formats a power value given in MW, scaling the unit up unless MW-only is configured. */
 	public power(megawatts: number): string
 	{
+		const scale = this.powerScale(megawatts);
+		return `${this.amount(megawatts / scale.divisor)} ${scale.unit}`;
+	}
+
+	/**
+	 * A power band ("250–750 MW"): both ends in the unit the larger one scales
+	 * to, written once. A band reaching below zero spells the dash out
+	 * ("-250 to 250 MW") so the minus signs stay readable.
+	 */
+	public powerRange(min: number, max: number): string
+	{
+		const scale = this.powerScale(Math.max(Math.abs(min), Math.abs(max)));
+		const from = this.amount(min / scale.divisor);
+		const to = this.amount(max / scale.divisor);
+		return `${from}${min < 0 && !this.isZero(min) ? ' to ' : '–'}${to} ${scale.unit}`;
+	}
+
+	/** The unit a MW figure displays in and what to divide by to get there. */
+	private powerScale(megawatts: number): {divisor: number; unit: string}
+	{
 		if (this.settings.numbers().powerDisplay === 'mw') {
-			return `${this.amount(megawatts)} MW`;
+			return {divisor: 1, unit: 'MW'};
 		}
 		const units = ['MW', 'GW', 'TW', 'PW'];
-		let value = megawatts;
+		let value = Math.abs(megawatts);
+		let divisor = 1;
 		let unit = 0;
-		while (Math.abs(value) >= 1000 && unit < units.length - 1) {
+		while (value >= 1000 && unit < units.length - 1) {
 			value /= 1000;
+			divisor *= 1000;
 			unit++;
 		}
-		return `${this.amount(value)} ${units[unit]}`;
+		return {divisor, unit: units[unit]};
 	}
 
 	/** Rounds to `digits` decimals, strips trailing zeroes, then applies the decimal separator. */

@@ -3,6 +3,7 @@ import {FormsModule} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {SaveFileService} from '@src/Model/SaveFile/SaveFileService';
@@ -21,7 +22,7 @@ type LoadFromSaveState = 'idle' | 'parsing' | 'ready' | 'error';
 	selector: 'load-from-save-dialog',
 	templateUrl: './LoadFromSaveDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule],
+	imports: [FaIconComponent, FormsModule, InfoNoteComponent],
 	styles: `
 		.save-backdrop {
 			position: fixed;

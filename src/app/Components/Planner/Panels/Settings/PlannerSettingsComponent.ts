@@ -1,7 +1,8 @@
 import {Component, ChangeDetectionStrategy, Signal, computed, signal} from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faCaretDown, faCaretRight} from '@fortawesome/free-solid-svg-icons';
+import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
+import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {GraphDirection} from '@src/Model/Planner/GraphDirection';
@@ -17,16 +18,16 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 	selector: 'planner-settings',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerSettingsComponent.html',
-	imports: [FormsModule, FaIconComponent],
+	imports: [FormsModule, CollapsibleCardComponent, GameIconComponent, InfoNoteComponent],
 })
 export class PlannerSettingsComponent
 {
 
-	public readonly faCaretDown = faCaretDown;
-	public readonly faCaretRight = faCaretRight;
-
 	public readonly activePlan: Signal<Plan | null>;
 	public readonly graphSettings: Signal<GraphLayoutSettings>;
+
+	/** A shared plan's settings are shown but locked (the write paths are guarded anyway). */
+	public readonly readOnly: Signal<boolean>;
 
 	private readonly collapsedSignal = signal(new Set<string>());
 
@@ -37,6 +38,7 @@ export class PlannerSettingsComponent
 	)
 	{
 		this.activePlan = planManager.activePlan;
+		this.readOnly = planManager.activePlanShared;
 		this.graphSettings = computed(() => GraphLayoutDefaults.resolve(this.activePlan()?.settings.graph));
 	}
 

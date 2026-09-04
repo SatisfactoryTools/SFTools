@@ -1,0 +1,18 @@
+<div class="position-relative">
+	<fa-icon [icon]="faMagnifyingGlass" class="search-icon"></fa-icon>
+	<input
+		type="search"
+		class="form-control form-control-sm bg-dark text-light border-secondary"
+		[placeholder]="'Search ' + state.scopeLabel() + '…'"
+		autocomplete="off"
+		[value]="state.query()"
+		(input)="onInput($event)"
+		(keydown)="onKeydown($event)"
+		aria-label="Search the codex"
+	/>
+	@if (state.active()) {
+		<button type="button" class="clear-btn" aria-label="Clear search" (click)="state.clear()">
+			<fa-icon [icon]="faXmark"></fa-icon>
+		</button>
+	}
+</div>

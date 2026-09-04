@@ -1,31 +1,29 @@
 import {Component, ChangeDetectionStrategy, Input, computed, signal} from '@angular/core';
-import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
-import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
+import {PowerDrawComponent} from '@src/Components/Common/PowerDrawComponent';
+import {CodexDetailHeaderComponent} from '@src/Components/Codex/CodexDetailHeaderComponent';
 import {CodexRecipeListComponent} from '@src/Components/Codex/CodexRecipeListComponent';
 import {CodexSchematicListComponent} from '@src/Components/Codex/CodexSchematicListComponent';
 import {CodexSectionComponent} from '@src/Components/Codex/CodexSectionComponent';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {Schematic} from '@src/Model/Data/Entities/Schematic';
 import {VersionManager} from '@src/Model/Data/VersionManager';
-import {RateFormatter} from '@src/Model/RateFormatter';
+import {Formulas} from '@src/Model/Planner/Formulas';
+import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 
 @Component({
 	selector: 'codex-recipe-detail',
 	templateUrl: './CodexRecipeDetailComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [
-		CodexLinkDirective,
+		CodexDetailHeaderComponent,
 		CodexRecipeListComponent,
 		CodexSchematicListComponent,
 		CodexSectionComponent,
-		FaIconComponent,
+		PowerDrawComponent,
 	],
 })
 export class CodexRecipeDetailComponent
 {
-
-	public readonly faChevronLeft = faChevronLeft;
 
 	private readonly recipeClassNameSignal = signal<string | null>(null);
 
@@ -51,17 +49,24 @@ export class CodexRecipeDetailComponent
 		return this.versionManager.activeVersionData()?.getSchematicsUnlockingRecipe(className) ?? [];
 	});
 
-	protected variablePowerRange(recipe: Recipe): string
+	/** The recipe oscillates in at least one of its machines (a plain machine ignores the figures). */
+	protected readonly usesVariablePower = computed<boolean>(() => {
+		const recipe = this.recipe();
+		return recipe !== null && recipe.producedIn.some(machine => Formulas.usesVariablePower(recipe, machine));
+	});
+
+	protected variablePowerBand(recipe: Recipe): PowerDraw
 	{
-		const min = recipe.variablePowerDrawConstant;
-		const max = recipe.variablePowerDrawConstant + recipe.variablePowerDrawFactor;
-		return `${this.formatter.power(min)} – ${this.formatter.power(max)}`;
+		return Formulas.variablePowerBand(recipe);
 	}
 
-	public constructor(
-		private readonly versionManager: VersionManager,
-		protected readonly formatter: RateFormatter,
-	)
+	/** A recipe has no icon of its own - its products stand in, as in the recipe list. */
+	protected productIcons(recipe: Recipe): (string | null)[]
+	{
+		return recipe.products.map(product => product.item?.icon ?? null);
+	}
+
+	public constructor(private readonly versionManager: VersionManager)
 	{
 	}
 

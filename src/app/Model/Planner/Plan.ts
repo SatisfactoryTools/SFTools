@@ -29,4 +29,7 @@ export interface Plan
 	 */
 	readonly iconClassName?: string | null;
 
+	/** Manual position among siblings; absent = alphabetical after the ordered ones (see PlanManager.buildTree). */
+	readonly order?: number;
+
 }

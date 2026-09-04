@@ -6,10 +6,19 @@
 export class OptimisationDefaults
 {
 
+	/** Weight of a resource the map never runs out of (water, uncapped modded resources). */
+	public static readonly infiniteResourceWeight = 0.01;
+
+	/**
+	 * Fallback map weights for versions without world data: iron limit / own
+	 * limit of the 1.0 map (SAM at its 1.0 total, not the pre-release trickle
+	 * the old tools priced at ~99). Versions with world data derive these live
+	 * (see ResourceWeightResolver).
+	 */
 	public static readonly resourceWeights: Record<string, number> = {
 		Desc_OreIron_C: 1,
 		Desc_OreCopper_C: 2.4959349593495936,
-		Desc_Stone_C: 1.3175965665236051,
+		Desc_Stone_C: 1.329004329004329,
 		Desc_Coal_C: 2.1773049645390072,
 		Desc_OreGold_C: 6.140000000000001,
 		Desc_LiquidOil_C: 7.30952380952381,
@@ -18,8 +27,8 @@ export class OptimisationDefaults
 		Desc_OreBauxite_C: 7.487804878048781,
 		Desc_OreUranium_C: 43.85714285714286,
 		Desc_NitrogenGas_C: 7.675000000000001,
-		Desc_SAM_C: 99.029411764705882,
-		Desc_Water_C: 0.01,
+		Desc_SAM_C: 9.029411764705882,
+		Desc_Water_C: OptimisationDefaults.infiniteResourceWeight,
 	};
 
 	/** Weight per MW of average machine draw. */

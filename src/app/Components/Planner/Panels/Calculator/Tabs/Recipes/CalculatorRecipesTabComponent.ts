@@ -2,13 +2,16 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {TooltipDirective} from 'ngx-bootstrap/tooltip';
-import {faChevronRight} from '@fortawesome/free-solid-svg-icons';
+import {faChevronRight, faRecycle} from '@fortawesome/free-solid-svg-icons';
+import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Data} from '@src/Model/Data/Data';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConversionRecipeResolver';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
 /**
@@ -21,19 +24,34 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'calculator-recipes-tab',
 	templateUrl: './CalculatorRecipesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, GameIconComponent, TooltipDirective],
+	styles: [`
+		.recipe-columns {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 0.5rem;
+			align-items: start;
+		}
+		@container panel (max-width: 900px) {
+			.recipe-columns { grid-template-columns: 1fr; }
+		}
+	`],
+	imports: [FaIconComponent, FormsModule, GameIconComponent, TooltipDirective, InfoNoteComponent, CollapsibleCardComponent],
 })
 export class CalculatorRecipesTabComponent
 {
 
 	public readonly faChevronRight = faChevronRight;
+	public readonly faRecycle = faRecycle;
 
 	public filter = '';
+	public alternateOpen = true;
+	public standardOpen = true;
 
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
 		private readonly resolver: EnabledRecipesResolver,
+		private readonly conversions: ResourceConversionRecipeResolver,
 		public readonly rateFormatter: RateFormatter,
 	)
 	{
@@ -47,6 +65,32 @@ export class CalculatorRecipesTabComponent
 	public get standardRecipes(): Recipe[]
 	{
 		return this.filterAndRank(this.machineRecipes().filter(recipe => !recipe.alternate));
+	}
+
+	/** The Converter's raw-resource conversion recipes of this version; empty hides the group button. */
+	public get conversionRecipes(): Recipe[]
+	{
+		const data = this.data();
+		return data ? this.conversions.resolve(data) : [];
+	}
+
+	/** Every conversion recipe is off - the group button offers to switch them back on. */
+	public get conversionsAllDisabled(): boolean
+	{
+		const enabled = this.enabledSet();
+		return enabled !== null && this.conversionRecipes.every(recipe => !enabled.has(recipe.className));
+	}
+
+	public get conversionTooltip(): string
+	{
+		const count = this.conversionRecipes.length;
+		return `${count} standard Converter recipe${count === 1 ? '' : 's'} turning one raw resource plus Reanimated SAM into another raw resource`;
+	}
+
+	/** Switches the whole conversion group off, or back on once every recipe of it is off. */
+	public toggleConversions(): void
+	{
+		this.setAll(this.conversionRecipes, this.conversionsAllDisabled);
 	}
 
 	public displayName(recipe: Recipe): string

@@ -1,12 +1,18 @@
-<div class="entry-grid">
-	@for (entry of entries; track entry.link) {
-		<a class="card entry" [codexLink]="entry.link">
-			<span class="entry-icons">
-				@for (icon of entry.icons; track $index) {
-					<game-icon [hash]="icon" [size]="48" [alt]="entry.name"></game-icon>
-				}
-			</span>
-			<span class="entry-name">{{ entry.name }}</span>
-		</a>
-	}
+<div class="container-fluid py-3">
+	<div class="d-flex align-items-center gap-2 mb-3">
+		<a class="btn btn-sm btn-outline-secondary" codexLink="" aria-label="Back to codex"><fa-icon [icon]="faChevronLeft"></fa-icon></a>
+		<h2 class="mb-0">{{ heading }}</h2>
+	</div>
+	<div class="entry-grid">
+		@for (entry of entries; track entry.link) {
+			<a class="card entry" [codexLink]="entry.link">
+				<span class="entry-icons">
+					@for (icon of entry.icons; track $index) {
+						<game-icon [hash]="icon" [size]="48" [alt]="entry.name"></game-icon>
+					}
+				</span>
+				<span class="entry-name">{{ entry.name }}</span>
+			</a>
+		}
+	</div>
 </div>

@@ -3,8 +3,11 @@ import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faLock, faLockOpen, faPlus, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
+import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
+import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {GroupingModeOption} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/GroupingModeOption';
 import {IORateDraft} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/IORateDraft';
@@ -37,7 +40,32 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'recipe-node-editor',
 	templateUrl: './RecipeNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, BsDropdownModule],
+	imports: [FormsModule, FaIconComponent, BsDropdownModule, TooltipDirective, GameIconComponent, InfoNoteComponent],
+	styles: [`
+		.io-tiles {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+		.io-tile {
+			flex: 1 1 130px;
+			max-width: 220px;
+			min-width: 0;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 0.15rem;
+			padding: 0.4rem 0.4rem 0.5rem;
+			background: rgba(255, 255, 255, 0.04);
+			text-align: center;
+		}
+		.io-tile .io-name {
+			max-width: 100%;
+		}
+		.io-tile .input-group {
+			margin-top: 0.2rem;
+		}
+	`],
 })
 export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 {
@@ -127,6 +155,19 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	{
 		this.flushPendingApply();
 		this.applySubscription.unsubscribe();
+	}
+
+	/** Icon standing for the recipe: its first product. */
+	public get recipeIcon(): string | null
+	{
+		return this.editedNode.recipe.products[0]?.item.icon ?? null;
+	}
+
+	public get lockTooltip(): string
+	{
+		return this.node.locked
+			? 'Locked - the solver builds around this node as it is. Click to unlock.'
+			: 'Unlocked - the solver may replace this node. Click to lock it.';
 	}
 
 	public get selectedMachine(): Building | null
@@ -399,11 +440,11 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.inputRates = this.editedNode.recipe.ingredients.map((ingredient, index) =>
 			skip?.kind === 'input' && skip.index === index
 				? this.inputRates[index]
-				: {item: ingredient.item, rate: this.roundRate(ingredient.amount * targetCycles)});
+				: {item: ingredient.item, perCraft: ingredient.amount, rate: this.roundRate(ingredient.amount * targetCycles)});
 		this.outputRates = this.editedNode.recipe.products.map((product, index) =>
 			skip?.kind === 'output' && skip.index === index
 				? this.outputRates[index]
-				: {item: product.item, rate: this.roundRate(product.amount * this.outputCycles)});
+				: {item: product.item, perCraft: product.amount, rate: this.roundRate(product.amount * this.outputCycles)});
 	}
 
 	private referenceCycles(machine: Building): number

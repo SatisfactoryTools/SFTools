@@ -6,11 +6,12 @@ import {FoldersApiService} from '@src/Model/API/FoldersApiService';
 import {PlansApiService} from '@src/Model/API/PlansApiService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {NotificationService} from '@src/Model/NotificationService';
-import {LocalStorageDataBackend} from '@src/Model/Sync/LocalStorageDataBackend';
 import {SyncableService} from '@src/Model/Sync/SyncableService';
 import {UseLocalConflictResolver} from '@src/Model/Sync/UseLocalConflictResolver';
 import {Folder} from '@src/Model/Planner/Folder';
+import {FolderGroupMode} from '@src/Model/Planner/FolderGroupMode';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
+import {LocalPlanStoreBackend} from '@src/Model/Planner/LocalPlanStoreBackend';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanApiDataBackend} from '@src/Model/Planner/PlanApiDataBackend';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
@@ -21,6 +22,8 @@ import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
 import {PlanInput} from '@src/Model/Planner/PlanInput';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {ProductionRequest} from '@src/Model/Planner/ProductionRequest';
+import {SettingsGroup} from '@src/Model/Planner/SettingsGroup';
+import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 
 const EMPTY_STORE: PlanStore = {folders: [], plans: []};
 
@@ -38,9 +41,26 @@ export class PlanManager extends SyncableService<PlanStore>
 	public readonly plans: Signal<Plan[]> = computed(() => this.data().plans);
 	public readonly folders: Signal<Folder[]> = computed(() => this.data().folders);
 
+	/**
+	 * Read-only plans of the currently open share. Deliberately a SEPARATE
+	 * signal, never merged into the synced store: the sync backends only ever
+	 * see data(), so shared plans are structurally unsyncable. Every mutator
+	 * below additionally guards against shared ids as defense in depth.
+	 */
+	private readonly sharedStoreSignal = signal<PlanStore>(EMPTY_STORE);
+	public readonly sharedPlans: Signal<Plan[]> = computed(() => this.sharedStoreSignal().plans);
+
 	public readonly activePlan: Signal<Plan | null> = computed(() =>
-		this.plans().find(p => p.id === this.activePlanId()) ?? null,
+		this.plans().find(p => p.id === this.activePlanId())
+		?? this.sharedPlans().find(p => p.id === this.activePlanId())
+		?? null,
 	);
+
+	/** True while the active plan is a read-only shared one - the planner's read-only mode switch. */
+	public readonly activePlanShared: Signal<boolean> = computed(() => {
+		const id = this.activePlanId();
+		return id !== null && this.sharedPlans().some(p => p.id === id);
+	});
 
 	public readonly activeFolder: Signal<Folder | null> = computed(() =>
 		this.folders().find(f => f.id === this.activeFolderId()) ?? null,
@@ -72,7 +92,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	public readonly localPlanTree: Signal<PlanTree> = computed(() => this.buildTree(this.localStoreSignal()));
 	public readonly isAuthenticated: Signal<boolean> = computed(() => this.authService.isAuthenticated());
 
-	private readonly localPlanBackend: LocalStorageDataBackend<PlanStore>;
+	private readonly localPlanBackend: LocalPlanStoreBackend;
 
 	/**
 	 * Plan ids whose stored graphs just lost subplan nodes because the
@@ -90,7 +110,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		notifications: NotificationService,
 	)
 	{
-		const localBackend = new LocalStorageDataBackend<PlanStore>('sftools.plans');
+		const localBackend = new LocalPlanStoreBackend('sftools.plans');
 		super(
 			authService,
 			localBackend,
@@ -105,14 +125,19 @@ export class PlanManager extends SyncableService<PlanStore>
 
 		// Plans are version-scoped on the API; switching the active game
 		// version means a different plan collection, so re-fetch and drop the
-		// now-foreign active plan. (Root singleton - no teardown needed.)
+		// now-foreign active plan. A shared plan survives: opening a share
+		// activates its version, and the (async) emission here must not wipe
+		// the selection the share flow just made. (Root singleton - no
+		// teardown needed.)
 		toObservable(versionManager.activeVersion).pipe(
 			map(version => version?.id ?? null),
 			distinctUntilChanged(),
 			skip(1),
 		).subscribe(() => {
-			this.activePlanIdSignal.set(null);
-			this.activeFolderIdSignal.set(null);
+			if (!this.activePlanShared()) {
+				this.activePlanIdSignal.set(null);
+				this.activeFolderIdSignal.set(null);
+			}
 			this.reload();
 		});
 	}
@@ -144,6 +169,26 @@ export class PlanManager extends SyncableService<PlanStore>
 	private refreshLocalStore(): void
 	{
 		this.localPlanBackend.load().subscribe(store => this.localStoreSignal.set(store ?? EMPTY_STORE));
+	}
+
+	/** True when the id belongs to a plan of the currently open share (read-only). */
+	public isSharedPlan(id: string): boolean
+	{
+		return this.sharedPlans().some(p => p.id === id);
+	}
+
+	/** Loads an opened share's hydrated tree into the separate read-only store. */
+	public loadSharedStore(folders: Folder[], plans: Plan[]): void
+	{
+		this.sharedStoreSignal.set({folders, plans});
+	}
+
+	public clearSharedStore(): void
+	{
+		if (this.activePlanShared()) {
+			this.activePlanIdSignal.set(null);
+		}
+		this.sharedStoreSignal.set(EMPTY_STORE);
 	}
 
 	/** Appends already-hydrated folders/plans (e.g. a copied share) to the store. */
@@ -224,7 +269,16 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public createFolder(name: string, parentId: string | null = null): Folder
 	{
-		const folder: Folder = {id: crypto.randomUUID(), name, parentId, settings: null, revision: null};
+		const folder: Folder = {
+			id: crypto.randomUUID(),
+			name,
+			parentId,
+			settings: null,
+			fixedGroups: [],
+			resourcePool: false,
+			order: this.nextOrder(this.data().folders.filter(f => f.parentId === parentId)),
+			revision: null,
+		};
 		this.mutate(store => ({...store, folders: [...store.folders, folder]}));
 		return folder;
 	}
@@ -272,6 +326,186 @@ export class PlanManager extends SyncableService<PlanStore>
 		return this.insertPlan(name, folderId, null, this.effectiveFolderSettings(folderId));
 	}
 
+	/** Nearest folder on the chain (self included) that fixes settings groups; null when none. */
+	public fixedFolderForFolder(folderId: string | null): Folder | null
+	{
+		return this.fixedFolderForFolderIn(this.folders(), folderId);
+	}
+
+	/** The folder fixing this plan's settings groups (through subplan parents and nested folders), or null. */
+	public fixedFolderOf(plan: Plan): Folder | null
+	{
+		return this.fixedFolderForFolder(this.topLevelFolderIdOf(plan, this.plans()));
+	}
+
+	public fixedGroupsOf(plan: Plan): readonly SettingsGroup[]
+	{
+		return this.fixedFolderOf(plan)?.fixedGroups ?? [];
+	}
+
+	/** The folder pooling this plan's raw resources, or null. */
+	public poolFolderOf(plan: Plan): Folder | null
+	{
+		const folder = this.fixedFolderOf(plan);
+		return folder !== null && folder.resourcePool && folder.fixedGroups.includes('resources') ? folder : null;
+	}
+
+	public folderGroupMode(folder: Folder, group: SettingsGroup): FolderGroupMode
+	{
+		if (!folder.fixedGroups.includes(group)) {
+			return 'default';
+		}
+		return group === 'resources' && folder.resourcePool ? 'pool' : 'fixed';
+	}
+
+	/**
+	 * Why the folder cannot fix settings groups right now, or null when it
+	 * can: a folder with fixed groups may not contain another folder with
+	 * custom settings (nested defaults would silently lose to the fixed values).
+	 */
+	public fixGroupsBlocker(folderId: string): string | null
+	{
+		const folders = this.folders();
+		const custom = this.collectDescendantIds(folderId, folders)
+			.map(id => folders.find(f => f.id === id))
+			.filter((f): f is Folder => f !== undefined && f.settings !== null);
+		if (custom.length > 0) {
+			return `Remove the custom settings of ${custom.map(f => `"${f.name}"`).join(', ')} first - `
+				+ 'a folder that fixes settings cannot contain folders with their own settings.';
+		}
+		return null;
+	}
+
+	/** Why the folder cannot get custom settings, or null when it can (an ancestor fixes settings). */
+	public customSettingsBlocker(folderId: string): string | null
+	{
+		const folder = this.folders().find(f => f.id === folderId);
+		const fixed = this.fixedFolderForFolder(folder?.parentId ?? null);
+		return fixed ? `"${fixed.name}" fixes settings for everything inside it - this folder cannot have its own.` : null;
+	}
+
+	/**
+	 * Every plan inside the folder, nested plain folders and subplans
+	 * included, in tree order: subfolders first, then plans, each plan
+	 * followed by its subplans. This is also the batch recalculation order.
+	 */
+	public innerPlans(folderId: string): Plan[]
+	{
+		const tree = this.planTree();
+		const findFolder = (nodes: PlanTreeFolder[]): PlanTreeFolder | null => {
+			for (const node of nodes) {
+				if (node.folder.id === folderId) {
+					return node;
+				}
+				const nested = findFolder(node.children);
+				if (nested) {
+					return nested;
+				}
+			}
+			return null;
+		};
+		const result: Plan[] = [];
+		const addPlan = (node: PlanTreePlan): void => {
+			result.push(node.plan);
+			node.subplans.forEach(addPlan);
+		};
+		const addFolder = (node: PlanTreeFolder): void => {
+			node.children.forEach(addFolder);
+			node.plans.forEach(addPlan);
+		};
+		const root = findFolder(tree.rootFolders);
+		if (root) {
+			addFolder(root);
+		}
+		return result;
+	}
+
+	/**
+	 * Switches one settings group of the folder between default, fixed and
+	 * (resources only) pooled; fixing pushes the folder's values into every
+	 * inner plan. Confirming the overwrite is the caller's job.
+	 */
+	public setFolderGroupMode(folderId: string, group: SettingsGroup, mode: FolderGroupMode): void
+	{
+		this.mutate(store => {
+			const folder = store.folders.find(f => f.id === folderId);
+			if (!folder || folder.settings === null) {
+				return store;
+			}
+			const fixedGroups = mode === 'default'
+				? folder.fixedGroups.filter(g => g !== group)
+				: folder.fixedGroups.includes(group) ? folder.fixedGroups : [...folder.fixedGroups, group];
+			const resourcePool = group === 'resources' ? mode === 'pool' : folder.resourcePool;
+			const updated: Folder = {...folder, fixedGroups, resourcePool};
+			const next = {...store, folders: store.folders.map(f => f.id === folderId ? updated : f)};
+			return this.pushFixedSettings(next, updated, null);
+		});
+	}
+
+	public setRecalculationNeeded(planIds: readonly string[], recalculationNeeded: boolean): void
+	{
+		const ids = new Set(planIds);
+		this.mutate(store => ({
+			...store,
+			plans: store.plans.map(p => ids.has(p.id) && (p.metadata.recalculationNeeded ?? false) !== recalculationNeeded
+				? {...p, metadata: {...p.metadata, recalculationNeeded: recalculationNeeded || undefined}}
+				: p),
+		}));
+	}
+
+	/**
+	 * Copies the folder's fixed groups into its inner plans (all of them, or
+	 * just `onlyPlanIds`). A plan whose values actually change and that has a
+	 * graph is flagged for recalculation - its graph no longer matches.
+	 */
+	private pushFixedSettings(store: PlanStore, folder: Folder, onlyPlanIds: ReadonlySet<string> | null): PlanStore
+	{
+		if (folder.settings === null || folder.fixedGroups.length === 0) {
+			return store;
+		}
+		const folderIds = new Set([folder.id, ...this.collectDescendantIds(folder.id, store.folders)]);
+		const inner = new Set(store.plans
+			.filter(p => p.parentPlanId === null && p.folderId !== null && folderIds.has(p.folderId))
+			.flatMap(p => [p.id, ...this.collectDescendantPlanIds(p.id, store.plans)]));
+		return {
+			...store,
+			plans: store.plans.map(plan => {
+				if (!inner.has(plan.id) || (onlyPlanIds !== null && !onlyPlanIds.has(plan.id))) {
+					return plan;
+				}
+				if (!SettingsGroups.differ(plan.settings, folder.settings!, folder.fixedGroups)) {
+					return plan;
+				}
+				return {
+					...plan,
+					settings: SettingsGroups.apply(plan.settings, folder.settings!, folder.fixedGroups),
+					metadata: plan.graph
+						? {...plan.metadata, recalculationNeeded: true}
+						: plan.metadata,
+				};
+			}),
+		};
+	}
+
+	/** The folder the plan's top-level ancestor sits in (a subplan lives where its parent does). */
+	private topLevelFolderIdOf(plan: Plan, plans: readonly Plan[]): string | null
+	{
+		const seen = new Set<string>();
+		let current: Plan | undefined = plan;
+		while (current && current.parentPlanId !== null && !seen.has(current.id)) {
+			seen.add(current.id);
+			current = plans.find(p => p.id === current!.parentPlanId);
+		}
+		return current?.folderId ?? null;
+	}
+
+	/** Position for an item appended to the siblings: after the last ordered one, or none when nothing is ordered yet. */
+	private nextOrder(siblings: readonly {order?: number}[]): number | undefined
+	{
+		const orders = siblings.map(s => s.order).filter((o): o is number => o !== undefined);
+		return orders.length > 0 ? Math.max(...orders) + 1 : undefined;
+	}
+
 	/**
 	 * A subplan starts with its parent's graph layout settings, recipe
 	 * selection and raw-resource limits (folders will join the cascade later).
@@ -284,12 +518,16 @@ export class PlanManager extends SyncableService<PlanStore>
 			graph: parent?.settings.graph ? {...parent.settings.graph} : undefined,
 			enabledRecipes: parent?.settings.enabledRecipes ? [...parent.settings.enabledRecipes] : undefined,
 			resourceLimits: parent?.settings.resourceLimits ? {...parent.settings.resourceLimits} : undefined,
+			disabledResources: parent?.settings.disabledResources ? [...parent.settings.disabledResources] : undefined,
 			enabledFuels: parent?.settings.enabledFuels
 				? Object.fromEntries(Object.entries(parent.settings.enabledFuels).map(([gen, fuels]) => [gen, [...fuels]]))
 				: undefined,
 			disabledByproducts: parent?.settings.disabledByproducts ? [...parent.settings.disabledByproducts] : undefined,
 		};
-		return this.insertPlan(name, null, parentPlanId, settings);
+		const fixed = parent ? this.fixedFolderOf(parent) : null;
+		return this.insertPlan(name, null, parentPlanId, fixed?.settings
+			? SettingsGroups.apply(settings, fixed.settings, fixed.fixedGroups)
+			: settings);
 	}
 
 	public loadPlan(plan: Plan): void
@@ -318,32 +556,52 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public updatePlan(updated: Plan): void
 	{
+		if (this.isSharedPlan(updated.id)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === updated.id ? updated : p),
 		}));
 	}
 
+	/** Groups fixed by the plan's folder are re-applied, so no plan-side edit (reset, inherit, save import) can drift from the folder. */
 	public setSettings(planId: string, settings: PlanSettings): void
 	{
+		if (this.isSharedPlan(planId)) return;
+		const plan = this.plans().find(p => p.id === planId);
+		const fixed = plan ? this.fixedFolderOf(plan) : null;
+		const effective = fixed?.settings
+			? SettingsGroups.apply(settings, fixed.settings, fixed.fixedGroups)
+			: settings;
 		this.mutate(store => ({
 			...store,
-			plans: store.plans.map(p => p.id === planId ? {...p, settings} : p),
+			plans: store.plans.map(p => p.id === planId ? {...p, settings: effective} : p),
 		}));
 	}
 
-	/** Null removes the folder's custom settings - it inherits from its parent again. */
+	/**
+	 * Null removes the folder's custom settings (and any fixed groups) - it
+	 * inherits from its parent again. New values of fixed groups are pushed
+	 * into the inner plans right away.
+	 */
 	public setFolderSettings(folderId: string, settings: PlanSettings | null): void
 	{
-		this.mutate(store => ({
-			...store,
-			folders: store.folders.map(f => f.id === folderId ? {...f, settings} : f),
-		}));
+		this.mutate(store => {
+			const folder = store.folders.find(f => f.id === folderId);
+			if (!folder) {
+				return store;
+			}
+			const updated: Folder = settings === null
+				? {...folder, settings: null, fixedGroups: [], resourcePool: false}
+				: {...folder, settings};
+			const next = {...store, folders: store.folders.map(f => f.id === folderId ? updated : f)};
+			return this.pushFixedSettings(next, updated, null);
+		});
 	}
 
 	/** Routes a settings edit to whatever the calculator is editing (see activeSettings). */
 	public updateActiveSettings(settings: PlanSettings): void
 	{
+		if (this.activePlanShared()) return;
 		const plan = this.activePlan();
 		if (plan) {
 			this.setSettings(plan.id, settings);
@@ -388,6 +646,9 @@ export class PlanManager extends SyncableService<PlanStore>
 			enabledRecipes: settings.enabledRecipes ? [...settings.enabledRecipes] : undefined,
 			disabledMachines: settings.disabledMachines ? [...settings.disabledMachines] : undefined,
 			resourceLimits: settings.resourceLimits ? {...settings.resourceLimits} : undefined,
+			disabledResources: settings.disabledResources ? [...settings.disabledResources] : undefined,
+			resourceWeightMode: settings.resourceWeightMode,
+			resourceWeights: settings.resourceWeights ? {...settings.resourceWeights} : undefined,
 			enabledFuels: settings.enabledFuels
 				? Object.fromEntries(Object.entries(settings.enabledFuels).map(([generator, fuels]) => [generator, [...fuels]]))
 				: undefined,
@@ -395,15 +656,11 @@ export class PlanManager extends SyncableService<PlanStore>
 			sinkableItems: settings.sinkableItems ? [...settings.sinkableItems] : undefined,
 			producePowerForFactory: settings.producePowerForFactory,
 			excessPowerPercent: settings.excessPowerPercent,
-			optimisation: settings.optimisation
-				? {
-					...settings.optimisation,
-					resourceWeights: settings.optimisation.resourceWeights ? {...settings.optimisation.resourceWeights} : undefined,
-				}
-				: undefined,
+			optimisation: settings.optimisation ? {...settings.optimisation} : undefined,
 			defaultGroupingMode: settings.defaultGroupingMode,
 			defaultClockSpeed: settings.defaultClockSpeed,
 			recipeClockSpeeds: settings.recipeClockSpeeds ? settings.recipeClockSpeeds.map(entry => ({...entry})) : undefined,
+			machineClockSpeeds: settings.machineClockSpeeds ? settings.machineClockSpeeds.map(entry => ({...entry})) : undefined,
 			maxSloops: settings.maxSloops,
 			sloopAccuracy: settings.sloopAccuracy,
 		};
@@ -411,6 +668,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public setRequests(planId: string, requests: ProductionRequest[]): void
 	{
+		if (this.isSharedPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, requests: [...requests]} : p),
@@ -419,6 +677,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public setInputs(planId: string, inputs: PlanInput[]): void
 	{
+		if (this.isSharedPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, inputs: [...inputs]} : p),
@@ -428,10 +687,18 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Omitting graphDirty keeps the plan's current dirty state (e.g. graph revival on load). */
 	public setGraph(planId: string, graph: Graph | null, graphDirty?: boolean): void
 	{
+		if (this.isSharedPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId
-				? {...p, graph, metadata: graphDirty === undefined ? p.metadata : {...p.metadata, graphDirty}}
+				? {
+					...p,
+					graph,
+					// A completed solve (graphDirty false) reflects the current settings again.
+					metadata: graphDirty === undefined
+						? p.metadata
+						: {...p.metadata, graphDirty, recalculationNeeded: graphDirty ? p.metadata.recalculationNeeded : undefined},
+				}
 				: p),
 		}));
 	}
@@ -439,6 +706,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Stores the achieved rates of a maximise solve; undefined clears them (non-maximise solve). */
 	public setAchievedMaximums(planId: string, achievedMaximums: Record<string, number> | undefined): void
 	{
+		if (this.isSharedPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, metadata: {...p.metadata, achievedMaximums}} : p),
@@ -447,6 +715,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public setGraphDirty(planId: string, graphDirty: boolean): void
 	{
+		if (this.isSharedPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, metadata: {...p.metadata, graphDirty}} : p),
@@ -460,6 +729,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	 */
 	public touchGraph(planId: string): void
 	{
+		if (this.isSharedPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p} : p),
@@ -469,6 +739,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Deletes the plan and its subplans; their nodes are scrubbed from every remaining graph. */
 	public deletePlan(id: string): void
 	{
+		if (this.isSharedPlan(id)) return;
 		const store = this.data();
 		const deletedIds = new Set([id, ...this.collectDescendantPlanIds(id, store.plans)]);
 		const scrubbed = this.scrubSubplanNodes(store.plans.filter(p => !deletedIds.has(p.id)), deletedIds);
@@ -481,6 +752,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public renamePlan(id: string, name: string): void
 	{
+		if (this.isSharedPlan(id)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === id ? {...p, name} : p),
@@ -490,32 +762,165 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Sets (or clears, with null) a plan's icon override. */
 	public setPlanIcon(id: string, iconClassName: string | null): void
 	{
+		if (this.isSharedPlan(id)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === id ? {...p, iconClassName} : p),
 		}));
 	}
 
-	/** Makes the plan top-level, placed in the given folder (null for root). */
+	/**
+	 * Makes the plan top-level, placed last in the given folder (null for
+	 * root). Inside a folder that fixes settings groups the plan takes those
+	 * values (the caller confirms the overwrite first).
+	 */
 	public movePlan(planId: string, folderId: string | null): void
 	{
-		this.mutate(store => ({
-			...store,
-			plans: store.plans.map(p => p.id === planId ? {...p, folderId, parentPlanId: null} : p),
-		}));
+		this.placePlan(planId, folderId, null, null);
 	}
 
+	/**
+	 * Moves the plan among the siblings of the target (a folder's top-level
+	 * plans, or a plan's subplans) at the given index - null appends. An
+	 * explicit index materialises the whole sibling list's order.
+	 */
+	public placePlan(planId: string, folderId: string | null, parentPlanId: string | null, index: number | null): void
+	{
+		if (this.isSharedPlan(planId)) return;
+		if (parentPlanId !== null && (parentPlanId === planId || this.collectDescendantPlanIds(planId, this.plans()).includes(parentPlanId))) {
+			return; // would create a cycle
+		}
+		this.mutate(store => {
+			const plan = store.plans.find(p => p.id === planId);
+			if (!plan) {
+				return store;
+			}
+			const siblings = this.orderedPlans(store, folderId, parentPlanId).filter(p => p.id !== planId);
+			const moved: Plan = {...plan, folderId: parentPlanId === null ? folderId : null, parentPlanId};
+			const placed = index === null
+				? [...siblings, {...moved, order: this.nextOrder(siblings)}]
+				: this.withOrders([...siblings.slice(0, index), moved, ...siblings.slice(index)]);
+			const byId = new Map(placed.map(p => [p.id, p]));
+			const next = {...store, plans: store.plans.map(p => byId.get(p.id) ?? p)};
+			const fixed = this.fixedFolderForFolderIn(next.folders, parentPlanId === null ? folderId : this.topLevelFolderIdOf(moved, next.plans));
+			return fixed
+				? this.pushFixedSettings(next, fixed, new Set([planId, ...this.collectDescendantPlanIds(planId, next.plans)]))
+				: next;
+		});
+	}
+
+	/** Moves the folder last into the new parent; see placeFolder. */
 	public moveFolder(folderId: string, newParentId: string | null): void
+	{
+		this.placeFolder(folderId, newParentId, null);
+	}
+
+	/**
+	 * Moves the folder among the new parent's subfolders at the given index
+	 * (null appends). Under a folder that fixes settings groups the moved
+	 * folder and its subfolders lose their custom settings and their plans
+	 * take the fixed values (the caller confirms first).
+	 */
+	public placeFolder(folderId: string, newParentId: string | null, index: number | null): void
 	{
 		const store = this.data();
 		const descendantIds = this.collectDescendantIds(folderId, store.folders);
 		if (newParentId !== null && (newParentId === folderId || descendantIds.includes(newParentId))) {
 			return; // would create a cycle
 		}
-		this.mutate(s => ({
-			...s,
-			folders: s.folders.map(f => f.id === folderId ? {...f, parentId: newParentId} : f),
-		}));
+		this.mutate(s => {
+			const folder = s.folders.find(f => f.id === folderId);
+			if (!folder) {
+				return s;
+			}
+			const siblings = this.orderedFolders(s, newParentId).filter(f => f.id !== folderId);
+			const moved: Folder = {...folder, parentId: newParentId};
+			const placed = index === null
+				? [...siblings, {...moved, order: this.nextOrder(siblings)}]
+				: this.withOrders([...siblings.slice(0, index), moved, ...siblings.slice(index)]);
+			const byId = new Map(placed.map(f => [f.id, f]));
+			let next: PlanStore = {...s, folders: s.folders.map(f => byId.get(f.id) ?? f)};
+
+			const fixed = this.fixedFolderForFolderIn(next.folders, newParentId);
+			if (fixed) {
+				const stripped = new Set([folderId, ...descendantIds]);
+				next = {
+					...next,
+					folders: next.folders.map(f => stripped.has(f.id) && f.settings !== null
+						? {...f, settings: null, fixedGroups: [], resourcePool: false}
+						: f),
+				};
+				const movedPlanIds = new Set(next.plans
+					.filter(p => p.parentPlanId === null && p.folderId !== null && stripped.has(p.folderId))
+					.flatMap(p => [p.id, ...this.collectDescendantPlanIds(p.id, next.plans)]));
+				next = this.pushFixedSettings(next, fixed, movedPlanIds);
+			}
+			return next;
+		});
+	}
+
+	/** Sibling plans in display order: the folder's top-level plans (null = root), or a plan's subplans. */
+	public siblingPlans(folderId: string | null, parentPlanId: string | null): Plan[]
+	{
+		return this.orderedPlans(this.data(), folderId, parentPlanId);
+	}
+
+	public siblingFolders(parentId: string | null): Folder[]
+	{
+		return this.orderedFolders(this.data(), parentId);
+	}
+
+	/** The folder a plan lives in - for a subplan, the folder of its top-level ancestor. */
+	public folderIdOfPlan(plan: Plan): string | null
+	{
+		return this.topLevelFolderIdOf(plan, this.plans());
+	}
+
+	/** Sibling plans in display order: the folder's top-level plans, or a plan's subplans. */
+	private orderedPlans(store: PlanStore, folderId: string | null, parentPlanId: string | null): Plan[]
+	{
+		return store.plans
+			.filter(p => parentPlanId === null
+				? p.parentPlanId === null && p.folderId === folderId
+				: p.parentPlanId === parentPlanId)
+			.sort(PlanManager.bySiblingOrder);
+	}
+
+	private orderedFolders(store: PlanStore, parentId: string | null): Folder[]
+	{
+		return store.folders.filter(f => f.parentId === parentId).sort(PlanManager.bySiblingOrder);
+	}
+
+	/** Gives the list explicit positions 0..n-1 in its current order. */
+	private withOrders<T extends {order?: number}>(items: T[]): T[]
+	{
+		return items.map((item, order) => ({...item, order}));
+	}
+
+	private fixedFolderForFolderIn(folders: readonly Folder[], folderId: string | null): Folder | null
+	{
+		const seen = new Set<string>();
+		let id = folderId;
+		while (id !== null && !seen.has(id)) {
+			seen.add(id);
+			const folder = folders.find(f => f.id === id);
+			if (!folder) {
+				return null;
+			}
+			if (folder.fixedGroups.length > 0) {
+				return folder;
+			}
+			id = folder.parentId;
+		}
+		return null;
+	}
+
+	/** Ordered items first by position, unordered ones after them alphabetically - so untouched trees keep their old order. */
+	private static bySiblingOrder(a: {order?: number; name: string}, b: {order?: number; name: string}): number
+	{
+		const orderA = a.order ?? Number.POSITIVE_INFINITY;
+		const orderB = b.order ?? Number.POSITIVE_INFINITY;
+		return orderA - orderB || a.name.localeCompare(b.name);
 	}
 
 	private mutate(updater: (store: PlanStore) => PlanStore): void
@@ -525,8 +930,8 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	private buildTree(store: PlanStore): PlanTree
 	{
-		const byName = (a: {name: string}, b: {name: string}): number => a.name.localeCompare(b.name);
-		const byPlanName = (a: Plan, b: Plan): number => a.name.localeCompare(b.name);
+		const byName = PlanManager.bySiblingOrder;
+		const byPlanName = PlanManager.bySiblingOrder;
 
 		const buildPlan = (plan: Plan): PlanTreePlan => ({
 			plan,
@@ -578,6 +983,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	 */
 	public reconcileSubplans(parentId: string, target: Plan[]): void
 	{
+		if (this.isSharedPlan(parentId)) return;
 		const store = this.data();
 		const currentIds = new Set(this.collectDescendantPlanIds(parentId, store.plans));
 		const targetIds = new Set(target.map(p => p.id));
@@ -661,6 +1067,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			inputs: [],
 			graph: null,
 			metadata: {graphDirty: false},
+			order: this.nextOrder(this.orderedPlans(this.data(), folderId, parentPlanId)),
 			revision: null,
 			// iconClassName left undefined: "not chosen yet" (see Plan).
 		};

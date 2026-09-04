@@ -1,5 +1,9 @@
-<span class="stat">Power <b>{{ powerText() }}</b></span>
-<span class="stat">Buildings <b>{{ buildings() }}</b></span>
+<span class="stat" [title]="'Power consumption' + (powerRangeText() ? ' - varies ' + powerRangeText() : '')">Power <b>{{ powerText() }}</b>@if (powerRangeText()) {<small class="range">{{ powerRangeText() }}</small>}</span>
+@if (hasProduction()) {
+	<span class="stat" title="Power production">Production <b class="production">{{ productionText() }}</b></span>
+	<span class="stat" [title]="'Production minus consumption' + (netRangeText() ? ' - varies ' + netRangeText() : '')">Net <b [class.production]="netIsSurplus()" [class.deficit]="!netIsSurplus()">{{ netText() }}</b>@if (netRangeText()) {<small class="range">{{ netRangeText() }}</small>}</span>
+}
+<span class="stat">Buildings <b>{{ rateFormatter.amount(buildings()) }}</b></span>
 <span class="stat" title="Somersloops"><game-icon [hash]="sloopIcon()" [size]="16" alt="Sloops"></game-icon> <b>{{ sloops() }}</b></span>
 <span class="stat" title="Power shards"><game-icon [hash]="shardIcon()" [size]="16" alt="Shards"></game-icon> <b>{{ shards() }}</b></span>
 
@@ -16,6 +20,15 @@
 			><fa-icon [icon]="faTriangleExclamation"></fa-icon> {{ warningCount() }}</button>
 			<div *dropdownMenu class="dropdown-menu dropdown-menu-end" style="min-width: 320px; max-width: 460px;">
 				<h6 class="dropdown-header">Plan warnings</h6>
+				@if (poolWarnings().length > 0) {
+					<div class="dropdown-item-text">
+						<span class="fw-semibold">Shared resource pool</span>
+						@for (line of poolWarnings(); track $index) {
+							<span class="d-block text-wrap opacity-75">{{ line }}</span>
+						}
+						<span class="d-block text-wrap opacity-75">Recalculate the plan (or the whole folder) to fit the pool again.</span>
+					</div>
+				}
 				@for (entry of warningEntries(); track entry.nodeId) {
 					<button
 						class="dropdown-item"
@@ -38,6 +51,10 @@
 		<span class="state state-error"><span class="dot"></span>{{ error }}</span>
 	} @else if (hasGraph() && graphDirty()) {
 		<span class="state state-modified"><span class="dot"></span>solved · modified</span>
+	} @else if (hasGraph() && recalculationNeeded()) {
+		<span class="state state-modified" title="The folder changed this plan's settings - recalculate"><span class="dot"></span>settings changed · recalculate</span>
+	} @else if (hasGraph() && poolWarnings().length > 0) {
+		<span class="state state-error" title="Other plans in the folder took part of this plan's raw resources - recalculate"><span class="dot"></span>pool exceeded · recalculate</span>
 	} @else if (hasGraph()) {
 		<span class="state state-solved"><span class="dot"></span>solved · up to date</span>
 	} @else {

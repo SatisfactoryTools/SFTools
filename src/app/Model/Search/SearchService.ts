@@ -9,6 +9,7 @@ import {SearchResultType} from '@src/Model/Search/SearchResultType';
 
 const MIN_QUERY_LENGTH = 2;
 const MAX_RESULTS_PER_GROUP = 5;
+const ALL_TYPES: SearchResultType[] = ['item', 'recipe', 'building', 'schematic', 'plan', 'folder'];
 // Characters of description context shown before/after a matched part.
 const SNIPPET_CONTEXT = 36;
 
@@ -26,6 +27,8 @@ const SCORE_DESCRIPTION = 30;
  * recipes, buildings, schematics - by name and description) and the user's
  * plans and folders (by name). Results come back in fixed groups (codex
  * types first, then plans, then folders), each sorted by match quality.
+ * Callers may narrow the searched types (the codex panel searches only the
+ * codex, or only its current section) and lift the per-group cap.
  */
 @Injectable({providedIn: 'root'})
 export class SearchService
@@ -38,7 +41,11 @@ export class SearchService
 	{
 	}
 
-	public search(query: string): SearchResultGroup[]
+	public search(
+		query: string,
+		types: SearchResultType[] = ALL_TYPES,
+		limitPerGroup: number = MAX_RESULTS_PER_GROUP,
+	): SearchResultGroup[]
 	{
 		const normalized = query.trim().toLowerCase();
 		if (normalized.length < MIN_QUERY_LENGTH) {
@@ -48,19 +55,31 @@ export class SearchService
 		const groups: SearchResultGroup[] = [];
 		const data = this.versionManager.activeVersionData();
 		if (data !== null) {
-			groups.push(this.group('Items', data.items.map(item =>
-				this.result('item', item.className, item.name, [item.icon], item.description, normalized))));
-			groups.push(this.group('Recipes', data.recipes.filter(recipe => !recipe.inBuildGun).map(recipe =>
-				this.result('recipe', recipe.className, recipe.name, recipe.products.map(p => p.item?.icon ?? null), null, normalized))));
-			groups.push(this.group('Buildings', data.buildings.map(building =>
-				this.result('building', building.className, building.name, [building.icon], building.description, normalized))));
-			groups.push(this.group('Schematics', data.schematics.map(schematic =>
-				this.result('schematic', schematic.className, schematic.name, [schematic.icon], schematic.description, normalized))));
+			if (types.includes('item')) {
+				groups.push(this.group('Items', data.items.map(item =>
+					this.result('item', item.className, item.name, [item.icon], item.description, normalized)), limitPerGroup));
+			}
+			if (types.includes('recipe')) {
+				groups.push(this.group('Recipes', data.recipes.filter(recipe => !recipe.inBuildGun).map(recipe =>
+					this.result('recipe', recipe.className, recipe.name, recipe.products.map(p => p.item?.icon ?? null), null, normalized)), limitPerGroup));
+			}
+			if (types.includes('building')) {
+				groups.push(this.group('Buildings', data.buildings.map(building =>
+					this.result('building', building.className, building.name, [building.icon], building.description, normalized)), limitPerGroup));
+			}
+			if (types.includes('schematic')) {
+				groups.push(this.group('Schematics', data.schematics.map(schematic =>
+					this.result('schematic', schematic.className, schematic.name, [schematic.icon], schematic.description, normalized)), limitPerGroup));
+			}
 		}
-		groups.push(this.group('Plans', this.planManager.plans().map(plan =>
-			this.result('plan', plan.id, plan.name, [], null, normalized))));
-		groups.push(this.group('Folders', this.planManager.folders().map(folder =>
-			this.result('folder', folder.id, folder.name, [], null, normalized))));
+		if (types.includes('plan')) {
+			groups.push(this.group('Plans', this.planManager.plans().map(plan =>
+				this.result('plan', plan.id, plan.name, [], null, normalized)), limitPerGroup));
+		}
+		if (types.includes('folder')) {
+			groups.push(this.group('Folders', this.planManager.folders().map(folder =>
+				this.result('folder', folder.id, folder.name, [], null, normalized)), limitPerGroup));
+		}
 
 		return groups.filter(group => group.results.length > 0);
 	}
@@ -78,12 +97,12 @@ export class SearchService
 		return match !== null ? {type, id, name, icons, ...match} : null;
 	}
 
-	private group(label: string, candidates: (SearchResult | null)[]): SearchResultGroup
+	private group(label: string, candidates: (SearchResult | null)[], limit: number): SearchResultGroup
 	{
 		const results = candidates
 			.filter((candidate): candidate is SearchResult => candidate !== null)
 			.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-			.slice(0, MAX_RESULTS_PER_GROUP);
+			.slice(0, limit);
 		return {label, results};
 	}
 

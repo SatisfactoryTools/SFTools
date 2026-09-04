@@ -1,5 +1,15 @@
-<div class="p-2">
-	<table class="table table-dark table-sm align-middle mb-2">
+<div class="p-2 d-flex flex-column gap-2">
+	<info-note>
+		Inputs are item sources the solver may draw from, up to the amount given. The weight is the cost per
+		unit - a low weight makes an input cheaper than mining or crafting.
+	</info-note>
+	@if (!weightsEnabled()) {
+		<info-note kind="warning">
+			Input weights are disabled in the Optimisation tab - every input is free for the solver and the weights
+			below are ignored.
+		</info-note>
+	}
+	<table class="table table-dark table-sm align-middle mb-0 table-stack">
 		<thead>
 			<tr>
 				<th>Item</th>
@@ -11,7 +21,7 @@
 		<tbody>
 			@for (row of rows; track $index; let i = $index) {
 				<tr>
-					<td>
+					<td class="stack-full">
 						<item-picker
 							[options]="itemOptions"
 							[value]="row.itemClassName"
@@ -19,8 +29,8 @@
 							(valueChange)="onItemChange(row, $event)"
 						></item-picker>
 					</td>
-					<td>
-						<div class="input-group input-group-sm">
+					<td class="stack-grow" data-label="Amount">
+						<div class="input-group input-group-sm flex-nowrap">
 							<input
 								type="number"
 								class="form-control form-control-sm bg-dark text-light border-secondary"
@@ -28,20 +38,22 @@
 								[(ngModel)]="row.amount"
 								(ngModelChange)="sync()"
 								min="0"
-								step="1"
+								step="any"
 							>
 							<span class="input-group-text bg-dark text-secondary border-secondary">/min</span>
 						</div>
 					</td>
-					<td>
+					<td class="stack-grow" data-label="Weight">
 						<input
 							type="number"
 							class="form-control form-control-sm bg-dark text-light border-secondary"
+							[class.text-secondary]="!weightsEnabled()"
 							[name]="'input-weight-' + i"
 							[(ngModel)]="row.weight"
 							(ngModelChange)="sync()"
+							[title]="'Default ' + defaultWeightFor(row.itemClassName) + (weightsEnabled() ? '' : ' - ignored while input weights are disabled')"
 							min="0"
-							step="0.001"
+							step="any"
 						>
 					</td>
 					<td>
@@ -52,21 +64,13 @@
 						><fa-icon [icon]="faXmark"></fa-icon></button>
 					</td>
 				</tr>
+			} @empty {
+				<tr><td colspan="4" class="text-secondary fst-italic text-center">No inputs yet.</td></tr>
 			}
 		</tbody>
 	</table>
 
-	@if (rows.length === 0) {
-		<p class="text-secondary text-center mb-2">No inputs yet.</p>
-	}
-
 	<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addRow()">
 		+ Add Input
 	</button>
-
-	<p class="text-secondary small mt-2 mb-0">
-		Inputs are item sources the solver may draw from, up to the amount you set. The weight is their
-		cost in the optimisation - a low weight (default 0.001) makes an input a cheap alternative to
-		mining or crafting.
-	</p>
 </div>

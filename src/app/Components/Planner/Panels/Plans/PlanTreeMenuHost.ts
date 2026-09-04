@@ -1,4 +1,5 @@
 import {Plan} from '@src/Model/Planner/Plan';
+import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 
 /**
  * Actions the Plans tree context menus call back into - implemented by
@@ -19,4 +20,6 @@ export interface PlanTreeMenuHost
 	canShare(): boolean;
 	sharePlan(plan: Plan): void;
 	shareFolder(id: string, name: string): void;
+	copyShareLink(share: VisitedShare): void;
+	removeVisitedShare(share: VisitedShare): void;
 }

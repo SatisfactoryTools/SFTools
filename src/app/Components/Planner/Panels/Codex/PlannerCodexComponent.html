@@ -1,11 +1,17 @@
-@if (popOutLink(); as link) {
-	<div class="position-sticky top-0" style="height: 0; z-index: 5;">
+<div class="codex-toolbar position-sticky top-0 d-flex align-items-center gap-2 px-2 py-2">
+	<codex-search-box class="flex-grow-1"/>
+	<!-- Mobile panel views are already fullscreen - nothing to pop out to. -->
+	@if (!layout.isMobile() && popOutLink(); as link) {
 		<a
-			class="btn btn-sm btn-secondary position-absolute top-0 end-0 mt-2 me-2"
+			class="btn btn-sm btn-outline-secondary flex-shrink-0"
 			[routerLink]="link"
 			tooltip="Open fullscreen" placement="left" container="body"
 			aria-label="Open fullscreen codex"
 		><fa-icon [icon]="faUpRightFromSquare"></fa-icon></a>
-	</div>
+	}
+</div>
+@if (search.active()) {
+	<codex-search-results/>
+} @else {
+	<codex-browser/>
 }
-<codex-browser/>

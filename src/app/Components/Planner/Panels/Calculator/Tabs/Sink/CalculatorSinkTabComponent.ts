@@ -1,5 +1,6 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemForm} from '@src/Model/API/Schema/Data/Parts/ItemForm';
 import {Item} from '@src/Model/Data/Entities/Item';
@@ -17,7 +18,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'calculator-sink-tab',
 	templateUrl: './CalculatorSinkTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, GameIconComponent],
+	imports: [FormsModule, GameIconComponent, InfoNoteComponent],
 })
 export class CalculatorSinkTabComponent
 {

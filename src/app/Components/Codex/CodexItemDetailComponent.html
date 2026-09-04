@@ -1,33 +1,27 @@
 @if (item(); as item) {
 	<div class="container-fluid py-3">
-		<a codexLink="items" class="btn btn-sm btn-outline-secondary mb-3"><fa-icon [icon]="faChevronLeft"></fa-icon> Items</a>
-
-		<div class="d-flex align-items-start gap-3 mb-4">
-			<game-icon [hash]="item.icon" [size]="96" [alt]="item.name"></game-icon>
-			<div>
-				<h2 class="mb-0">{{ item.name }}</h2>
-				@if (item.abbr) {
-					<div class="text-muted small mb-1">{{ item.abbr }}</div>
-				}
-				@if (item.description) {
-					<p class="mt-2 mb-0">{{ item.description }}</p>
-				}
-			</div>
-		</div>
+		<codex-detail-header backLink="items" backLabel="Items" [icons]="[item.icon]" [name]="item.name">
+			@if (item.abbr) {
+				<div class="text-secondary small mb-1">{{ item.abbr }}</div>
+			}
+			@if (item.description) {
+				<p class="mt-2 mb-0">{{ item.description }}</p>
+			}
+		</codex-detail-header>
 
 		<codex-section heading="Properties" [flush]="true">
 			<table class="table table-sm">
 				<tbody>
 					<tr>
-						<th class="text-muted fw-normal" style="width: 40%;">Form</th>
+						<th class="text-secondary fw-normal" style="width: 40%;">Form</th>
 						<td>{{ item.form | titlecase }}</td>
 					</tr>
 					<tr>
-						<th class="text-muted fw-normal">Stack size</th>
+						<th class="text-secondary fw-normal">Stack size</th>
 						<td>{{ item.stackSize }}</td>
 					</tr>
 					<tr>
-						<th class="text-muted fw-normal">Sinkable</th>
+						<th class="text-secondary fw-normal">Sinkable</th>
 						<td>
 							@if (item.sinkPoints > 0) {
 								{{ item.sinkPoints }} points
@@ -38,7 +32,7 @@
 					</tr>
 					@if (item.energy > 0) {
 						<tr>
-							<th class="text-muted fw-normal">Energy value</th>
+							<th class="text-secondary fw-normal">Energy value</th>
 							<td>{{ item.energy }} MJ</td>
 						</tr>
 					}
@@ -72,7 +66,7 @@
 	</div>
 } @else {
 	<div class="container-fluid py-3">
-		<p class="text-muted">Item not found.</p>
-		<a codexLink="items" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Items</a>
+		<codex-detail-header backLink="items" backLabel="Items"/>
+		<p class="text-secondary mb-0">Item not found.</p>
 	</div>
 }

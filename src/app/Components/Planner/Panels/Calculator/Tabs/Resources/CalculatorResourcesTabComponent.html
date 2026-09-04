@@ -1,50 +1,171 @@
-<div class="p-2">
-	<table class="table table-dark table-sm align-middle mb-0">
-		<thead>
-			<tr>
-				<th>Raw resource</th>
-				<th style="width: 220px;">Limit</th>
-				<th style="width: 110px;">Infinite</th>
-			</tr>
-		</thead>
-		<tbody>
-			@for (row of rows; track row.className) {
-				<tr>
-					<td>
-						<span class="d-inline-flex align-items-center gap-2">
-							<game-icon [hash]="iconHash(row.className)" [size]="20" [alt]="row.name"></game-icon>
-							{{ row.name }}
-						</span>
-					</td>
-					<td>
-						<div class="input-group input-group-sm">
-							<input
-								type="number"
-								class="form-control form-control-sm bg-dark text-light border-secondary"
-								[name]="'limit-' + row.className"
-								[(ngModel)]="row.limit"
-								(ngModelChange)="sync()"
-								[disabled]="row.infinite"
-								min="0"
-								step="1"
-							>
-							<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateUnit(row.className) }}</span>
-						</div>
-					</td>
-					<td>
-						<div class="form-check">
-							<input
-								class="form-check-input"
-								type="checkbox"
-								[id]="'infinite-' + row.className"
-								[name]="'infinite-' + row.className"
-								[(ngModel)]="row.infinite"
-								(ngModelChange)="sync()"
-							/>
-						</div>
-					</td>
-				</tr>
+<div class="p-2 d-flex flex-column gap-2">
+	<info-note>
+		How much of each raw resource the solver may mine. The weight is the cost of mining one unit - costlier
+		resources are avoided where recipes allow.
+	</info-note>
+	<div class="d-flex align-items-center gap-2 flex-wrap">
+		<label class="form-label mb-0 text-nowrap" for="resource-weight-mode">Resource weights</label>
+		<select
+			id="resource-weight-mode"
+			class="form-select form-select-sm bg-dark text-light border-secondary w-auto"
+			[ngModel]="weightMode()"
+			(ngModelChange)="setMode($event)"
+		>
+			@for (option of modeOptions; track option.mode) {
+				<option [ngValue]="option.mode">{{ option.label }}</option>
 			}
-		</tbody>
-	</table>
+		</select>
+	</div>
+	@if (weightsEnabled()) {
+		<info-note>{{ modeDescription }}</info-note>
+	} @else {
+		<info-note kind="warning">
+			Raw resource weights are disabled in the Optimisation tab - the solver ignores the weights below and does not
+			minimise mining.
+		</info-note>
+	}
+
+	@if (poolStatus(); as statuses) {
+		<!-- Pooled by the folder: shares, not limits. Read-only - the folder's Resources tab owns the numbers. -->
+		<table class="table table-dark table-sm align-middle mb-0 table-stack">
+			<thead>
+				<tr>
+					<th>Raw resource</th>
+					<th class="text-end" style="width: 120px;">Folder limit</th>
+					<th class="text-end" style="width: 120px;">This plan</th>
+					<th class="text-end" style="width: 90px;">Weight</th>
+					<th style="width: 34%;">Share of the pool</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (status of statuses; track status.item.className) {
+					<tr [class.table-danger]="status.overUse" [class.resource-disabled]="status.disabled">
+						<td class="stack-full">
+							<span class="d-inline-flex align-items-center gap-2">
+								<game-icon [hash]="status.item.icon" [size]="20" [alt]="status.item.name"></game-icon>
+								{{ status.item.name }}
+							</span>
+						</td>
+						<td class="text-end text-nowrap" data-label="Folder limit"><item-rate [amount]="status.limit" [item]="status.item"></item-rate></td>
+						<td class="text-end text-nowrap" data-label="This plan" [class.text-danger]="status.overUse"><item-rate [amount]="status.usedByPlan" [item]="status.item"></item-rate></td>
+						<td class="text-end text-nowrap" data-label="Weight" [class.text-secondary]="!weightsEnabled()">{{ weightText(status.item.className) }}</td>
+						<td class="stack-full">
+							@if (status.disabled) {
+								<small class="text-secondary">switched off by the folder</small>
+							} @else if (barSegments(status); as segments) {
+								<div class="progress pool-bar" [tooltip]="'Other plans ' + rateFormatter.rate(status.usedByOthers, status.item) + ' · this plan ' + rateFormatter.rate(status.usedByPlan, status.item) + ' · ' + (status.available === null ? '' : rateFormatter.rate(status.available - status.usedByPlan > 0 ? status.available - status.usedByPlan : 0, status.item) + ' free of ') + rateFormatter.rate(status.limit!, status.item)" container="body" placement="top">
+									<div class="progress-bar pool-others" [style.width.%]="segments.others"></div>
+									<div class="progress-bar" [class.pool-plan]="!status.overUse" [class.bg-danger]="status.overUse" [style.width.%]="segments.plan"></div>
+								</div>
+								<small class="text-secondary text-nowrap">
+									other plans {{ rateFormatter.rate(status.usedByOthers, status.item) }} · {{ status.available === null ? '∞' : rateFormatter.rate(status.available, status.item) }} available
+								</small>
+								@if (status.overUse) {
+									<small class="text-danger d-block">Over the available share - recalculate this plan.</small>
+								}
+							} @else if (status.limit === 0) {
+								<small class="text-secondary">nothing may be mined</small>
+							} @else {
+								<small class="text-secondary">unlimited</small>
+							}
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		<div class="small text-secondary d-flex align-items-center gap-3">
+			<span><span class="pool-legend pool-others"></span> other plans</span>
+			<span><span class="pool-legend pool-plan"></span> this plan</span>
+			<span><span class="pool-legend pool-free"></span> free</span>
+		</div>
+	} @else {
+		<table class="table table-dark table-sm align-middle mb-0 table-stack">
+			<thead>
+				<tr>
+					<th style="width: 32px;"></th>
+					<th>Raw resource</th>
+					<th style="width: 260px;">Limit</th>
+					<th style="width: 120px;">Weight</th>
+					@if (folderUsage() !== null) {
+						<th class="text-end" style="width: 140px;">Used by plans</th>
+					}
+				</tr>
+			</thead>
+			<tbody>
+				@for (row of rows; track row.className) {
+					<tr
+						class="resource-row"
+						[class.table-danger]="folderOverUse(row)"
+						[class.resource-disabled]="!row.enabled"
+						(click)="onRowClick(row, $event)"
+					>
+						<td class="toggle-cell">
+							<input
+								type="checkbox"
+								class="form-check-input"
+								[ngModel]="row.enabled"
+								(ngModelChange)="setEnabled(row, $event)"
+								[tooltip]="row.enabled ? 'Enabled - untick to forbid mining this resource' : 'Disabled - tick to allow mining it again'"
+								container="body"
+								placement="top"
+							>
+						</td>
+						<td class="stack-grow">
+							<span class="d-inline-flex align-items-center gap-2">
+								<game-icon [hash]="iconHash(row.className)" [size]="20" [alt]="row.name"></game-icon>
+								{{ row.name }}
+							</span>
+						</td>
+						<td class="stack-grow" data-label="Limit">
+							<div class="input-group input-group-sm flex-nowrap">
+								<input
+									type="number"
+									class="form-control form-control-sm bg-dark text-light border-secondary"
+									[name]="'limit-' + row.className"
+									[ngModel]="row.infinite ? null : row.limit"
+									(ngModelChange)="row.limit = $event ?? 0; sync()"
+									[disabled]="row.infinite || !row.enabled"
+									[placeholder]="row.infinite ? 'unlimited' : ''"
+									min="0"
+									step="any"
+								>
+								<span class="input-group-text unit-addon bg-dark text-secondary border-secondary">{{ rateUnit(row.className) }}</span>
+								<button
+									type="button"
+									class="btn btn-outline-secondary px-2"
+									[class.active]="row.infinite"
+									[disabled]="!row.enabled"
+									[tooltip]="row.infinite ? 'Unlimited - click to set a limit' : 'Limited - click to make unlimited'"
+									container="body"
+									placement="top"
+									(click)="toggleInfinite(row)"
+								>∞</button>
+							</div>
+						</td>
+						<td data-label="Weight">
+							@if (manual) {
+								<input
+									type="number"
+									class="form-control form-control-sm bg-dark text-light border-secondary"
+									style="min-width: 90px;"
+									[class.text-secondary]="!weightsEnabled()"
+									[name]="'weight-' + row.className"
+									[(ngModel)]="row.weight"
+									(ngModelChange)="sync()"
+									[disabled]="!row.enabled"
+									min="0"
+									step="any"
+								>
+							} @else {
+								<span class="text-nowrap" [class.text-secondary]="!weightsEnabled()">{{ weightText(row.className) }}</span>
+							}
+						</td>
+						@if (folderUsage() !== null) {
+							<td class="text-end text-nowrap" data-label="Used by plans" [class.text-danger]="folderOverUse(row)"><item-rate [amount]="folderUsageOf(row)" [item]="item(row.className)"></item-rate></td>
+						}
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
 </div>

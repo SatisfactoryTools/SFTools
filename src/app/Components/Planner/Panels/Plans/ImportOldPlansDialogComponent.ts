@@ -4,6 +4,7 @@ import {Subscription, firstValueFrom} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -36,7 +37,7 @@ interface ImportRow
 	selector: 'import-old-plans-dialog',
 	templateUrl: './ImportOldPlansDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, GameIconComponent, TooltipDirective],
+	imports: [FaIconComponent, FormsModule, GameIconComponent, TooltipDirective, InfoNoteComponent],
 	styles: `
 		.import-backdrop {
 			position: fixed;

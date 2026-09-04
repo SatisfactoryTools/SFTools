@@ -1,6 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronRight} from '@fortawesome/free-solid-svg-icons';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Fuel} from '@src/Model/Data/Entities/Parts/Fuel';
@@ -17,7 +18,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'calculator-power-tab',
 	templateUrl: './CalculatorPowerTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, GameIconComponent],
+	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent],
 })
 export class CalculatorPowerTabComponent
 {

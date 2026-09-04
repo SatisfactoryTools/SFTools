@@ -1,6 +1,6 @@
 import {Injectable, Signal} from '@angular/core';
 import {toSignal} from '@angular/core/rxjs-interop';
-import {ActivatedRoute} from '@angular/router';
+import {ActivatedRoute, Router} from '@angular/router';
 import {map} from 'rxjs/operators';
 import {CodexLink} from '@src/Components/Codex/CodexLink';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
@@ -16,16 +16,16 @@ export class PanelCodexNavigation extends CodexNavigation
 
 	public readonly path: Signal<string>;
 
-	public constructor(route: ActivatedRoute)
+	public constructor(router: Router, route: ActivatedRoute)
 	{
-		super();
+		super(router, route);
 		this.path = toSignal(
 			route.queryParamMap.pipe(map(params => params.get('codex') ?? '')),
 			{initialValue: route.snapshot.queryParamMap.get('codex') ?? ''},
 		);
 	}
 
-	public linkFor(path: string): CodexLink
+	protected linkFor(path: string): CodexLink
 	{
 		return {
 			commands: [],

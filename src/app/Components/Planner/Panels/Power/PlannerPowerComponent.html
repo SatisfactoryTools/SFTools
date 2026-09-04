@@ -1,9 +1,7 @@
 <div class="p-2 d-flex flex-column gap-2">
 
 	@if (!hasRows()) {
-		<p class="text-secondary mb-0">
-			{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its power usage.' }}
-		</p>
+		<info-note>{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its power usage.' }}</info-note>
 	} @else {
 		<input
 			type="search"
@@ -14,14 +12,14 @@
 		/>
 
 		<div class="d-flex gap-3 flex-wrap">
-			<span class="text-secondary">Consumption: <span class="text-warning">{{ rateFormatter.power(breakdown().consumption) }}</span></span>
+			<span class="text-secondary">Consumption: <power-draw class="text-warning" [draw]="breakdown().consumption"></power-draw></span>
 			@if (breakdown().production > 0) {
 				<span class="text-secondary">Production: <span class="text-success">{{ rateFormatter.power(breakdown().production) }}</span></span>
-				<span class="text-secondary">Net: <span [class]="netIsSurplus() ? 'text-success' : 'text-warning'">{{ netText() }}</span></span>
+				<span class="text-secondary">Net: <power-draw [class]="netIsSurplus() ? 'text-success' : 'text-warning'" [draw]="breakdown().net" sign="net"></power-draw></span>
 			}
 		</div>
 
-		<table class="table table-dark table-sm table-hover align-middle mb-0">
+		<table class="table table-dark table-sm table-hover align-middle mb-0 table-stack-sm">
 			<thead>
 				<tr>
 					<th>{{ isFolderView() ? 'Plan' : 'Building' }}</th>
@@ -32,14 +30,15 @@
 			<tbody>
 				@for (row of rows(); track row.key) {
 					<tr (click)="toggle(row)" [style.cursor]="row.entries.length > 0 ? 'pointer' : 'default'">
-						<td>
-							<div class="d-flex">
+						<td class="stack-full">
+							<div class="d-flex align-items-center gap-1">
 								<fa-icon
 									[icon]="isExpanded(row) ? faChevronDown : faChevronRight"
 									[fixedWidth]="true"
 									class="text-secondary"
 									[class.invisible]="row.entries.length === 0"
 								></fa-icon>
+								<game-icon [hash]="row.icon" [size]="20" [alt]="row.name"></game-icon>
 								<span>
 									@if (row.kind === 'subplan') {
 										<span class="text-secondary">Subplan:</span>
@@ -48,20 +47,20 @@
 								</span>
 							</div>
 						</td>
-						<td class="text-end">{{ rateFormatter.amount(row.machines) }}</td>
-						<td class="text-end" [class.text-success]="isProduction(row.megawatts)">{{ powerText(row.megawatts) }}</td>
+						<td class="text-end" data-label="Count">{{ rateFormatter.amount(row.machines) }}</td>
+						<td class="text-end" data-label="Power" [class.text-success]="isProduction(row.power)"><power-draw [draw]="row.power" sign="balance"></power-draw></td>
 					</tr>
 					@if (isExpanded(row)) {
 						@for (entry of row.entries; track entry.key) {
-							<tr>
-								<td class="ps-4">
+							<tr class="stack-sub">
+								<td class="ps-4 stack-full">
 									{{ entry.name }}
 									@if (entry.detail !== '') {
 										<small class="text-secondary d-block ps-3">{{ entry.detail }}</small>
 									}
 								</td>
-								<td class="text-end text-secondary">{{ rateFormatter.amount(entry.machines) }}</td>
-								<td class="text-end text-secondary" [class.text-success]="isProduction(entry.megawatts)">{{ powerText(entry.megawatts) }}</td>
+								<td class="text-end text-secondary" data-label="Count">{{ rateFormatter.amount(entry.machines) }}</td>
+								<td class="text-end text-secondary" data-label="Power" [class.text-success]="isProduction(entry.power)"><power-draw [draw]="entry.power" sign="balance"></power-draw></td>
 							</tr>
 						}
 					}

@@ -1,49 +1,45 @@
 @if (isMobile()) {
 
-	<!-- ══ MOBILE (F1): bottom view tabs + plans drawer + request sheet ══ -->
+	<!-- ══ MOBILE: full-screen views switched by a scrollable bottom bar; the plan tree is a drawer ══ -->
 
-	<!-- Plans drawer trigger -->
-	<button class="mob-menu-btn" type="button" tooltip="Plans" placement="right" (click)="openDrawer()"><fa-icon [icon]="faBars"></fa-icon></button>
-
-	<!-- Active full-screen view (Power / Items / Cost) -->
 	@if (layout.mobileActivePanel(); as panel) {
+		<div class="mob-head">
+			<button class="mob-head-btn" type="button" aria-label="Plans" (click)="openDrawer()"><fa-icon [icon]="faBars"></fa-icon></button>
+			<span class="mob-head-title"><fa-icon [icon]="panel.icon" class="me-2 opacity-75"></fa-icon>{{ panel.label }}</span>
+			<button class="mob-head-btn" type="button" aria-label="Close panel" (click)="layout.setMobilePanel(null)"><fa-icon [icon]="faXmark"></fa-icon></button>
+		</div>
 		<div class="mob-view">
 			<ng-container [ngComponentOutlet]="panel.component"></ng-container>
 		</div>
-	}
-
-	<!-- Request bottom sheet - only over the graph view -->
-	@if (!layout.mobileActivePanel()) {
-		<div class="mob-sheet" [class.expanded]="sheetOpen()">
-			<div class="mob-sheet-head" (click)="toggleSheet()">
-				<div class="mob-grab"></div>
-				<div class="mob-sheet-title">
-					<span>Production request</span>
-					<span class="mob-sheet-caret"><fa-icon [icon]="sheetOpen() ? faChevronDown : faChevronUp"></fa-icon></span>
-				</div>
-			</div>
-			@if (sheetOpen()) {
-				<div class="mob-sheet-body">
-					@if (layout.panelById('calculator'); as calc) {
-						<ng-container [ngComponentOutlet]="calc.component"></ng-container>
-					}
-				</div>
-			}
+	} @else {
+		<button class="mob-menu-btn" type="button" aria-label="Plans" (click)="openDrawer()"><fa-icon [icon]="faBars"></fa-icon></button>
+		<div class="mob-zoom">
+			<planner-zoom-controls></planner-zoom-controls>
 		</div>
 	}
 
-	<!-- Bottom view tab bar -->
-	<div class="mob-nav">
-		<button class="mob-tab" [class.active]="!layout.mobileActivePanel()" type="button" (click)="layout.setMobilePanel(null)">Graph</button>
-		<button class="mob-tab" [class.active]="layout.mobileActivePanel()?.id === 'power'" type="button" (click)="layout.setMobilePanel('power')">Power</button>
-		<button class="mob-tab" [class.active]="layout.mobileActivePanel()?.id === 'items'" type="button" (click)="layout.setMobilePanel('items')">Items</button>
-		<button class="mob-tab" [class.active]="layout.mobileActivePanel()?.id === 'build-cost'" type="button" (click)="layout.setMobilePanel('build-cost')">Cost</button>
+	<!-- Tapping the active panel's tab closes it and shows the graph again.
+	     The fades (with chevrons) at either end show there is more to scroll to. -->
+	<div class="mob-nav-wrap">
+		<div class="mob-nav" #mobNav (scroll)="updateNavScroll()">
+			@for (panel of mobilePanels(); track panel.id) {
+				<button class="mob-tab" [class.active]="layout.mobileActivePanel()?.id === panel.id" type="button" (click)="toggleMobilePanel(panel.id)">
+					<fa-icon [icon]="panel.icon"></fa-icon>
+					<span>{{ panel.label }}</span>
+				</button>
+			}
+		</div>
+		@if (navCanScrollLeft()) {
+			<div class="mob-nav-fade left"><fa-icon [icon]="faChevronLeft"></fa-icon></div>
+		}
+		@if (navCanScrollRight()) {
+			<div class="mob-nav-fade right"><fa-icon [icon]="faChevronRight"></fa-icon></div>
+		}
 	</div>
 
-	<!-- Plans drawer -->
 	@if (drawerOpen()) {
 		<div class="mob-scrim" (click)="closeDrawer()"></div>
-		<div class="mob-drawer">
+		<div class="mob-drawer" (click)="onDrawerClick($event)">
 			@if (layout.panelById('plans'); as plans) {
 				<ng-container [ngComponentOutlet]="plans.component"></ng-container>
 			}

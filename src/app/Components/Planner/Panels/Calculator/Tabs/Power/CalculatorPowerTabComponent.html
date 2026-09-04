@@ -1,56 +1,61 @@
-<div class="p-2">
-	<div class="mb-3 pb-2 border-bottom border-secondary">
-		<div class="form-check">
-			<input
-				class="form-check-input"
-				type="checkbox"
-				id="produce-factory-power"
-				[checked]="producePowerForFactory"
-				(change)="toggleProducePowerForFactory()"
-			/>
-			<label class="form-check-label" for="produce-factory-power">
-				Produce power to run the factory
-			</label>
-		</div>
-		<div class="d-flex align-items-center gap-2 mt-1" [class.opacity-50]="!producePowerForFactory">
-			<span class="text-secondary">Excess power</span>
-			<input
-				type="range"
-				class="form-range"
-				style="width: 220px;"
-				min="0"
-				max="50"
-				step="5"
-				[disabled]="!producePowerForFactory"
-				[value]="excessPowerPercent"
-				(input)="setExcessPowerPercent(+$any($event.target).value)"
-			/>
-			<span class="text-light" style="width: 40px;">{{ excessPowerPercent }}%</span>
-		</div>
-		<div class="text-secondary mt-1">
-			Covers every machine's average draw (the generators' fuel chain included); the excess
-			is a safety margin for miners, pumps and variable-draw swings.
-		</div>
-		@if (producePowerForFactory && maxSloops > 0) {
-			<div class="alert alert-warning py-2 px-3 mt-2 mb-0">
-				Producing power for the factory combined with somersloop optimisation
-				(Sloops tab) makes the solve much harder - calculations can take very long.
+<div class="p-2 d-flex flex-column gap-2">
+	<div class="card">
+		<div class="card-header py-1 px-2 fw-semibold">Factory power</div>
+		<div class="card-body p-2 d-flex flex-column gap-2">
+			<div class="form-check mb-0">
+				<input
+					class="form-check-input"
+					type="checkbox"
+					id="produce-factory-power"
+					[checked]="producePowerForFactory"
+					(change)="toggleProducePowerForFactory()"
+				/>
+				<label class="form-check-label" for="produce-factory-power">
+					Produce power to run the factory
+				</label>
 			</div>
-		}
+			<div class="d-flex align-items-center gap-2" [class.opacity-50]="!producePowerForFactory">
+				<span class="text-secondary">Excess power</span>
+				<input
+					type="range"
+					class="form-range"
+					style="width: 220px;"
+					min="0"
+					max="50"
+					step="any"
+					[disabled]="!producePowerForFactory"
+					[value]="excessPowerPercent"
+					(input)="setExcessPowerPercent(+$any($event.target).value)"
+				/>
+				<span class="text-light" style="width: 40px;">{{ excessPowerPercent }}%</span>
+			</div>
+			<info-note>
+				The solver adds generators covering every machine's average draw, fuel production included. The excess
+				is a safety margin for miners, pumps and variable-draw swings.
+			</info-note>
+			@if (producePowerForFactory && maxSloops > 0) {
+				<info-note kind="warning">
+					Producing power for the factory combined with somersloop optimisation
+					(Sloops tab) makes the solve much harder - calculations can take very long.
+				</info-note>
+			}
+		</div>
 	</div>
 
-	<div class="row g-3">
-		@for (generator of generators; track generator.className) {
-			<div class="col-6 col-xxl-3">
-				<div class="d-flex align-items-center gap-1 mb-1">
-					<span class="fw-semibold flex-grow-1 text-truncate d-inline-flex align-items-center gap-1">
-						<game-icon [hash]="generator.icon" [size]="20" [alt]="generator.name"></game-icon>
-						{{ generator.name }}
-						<span class="text-secondary fw-normal">{{ powerText(generator) }}</span>
-					</span>
-					<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, true)">All</button>
-					<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, false)">None</button>
-				</div>
+	<info-note>Generators and fuels the solver may build. Enabling a fuel enables its generator.</info-note>
+
+	@for (generator of generators; track generator.className) {
+		<div class="card">
+			<div class="card-header d-flex align-items-center gap-1 py-1 px-2">
+				<span class="fw-semibold flex-grow-1 text-truncate d-inline-flex align-items-center gap-1">
+					<game-icon [hash]="generator.icon" [size]="20" [alt]="generator.name"></game-icon>
+					{{ generator.name }}
+					<span class="text-secondary fw-normal">{{ powerText(generator) }}</span>
+				</span>
+				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, true)">All</button>
+				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, false)">None</button>
+			</div>
+			<div class="card-body p-2">
 				@for (fuel of generator.fuel; track fuel.item.className) {
 					<div class="form-check">
 						<input
@@ -60,7 +65,7 @@
 							[checked]="isEnabled(generator, fuel)"
 							(change)="toggle(generator, fuel)"
 						/>
-						<label class="form-check-label d-flex align-items-center gap-1" [for]="'fuel-' + generator.className + '-' + fuel.item.className">
+						<label class="form-check-label d-flex align-items-center gap-2" [for]="'fuel-' + generator.className + '-' + fuel.item.className">
 							<game-icon [hash]="fuel.item.icon" [size]="18" [alt]="fuel.item.name"></game-icon>
 							{{ fuel.item.name }}
 							@if (fuel.byproduct; as byproduct) {
@@ -70,6 +75,6 @@
 					</div>
 				}
 			</div>
-		}
-	</div>
+		</div>
+	}
 </div>

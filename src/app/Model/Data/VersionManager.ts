@@ -145,19 +145,6 @@ export class VersionManager
 		this.api.setVersionDataPath(version?.dataPath ?? null);
 	}
 
-	/**
-	 * Activates a version that is not in the viewer's own list (e.g. another
-	 * user's custom version behind a share link). The data path comes from the
-	 * given version directly since findByUrlSlug cannot resolve it; activeVersion
-	 * stays null because the version is deliberately kept out of versions().
-	 */
-	public setActiveExternalVersion(version: Version): void
-	{
-		this.activeVersionSlugSignal.set(this.urlSlug(version));
-		this.activeVersionIdSignal.set(version.id);
-		this.api.setVersionDataPath(version.dataPath);
-	}
-
 	public clearActiveVersion(): void
 	{
 		this.activeVersionSlugSignal.set(null);

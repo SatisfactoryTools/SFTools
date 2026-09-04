@@ -33,6 +33,12 @@ export interface GraphSettings
 	/** How recipe nodes present machine counts and clock speeds. */
 	readonly machineDisplay: MachineDisplayMode;
 
+	/** Size multiplier for nodes (box, text and icons); 1 = the original size. */
+	readonly nodeScale: number;
+
+	/** Size multiplier for edge labels (box, text and icon); 1 = the original size. */
+	readonly edgeScale: number;
+
 	readonly nodeColors: NodeColors;
 
 }

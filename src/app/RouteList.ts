@@ -10,7 +10,7 @@ import {ModEditorComponent} from '@src/Components/ModEditor/ModEditorComponent';
 import {ModListComponent} from '@src/Components/Mods/ModListComponent';
 import {PlannerComponent} from '@src/Components/Planner/PlannerComponent';
 import {SettingsComponent} from '@src/Components/Settings/SettingsComponent';
-import {ShareViewComponent} from '@src/Components/Shares/ShareViewComponent';
+import {ShareRedirectComponent} from '@src/Components/Shares/ShareRedirectComponent';
 import {AuthGuard} from '@src/Model/Auth/AuthGuard';
 import {NotFoundComponent} from '@src/Components/Errors/NotFoundComponent';
 import {VersionsResolver} from '@src/Model/Data/VersionsResolver';
@@ -39,10 +39,22 @@ export class RouteList
 		return {consumed: segments, posParams: {}};
 	}
 
+	/**
+	 * 'planner', 'planner/:planId' or 'planner/shared/:shareId' - one route,
+	 * so switching plans (or entering a shared plan) only changes the params
+	 * and reuses the component. Plan ids are UUIDs, so the literal 'shared'
+	 * segment cannot collide with one.
+	 */
 	public static plannerMatcher(segments: UrlSegment[]): UrlMatchResult | null
 	{
-		if (segments.length < 1 || segments.length > 2 || segments[0].path !== 'planner') {
+		if (segments.length < 1 || segments.length > 3 || segments[0].path !== 'planner') {
 			return null;
+		}
+		if (segments.length === 3) {
+			if (segments[1].path !== 'shared') {
+				return null;
+			}
+			return {consumed: segments, posParams: {shareId: segments[2]}};
 		}
 		const posParams: Record<string, UrlSegment> = {};
 		if (segments.length === 2) {
@@ -139,9 +151,10 @@ export class RouteList
 				},
 				{
 					// Public share links - no auth, must precede the
-					// ':versionSlug' catch-all.
+					// ':versionSlug' catch-all. Redirects into the planner
+					// of the share's version, where the share opens read-only.
 					path: 'shared/:shareId',
-					component: ShareViewComponent,
+					component: ShareRedirectComponent,
 				},
 				{
 					path: ':versionSlug',

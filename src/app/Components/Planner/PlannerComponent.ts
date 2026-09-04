@@ -1,7 +1,7 @@
 import {AfterViewInit, Component, computed, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, Router} from '@angular/router';
-import {faBolt, faBook, faCoins, faCrosshairs, faCubes, faFolderTree, faGear, faListCheck} from '@fortawesome/free-solid-svg-icons';
+import {faBolt, faBook, faChartPie, faCoins, faCrosshairs, faCubes, faFolderTree, faGear, faListCheck} from '@fortawesome/free-solid-svg-icons';
 import {combineLatest, debounceTime, distinctUntilChanged, filter, finalize, pairwise, skip, Subscription} from 'rxjs';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {PanelCodexNavigation} from '@src/Components/Codex/PanelCodexNavigation';
@@ -19,6 +19,7 @@ import {PlannerContextMenuComponent} from '@src/Components/Planner/ContextMenu/P
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
 import {PlannerNodeTooltipComponent} from '@src/Components/Planner/Tooltip/PlannerNodeTooltipComponent';
 import {PlannerNodeTooltipService} from '@src/Components/Planner/Tooltip/PlannerNodeTooltipService';
+import {FolderRecalculationService} from '@src/Components/Planner/FolderRecalculationService';
 import {FuelDisableRequest} from '@src/Components/Planner/FuelDisableRequest';
 import {GraphConnectToBlankRequest} from '@src/Components/Planner/GraphConnectToBlankRequest';
 import {GraphContextMenuRequest} from '@src/Components/Planner/GraphContextMenuRequest';
@@ -37,6 +38,7 @@ import {PlannerCodexComponent} from '@src/Components/Planner/Panels/Codex/Planne
 import {PlannerBuildCostComponent} from '@src/Components/Planner/Panels/BuildCost/PlannerBuildCostComponent';
 import {PlannerInspectorComponent} from '@src/Components/Planner/Panels/Inspector/PlannerInspectorComponent';
 import {PlannerItemsComponent} from '@src/Components/Planner/Panels/Items/PlannerItemsComponent';
+import {PlannerOverviewComponent} from '@src/Components/Planner/Panels/Overview/PlannerOverviewComponent';
 import {PlannerPlansComponent} from '@src/Components/Planner/Panels/Plans/PlannerPlansComponent';
 import {PlannerPowerComponent} from '@src/Components/Planner/Panels/Power/PlannerPowerComponent';
 import {PlannerSettingsComponent} from '@src/Components/Planner/Panels/Settings/PlannerSettingsComponent';
@@ -68,6 +70,7 @@ import {NotificationService} from '@src/Model/NotificationService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 
 // Flows closer than this count as equal when deciding whether a menu action
 // (minimise/maximise, increase-output) has anything to change - matches the
@@ -80,6 +83,7 @@ const RATIO_TOLERANCE = 1e-4;
 	templateUrl: './PlannerComponent.html',
 	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent],
 	providers: [
+		FolderRecalculationService,
 		PlannerGraphService,
 		PanelLayoutService,
 		PlannerActionsService,
@@ -140,6 +144,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		private readonly rateFormatter: RateFormatter,
 		private readonly settings: SettingsManager,
 		private readonly plannerLocation: PlannerLocationService,
+		private readonly activeShare: ActiveShareManager,
+		private readonly folderRecalculation: FolderRecalculationService,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
 	)
@@ -161,10 +167,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			openByDefault: true,
 		});
 		panelLayout.register({
-			id: 'settings',
-			label: 'Planner settings',
-			icon: faGear,
-			component: PlannerSettingsComponent,
+			id: 'overview',
+			label: 'Overview',
+			icon: faChartPie,
+			component: PlannerOverviewComponent,
 			defaultSide: 'right',
 		});
 		panelLayout.register({
@@ -193,6 +199,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			label: 'Build cost',
 			icon: faCoins,
 			component: PlannerBuildCostComponent,
+			defaultSide: 'right',
+		});
+		panelLayout.register({
+			id: 'settings',
+			label: 'Planner settings',
+			icon: faGear,
+			component: PlannerSettingsComponent,
 			defaultSide: 'right',
 		});
 		panelLayout.register({
@@ -347,14 +360,14 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 						inputs: plan.inputs,
 						recipes: plan.settings.enabledRecipes,
 						machines: plan.settings.disabledMachines,
-						limits: plan.settings.resourceLimits,
+						limits: [plan.settings.resourceLimits, plan.settings.disabledResources, plan.settings.resourceWeightMode, plan.settings.resourceWeights],
 						fuels: plan.settings.enabledFuels,
 						byproducts: plan.settings.disabledByproducts,
 						sinkable: plan.settings.sinkableItems,
 						factoryPower: [plan.settings.producePowerForFactory, plan.settings.excessPowerPercent],
 						optimisation: plan.settings.optimisation,
 						sloops: [plan.settings.maxSloops, plan.settings.sloopAccuracy],
-						clocks: [plan.settings.defaultClockSpeed, plan.settings.recipeClockSpeeds],
+						clocks: [plan.settings.defaultClockSpeed, plan.settings.recipeClockSpeeds, plan.settings.machineClockSpeeds],
 						grouping: plan.settings.defaultGroupingMode,
 					}),
 				};
@@ -420,8 +433,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		// State → URL: reflect the active plan in the address bar. skip(1)
 		// ignores the initial null so a shared link isn't stripped on load.
 		// Query params carry independent state (the codex panel), so keep them.
+		// Shared plans are addressed by their share URL, never a plan id -
+		// while one is open (or selected), the address bar stays untouched.
 		this.subscription.add(
 			toObservable(this.planManager.activePlanId).pipe(skip(1)).subscribe(id => {
+				if (this.route.snapshot.paramMap.get('shareId') !== null) return;
+				if (id !== null && this.planManager.isSharedPlan(id)) return;
 				if (id === this.route.snapshot.paramMap.get('planId')) return;
 				const version = this.versionManager.activeVersion();
 				if (!version) return;
@@ -472,6 +489,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			this.planManager.scrubbedGraphs.subscribe(planIds => this.refreshScrubbedGraph(planIds)),
 		);
 
+		// A folder-wide recalculation replaces stored graphs off-canvas; the
+		// one on the canvas must follow.
+		this.subscription.add(
+			this.folderRecalculation.graphReplaced.subscribe(planId => this.refreshScrubbedGraph([planId])),
+		);
+
 		// Renaming a subplan must relabel its node in the parent graph, which
 		// may be the plan currently on the canvas.
 		this.subscription.add(
@@ -483,6 +506,20 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 						this.refreshRenderedSubplanNodes();
 					}
 				}),
+		);
+
+		// Shared route ↔ share mode: 'planner/shared/:shareId' opens the share
+		// read-only, any other planner URL leaves it. paramMap emits its
+		// current value synchronously, so a direct load activates right here.
+		this.subscription.add(
+			this.route.paramMap.subscribe(params => {
+				const shareId = params.get('shareId');
+				if (shareId !== null) {
+					this.activeShare.open(shareId);
+				} else {
+					this.activeShare.close();
+				}
+			}),
 		);
 	}
 
@@ -498,10 +535,16 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	{
 		this.cancelCalculation();
 		this.subscription.unsubscribe();
+		this.activeShare.close();
 	}
 
 	private openContextMenu(request: GraphContextMenuRequest): void
 	{
+		// A shared plan's canvas offers no context menus - every entry would
+		// be an edit. Subplans still open by double-click.
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		let menu: PlannerContextMenu;
 		if (request.edge) {
 			const amounts = this.edgeAmountActions(request.edge);
@@ -603,6 +646,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyNodeUpdate(updated: Node): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -663,6 +709,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	/** Validates an edge-add request against the current plan; null when it no longer applies. */
 	private prepareEdgeAdd(request: GraphEdgeAddRequest): PreparedEdgeAdd | null
 	{
+		if (this.planManager.activePlanShared()) {
+			return null;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return null;
@@ -770,6 +819,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyEdgeAmount(request: GraphEdgeAmountRequest): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -827,6 +879,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyEdgeDelete(edge: GraphEdge): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -861,6 +916,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyNodeDelete(nodeIds: string[]): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -910,6 +968,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private beginConnectToBlank(request: GraphConnectToBlankRequest): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -937,6 +998,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	@HostListener('document:keydown', ['$event'])
 	public onDocumentKeyDown(event: KeyboardEvent): void
 	{
+		// Undo, delete and done-toggle are all edits - inert on a shared plan.
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		// Form fields keep their native editing keys (text undo, delete).
 		const active = document.activeElement;
 		if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
@@ -994,6 +1059,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 	private restoreSnapshot(pop: (current: GraphSnapshot) => GraphSnapshot | null): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan || plan.id !== this.renderedPlanId) {
 			return;
@@ -1043,6 +1111,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	/** Toggles user ownership of nodes; a lock change is a manual graph edit and persists as such. */
 	private applyLockChange(request: NodeLockRequest): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -1080,6 +1151,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyDoneChange(request: NodeDoneRequest): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -1181,10 +1255,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		if (!settings) {
 			return;
 		}
-		this.planManager.updateActiveSettings({
-			...settings,
-			resourceLimits: {...(settings.resourceLimits ?? {}), [resourceClassName]: 0},
-		});
+		const disabled = new Set(settings.disabledResources ?? []);
+		disabled.add(resourceClassName);
+		this.planManager.updateActiveSettings({...settings, disabledResources: [...disabled].sort()});
 	}
 
 	private removeProduct(itemClassName: string): void
@@ -1212,6 +1285,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private async relayoutGraph(): Promise<void>
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId || this.actions.isCalculating()) {
 			return;
@@ -1243,7 +1319,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 	private openSubplan(subplanId: string): void
 	{
-		if (this.planManager.plans().some(p => p.id === subplanId)) {
+		// Shared graphs reference shared subplans (hydrated alongside them) -
+		// opening one keeps the planner in read-only mode.
+		if (this.planManager.plans().some(p => p.id === subplanId)
+			|| this.planManager.sharedPlans().some(p => p.id === subplanId)) {
 			this.planManager.setActivePlan(subplanId);
 		} else {
 			this.notifications.show('This subplan no longer exists.');
@@ -1281,6 +1360,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	public onAddNode(node: Node): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const position = this.addNodePositionSignal();
 		const pending = this.pendingConnectSignal();
 		this.closeAddNode();
@@ -1367,6 +1449,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	/** Creates a new empty subplan under the active plan, represented by a node at the clicked spot. */
 	private createSubplanNode(position: GraphPoint): void
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -1384,8 +1469,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 		const subplan = this.planManager.createSubplan(this.defaultSubplanName(plan.id), plan.id);
 		const node = new SubplanNode(crypto.randomUUID(), subplan.id, subplan.name, [], []);
-		node.x = position.x - GraphMetrics.SUBPLAN_NODE_WIDTH / 2;
-		node.y = position.y - GraphMetrics.SUBPLAN_NODE_HEIGHT / 2;
+		const size = this.plannerGraph.nodeSize(node);
+		node.x = position.x - size.width / 2;
+		node.y = position.y - size.height / 2;
 
 		const updated: Graph = {nodes: [...graph.nodes, node], edges: graph.edges};
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
@@ -1403,6 +1489,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private async convertToSubplan(nodeIds: string[]): Promise<void>
 	{
+		if (this.planManager.activePlanShared()) {
+			return;
+		}
 		const plan = this.planManager.activePlan();
 		if (!plan?.graph || plan.id !== this.renderedPlanId) {
 			return;
@@ -1615,6 +1704,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			this.plannerGraph.clear();
 			return;
 		}
+		// Shared plans render their frozen graph exactly as saved: no canvas
+		// interaction, no subplan refresh (the shared subplans are frozen with
+		// it), no write-back. restore() rebuilds the x6 instance, so the flag
+		// takes effect on every plan switch in both directions.
+		const shared = this.planManager.isSharedPlan(plan.id);
+		this.plannerGraph.readOnly = shared;
 		if (!plan.graph) {
 			// Manual mode builds from scratch: give an uncalculated plan an
 			// interactive blank canvas so nodes can be added by right-click.
@@ -1635,10 +1730,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 		// Subplans may have changed since the parent graph was saved - pick up
 		// their current name and outside interface on every render.
-		graph = this.refreshSubplanNodes(graph);
+		if (!shared) {
+			graph = this.refreshSubplanNodes(graph);
+		}
 
 		this.renderedPlanId = plan.id;
-		if (graph !== plan.graph) {
+		if (!shared && graph !== plan.graph) {
 			this.planManager.setGraph(plan.id, graph);
 		}
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph);
@@ -1646,6 +1743,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 	private calculate(): void
 	{
+		// A shared plan is a frozen snapshot - never solved, never touched.
+		if (this.planManager.activePlanShared()) return;
 		const plan = this.planManager.activePlan();
 		if (!plan) return;
 		if (this.actions.isCalculating()) {

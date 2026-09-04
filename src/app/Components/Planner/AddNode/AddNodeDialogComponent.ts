@@ -67,10 +67,10 @@ export class AddNodeDialogComponent implements OnInit
 
 	private readonly allTypes: AddNodeTypeOption[] = [
 		{type: 'recipe', label: 'Recipe', icon: faIndustry},
-		{type: 'input', label: 'Input', icon: faRightToBracket},
-		{type: 'product', label: 'Product', icon: faFlagCheckered},
 		{type: 'mine', label: 'Mine', icon: faMountain},
+		{type: 'product', label: 'Product', icon: faFlagCheckered},
 		{type: 'byproduct', label: 'Byproduct', icon: faRecycle},
+		{type: 'input', label: 'Input', icon: faRightToBracket},
 		{type: 'generator', label: 'Generator', icon: faBolt},
 		{type: 'sink', label: 'Sink', icon: faTrashCan},
 	];

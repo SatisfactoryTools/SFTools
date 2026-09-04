@@ -1,0 +1,438 @@
+<div class="p-2">
+
+	@if (!isFolderView() && !hasPlan()) {
+		<info-note>Select a plan or folder to see its overview.</info-note>
+	} @else {
+		@if (folderOverview(); as fo) {
+			<div class="text-secondary mb-2">
+				{{ fo.plans.length }} plan{{ fo.plans.length === 1 ? '' : 's' }} in this folder (subfolders included)@if (outdatedPlanCount() > 0) {, <span class="text-warning">{{ outdatedPlanCount() }} need{{ outdatedPlanCount() === 1 ? 's' : '' }} recalculation</span>}@if (manualPlanCount() > 0) {, {{ manualPlanCount() }} manual or hand-modified}.
+				@if (fo.fixedSummary !== '') {
+					<span class="d-block">Fixed for every plan inside: {{ fo.fixedSummary }}.</span>
+				}
+			</div>
+		}
+
+		<div class="overview-grid">
+			<div class="row g-2">
+				@for (card of cards; track card.id) {
+					<div class="overview-col">
+						<collapsible-card class="h-100" [title]="card.title" [open]="!isCollapsed(card.id)" (toggle)="toggleCard(card.id)">
+							@if (card.id === 'recipes' && !isCollapsed('recipes')) {
+								<div card-actions class="btn-group btn-group-sm" role="group">
+									<button
+										type="button"
+										class="btn py-0"
+										[class.btn-secondary]="!showAllRecipes()"
+										[class.btn-outline-secondary]="showAllRecipes()"
+										(click)="setShowAllRecipes(false)"
+									>Alts only</button>
+									<button
+										type="button"
+										class="btn py-0"
+										[class.btn-secondary]="showAllRecipes()"
+										[class.btn-outline-secondary]="!showAllRecipes()"
+										(click)="setShowAllRecipes(true)"
+									>All</button>
+								</div>
+							}
+
+							@if (!isCollapsed(card.id)) {
+								<div class="card-body p-0">
+									@switch (card.id) {
+
+										@case ('resources') {
+											<table class="table table-dark table-sm align-middle mb-0">
+												<tbody>
+													@if (folderOverview(); as fo) {
+														@for (row of fo.resources; track row.item.className) {
+															<tr (click)="row.plans.length > 0 && toggleRow('resource:' + row.item.className)" [style.cursor]="row.plans.length > 0 ? 'pointer' : 'default'" [class.resource-off]="row.disabled">
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
+																		<fa-icon [icon]="isRowExpanded('resource:' + row.item.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small" [class.invisible]="row.plans.length === 0"></fa-icon>
+																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
+																		{{ row.item.name }}
+																	</span>
+																</td>
+																<td class="text-end text-nowrap" style="width: 45%;">
+																	<span [class.text-secondary]="rateFormatter.isZero(row.used)" [class.text-danger]="folderExceedsLimit(row)">{{ rateFormatter.rate(row.used, row.item) }}</span>
+																	@if (row.disabled) {
+																		<span class="text-secondary"> / off</span>
+																	} @else if (fo.resourcesMode === 'pool') {
+																		<span class="text-secondary"> / {{ row.limit === null ? '∞' : rateFormatter.rate(row.limit, row.item) }}</span>
+																	} @else if (fo.resourcesMode === 'fixed' && row.limit !== null) {
+																		<small class="text-secondary d-block text-wrap">cap per plan {{ rateFormatter.rate(row.limit, row.item) }}</small>
+																	}
+																	@if (fo.resourcesMode === 'pool' && folderLimitFraction(row); as fraction) {
+																		<div class="limit-bar mt-1">
+																			<div [style.width.%]="fraction * 100" [class]="folderExceedsLimit(row) ? 'bg-danger' : 'bg-info'"></div>
+																		</div>
+																	}
+																</td>
+															</tr>
+															@if (isRowExpanded('resource:' + row.item.className)) {
+																@for (share of row.plans; track share.planId) {
+																	<tr>
+																		<td class="ps-4"><a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(share.planId)">{{ share.name }}</a></td>
+																		<td class="text-end text-nowrap text-secondary">{{ rateFormatter.rate(share.amount, row.item) }}</td>
+																	</tr>
+																}
+															}
+														} @empty {
+															<tr><td class="text-secondary fst-italic">No raw resources in this version.</td></tr>
+														}
+													} @else if (poolStatus(); as statuses) {
+														@for (status of statuses; track status.item.className) {
+															<tr [class.resource-off]="status.disabled">
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(status.usedByPlan)">
+																		<game-icon [hash]="status.item.icon" [size]="18" [alt]="status.item.name"></game-icon>
+																		{{ status.item.name }}
+																	</span>
+																</td>
+																<td class="text-end text-nowrap" style="width: 45%;">
+																	<span [class.text-secondary]="rateFormatter.isZero(status.usedByPlan)" [class.text-danger]="status.overUse">{{ rateFormatter.rate(status.usedByPlan, status.item) }}</span>
+																	<span class="text-secondary"> / {{ status.disabled ? 'off' : status.available === null ? '∞' : rateFormatter.rate(status.available, status.item) }}</span>
+																	@if (status.limit !== null && !status.disabled) {
+																		<small class="text-secondary d-block text-wrap">pool {{ rateFormatter.rate(status.limit, status.item) }}, others {{ rateFormatter.rate(status.usedByOthers, status.item) }}</small>
+																	}
+																	@if (poolFraction(status); as fraction) {
+																		<div class="limit-bar mt-1">
+																			<div [style.width.%]="fraction * 100" [class]="status.overUse ? 'bg-danger' : 'bg-info'"></div>
+																		</div>
+																	}
+																</td>
+															</tr>
+														}
+													} @else {
+														@for (row of resources(); track row.item.className) {
+															<tr [class.resource-off]="row.disabled">
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
+																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
+																		{{ row.item.name }}
+																	</span>
+																</td>
+																<td class="text-end text-nowrap" style="width: 45%;">
+																	<span [class.text-secondary]="rateFormatter.isZero(row.used)" [class.text-danger]="exceedsLimit(row)">{{ rateFormatter.rate(row.used, row.item) }}</span>
+																	<span class="text-secondary"> / {{ limitText(row) }}</span>
+																	@if (limitFraction(row); as fraction) {
+																		<div class="limit-bar mt-1">
+																			<div [style.width.%]="fraction * 100" [class]="exceedsLimit(row) ? 'bg-danger' : 'bg-info'"></div>
+																		</div>
+																	}
+																</td>
+															</tr>
+														} @empty {
+															<tr><td class="text-secondary fst-italic">No raw resources in this version.</td></tr>
+														}
+													}
+												</tbody>
+											</table>
+											@if (conversionUsed() !== null) {
+												<!-- Whether raw resources are conjured from other raw resources - the recipes themselves are in the Recipes card. -->
+												<div class="conversion-note d-flex align-items-center gap-2 px-2 py-1 small" [class.text-secondary]="!conversionUsed()">
+													<fa-icon [icon]="faRecycle" [fixedWidth]="true"></fa-icon>
+													<span class="flex-grow-1">Resource conversion</span>
+													@if (conversionUsed()) {
+														<span class="text-info fw-semibold">used</span>
+													} @else {
+														<span>not used</span>
+													}
+												</div>
+											}
+										}
+
+										@case ('artifacts') {
+											@if (folderOverview(); as fo) {
+												<table class="table table-dark table-sm align-middle mb-0 table-stack-sm">
+													<thead>
+														<tr>
+															<th>Plan</th>
+															<th class="text-end" style="width: 70px;"><game-icon [hash]="sloopIcon()" [size]="18" alt="Somersloops"></game-icon></th>
+															<th class="text-end" style="width: 70px;"><game-icon [hash]="shardIcon()" [size]="18" alt="Power shards"></game-icon></th>
+														</tr>
+													</thead>
+													<tbody>
+														@for (plan of fo.plans; track plan.planId) {
+															<tr>
+																<td class="stack-full"><a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(plan.planId)">{{ plan.name }}</a></td>
+																<td class="text-end" data-label="Sloops" [class.text-secondary]="plan.sloops === 0">{{ plan.sloops }}</td>
+																<td class="text-end" data-label="Shards" [class.text-secondary]="plan.shards === 0">{{ plan.shards }}</td>
+															</tr>
+														} @empty {
+															<tr><td colspan="3" class="text-secondary fst-italic">No plans in this folder yet.</td></tr>
+														}
+													</tbody>
+													@if (fo.plans.length > 0) {
+														<tfoot>
+															<tr class="fw-semibold">
+																<td>Total</td>
+																<td class="text-end">{{ fo.sloops }}</td>
+																<td class="text-end">{{ fo.shards }}</td>
+															</tr>
+														</tfoot>
+													}
+												</table>
+											} @else {
+												<table class="table table-dark table-sm align-middle mb-0">
+													<tbody>
+														<tr>
+															<td>
+																<span class="d-inline-flex align-items-center gap-1">
+																	<game-icon [hash]="sloopIcon()" [size]="18" alt="Somersloop"></game-icon>
+																	Somersloops
+																</span>
+															</td>
+															<td class="text-end" [class.text-secondary]="buildCost().sloops === 0">{{ buildCost().sloops }}</td>
+														</tr>
+														<tr>
+															<td>
+																<span class="d-inline-flex align-items-center gap-1">
+																	<game-icon [hash]="shardIcon()" [size]="18" alt="Power Shard"></game-icon>
+																	Power shards
+																</span>
+															</td>
+															<td class="text-end" [class.text-secondary]="buildCost().shards === 0">{{ buildCost().shards }}</td>
+														</tr>
+													</tbody>
+												</table>
+											}
+										}
+
+										@case ('production') {
+											<table class="table table-dark table-sm align-middle mb-0">
+												<tbody>
+													@if (folderOverview(); as fo) {
+														@for (row of fo.production; track row.kind + row.item.className) {
+															<tr (click)="toggleRow('production:' + row.kind + row.item.className)" style="cursor: pointer;">
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1">
+																		<fa-icon [icon]="isRowExpanded('production:' + row.kind + row.item.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small"></fa-icon>
+																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
+																		{{ row.item.name }}
+																		@if (row.kind === 'byproduct') {
+																			<span class="badge text-bg-secondary">byproduct</span>
+																		}
+																	</span>
+																</td>
+																<td class="text-end text-nowrap" [class.text-success]="row.kind === 'product'">{{ rateFormatter.rate(row.amount, row.item) }}</td>
+															</tr>
+															@if (isRowExpanded('production:' + row.kind + row.item.className)) {
+																@for (share of row.plans; track share.planId) {
+																	<tr>
+																		<td class="ps-4"><a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(share.planId)">{{ share.name }}</a></td>
+																		<td class="text-end text-nowrap text-secondary">{{ rateFormatter.rate(share.amount, row.item) }}</td>
+																	</tr>
+																}
+															}
+														} @empty {
+															<tr><td class="text-secondary fst-italic">Calculate the plans to see their production.</td></tr>
+														}
+													} @else {
+														@for (row of production(); track row.kind + row.item.className) {
+															<tr>
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1">
+																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
+																		{{ row.item.name }}
+																		@if (row.kind === 'byproduct') {
+																			<span class="badge text-bg-secondary">byproduct</span>
+																		}
+																	</span>
+																</td>
+																<td class="text-end text-nowrap" [class.text-success]="row.kind === 'product'">{{ rateFormatter.rate(row.amount, row.item) }}</td>
+															</tr>
+														} @empty {
+															<tr><td class="text-secondary fst-italic">Calculate the plan to see its production.</td></tr>
+														}
+													}
+												</tbody>
+											</table>
+										}
+
+										@case ('buildings') {
+											<table class="table table-dark table-sm align-middle mb-0">
+												<tbody>
+													@if (folderOverview(); as fo) {
+														@for (row of fo.buildings; track row.key) {
+															<tr (click)="toggleRow('building:' + row.key)" style="cursor: pointer;">
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1">
+																		<fa-icon [icon]="isRowExpanded('building:' + row.key) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small"></fa-icon>
+																		<game-icon [hash]="row.icon" [size]="18" [alt]="row.name"></game-icon>
+																		{{ row.name }}
+																	</span>
+																</td>
+																<td class="text-end">{{ rateFormatter.amount(row.machines) }}</td>
+															</tr>
+															@if (isRowExpanded('building:' + row.key)) {
+																@for (share of row.plans; track share.planId) {
+																	<tr>
+																		<td class="ps-4"><a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(share.planId)">{{ share.name }}</a></td>
+																		<td class="text-end text-secondary">{{ rateFormatter.amount(share.amount) }}</td>
+																	</tr>
+																}
+															}
+														} @empty {
+															<tr><td class="text-secondary fst-italic">Calculate the plans to see their buildings.</td></tr>
+														}
+													} @else {
+														@for (row of buildings(); track row.key) {
+															<tr>
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1">
+																		<game-icon [hash]="row.icon" [size]="18" [alt]="row.name"></game-icon>
+																		@if (row.kind === 'subplan') {
+																			<span class="text-secondary">Subplan:</span>
+																		}
+																		{{ row.name }}
+																	</span>
+																</td>
+																<td class="text-end">{{ rateFormatter.amount(row.machines) }}</td>
+															</tr>
+														} @empty {
+															<tr><td class="text-secondary fst-italic">Calculate the plan to see its buildings.</td></tr>
+														}
+													}
+												</tbody>
+												@if (folderOverview(); as fo) {
+													@if (fo.buildings.length > 0) {
+														<tfoot>
+															<tr class="fw-semibold">
+																<td>Total</td>
+																<td class="text-end">{{ rateFormatter.amount(fo.totalBuildings) }}</td>
+															</tr>
+														</tfoot>
+													}
+												} @else if (buildings().length > 0) {
+													<tfoot>
+														<tr class="fw-semibold">
+															<td>Total</td>
+															<td class="text-end">{{ rateFormatter.amount(buildCost().machines) }}</td>
+														</tr>
+													</tfoot>
+												}
+											</table>
+										}
+
+										@case ('power') {
+											@if (folderOverview(); as fo) {
+												<table class="table table-dark table-sm align-middle mb-0 table-stack-sm">
+													<thead>
+														<tr>
+															<th>Plan</th>
+															<th class="text-end" style="width: 90px;">Usage</th>
+															<th class="text-end" style="width: 90px;">Produced</th>
+															<th class="text-end" style="width: 90px;">Net</th>
+														</tr>
+													</thead>
+													<tbody>
+														@for (plan of fo.plans; track plan.planId) {
+															<tr>
+																<td class="stack-full">
+																	<a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(plan.planId)">{{ plan.name }}</a>
+																	@if (plan.outdated) {
+																		<span class="badge text-bg-warning ms-1" title="Settings or pool share changed after this plan was solved">outdated</span>
+																	}
+																</td>
+																<td class="text-end text-nowrap text-warning" data-label="Usage"><power-draw [draw]="plan.consumption"></power-draw></td>
+																<td class="text-end text-nowrap" data-label="Produced" [class]="rateFormatter.isZero(plan.production) ? 'text-secondary' : 'text-success'">{{ rateFormatter.power(plan.production) }}</td>
+																<td class="text-end text-nowrap" data-label="Net" [class]="isSurplus(plan.net) ? 'text-success' : 'text-warning'"><power-draw [draw]="plan.net" sign="net"></power-draw></td>
+															</tr>
+														} @empty {
+															<tr><td colspan="4" class="text-secondary fst-italic">No plans in this folder yet.</td></tr>
+														}
+													</tbody>
+													@if (fo.plans.length > 0) {
+														<tfoot>
+															<tr class="fw-semibold">
+																<td>Total</td>
+																<td class="text-end text-nowrap text-warning"><power-draw [draw]="fo.consumption"></power-draw></td>
+																<td class="text-end text-nowrap" [class]="rateFormatter.isZero(fo.powerProduction) ? 'text-secondary' : 'text-success'">{{ rateFormatter.power(fo.powerProduction) }}</td>
+																<td class="text-end text-nowrap" [class]="isSurplus(folderNetPower()) ? 'text-success' : 'text-warning'"><power-draw [draw]="folderNetPower()" sign="net"></power-draw></td>
+															</tr>
+														</tfoot>
+													}
+												</table>
+											} @else {
+												<table class="table table-dark table-sm align-middle mb-0">
+													<tbody>
+														<tr>
+															<td>Consumption</td>
+															<td class="text-end text-nowrap text-warning"><power-draw [draw]="power().consumption"></power-draw></td>
+														</tr>
+														<tr>
+															<td>Production</td>
+															<td class="text-end text-nowrap" [class]="rateFormatter.isZero(power().production) ? 'text-secondary' : 'text-success'">{{ rateFormatter.power(power().production) }}</td>
+														</tr>
+														<tr class="fw-semibold">
+															<td>Net</td>
+															<td class="text-end text-nowrap" [class]="netIsSurplus() ? 'text-success' : 'text-warning'"><power-draw [draw]="power().net" sign="net"></power-draw></td>
+														</tr>
+													</tbody>
+												</table>
+											}
+										}
+
+										@case ('recipes') {
+											<table class="table table-dark table-sm align-middle mb-0">
+												<tbody>
+													@if (folderOverview()) {
+														@for (row of folderRecipes(); track row.recipe.className) {
+															<tr (click)="toggleRow('recipe:' + row.recipe.className)" style="cursor: pointer;">
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1">
+																		<fa-icon [icon]="isRowExpanded('recipe:' + row.recipe.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small"></fa-icon>
+																		<game-icon [hash]="row.recipe.products[0]?.item?.icon ?? null" [size]="18" [alt]="row.recipe.name"></game-icon>
+																		{{ row.recipe.name }}
+																		@if (row.recipe.alternate && showAllRecipes()) {
+																			<span class="badge text-bg-secondary">alt</span>
+																		}
+																	</span>
+																</td>
+																<td class="text-end">{{ rateFormatter.amount(row.machines) }}×</td>
+															</tr>
+															@if (isRowExpanded('recipe:' + row.recipe.className)) {
+																@for (share of row.plans; track share.planId) {
+																	<tr>
+																		<td class="ps-4"><a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(share.planId)">{{ share.name }}</a></td>
+																		<td class="text-end text-secondary">{{ rateFormatter.amount(share.amount) }}×</td>
+																	</tr>
+																}
+															}
+														} @empty {
+															<tr><td class="text-secondary fst-italic">{{ showAllRecipes() ? 'Calculate the plans to see their recipes.' : 'No alternate recipes in use.' }}</td></tr>
+														}
+													} @else {
+														@for (row of recipes(); track row.recipe.className) {
+															<tr>
+																<td>
+																	<span class="d-inline-flex align-items-center gap-1">
+																		<game-icon [hash]="row.recipe.products[0]?.item?.icon ?? null" [size]="18" [alt]="row.recipe.name"></game-icon>
+																		{{ row.recipe.name }}
+																		@if (row.recipe.alternate && showAllRecipes()) {
+																			<span class="badge text-bg-secondary">alt</span>
+																		}
+																	</span>
+																</td>
+																<td class="text-end">{{ rateFormatter.amount(row.machines) }}×</td>
+															</tr>
+														} @empty {
+															<tr><td class="text-secondary fst-italic">{{ showAllRecipes() ? 'Calculate the plan to see its recipes.' : 'No alternate recipes in use.' }}</td></tr>
+														}
+													}
+												</tbody>
+											</table>
+										}
+
+									}
+								</div>
+							}
+						</collapsible-card>
+					</div>
+				}
+			</div>
+		</div>
+	}
+
+</div>

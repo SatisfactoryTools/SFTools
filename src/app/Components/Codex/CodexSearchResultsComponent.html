@@ -1,0 +1,34 @@
+<div class="container-fluid py-3">
+	@if (state.query().trim().length < 2) {
+		<p class="text-secondary small mb-0">Keep typing to search&hellip;</p>
+	} @else if (state.flatResults().length === 0) {
+		<p class="text-secondary small mb-0">Nothing in the {{ state.scopeLabel() }} matches &ldquo;{{ state.query() }}&rdquo;.</p>
+	} @else {
+		@for (group of state.groups(); track group.label) {
+			@if (state.groups().length > 1) {
+				<div class="text-secondary small text-uppercase mt-2 mb-1">{{ group.label }}</div>
+			}
+			<div class="d-grid" style="gap: 0.25rem;">
+				@for (result of group.results; track result.type + result.id) {
+					<a
+						class="card result"
+						[class.active]="state.flatResults()[state.activeIndex()] === result"
+						[codexLink]="state.pathOf(result)"
+					>
+						<span class="result-icons">
+							@for (icon of result.icons; track $index) {
+								<game-icon [hash]="icon" [size]="24" [alt]="result.name"></game-icon>
+							}
+						</span>
+						<span class="result-text">
+							<span class="result-name text-truncate"><search-fragments [fragments]="result.nameFragments"/></span>
+							@if (result.snippet; as snippet) {
+								<span class="small text-secondary text-truncate"><search-fragments [fragments]="snippet"/></span>
+							}
+						</span>
+					</a>
+				}
+			</div>
+		}
+	}
+</div>

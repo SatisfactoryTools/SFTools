@@ -1,33 +1,27 @@
 @if (schematic(); as schematic) {
 	<div class="container-fluid py-3">
-		<a codexLink="schematics" class="btn btn-sm btn-outline-secondary mb-3"><fa-icon [icon]="faChevronLeft"></fa-icon> Schematics</a>
-
-		<div class="d-flex align-items-start gap-3 mb-4">
-			<game-icon [hash]="schematic.icon" [size]="96" [alt]="schematic.name"></game-icon>
-			<div>
-				<h2 class="mb-0">{{ schematic.name }}</h2>
-				@if (schematic.description) {
-					<p class="mt-2 mb-0" style="white-space: pre-line;">{{ schematic.description }}</p>
-				}
-			</div>
-		</div>
+		<codex-detail-header backLink="schematics" backLabel="Schematics" [icons]="[schematic.icon]" [name]="schematic.name">
+			@if (schematic.description) {
+				<p class="mt-2 mb-0" style="white-space: pre-line;">{{ schematic.description }}</p>
+			}
+		</codex-detail-header>
 
 		<codex-section heading="Properties" [flush]="true">
 			<table class="table table-sm">
 				<tbody>
 					<tr>
-						<th class="text-muted fw-normal" style="width: 40%;">Type</th>
+						<th class="text-secondary fw-normal" style="width: 40%;">Type</th>
 						<td>{{ typeLabel(schematic.type) }}</td>
 					</tr>
 					@if (schematic.tier > 0) {
 						<tr>
-							<th class="text-muted fw-normal">Tier</th>
+							<th class="text-secondary fw-normal">Tier</th>
 							<td>{{ schematic.tier }}</td>
 						</tr>
 					}
 					@if (schematic.time > 0) {
 						<tr>
-							<th class="text-muted fw-normal">Research time</th>
+							<th class="text-secondary fw-normal">Research time</th>
 							<td>{{ formatter.duration(schematic.time) }}</td>
 						</tr>
 					}
@@ -44,7 +38,7 @@
 		@if (requiredSchematics().length > 0) {
 			<codex-section heading="Requires" [flush]="true">
 				@if (requiredSchematics().length > 1) {
-					<p class="text-muted small mb-0 px-3 pt-2">
+					<p class="text-secondary small mb-0 px-3 pt-2">
 						{{ schematic.dependency.requireAll ? 'All of the following are required:' : 'Any of the following suffices:' }}
 					</p>
 				}
@@ -103,7 +97,7 @@
 	</div>
 } @else {
 	<div class="container-fluid py-3">
-		<p class="text-muted">Schematic not found.</p>
-		<a codexLink="schematics" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Schematics</a>
+		<codex-detail-header backLink="schematics" backLabel="Schematics"/>
+		<p class="text-secondary mb-0">Schematic not found.</p>
 	</div>
 }

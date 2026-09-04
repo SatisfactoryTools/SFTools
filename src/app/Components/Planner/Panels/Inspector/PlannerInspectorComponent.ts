@@ -1,4 +1,5 @@
 import {Component, ChangeDetectionStrategy, Signal, computed} from '@angular/core';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {AmountNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/AmountNodeEditor/AmountNodeEditorComponent';
 import {RecipeNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/RecipeNodeEditorComponent';
@@ -8,12 +9,13 @@ import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode'
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
+import {PlanManager} from '@src/Model/Planner/PlanManager';
 
 @Component({
 	selector: 'planner-inspector',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerInspectorComponent.html',
-	imports: [AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeViewComponent],
+	imports: [AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeViewComponent, InfoNoteComponent],
 })
 export class PlannerInspectorComponent
 {
@@ -24,9 +26,16 @@ export class PlannerInspectorComponent
 	/** A lone selected single-scalar node (item nodes and generators) - edited through the amount editor. */
 	public readonly singleAmountNode: Signal<Node | null>;
 
-	public constructor(private readonly plannerGraph: PlannerGraphService)
+	/** A shared plan is inspected, never edited - the editors render disabled. */
+	public readonly readOnly: Signal<boolean>;
+
+	public constructor(
+		private readonly plannerGraph: PlannerGraphService,
+		planManager: PlanManager,
+	)
 	{
 		this.selectedNodes = plannerGraph.selectedNodes;
+		this.readOnly = planManager.activePlanShared;
 		this.singleRecipeNode = computed(() => {
 			const nodes = this.selectedNodes();
 			return nodes.length === 1 && nodes[0] instanceof RecipeNode ? nodes[0] : null;

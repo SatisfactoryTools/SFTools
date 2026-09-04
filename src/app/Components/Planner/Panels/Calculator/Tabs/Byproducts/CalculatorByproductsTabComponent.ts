@@ -1,5 +1,6 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -16,7 +17,7 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 	selector: 'calculator-byproducts-tab',
 	templateUrl: './CalculatorByproductsTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, GameIconComponent],
+	imports: [FormsModule, GameIconComponent, InfoNoteComponent],
 })
 export class CalculatorByproductsTabComponent
 {

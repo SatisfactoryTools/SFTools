@@ -75,6 +75,39 @@
 			</div>
 		</div>
 
+		<h6 class="mb-2">Size</h6>
+		<div class="row g-3 mb-2">
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="node-scale">Node scale</label>
+				<select
+					id="node-scale"
+					class="form-select"
+					[ngModel]="graph.nodeScale"
+					(ngModelChange)="setNodeScale($event)"
+				>
+					@for (option of scaleOptions; track option.value) {
+						<option [ngValue]="option.value">{{ option.label }}</option>
+					}
+				</select>
+				<div class="form-text">Nodes, their text and icons - and the connection ports - grow or shrink together.</div>
+			</div>
+			<div class="col-12 col-lg-6">
+				<label class="form-label" for="edge-scale">Edge label scale</label>
+				<select
+					id="edge-scale"
+					class="form-select"
+					[ngModel]="graph.edgeScale"
+					(ngModelChange)="setEdgeScale($event)"
+				>
+					@for (option of scaleOptions; track option.value) {
+						<option [ngValue]="option.value">{{ option.label }}</option>
+					}
+				</select>
+				<div class="form-text">The item name, rate and icon boxes on the edges.</div>
+			</div>
+		</div>
+		<div class="form-text mb-4">Already laid-out graphs keep their positions until re-laid out (the Re-layout button in the planner) - larger nodes may overlap until then.</div>
+
 		<h6 class="mb-2">Node colours</h6>
 		<div class="row g-2">
 			@for (type of nodeTypes; track type.key) {

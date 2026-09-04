@@ -1,19 +1,28 @@
+@if (readOnly()) {
+	<div class="px-2 pt-2">
+		<info-note>Shared plan - read-only. Values are shown, editing is disabled.</info-note>
+	</div>
+}
 @if (selectedNodes().length === 0) {
-	<div class="p-3 text-secondary">
-		Select a node on the canvas to inspect it.
+	<div class="p-2">
+		<info-note>Select a node on the canvas to inspect it.</info-note>
 	</div>
 } @else if (selectedNodes().length > 1) {
-	<div class="p-3 text-secondary">
-		{{ selectedNodes().length }} nodes selected - multi-node editing is coming later.
+	<div class="p-2">
+		<info-note>{{ selectedNodes().length }} nodes selected - multi-node editing is coming later.</info-note>
 	</div>
 } @else if (singleRecipeNode(); as node) {
-	<recipe-node-editor [node]="node"></recipe-node-editor>
+	<fieldset class="border-0 p-0 m-0" [disabled]="readOnly()">
+		<recipe-node-editor [node]="node"></recipe-node-editor>
+	</fieldset>
 } @else if (singleSubplanNode(); as node) {
 	<subplan-node-view [node]="node"></subplan-node-view>
 } @else if (singleAmountNode(); as node) {
-	<amount-node-editor [node]="node"></amount-node-editor>
+	<fieldset class="border-0 p-0 m-0" [disabled]="readOnly()">
+		<amount-node-editor [node]="node"></amount-node-editor>
+	</fieldset>
 } @else {
-	<div class="p-3 text-secondary">
-		Editing this node type is coming later.
+	<div class="p-2">
+		<info-note>Editing this node type is coming later.</info-note>
 	</div>
 }

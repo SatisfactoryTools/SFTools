@@ -1,9 +1,10 @@
-import {Component, ChangeDetectionStrategy, computed, signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, computed, signal, ElementRef, ViewChild} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {Router} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faDiagramProject, faFolder} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {SearchFragmentsComponent} from '@src/Components/Common/SearchFragmentsComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {SearchResult} from '@src/Model/Search/SearchResult';
@@ -14,8 +15,10 @@ import {SearchService} from '@src/Model/Search/SearchService';
 	selector: 'navbar-search',
 	templateUrl: './NavbarSearchComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, GameIconComponent],
+	imports: [FormsModule, FaIconComponent, GameIconComponent, SearchFragmentsComponent],
 	styles: `
+		/* Fills the room the navbar gives it: the 360px flex slot on desktop, the full menu width on phones. */
+		:host { display: block; }
 		.search-result {
 			background: transparent;
 			color: var(--bs-body-color);
@@ -38,6 +41,8 @@ export class NavbarSearchComponent
 
 	public showResults = false;
 
+	@ViewChild('searchInput') private searchInput: ElementRef<HTMLInputElement> | undefined;
+
 	public readonly groups = computed(() => this.searchService.search(this.querySignal()));
 	public readonly flatResults = computed(() => this.groups().flatMap(group => group.results));
 
@@ -59,6 +64,12 @@ export class NavbarSearchComponent
 		private readonly router: Router,
 	)
 	{
+	}
+
+	/** Puts the caret into the search box (the navbar's search shortcut on phones). */
+	public focus(): void
+	{
+		this.searchInput?.nativeElement.focus();
 	}
 
 	protected onFocus(): void

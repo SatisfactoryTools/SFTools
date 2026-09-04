@@ -1,10 +1,14 @@
 import {Component, ChangeDetectionStrategy, Signal, computed, signal} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
+import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {PowerDrawComponent} from '@src/Components/Common/PowerDrawComponent';
 import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
 import {PowerBreakdown} from '@src/Model/Planner/Breakdown/PowerBreakdown';
 import {PowerRow} from '@src/Model/Planner/Breakdown/PowerRow';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
 /**
@@ -17,7 +21,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'planner-power',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPowerComponent.html',
-	imports: [FaIconComponent],
+	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, PowerDrawComponent],
 })
 export class PlannerPowerComponent
 {
@@ -75,32 +79,15 @@ export class PlannerPowerComponent
 		this.expandedKeysSignal.set(keys);
 	}
 
-	/** Consumption reads plain, production as an explicit gain ("+150 MW"); float noise reads as zero. */
-	public powerText(megawatts: number): string
+	/** A negative balance is (net) production - shown green; float noise reads as zero. */
+	public isProduction(power: PowerDraw): boolean
 	{
-		if (this.rateFormatter.isZero(megawatts)) {
-			return this.rateFormatter.power(0);
-		}
-		return megawatts < 0
-			? `+${this.rateFormatter.power(-megawatts)}`
-			: this.rateFormatter.power(megawatts);
-	}
-
-	public isProduction(megawatts: number): boolean
-	{
-		return megawatts < 0 && !this.rateFormatter.isZero(megawatts);
-	}
-
-	public netText(): string
-	{
-		const breakdown = this.breakdown();
-		return this.powerText(breakdown.consumption - breakdown.production);
+		return power.average < 0 && !this.rateFormatter.isZero(power.average);
 	}
 
 	public netIsSurplus(): boolean
 	{
-		const breakdown = this.breakdown();
-		return this.isProduction(breakdown.consumption - breakdown.production);
+		return this.isProduction(this.breakdown().net.negate());
 	}
 
 	private filterRows(rows: PowerRow[], term: string): PowerRow[]

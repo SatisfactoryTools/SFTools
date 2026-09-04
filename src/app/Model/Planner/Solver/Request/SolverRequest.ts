@@ -27,6 +27,8 @@ export interface SolverRequest
 	defaultClockSpeed: number;
 	/** Per-recipe clock-speed overrides in percent, keyed by recipe class name. */
 	recipeClockSpeeds: Record<string, number>;
+	/** Per-machine clock-speed overrides in percent, keyed by machine class name; a recipe override wins. */
+	machineClockSpeeds: Record<string, number>;
 	/** Per-minute mining caps by raw resource class; absent entry = unlimited. */
 	resourceLimits: Record<string, number>;
 	/** Generator + fuel combinations the solver may burn for power. */

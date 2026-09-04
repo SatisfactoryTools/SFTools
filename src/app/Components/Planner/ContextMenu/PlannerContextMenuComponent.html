@@ -1,9 +1,12 @@
 @if (contextMenu.menu(); as menu) {
 	<div
+		#menuElement
 		class="dropdown-menu show shadow"
-		style="position: fixed; z-index: 1050; min-width: 180px;"
+		style="position: fixed; z-index: 1050; min-width: 180px; overflow-y: auto;"
 		[style.left.px]="left"
 		[style.top.px]="top"
+		[style.max-height.px]="maxHeight"
+		[style.visibility]="size() ? 'visible' : 'hidden'"
 	>
 		@if (menu.getTitle(); as title) {
 			<h6 class="dropdown-header">{{ title }}</h6>

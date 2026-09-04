@@ -11,4 +11,11 @@ export interface PlanMetadata
 	 */
 	readonly achievedMaximums?: Record<string, number>;
 
+	/**
+	 * The plan's solver inputs changed behind its back - a folder pushed new
+	 * fixed settings, or another plan's mining changed its pooled share - and
+	 * the stored graph no longer reflects them. Cleared by a successful solve.
+	 */
+	readonly recalculationNeeded?: boolean;
+
 }

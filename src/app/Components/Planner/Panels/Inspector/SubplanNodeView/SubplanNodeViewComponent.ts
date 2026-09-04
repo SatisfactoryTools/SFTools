@@ -1,4 +1,6 @@
 import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
+import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
@@ -13,6 +15,7 @@ import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 	selector: 'subplan-node-view',
 	templateUrl: './SubplanNodeViewComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
+	imports: [GameIconComponent, InfoNoteComponent],
 })
 export class SubplanNodeViewComponent
 {

@@ -1,13 +1,14 @@
 import {Component, ChangeDetectionStrategy, EventEmitter, Input, Output} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faCheck, faCopy} from '@fortawesome/free-solid-svg-icons';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 
 /** Modal showing a freshly created share link with a copy-to-clipboard button. */
 @Component({
 	selector: 'share-link-dialog',
 	templateUrl: './ShareLinkDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent],
+	imports: [FaIconComponent, InfoNoteComponent],
 	styles: `
 		.share-backdrop {
 			position: fixed;

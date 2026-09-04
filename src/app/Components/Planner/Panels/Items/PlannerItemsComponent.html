@@ -1,9 +1,7 @@
 <div class="p-2 d-flex flex-column gap-2">
 
 	@if (!hasRows()) {
-		<p class="text-secondary mb-0">
-			{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its item flows.' }}
-		</p>
+		<info-note>{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its item flows.' }}</info-note>
 	} @else {
 		<input
 			type="search"
@@ -13,19 +11,18 @@
 			(input)="setSearchTerm($any($event.target).value)"
 		/>
 
-		<table class="table table-dark table-sm table-hover align-middle mb-0">
+		<table class="table table-dark table-sm table-hover align-middle mb-0 table-stack-sm">
 			<thead>
 				<tr>
 					<th>Item</th>
 					<th class="text-end" style="width: 105px;">Sources</th>
 					<th class="text-end" style="width: 105px;">Targets</th>
-					<th class="text-end" style="width: 105px;">Net</th>
 				</tr>
 			</thead>
 			<tbody>
 				@for (row of rows(); track row.item.className) {
 					<tr (click)="toggle(row)" style="cursor: pointer;">
-						<td>
+						<td class="stack-full">
 							<div class="d-flex align-items-center gap-1">
 								<fa-icon
 									[icon]="isExpanded(row) ? faChevronDown : faChevronRight"
@@ -36,33 +33,27 @@
 								<span>{{ row.item.name }}</span>
 							</div>
 						</td>
-						<td class="text-end text-success">{{ rateFormatter.rate(row.totalSources, row.item) }}</td>
-						<td class="text-end text-info">{{ rateFormatter.rate(row.totalTargets, row.item) }}</td>
-						<td
-							class="text-end"
-							[class]="isBalanced(row) ? 'text-secondary' : (row.net > 0 ? 'text-success' : 'text-danger')"
-						>{{ netText(row) }}</td>
+						<td class="text-end text-success" data-label="Sources">{{ rateFormatter.rate(row.totalSources, row.item) }}</td>
+						<td class="text-end text-info" data-label="Targets">{{ rateFormatter.rate(row.totalTargets, row.item) }}</td>
 					</tr>
 					@if (isExpanded(row)) {
 						@for (flow of row.sources; track flow.key) {
-							<tr>
-								<td class="ps-4">{{ flow.name }}</td>
+							<tr class="stack-sub">
+								<td class="ps-4 stack-grow">{{ flow.name }}</td>
 								<td class="text-end text-secondary">{{ rateFormatter.rate(flow.amount, row.item) }}</td>
-								<td></td>
 								<td></td>
 							</tr>
 						}
 						@for (flow of row.targets; track flow.key) {
-							<tr>
-								<td class="ps-4">{{ flow.name }}</td>
+							<tr class="stack-sub">
+								<td class="ps-4 stack-grow">{{ flow.name }}</td>
 								<td></td>
 								<td class="text-end text-secondary">{{ rateFormatter.rate(flow.amount, row.item) }}</td>
-								<td></td>
 							</tr>
 						}
 					}
 				} @empty {
-					<tr><td colspan="4" class="text-secondary fst-italic">Nothing matches the filter.</td></tr>
+					<tr><td colspan="3" class="text-secondary fst-italic">Nothing matches the filter.</td></tr>
 				}
 			</tbody>
 		</table>

@@ -1,0 +1,17 @@
+<a [codexLink]="backLink" class="btn btn-sm btn-outline-secondary mb-3"><fa-icon [icon]="faChevronLeft"></fa-icon> {{ backLabel }}</a>
+
+@if (name !== null) {
+	<div class="d-flex align-items-start gap-3 mb-4">
+		@if (icons.length > 0) {
+			<span class="hero-icons">
+				@for (icon of icons; track $index) {
+					<game-icon class="hero-icon" [hash]="icon" [size]="96" [alt]="name"></game-icon>
+				}
+			</span>
+		}
+		<div class="min-w-0">
+			<h2 class="mb-0">{{ name }}</h2>
+			<ng-content/>
+		</div>
+	</div>
+}

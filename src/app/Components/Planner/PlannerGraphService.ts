@@ -9,6 +9,7 @@ import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {Observable, Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {GraphContextMenuRequest} from '@src/Components/Planner/GraphContextMenuRequest';
+import {GraphTouchGestures} from '@src/Components/Planner/GraphTouchGestures';
 import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {PortConnectGesture} from '@src/Components/Planner/PortConnectGesture';
@@ -50,14 +51,19 @@ import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 const NODE_WIDTH = GraphMetrics.NODE_WIDTH;
 const NODE_HEIGHT = GraphMetrics.NODE_HEIGHT;
 
-// Estimated on-screen size of an edge label (12px font, two lines with
-// spacing, padded rect) - declared to ELK so the layout reserves room for
-// each label.
+// Estimated on-screen size of an edge label (item name in 14px bold-ish
+// above the 12px rate, padded rect) - declared to ELK so the layout reserves
+// room for each label. Titles run two sizes above body text everywhere so
+// they stay legible when zoomed out.
 const LABEL_CHAR_WIDTH = 6.8;
+const LABEL_NAME_CHAR_WIDTH = 7.9;
 const LABEL_PADDING_X = 20;
 const LABEL_HEIGHT = 46;
 const LABEL_FONT_SIZE = 12;
-const LABEL_LINE_HEIGHT = 20;
+const LABEL_NAME_FONT_SIZE = 14;
+// Vertical centres of the two label lines relative to the label point.
+const LABEL_NAME_Y = -9;
+const LABEL_RATE_Y = 11;
 
 // The flowing item's icon sits at the left of the edge label; the text is
 // nudged right by half the reserved icon strip so it stays centered in the
@@ -100,19 +106,27 @@ const SUBPLAN_IO_ROW_H = 20;
 const SUBPLAN_IO_TOP = 40;
 
 const NODE_STROKE_WIDTH = 1.5;
+// Base label font sizes of regular nodes (title two sizes above the stat
+// lines) and the ⚠ indicator size; all scale with the node scale setting
+// (see registerPlannerShapes).
+const NODE_FONT_SIZE = 12;
+const NODE_NAME_FONT_SIZE = 14;
+const NODE_NAME_CHAR_WIDTH = 8.75;
+const SUBPLAN_NAME_FONT_SIZE = 18;
+const WARNING_ICON_SIZE = 14;
 
 // Recipe node label layout: recipe name (larger) pinned near the top, the
 // bold built-machine count under it, then one stat line per machine group.
 // The node grows per group row and widens to fit the longest line.
 const RECIPE_NAME_Y = 18;
-const RECIPE_NAME_FONT_SIZE = 14;
+const RECIPE_NAME_FONT_SIZE = 16;
 const RECIPE_MACHINES_Y = 38;
 const RECIPE_STATS_Y = 50;
 const RECIPE_STATS_LINE_HEIGHT = 16;
 const RECIPE_BOTTOM_PADDING = 10;
 const RECIPE_MAX_WIDTH = 360;
 // Estimated character widths per font (12px regular measures ~6.8px).
-const RECIPE_NAME_CHAR_WIDTH = 8.6;
+const RECIPE_NAME_CHAR_WIDTH = 9.8;
 const RECIPE_BOLD_CHAR_WIDTH = 7.5;
 const RECIPE_STATS_CHAR_WIDTH = 6.8;
 const RECIPE_TEXT_PADDING_X = 30;
@@ -141,6 +155,20 @@ const SELECTED_EDGE_STROKE_WIDTH = 2.5;
 const HOVER_NODE_STROKE_WIDTH = 2.5;
 const HOVER_EDGE_STROKE = '#8ea9c9';
 const HOVER_EDGE_STROKE_WIDTH = 2.5;
+const LABEL_BOX_FILL = '#141c28';
+const LABEL_BOX_STROKE = '#2e3d52';
+const LABEL_BOX_STROKE_WIDTH = 1;
+// A highlighted edge echoes its color on the label box border; the border
+// stays thin so the label reads dimmer than the thick selected-node outline.
+const LABEL_BOX_HIGHLIGHT_STROKE_WIDTH = 1.5;
+// Highlighted cells jump above the rest of the graph so dense plans don't
+// bury them behind unrelated nodes and labels. Edges sit above the raised
+// nodes (matching the base nodes-then-edges order) and the in-flight connect
+// preview stays on top of everything. Base z-indexes are auto-assigned in
+// insertion order, so these must clear any realistic cell count.
+const NODE_HIGHLIGHT_Z = 100000;
+const EDGE_HIGHLIGHT_Z = 100001;
+const CONNECT_PREVIEW_Z = 100002;
 
 // Connection ports: one grip per distinct IO item - inputs along one node
 // edge, outputs along the opposite one (which pair depends on the layout
@@ -155,159 +183,178 @@ const CONNECT_SNAP_RADIUS = 30;
 
 // One somersloop badge slot per possible machine-group stat line; positioned
 // and shown per node in recipeSloopBadges(), invisible (no href) otherwise.
-const statSloopMarkup = [];
-const statSloopAttrs: Record<string, object> = {};
+const statSloopMarkup: {tagName: string; selector: string}[] = [];
 for (let i = 0; i < STAT_SLOOP_MAX_LINES; i++) {
 	statSloopMarkup.push({tagName: 'image', selector: `statSloop${i}`});
-	statSloopAttrs[`statSloop${i}`] = {refX: 0.5, refY: 0, width: STAT_SLOOP_SIZE, height: STAT_SLOOP_SIZE};
 }
-
-X6Graph.registerNode('planner-node', {
-	inherit: 'rect',
-	markup: [
-		{tagName: 'rect', selector: 'body'},
-		{tagName: 'text', selector: 'name'},
-		{tagName: 'text', selector: 'machines'},
-		{tagName: 'text', selector: 'stats'},
-		...statSloopMarkup,
-		{tagName: 'image', selector: 'machineIcon', className: 'pn-machine'},
-		{tagName: 'image', selector: 'sloop', className: 'pn-sloop'},
-		{tagName: 'image', selector: 'lock', className: 'pn-lock'},
-		{tagName: 'image', selector: 'done', className: 'pn-done'},
-		{tagName: 'image', selector: 'inputWarning', className: 'pn-input-warning'},
-		{tagName: 'image', selector: 'outputWarning', className: 'pn-output-warning'},
-		{tagName: 'image', selector: 'capacityWarning', className: 'pn-capacity-warning'},
-	],
-	attrs: {
-		body: {refWidth: '100%', refHeight: '100%'},
-		...statSloopAttrs,
-		machineIcon: {
-			refX: 0,
-			x: CORNER_INSET,
-			refY: 0,
-			y: CORNER_INSET,
-			width: NODE_ICON_SIZE,
-			height: NODE_ICON_SIZE,
-		},
-		// Top-right, top row; a slooped recipe node shows the sloop here.
-		// refDx offsets from the right edge (refX: 1 is read as an absolute 1px).
-		sloop: {
-			refDx: -(SLOOP_ICON_SIZE + CORNER_INSET),
-			refY: 0,
-			y: CORNER_INSET,
-			width: SLOOP_ICON_SIZE,
-			height: SLOOP_ICON_SIZE,
-			cursor: 'help',
-		},
-		// Top-right; drops to the second row (its y is set per node) when a sloop icon is present.
-		lock: {
-			refDx: -(LOCK_ICON_SIZE + CORNER_INSET),
-			refY: 0,
-			y: CORNER_INSET,
-			width: LOCK_ICON_SIZE,
-			height: LOCK_ICON_SIZE,
-			cursor: 'help',
-		},
-		// Bottom-right; the capacity warning yields (shifts left) when both show.
-		done: {
-			refDx: -(DONE_ICON_SIZE + CORNER_INSET),
-			refDy: -(DONE_ICON_SIZE + CORNER_INSET),
-			width: DONE_ICON_SIZE,
-			height: DONE_ICON_SIZE,
-		},
-		inputWarning: {
-			refX: 0,
-			x: CORNER_INSET,
-			refY: 0.5,
-			y: -7,
-			width: 14,
-			height: 14,
-			cursor: 'help',
-		},
-		outputWarning: {
-			refDx: -(14 + CORNER_INSET),
-			refY: 0.5,
-			y: -7,
-			width: 14,
-			height: 14,
-			cursor: 'help',
-		},
-		// Bottom-right, clear of the top-right lock/sloop stack.
-		capacityWarning: {
-			refDx: -(14 + CORNER_INSET),
-			refDy: -(14 + CORNER_INSET),
-			width: 14,
-			height: 14,
-			cursor: 'help',
-		},
-		name: {
-			refX: 0.5,
-			refY: '38%',
-			textAnchor: 'middle',
-			textVerticalAnchor: 'middle',
-			fontWeight: 'bold',
-			fontSize: 12,
-			fill: '#dde4ef',
-		},
-		machines: {
-			refX: 0.5,
-			refY: RECIPE_MACHINES_Y,
-			textAnchor: 'middle',
-			textVerticalAnchor: 'middle',
-			fontWeight: 'bold',
-			fontSize: 12,
-			fill: '#c8d3e4',
-		},
-		stats: {
-			refX: 0.5,
-			refY: '72%',
-			textAnchor: 'middle',
-			textVerticalAnchor: 'middle',
-			fontSize: 12,
-			fill: '#aab8cc',
-		},
-	},
-}, true);
 
 // Subplan nodes get their own shape: a title, an in/out summary line, and two
 // single-column stacks of item icons - inputs on the left edge, outputs on the
 // right - each capped at SUBPLAN_IO_MAX rows with the last row an "+N" overflow.
-const subplanIoMarkup = [];
-const subplanIoAttrs: Record<string, object> = {};
+const subplanIoMarkup: {tagName: string; selector: string}[] = [];
 for (let i = 0; i < SUBPLAN_IO_MAX; i++) {
 	subplanIoMarkup.push({tagName: 'image', selector: `in${i}`});
 	subplanIoMarkup.push({tagName: 'image', selector: `out${i}`});
-	const y = SUBPLAN_IO_TOP + i * SUBPLAN_IO_ROW_H;
-	subplanIoAttrs[`in${i}`] = {refX: 0, x: 10, refY: 0, y, width: SUBPLAN_IO_ICON, height: SUBPLAN_IO_ICON};
-	subplanIoAttrs[`out${i}`] = {refDx: -(SUBPLAN_IO_ICON + 10), refY: 0, y, width: SUBPLAN_IO_ICON, height: SUBPLAN_IO_ICON};
 }
 const SUBPLAN_MORE_Y = SUBPLAN_IO_TOP + (SUBPLAN_IO_MAX - 1) * SUBPLAN_IO_ROW_H + SUBPLAN_IO_ICON / 2;
 
-X6Graph.registerNode('planner-subplan-node', {
-	inherit: 'rect',
-	markup: [
-		{tagName: 'rect', selector: 'body'},
-		{tagName: 'text', selector: 'name'},
-		{tagName: 'text', selector: 'stats'},
-		...subplanIoMarkup,
-		{tagName: 'text', selector: 'inMore'},
-		{tagName: 'text', selector: 'outMore'},
-		{tagName: 'image', selector: 'lock', className: 'pn-lock'},
-		{tagName: 'image', selector: 'done', className: 'pn-done'},
-	],
-	attrs: {
-		body: {refWidth: '100%', refHeight: '100%'},
-		// Name and stats sit vertically centered between the IO icon columns,
-		// sized up to match the node being larger than regular ones.
-		name: {refX: 0.5, refY: 0.5, y: -10, textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fontSize: 16, fill: '#dde4ef'},
-		stats: {refX: 0.5, refY: 0.5, y: 12, textAnchor: 'middle', textVerticalAnchor: 'middle', fontSize: 13, fill: '#aab8cc'},
-		...subplanIoAttrs,
-		inMore: {refX: 0, x: 10, refY: 0, y: SUBPLAN_MORE_Y, textAnchor: 'start', textVerticalAnchor: 'middle', fontSize: 11, fill: '#aab8cc'},
-		outMore: {refDx: -10, refY: 0, y: SUBPLAN_MORE_Y, textAnchor: 'end', textVerticalAnchor: 'middle', fontSize: 11, fill: '#aab8cc'},
-		lock: {refDx: -(LOCK_ICON_SIZE + CORNER_INSET), refY: 0, y: CORNER_INSET, width: LOCK_ICON_SIZE, height: LOCK_ICON_SIZE, cursor: 'help'},
-		done: {refDx: -(DONE_ICON_SIZE + CORNER_INSET), refDy: -(DONE_ICON_SIZE + CORNER_INSET), width: DONE_ICON_SIZE, height: DONE_ICON_SIZE},
-	},
-}, true);
+/**
+ * (Re)registers the node shapes at the given node scale: every static size
+ * and offset in the shape attrs is multiplied, so a node, its text and its
+ * icons grow together (the per-node attrs set in addNode scale the same way).
+ * Registered once at load and again whenever the scale setting changes.
+ */
+function registerPlannerShapes(scale: number): void
+{
+	const px = (value: number): number => value * scale;
+
+	const statSloopAttrs: Record<string, object> = {};
+	for (let i = 0; i < STAT_SLOOP_MAX_LINES; i++) {
+		statSloopAttrs[`statSloop${i}`] = {refX: 0.5, refY: 0, width: px(STAT_SLOOP_SIZE), height: px(STAT_SLOOP_SIZE)};
+	}
+
+	X6Graph.registerNode('planner-node', {
+		inherit: 'rect',
+		markup: [
+			{tagName: 'rect', selector: 'body'},
+			{tagName: 'text', selector: 'name'},
+			{tagName: 'text', selector: 'machines'},
+			{tagName: 'text', selector: 'stats'},
+			...statSloopMarkup,
+			{tagName: 'image', selector: 'machineIcon', className: 'pn-machine'},
+			{tagName: 'image', selector: 'sloop', className: 'pn-sloop'},
+			{tagName: 'image', selector: 'lock', className: 'pn-lock'},
+			{tagName: 'image', selector: 'done', className: 'pn-done'},
+			{tagName: 'image', selector: 'inputWarning', className: 'pn-input-warning'},
+			{tagName: 'image', selector: 'outputWarning', className: 'pn-output-warning'},
+			{tagName: 'image', selector: 'capacityWarning', className: 'pn-capacity-warning'},
+		],
+		attrs: {
+			body: {refWidth: '100%', refHeight: '100%'},
+			...statSloopAttrs,
+			machineIcon: {
+				refX: 0,
+				x: px(CORNER_INSET),
+				refY: 0,
+				y: px(CORNER_INSET),
+				width: px(NODE_ICON_SIZE),
+				height: px(NODE_ICON_SIZE),
+			},
+			// Top-right, top row; a slooped recipe node shows the sloop here.
+			// refDx offsets from the right edge (refX: 1 is read as an absolute 1px).
+			sloop: {
+				refDx: -px(SLOOP_ICON_SIZE + CORNER_INSET),
+				refY: 0,
+				y: px(CORNER_INSET),
+				width: px(SLOOP_ICON_SIZE),
+				height: px(SLOOP_ICON_SIZE),
+				cursor: 'help',
+			},
+			// Top-right; drops to the second row (its y is set per node) when a sloop icon is present.
+			lock: {
+				refDx: -px(LOCK_ICON_SIZE + CORNER_INSET),
+				refY: 0,
+				y: px(CORNER_INSET),
+				width: px(LOCK_ICON_SIZE),
+				height: px(LOCK_ICON_SIZE),
+				cursor: 'help',
+			},
+			// Bottom-right; the capacity warning yields (shifts left) when both show.
+			done: {
+				refDx: -px(DONE_ICON_SIZE + CORNER_INSET),
+				refDy: -px(DONE_ICON_SIZE + CORNER_INSET),
+				width: px(DONE_ICON_SIZE),
+				height: px(DONE_ICON_SIZE),
+			},
+			inputWarning: {
+				refX: 0,
+				x: px(CORNER_INSET),
+				refY: 0.5,
+				y: -px(WARNING_ICON_SIZE / 2),
+				width: px(WARNING_ICON_SIZE),
+				height: px(WARNING_ICON_SIZE),
+				cursor: 'help',
+			},
+			outputWarning: {
+				refDx: -px(WARNING_ICON_SIZE + CORNER_INSET),
+				refY: 0.5,
+				y: -px(WARNING_ICON_SIZE / 2),
+				width: px(WARNING_ICON_SIZE),
+				height: px(WARNING_ICON_SIZE),
+				cursor: 'help',
+			},
+			// Bottom-right, clear of the top-right lock/sloop stack.
+			capacityWarning: {
+				refDx: -px(WARNING_ICON_SIZE + CORNER_INSET),
+				refDy: -px(WARNING_ICON_SIZE + CORNER_INSET),
+				width: px(WARNING_ICON_SIZE),
+				height: px(WARNING_ICON_SIZE),
+				cursor: 'help',
+			},
+			name: {
+				refX: 0.5,
+				refY: '38%',
+				textAnchor: 'middle',
+				textVerticalAnchor: 'middle',
+				fontWeight: 'bold',
+				fontSize: px(NODE_NAME_FONT_SIZE),
+				fill: '#dde4ef',
+			},
+			machines: {
+				refX: 0.5,
+				refY: px(RECIPE_MACHINES_Y),
+				textAnchor: 'middle',
+				textVerticalAnchor: 'middle',
+				fontWeight: 'bold',
+				fontSize: px(NODE_FONT_SIZE),
+				fill: '#c8d3e4',
+			},
+			stats: {
+				refX: 0.5,
+				refY: '72%',
+				textAnchor: 'middle',
+				textVerticalAnchor: 'middle',
+				fontSize: px(NODE_FONT_SIZE),
+				fill: '#aab8cc',
+			},
+		},
+	}, true);
+
+	const subplanIoAttrs: Record<string, object> = {};
+	for (let i = 0; i < SUBPLAN_IO_MAX; i++) {
+		const y = px(SUBPLAN_IO_TOP + i * SUBPLAN_IO_ROW_H);
+		subplanIoAttrs[`in${i}`] = {refX: 0, x: px(10), refY: 0, y, width: px(SUBPLAN_IO_ICON), height: px(SUBPLAN_IO_ICON)};
+		subplanIoAttrs[`out${i}`] = {refDx: -px(SUBPLAN_IO_ICON + 10), refY: 0, y, width: px(SUBPLAN_IO_ICON), height: px(SUBPLAN_IO_ICON)};
+	}
+
+	X6Graph.registerNode('planner-subplan-node', {
+		inherit: 'rect',
+		markup: [
+			{tagName: 'rect', selector: 'body'},
+			{tagName: 'text', selector: 'name'},
+			{tagName: 'text', selector: 'stats'},
+			...subplanIoMarkup,
+			{tagName: 'text', selector: 'inMore'},
+			{tagName: 'text', selector: 'outMore'},
+			{tagName: 'image', selector: 'lock', className: 'pn-lock'},
+			{tagName: 'image', selector: 'done', className: 'pn-done'},
+		],
+		attrs: {
+			body: {refWidth: '100%', refHeight: '100%'},
+			// Name and stats sit vertically centered between the IO icon columns,
+			// sized up to match the node being larger than regular ones.
+			name: {refX: 0.5, refY: 0.5, y: px(-10), textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fontSize: px(SUBPLAN_NAME_FONT_SIZE), fill: '#dde4ef'},
+			stats: {refX: 0.5, refY: 0.5, y: px(12), textAnchor: 'middle', textVerticalAnchor: 'middle', fontSize: px(13), fill: '#aab8cc'},
+			...subplanIoAttrs,
+			inMore: {refX: 0, x: px(10), refY: 0, y: px(SUBPLAN_MORE_Y), textAnchor: 'start', textVerticalAnchor: 'middle', fontSize: px(11), fill: '#aab8cc'},
+			outMore: {refDx: px(-10), refY: 0, y: px(SUBPLAN_MORE_Y), textAnchor: 'end', textVerticalAnchor: 'middle', fontSize: px(11), fill: '#aab8cc'},
+			lock: {refDx: -px(LOCK_ICON_SIZE + CORNER_INSET), refY: 0, y: px(CORNER_INSET), width: px(LOCK_ICON_SIZE), height: px(LOCK_ICON_SIZE), cursor: 'help'},
+			done: {refDx: -px(DONE_ICON_SIZE + CORNER_INSET), refDy: -px(DONE_ICON_SIZE + CORNER_INSET), width: px(DONE_ICON_SIZE), height: px(DONE_ICON_SIZE)},
+		},
+	}, true);
+}
+
+registerPlannerShapes(1);
 
 /** lock/done/inputWarning/outputWarning/capacityWarning carry icon data URIs; empty string hides the icon. */
 interface NodeStyle {
@@ -336,6 +383,9 @@ export class PlannerGraphService implements OnDestroy
 	public readOnly = false;
 
 	private x6Graph: X6Graph | null = null;
+	private touchGestures: GraphTouchGestures | null = null;
+	/** Set when our long-press gesture opened a menu; a native contextmenu arriving right after is the same press. */
+	private suppressNativeContextMenuUntil = 0;
 	private selection: Selection | null = null;
 	private cornerPreview: SVGCircleElement | null = null;
 	private hoveredEdgeView: EdgeView | null = null;
@@ -343,6 +393,17 @@ export class PlannerGraphService implements OnDestroy
 	private readonly edgeHoverListener: (e: MouseEvent) => void;
 	private readonly warningOverListener: (e: MouseEvent) => void;
 	private readonly warningOutListener: (e: MouseEvent) => void;
+	/** Hides the hover tooltip when the window loses focus or the pointer leaves the canvas. */
+	private readonly tooltipDismissListener: () => void;
+	/**
+	 * The port/indicator element the visible tooltip belongs to. Alt-tabbing
+	 * away loses the browser's hover state, so the element's mouseout never
+	 * fires afterwards - onEdgeHoverMove hides the tooltip once the pointer
+	 * is seen anywhere else instead.
+	 */
+	private tooltipAnchor: Element | null = null;
+	/** Node scale the shapes are currently registered at (see registerPlannerShapes). */
+	private registeredScale = 1;
 
 	/** Local-coordinate start of a shift+rubberband gesture, null outside one. */
 	private rubberbandStart: GraphPoint | null = null;
@@ -358,6 +419,11 @@ export class PlannerGraphService implements OnDestroy
 	/** Ids of done nodes in the rendered graph - edges between two of them render faded. */
 	private doneNodeIds = new Set<string>();
 	private readonly edgeById = new Map<string, GraphEdge>();
+	/** Auto-assigned z-index of each currently raised cell, to drop it back on unhighlight. */
+	private readonly baseZIndexById = new Map<string, number>();
+	/** Z-index changes queued for the next animation frame (see scheduleZChange); null restores. */
+	private readonly pendingZChanges = new Map<string, {cell: Cell; zIndex: number | null}>();
+	private zChangeScheduled = false;
 	/** Per-edge sideways anchor shift separating straight edges that share a node pair. */
 	private parallelOffsets = new Map<GraphEdge, GraphPoint>();
 
@@ -418,6 +484,7 @@ export class PlannerGraphService implements OnDestroy
 		this.edgeHoverListener = e => this.onEdgeHoverMove(e);
 		this.warningOverListener = e => this.onWarningHover(e);
 		this.warningOutListener = e => this.onWarningOut(e);
+		this.tooltipDismissListener = () => this.hideTooltip();
 		// A gesture is one burst of vertex changes; the same quiet gap that
 		// triggers the debounced save also closes the gesture.
 		this.gestureResetSubscription = this.graphChangedSubject.pipe(debounceTime(500)).subscribe(() => {
@@ -549,7 +616,7 @@ export class PlannerGraphService implements OnDestroy
 
 	public clear(): void
 	{
-		this.nodeTooltip.hide();
+		this.hideTooltip();
 		this.hideCornerPreview();
 		this.clearVertexSelection();
 		this.vertexDragAnchorId = null;
@@ -561,6 +628,8 @@ export class PlannerGraphService implements OnDestroy
 		this.hoverMoveTarget?.removeEventListener('mousemove', this.edgeHoverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseover', this.warningOverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseout', this.warningOutListener);
+		this.hoverMoveTarget?.removeEventListener('mouseleave', this.tooltipDismissListener);
+		window.removeEventListener('blur', this.tooltipDismissListener);
 		this.hoverMoveTarget = null;
 		this.x6Graph?.dispose();
 		this.x6Graph = null;
@@ -674,16 +743,24 @@ export class PlannerGraphService implements OnDestroy
 	public ngOnDestroy(): void
 	{
 		this.gestureResetSubscription.unsubscribe();
+		this.touchGestures?.detach();
+		this.touchGestures = null;
 		this.clear();
 	}
 
 	private createGraph(container: HTMLElement): X6Graph
 	{
-		this.nodeTooltip.hide();
+		this.hideTooltip();
+		if (this.nodeScale() !== this.registeredScale) {
+			registerPlannerShapes(this.nodeScale());
+			this.registeredScale = this.nodeScale();
+		}
 		this.hideCornerPreview();
 		this.clearVertexSelection();
 		this.vertexDragAnchorId = null;
 		this.hoveredEdgeView = null;
+		this.touchGestures?.detach();
+		this.touchGestures = null;
 		this.x6Graph?.dispose();
 
 		const x6Graph = new X6Graph({
@@ -735,36 +812,56 @@ export class PlannerGraphService implements OnDestroy
 		x6Graph.on('selection:changed', ({selected}) => this.onSelectionChanged(x6Graph, selected));
 		x6Graph.on('node:contextmenu', ({e, x, y, node}) => {
 			e.preventDefault();
-			this.onNodeContextMenu(e.clientX ?? 0, e.clientY ?? 0, {x, y}, node);
+			if (!this.isNativeContextMenuSuppressed()) {
+				this.onNodeContextMenu(e.clientX ?? 0, e.clientY ?? 0, {x, y}, node);
+			}
 		});
 		x6Graph.on('blank:contextmenu', ({e, x, y}) => {
 			e.preventDefault();
-			this.onBlankContextMenu(e.clientX ?? 0, e.clientY ?? 0, {x, y});
+			if (!this.isNativeContextMenuSuppressed()) {
+				this.onBlankContextMenu(e.clientX ?? 0, e.clientY ?? 0, {x, y});
+			}
 		});
 		x6Graph.on('edge:contextmenu', ({e, x, y, edge}) => {
 			e.preventDefault();
-			const modelEdge = this.edgeById.get(edge.id);
-			if (modelEdge) {
-				this.selection?.clean();
-				this.clearVertexSelection();
-				this.contextMenuSubject.next({clientX: e.clientX ?? 0, clientY: e.clientY ?? 0, local: {x, y}, nodes: [], edge: modelEdge});
+			if (!this.isNativeContextMenuSuppressed()) {
+				this.onEdgeContextMenu(e.clientX ?? 0, e.clientY ?? 0, {x, y}, edge);
 			}
 		});
-		x6Graph.on('node:dblclick', ({node}) => {
-			const modelNode = this.nodeById.get(node.id);
-			if (!modelNode) {
-				return;
-			}
-			// Subplans open their inner plan; every other node opens the inspector.
-			if (modelNode instanceof SubplanNode) {
-				this.actions.requestSubplanOpen(modelNode.subplanId);
-			} else {
-				this.selectNodeById(modelNode.id);
-				// focusPanel, not openPanel: an already-open inspector hidden
-				// behind another tab on its side must still come to the front.
-				this.panelLayout.focusPanel('inspector');
-			}
+		// Double-clicking empty canvas adds a node there, like the blank
+		// context menu's "Add node…" (read-only graphs cannot add anything).
+		x6Graph.on('blank:dblclick', ({x, y}) => this.onBlankDoubleClick({x, y}));
+		x6Graph.on('node:dblclick', ({node}) => this.onNodeDoubleClick(node));
+
+		this.touchGestures = new GraphTouchGestures(container, {
+			isCellElement: target => x6Graph.findViewByElem(target) !== null,
+			onPan: (dx, dy) => x6Graph.translateBy(dx, dy),
+			onPinch: (factor, clientX, clientY) => {
+				const center = x6Graph.clientToGraph(clientX, clientY);
+				x6Graph.zoom(x6Graph.zoom() * factor, {absolute: true, center, minScale: 0.05, maxScale: 4});
+			},
+			onDoubleTap: (clientX, clientY, target) => {
+				const view = x6Graph.findViewByElem(target);
+				if (view === null) {
+					this.onBlankDoubleClick(x6Graph.clientToLocal(clientX, clientY));
+				} else if (view.cell.isNode()) {
+					this.onNodeDoubleClick(view.cell);
+				}
+			},
+			onLongPress: (clientX, clientY, target) => {
+				this.suppressNativeContextMenuUntil = performance.now() + 1000;
+				const local = x6Graph.clientToLocal(clientX, clientY);
+				const view = x6Graph.findViewByElem(target);
+				if (view === null) {
+					this.onBlankContextMenu(clientX, clientY, local);
+				} else if (view.cell.isNode()) {
+					this.onNodeContextMenu(clientX, clientY, local, view.cell);
+				} else if (view.cell.isEdge()) {
+					this.onEdgeContextMenu(clientX, clientY, local, view.cell);
+				}
+			},
 		});
+		this.touchGestures.attach();
 
 		x6Graph.on('node:mouseenter', ({node}) => this.applyNodeHover(node, true));
 		x6Graph.on('node:mouseleave', ({node}) => this.applyNodeHover(node, false));
@@ -798,9 +895,13 @@ export class PlannerGraphService implements OnDestroy
 		this.hoverMoveTarget?.removeEventListener('mousemove', this.edgeHoverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseover', this.warningOverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseout', this.warningOutListener);
+		this.hoverMoveTarget?.removeEventListener('mouseleave', this.tooltipDismissListener);
+		window.removeEventListener('blur', this.tooltipDismissListener);
 		container.addEventListener('mousemove', this.edgeHoverListener);
 		container.addEventListener('mouseover', this.warningOverListener);
 		container.addEventListener('mouseout', this.warningOutListener);
+		container.addEventListener('mouseleave', this.tooltipDismissListener);
+		window.addEventListener('blur', this.tooltipDismissListener);
 		this.hoverMoveTarget = container;
 
 		// The Selection plugin only understands cells, so edge corners caught
@@ -843,6 +944,8 @@ export class PlannerGraphService implements OnDestroy
 		this.selection = selection;
 		this.selectedNodesSignal.set([]);
 		this.edgeById.clear();
+		this.baseZIndexById.clear();
+		this.pendingZChanges.clear();
 		this.vertexGestureActive = false;
 
 		return x6Graph;
@@ -908,17 +1011,18 @@ export class PlannerGraphService implements OnDestroy
 		// bold line plus stat lines flow below it instead of the default
 		// percentage-based centering. A block shorter than the minimum node
 		// height shifts down to sit vertically centered.
+		const scale = this.nodeScale();
 		const labelOffset = node instanceof RecipeNode || node instanceof SinkNode
 			? this.labelBlockOffset(style.stats, size.height)
 			: 0;
 		const recipeLabelAttrs = node instanceof RecipeNode || node instanceof SinkNode
 			? {
-				name: {refY: RECIPE_NAME_Y + labelOffset, fontSize: RECIPE_NAME_FONT_SIZE},
-				machines: {refY: RECIPE_MACHINES_Y + labelOffset},
+				name: {refY: RECIPE_NAME_Y * scale + labelOffset, fontSize: RECIPE_NAME_FONT_SIZE * scale},
+				machines: {refY: RECIPE_MACHINES_Y * scale + labelOffset},
 				stats: {
-					refY: RECIPE_STATS_Y + labelOffset,
+					refY: RECIPE_STATS_Y * scale + labelOffset,
 					textVerticalAnchor: 'top',
-					lineHeight: RECIPE_STATS_LINE_HEIGHT,
+					lineHeight: RECIPE_STATS_LINE_HEIGHT * scale,
 				},
 			}
 			: {name: {}, machines: {}, stats: {}};
@@ -953,7 +1057,7 @@ export class PlannerGraphService implements OnDestroy
 				...this.recipeSloopBadges(node, textShift, labelOffset, fade),
 				sloop: {...this.iconAttrs(cornerSloop), ...fade},
 				// The lock drops to the second row when the sloop icon holds the top.
-				lock: {...this.iconAttrs(style.lock), y: cornerSloop ? LOCK_ROW2_Y : CORNER_INSET, ...fade},
+				lock: {...this.iconAttrs(style.lock), y: (cornerSloop ? LOCK_ROW2_Y : CORNER_INSET) * scale, ...fade},
 				done: this.iconAttrs(style.done),
 				inputWarning: {...this.iconAttrs(style.inputWarning), ...fade},
 				outputWarning: {...this.iconAttrs(style.outputWarning), ...fade},
@@ -961,7 +1065,7 @@ export class PlannerGraphService implements OnDestroy
 				// done check - it steps left when both are shown.
 				capacityWarning: {
 					...this.iconAttrs(style.capacityWarning),
-					...(node.done ? {refDx: -(14 + CORNER_INSET + DONE_ICON_SIZE + 4)} : {}),
+					...(node.done ? {refDx: -(WARNING_ICON_SIZE + CORNER_INSET + DONE_ICON_SIZE + 4) * scale} : {}),
 					...fade,
 				},
 			},
@@ -1010,18 +1114,20 @@ export class PlannerGraphService implements OnDestroy
 		const shown = !show ? 0 : (ios.length <= SUBPLAN_IO_MAX ? ios.length : SUBPLAN_IO_MAX - 1);
 		const more = show ? ios.length - shown : 0;
 		const rows = shown + (more > 0 ? 1 : 0);
-		const top = Math.max(0, (GraphMetrics.SUBPLAN_NODE_HEIGHT - rows * SUBPLAN_IO_ROW_H) / 2);
+		const scale = this.nodeScale();
+		const rowHeight = SUBPLAN_IO_ROW_H * scale;
+		const top = Math.max(0, (GraphMetrics.SUBPLAN_NODE_HEIGHT * scale - rows * rowHeight) / 2);
 		for (let i = 0; i < SUBPLAN_IO_MAX; i++) {
 			const io = i < shown ? ios[i] : null;
 			attrs[`${prefix}${i}`] = {
 				...this.iconAttrs(io ? (this.iconUrls.url(io.item.icon, 64) ?? '') : ''),
-				y: top + i * SUBPLAN_IO_ROW_H,
+				y: top + i * rowHeight,
 			};
 		}
 		attrs[`${prefix}More`] = {
 			text: more > 0 ? `+${more}` : '',
 			display: more > 0 ? 'inline' : 'none',
-			y: top + shown * SUBPLAN_IO_ROW_H + SUBPLAN_IO_ICON / 2,
+			y: top + shown * rowHeight + SUBPLAN_IO_ICON * scale / 2,
 		};
 	}
 
@@ -1042,9 +1148,10 @@ export class PlannerGraphService implements OnDestroy
 			{tagName: 'circle', selector: 'portBody'},
 			{tagName: 'image', selector: 'portIcon'},
 		];
+		const scale = this.nodeScale();
 		const attrs = {
 			portBody: {
-				r: PORT_RADIUS,
+				r: PORT_RADIUS * scale,
 				magnet: true,
 				fill: PORT_FILL,
 				stroke: PORT_STROKE,
@@ -1052,10 +1159,10 @@ export class PlannerGraphService implements OnDestroy
 				class: 'pg-port',
 			},
 			portIcon: {
-				width: PORT_ICON_SIZE,
-				height: PORT_ICON_SIZE,
-				x: -PORT_ICON_SIZE / 2,
-				y: -PORT_ICON_SIZE / 2,
+				width: PORT_ICON_SIZE * scale,
+				height: PORT_ICON_SIZE * scale,
+				x: -PORT_ICON_SIZE * scale / 2,
+				y: -PORT_ICON_SIZE * scale / 2,
 				class: 'pg-port pg-port-icon',
 			},
 		};
@@ -1127,7 +1234,7 @@ export class PlannerGraphService implements OnDestroy
 		}
 		const info = this.portInfo(this.portIdOf(sourceMagnet));
 		if (info) {
-			this.nodeTooltip.hide();
+			this.hideTooltip();
 			this.connectGesture = {nodeId: sourceCell.id, side: info.side, itemClassName: info.itemClassName};
 			this.markConnectTargets(x6Graph);
 			x6Graph.container.classList.add('pg-connecting');
@@ -1150,7 +1257,7 @@ export class PlannerGraphService implements OnDestroy
 				},
 			},
 			data: {tempConnect: true},
-			zIndex: 1000,
+			zIndex: CONNECT_PREVIEW_Z,
 		});
 	}
 
@@ -1390,7 +1497,8 @@ export class PlannerGraphService implements OnDestroy
 		const id = `edge-${index}`;
 		this.edgeById.set(id, edge);
 		const hasIcon = label.iconUrl !== null && this.settings.graph().showEdgeItemIcons;
-		const textShift = hasIcon ? (EDGE_ICON_SIZE + EDGE_ICON_GAP) / 2 : 0;
+		const scale = this.edgeScale();
+		const textShift = hasIcon ? (EDGE_ICON_SIZE + EDGE_ICON_GAP) * scale / 2 : 0;
 		const showBox = this.settings.graph().showEdgeLabelBox;
 		// An edge whose both endpoints are done is implicitly built too - it
 		// fades like the nodes (edges carry no done flag of their own).
@@ -1417,18 +1525,31 @@ export class PlannerGraphService implements OnDestroy
 				markup: [
 					{tagName: 'rect', selector: 'rect'},
 					{tagName: 'image', selector: 'icon'},
-					{tagName: 'text', selector: 'text'},
+					{tagName: 'text', selector: 'name'},
+					{tagName: 'text', selector: 'rate'},
 				],
 				position: {distance: edge.labelDistance ?? 0.5},
 				attrs: {
-					text: {
-						text: `${label.name}\n${label.rate}`,
+					// The item name is the label's title - two sizes above the rate.
+					name: {
+						text: label.name,
 						fill: '#dde4ef',
-						fontSize: LABEL_FONT_SIZE,
-						lineHeight: LABEL_LINE_HEIGHT,
+						fontSize: LABEL_NAME_FONT_SIZE * scale,
+						fontWeight: 'bold',
 						textAnchor: 'middle',
 						textVerticalAnchor: 'middle',
 						x: textShift,
+						y: LABEL_NAME_Y * scale,
+						...fade,
+					},
+					rate: {
+						text: label.rate,
+						fill: '#dde4ef',
+						fontSize: LABEL_FONT_SIZE * scale,
+						textAnchor: 'middle',
+						textVerticalAnchor: 'middle',
+						x: textShift,
+						y: LABEL_RATE_Y * scale,
 						...fade,
 					},
 					// The flowing item's icon, pinned just inside the left edge
@@ -1437,10 +1558,10 @@ export class PlannerGraphService implements OnDestroy
 					icon: hasIcon
 						? {
 							'xlink:href': label.iconUrl,
-							width: EDGE_ICON_SIZE,
-							height: EDGE_ICON_SIZE,
-							x: -size.width / 2 + 6,
-							y: -EDGE_ICON_SIZE / 2,
+							width: EDGE_ICON_SIZE * scale,
+							height: EDGE_ICON_SIZE * scale,
+							x: -size.width / 2 + 6 * scale,
+							y: -EDGE_ICON_SIZE * scale / 2,
 							...fade,
 						}
 						: {'xlink:href': '', width: 0, height: 0},
@@ -1460,9 +1581,9 @@ export class PlannerGraphService implements OnDestroy
 						y: -size.height / 2,
 						width: size.width,
 						height: size.height,
-						fill: showBox ? '#141c28' : 'transparent',
-						stroke: showBox ? '#2e3d52' : 'none',
-						strokeWidth: showBox ? 1 : 0,
+						fill: showBox ? LABEL_BOX_FILL : 'transparent',
+						stroke: showBox ? LABEL_BOX_STROKE : 'none',
+						strokeWidth: showBox ? LABEL_BOX_STROKE_WIDTH : 0,
 						rx: 4,
 						ry: 4,
 						...fade,
@@ -1492,13 +1613,15 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
+	/** Edge label box (scaled by the edge scale setting) - declared to ELK and drawn as the label rect. */
 	private labelSizeFor(label: {name: string; rate: string; iconUrl: string | null}): {width: number; height: number}
 	{
-		const chars = Math.max(label.name.length, label.rate.length);
+		const textWidth = Math.max(label.name.length * LABEL_NAME_CHAR_WIDTH, label.rate.length * LABEL_CHAR_WIDTH);
 		const iconWidth = label.iconUrl ? EDGE_ICON_SIZE + EDGE_ICON_GAP : 0;
+		const scale = this.edgeScale();
 		return {
-			width: chars * LABEL_CHAR_WIDTH + LABEL_PADDING_X + iconWidth,
-			height: LABEL_HEIGHT,
+			width: (textWidth + LABEL_PADDING_X + iconWidth) * scale,
+			height: LABEL_HEIGHT * scale,
 		};
 	}
 
@@ -1511,9 +1634,11 @@ export class PlannerGraphService implements OnDestroy
 			if (selectedIds.has(cell.id)) {
 				cell.attr('body/stroke', SELECTED_STROKE);
 				cell.attr('body/strokeWidth', SELECTED_STROKE_WIDTH);
+				this.scheduleZChange(cell, NODE_HIGHLIGHT_Z);
 			} else if (modelNode) {
 				cell.attr('body/stroke', this.styleFor(modelNode).bodyStroke);
 				cell.attr('body/strokeWidth', NODE_STROKE_WIDTH);
+				this.scheduleZChange(cell, null);
 			}
 		});
 
@@ -1632,6 +1757,9 @@ export class PlannerGraphService implements OnDestroy
 
 	private onEdgeHoverMove(e: MouseEvent): void
 	{
+		if (this.tooltipAnchor && !this.tooltipAnchor.contains(e.target as Element | null)) {
+			this.hideTooltip();
+		}
 		// Read-only edges have no corner handles, so no ghost corner either.
 		if (this.readOnly || !this.hoveredEdgeView || !this.x6Graph) {
 			return;
@@ -1708,14 +1836,78 @@ export class PlannerGraphService implements OnDestroy
 			edge.attr('line/stroke', EDGE_STROKE);
 			edge.attr('line/strokeWidth', EDGE_STROKE_WIDTH);
 		}
+
+		this.applyLabelBoxStyle(edge, highlighted ? SELECTED_STROKE : (hovered ? HOVER_EDGE_STROKE : null));
+		this.scheduleZChange(edge, highlighted || hovered ? EDGE_HIGHLIGHT_Z : null);
+	}
+
+	/**
+	 * Echoes the edge highlight on its label box border. With the box setting
+	 * off the label has no visible box, so there is nothing to highlight.
+	 */
+	private applyLabelBoxStyle(edge: X6Edge, highlightStroke: string | null): void
+	{
+		if (!this.settings.graph().showEdgeLabelBox || !edge.getLabelAt(0)) {
+			return;
+		}
+		edge.prop('labels/0/attrs/rect/stroke', highlightStroke ?? LABEL_BOX_STROKE);
+		edge.prop('labels/0/attrs/rect/strokeWidth', highlightStroke ? LABEL_BOX_HIGHLIGHT_STROKE_WIDTH : LABEL_BOX_STROKE_WIDTH);
+	}
+
+	/**
+	 * Raises (target z given) or restores (null) a cell on the next animation
+	 * frame rather than synchronously. A z-index change re-inserts the cell's
+	 * SVG element, and doing that inside a mouseenter makes the browser replay
+	 * mouseleave/mouseenter for the element under the cursor - the handlers
+	 * would then flip the z-index back and forth forever. Deferring one frame
+	 * lets that replayed pair settle first: its final enter schedules the same
+	 * raise again, which is a no-op on an already-raised cell, so the loop
+	 * converges after one bounce.
+	 */
+	private scheduleZChange(cell: Cell, zIndex: number | null): void
+	{
+		this.pendingZChanges.set(cell.id, {cell, zIndex});
+		if (this.zChangeScheduled) {
+			return;
+		}
+		this.zChangeScheduled = true;
+		requestAnimationFrame(() => {
+			this.zChangeScheduled = false;
+			const changes = [...this.pendingZChanges.values()];
+			this.pendingZChanges.clear();
+			if (!this.x6Graph) {
+				return;
+			}
+			changes.forEach(({cell: changed, zIndex: z}) => z === null ? this.restoreCell(changed) : this.raiseCell(changed, z));
+		});
+	}
+
+	/** Lifts a highlighted cell above the rest of the graph, remembering its base z-index. */
+	private raiseCell(cell: Cell, zIndex: number): void
+	{
+		if (!this.baseZIndexById.has(cell.id)) {
+			this.baseZIndexById.set(cell.id, cell.getZIndex() ?? 0);
+		}
+		cell.setZIndex(zIndex);
+	}
+
+	private restoreCell(cell: Cell): void
+	{
+		const base = this.baseZIndexById.get(cell.id);
+		if (base !== undefined) {
+			this.baseZIndexById.delete(cell.id);
+			cell.setZIndex(base);
+		}
 	}
 
 	private applyNodeHover(cell: Cell, hovered: boolean): void
 	{
+		// Selected nodes keep their selection stroke and stay raised.
 		if (this.selection?.isSelected(cell)) {
 			return;
 		}
 		cell.attr('body/strokeWidth', hovered ? HOVER_NODE_STROKE_WIDTH : NODE_STROKE_WIDTH);
+		this.scheduleZChange(cell, hovered ? NODE_HIGHLIGHT_Z : null);
 	}
 
 	private onNodeContextMenu(clientX: number, clientY: number, local: GraphPoint, cell: Cell): void
@@ -1743,6 +1935,46 @@ export class PlannerGraphService implements OnDestroy
 		this.selection?.clean();
 		this.clearVertexSelection();
 		this.contextMenuSubject.next({clientX, clientY, local, nodes: []});
+	}
+
+	private onEdgeContextMenu(clientX: number, clientY: number, local: GraphPoint, cell: Cell): void
+	{
+		const modelEdge = this.edgeById.get(cell.id);
+		if (modelEdge) {
+			this.selection?.clean();
+			this.clearVertexSelection();
+			this.contextMenuSubject.next({clientX, clientY, local, nodes: [], edge: modelEdge});
+		}
+	}
+
+	/** Double click / double tap on empty canvas adds a node there (read-only graphs cannot add anything). */
+	private onBlankDoubleClick(local: GraphPoint): void
+	{
+		if (!this.readOnly) {
+			this.actions.requestNodeAdd(local);
+		}
+	}
+
+	/** Subplans open their inner plan; every other node opens the inspector. */
+	private onNodeDoubleClick(cell: Cell): void
+	{
+		const modelNode = this.nodeById.get(cell.id);
+		if (!modelNode) {
+			return;
+		}
+		if (modelNode instanceof SubplanNode) {
+			this.actions.requestSubplanOpen(modelNode.subplanId);
+		} else {
+			this.selectNodeById(modelNode.id);
+			// focusPanel, not openPanel: an already-open inspector hidden
+			// behind another tab on its side must still come to the front.
+			this.panelLayout.focusPanel('inspector');
+		}
+	}
+
+	private isNativeContextMenuSuppressed(): boolean
+	{
+		return performance.now() < this.suppressNativeContextMenuUntil;
 	}
 
 	private trackNodeMoves(x6Graph: X6Graph, nodes: Node[]): void
@@ -1894,7 +2126,7 @@ export class PlannerGraphService implements OnDestroy
 	/** How far the label text is nudged right to clear the left icon (0 when there is none). */
 	private textShiftFor(node: Node): number
 	{
-		return this.hasLeftIcon(node) ? TEXT_SHIFT : 0;
+		return this.hasLeftIcon(node) ? TEXT_SHIFT * this.nodeScale() : 0;
 	}
 
 	/** The larger, vertically-centered left icon shared by machine and IO nodes. */
@@ -1903,12 +2135,13 @@ export class PlannerGraphService implements OnDestroy
 		if (!this.hasLeftIcon(node)) {
 			return {};
 		}
+		const scale = this.nodeScale();
 		return {
 			refY: 0.5,
-			y: -LEFT_ICON_SIZE / 2,
-			x: LEFT_ICON_X,
-			width: LEFT_ICON_SIZE,
-			height: LEFT_ICON_SIZE,
+			y: -LEFT_ICON_SIZE * scale / 2,
+			x: LEFT_ICON_X * scale,
+			width: LEFT_ICON_SIZE * scale,
+			height: LEFT_ICON_SIZE * scale,
 		};
 	}
 
@@ -1919,27 +2152,28 @@ export class PlannerGraphService implements OnDestroy
 	 */
 	private recipeSloopBadges(node: Node, textShift: number, labelOffset = 0, fade: {opacity?: number} = {}): Record<string, Record<string, string | number>>
 	{
-		// Decimal machine display shows no group lines to badge; the corner
+		// Single-line machine displays show no group lines to badge; the corner
 		// sloop icon and glow still mark the node as slooped.
-		if (!(node instanceof RecipeNode) || this.settings.graph().machineDisplay === 'decimal') {
+		if (!(node instanceof RecipeNode) || this.singleLineMachines()) {
 			return {};
 		}
 		const url = this.sloopIconFor(node);
 		if (!url) {
 			return {};
 		}
+		const scale = this.nodeScale();
 		const badges: Record<string, Record<string, string | number>> = {};
 		node.groups.forEach((group, i) => {
 			if (group.sloops <= 0 || i >= STAT_SLOOP_MAX_LINES) {
 				return;
 			}
-			const lineWidth = this.groupStatLine(group).length * RECIPE_STATS_CHAR_WIDTH;
+			const lineWidth = this.groupStatLine(group).length * RECIPE_STATS_CHAR_WIDTH * scale;
 			badges[`statSloop${i}`] = {
 				'xlink:href': url,
 				display: 'inline',
 				// The stat line centers at nodeCenter + textShift; the badge follows its right edge.
-				x: textShift + lineWidth / 2 + STAT_SLOOP_GAP,
-				y: RECIPE_STATS_Y + labelOffset + i * RECIPE_STATS_LINE_HEIGHT + STAT_SLOOP_CENTER_OFFSET - STAT_SLOOP_SIZE / 2,
+				x: textShift + lineWidth / 2 + STAT_SLOOP_GAP * scale,
+				y: (RECIPE_STATS_Y + i * RECIPE_STATS_LINE_HEIGHT + STAT_SLOOP_CENTER_OFFSET - STAT_SLOOP_SIZE / 2) * scale + labelOffset,
 				...fade,
 			};
 		});
@@ -1956,7 +2190,33 @@ export class PlannerGraphService implements OnDestroy
 		return this.iconUrls.url(hash, 64) ?? '';
 	}
 
+	/** On-canvas node box: the unscaled box times the node scale setting. */
 	private sizeFor(node: Node): {width: number; height: number}
+	{
+		const base = this.baseSizeFor(node);
+		const scale = this.nodeScale();
+		return {width: base.width * scale, height: base.height * scale};
+	}
+
+	private nodeScale(): number
+	{
+		return this.settings.graph().nodeScale;
+	}
+
+	private edgeScale(): number
+	{
+		return this.settings.graph().edgeScale;
+	}
+
+	/** Whether the machine display collapses the group lines into one machine line (decimal or percent). */
+	private singleLineMachines(): boolean
+	{
+		const display = this.settings.graph().machineDisplay;
+		return display === 'decimal' || display === 'percent';
+	}
+
+	/** Node box at scale 1, from the label text lengths and line counts. */
+	private baseSizeFor(node: Node): {width: number; height: number}
 	{
 		if (node instanceof SubplanNode) {
 			return {width: GraphMetrics.SUBPLAN_NODE_WIDTH, height: GraphMetrics.SUBPLAN_NODE_HEIGHT};
@@ -1975,7 +2235,7 @@ export class PlannerGraphService implements OnDestroy
 		if (this.hasLeftIcon(node)) {
 			const style = this.baseStyleFor(node);
 			const textWidth = Math.max(
-				style.name.length * RECIPE_BOLD_CHAR_WIDTH,
+				style.name.length * NODE_NAME_CHAR_WIDTH,
 				style.stats.length * RECIPE_STATS_CHAR_WIDTH,
 			);
 			const width = Math.min(RECIPE_MAX_WIDTH, Math.max(NODE_WIDTH, Math.ceil(TEXT_LEFT_INSET + textWidth + TEXT_RIGHT_PAD)));
@@ -2134,14 +2394,27 @@ export class PlannerGraphService implements OnDestroy
 				return;
 			}
 		}
-		const box = indicator.getBoundingClientRect();
+		this.showTooltip(content, indicator);
+	}
+
+	/** Shows the tooltip beside its anchor element and remembers the anchor (see tooltipAnchor). */
+	private showTooltip(content: NodeTooltipContent, anchor: Element): void
+	{
+		const box = anchor.getBoundingClientRect();
+		this.tooltipAnchor = anchor;
 		this.nodeTooltip.show(content, box.right + 8, box.top - 4);
+	}
+
+	private hideTooltip(): void
+	{
+		this.tooltipAnchor = null;
+		this.nodeTooltip.hide();
 	}
 
 	private onWarningOut(event: MouseEvent): void
 	{
 		if ((event.target as Element | null)?.closest?.('.pn-lock, .pn-input-warning, .pn-output-warning, .pn-capacity-warning, [port]')) {
-			this.nodeTooltip.hide();
+			this.hideTooltip();
 		}
 	}
 
@@ -2156,11 +2429,29 @@ export class PlannerGraphService implements OnDestroy
 		}
 		const item = this.versionManager.activeVersionData()?.searchItemByClassName(info.itemClassName) ?? null;
 		const graph: Graph = {nodes: [...this.nodeById.values()], edges: [...this.edgeById.values()]};
-		const line = info.side === 'out'
-			? `${this.rateFormatter.rate(this.reconciler.spareOutput(graph, node.id, info.itemClassName), item)} unallocated - drag to connect to a consumer.`
-			: `${this.rateFormatter.rate(this.reconciler.remainingDemand(graph, node.id, info.itemClassName), item)} unsupplied - drag to connect to a producer.`;
-		const box = portElement.getBoundingClientRect();
-		this.nodeTooltip.show({title: item?.name ?? info.itemClassName, lines: [line]}, box.right + 8, box.top - 4);
+		const rate = (amount: number): string => this.rateFormatter.rate(amount, item);
+		const ios = info.side === 'out' ? node.outputs : node.inputs;
+		const total = ios.filter(io => io.item.className === info.itemClassName).reduce((sum, io) => sum + io.maxAmount, 0);
+		const open = info.side === 'out'
+			? this.reconciler.spareOutput(graph, node.id, info.itemClassName)
+			: this.reconciler.remainingDemand(graph, node.id, info.itemClassName);
+		// "All … allocated" for a fully connected port - a bare "0 unallocated"
+		// reads as if something were left over until the number sinks in.
+		let line: string;
+		if (open <= 1e-6) {
+			line = info.side === 'out'
+				? `All ${rate(total)} allocated to consumers - drag to connect another.`
+				: `All ${rate(total)} supplied by producers - drag to connect another.`;
+		} else if (Math.abs(open - total) <= 1e-6) {
+			line = info.side === 'out'
+				? `${rate(open)} unallocated - drag to connect to a consumer.`
+				: `${rate(open)} unsupplied - drag to connect to a producer.`;
+		} else {
+			line = info.side === 'out'
+				? `${rate(open)} of ${rate(total)} unallocated - drag to connect to a consumer.`
+				: `${rate(open)} of ${rate(total)} unsupplied - drag to connect to a producer.`;
+		}
+		this.showTooltip({title: item?.name ?? info.itemClassName, lines: [line]}, portElement);
 	}
 
 	private lockTooltipFor(node: Node): NodeTooltipContent
@@ -2230,8 +2521,9 @@ export class PlannerGraphService implements OnDestroy
 	 * Bold machine line between the recipe name and the group lines, per the
 	 * configured machine display: the built total (default), the exact
 	 * fractional machine count at the recipe's configured clock ("3.85× Constructor
-	 * @ 150%"), or the bare machine name (groups-only, where no count line
-	 * would otherwise say what to build).
+	 * @ 150%"), the total clock percentage ("385% Constructor"), or the bare
+	 * machine name (groups-only, where no count line would otherwise say what
+	 * to build).
 	 */
 	private machinesLine(node: RecipeNode): string
 	{
@@ -2241,6 +2533,10 @@ export class PlannerGraphService implements OnDestroy
 				const machines = clock > 0 ? node.target * 100 / clock : node.target;
 				return `${this.rateFormatter.machineCount(machines)}× ${node.machine.name} @ ${this.rateFormatter.clock(clock)}%`;
 			}
+			case 'percent':
+				// The target is the machine count at 100% clock, so ×100 is the
+				// total clock percentage to spread over the machines built.
+				return `${this.rateFormatter.clock(node.target * 100)}% ${node.machine.name}`;
 			case 'groups-only':
 				return node.machine.name;
 			default:
@@ -2250,8 +2546,9 @@ export class PlannerGraphService implements OnDestroy
 
 	/**
 	 * The clock the plan's Overclocking settings prescribe for this recipe -
-	 * the per-recipe override or the plan default. Null without an active plan
-	 * (the read-only share view), where the groups' clock is all there is.
+	 * the per-recipe override, else the node's machine override, else the plan
+	 * default. Null without an active plan (the read-only share view), where
+	 * the groups' clock is all there is.
 	 */
 	private recipeClockFor(node: RecipeNode): number | null
 	{
@@ -2260,14 +2557,15 @@ export class PlannerGraphService implements OnDestroy
 			return null;
 		}
 		return settings.recipeClockSpeeds?.find(entry => entry.recipeClassName === node.recipe.className)?.clockSpeed
+			?? settings.machineClockSpeeds?.find(entry => entry.machineClassName === node.machine.className)?.clockSpeed
 			?? settings.defaultClockSpeed
 			?? 100;
 	}
 
-	/** One line per machine group; none in decimal machine display. */
+	/** One line per machine group; none in the single-line machine displays. */
 	private recipeStats(node: RecipeNode): string
 	{
-		if (this.settings.graph().machineDisplay === 'decimal') {
+		if (this.singleLineMachines()) {
 			return '';
 		}
 		return node.groups.map(group => this.groupStatLine(group)).join('\n');
@@ -2282,7 +2580,7 @@ export class PlannerGraphService implements OnDestroy
 	private labelBlockOffset(stats: string, height: number): number
 	{
 		const lines = stats === '' ? 0 : stats.split('\n').length;
-		const naturalHeight = RECIPE_STATS_Y + RECIPE_STATS_LINE_HEIGHT * lines + RECIPE_BOTTOM_PADDING;
+		const naturalHeight = (RECIPE_STATS_Y + RECIPE_STATS_LINE_HEIGHT * lines + RECIPE_BOTTOM_PADDING) * this.nodeScale();
 		return Math.max(0, (height - naturalHeight) / 2);
 	}
 

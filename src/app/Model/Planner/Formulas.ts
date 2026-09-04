@@ -2,6 +2,7 @@ import {Building} from '@src/Model/Data/Entities/Building';
 import {Fuel} from '@src/Model/Data/Entities/Parts/Fuel';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
+import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 
 /**
@@ -55,28 +56,56 @@ export class Formulas
 	}
 
 	/**
-	 * Per-machine draw in MW at 100% clock with no sloops. Variable-draw
-	 * recipes (particle accelerators etc.) carry their own oscillating
-	 * consumption - their machine reports powerUsage 0 - and count as the
-	 * oscillation's average.
+	 * Whether the recipe runs with its own oscillating draw. The game honours a
+	 * recipe's variable power only in variable-power machines (Converter,
+	 * Particle Accelerator, Quantum Encoder). The data carries no machine flag,
+	 * but exactly those machines report powerUsage 0 - a plain machine keeps
+	 * its fixed draw even for a recipe carrying variable figures (Biochemical
+	 * Sculptor in a Blender draws the Blender's 75 MW).
 	 */
-	public static basePowerUsage(recipe: Recipe, machine: Building): number
+	public static usesVariablePower(recipe: Recipe, machine: Building): boolean
 	{
-		return recipe.variablePowerDraw
-			? recipe.variablePowerDrawConstant + recipe.variablePowerDrawFactor / 2
-			: machine.powerUsage;
+		return recipe.variablePowerDraw && machine.powerUsage === 0;
+	}
+
+	/** The oscillation band of a variable-draw recipe at 100% clock: constant to constant + factor. */
+	public static variablePowerBand(recipe: Recipe): PowerDraw
+	{
+		return PowerDraw.between(
+			recipe.variablePowerDrawConstant,
+			recipe.variablePowerDrawConstant + recipe.variablePowerDrawFactor,
+		);
 	}
 
 	/**
-	 * Draw in MW of ONE machine at the given clock speed and sloop count:
-	 * clocking scales by the machine's power exponent, somersloops square
-	 * their output multiplier (a fully slooped machine draws 4× at 2× output).
+	 * Per-machine draw at 100% clock with no sloops: the machine's fixed figure,
+	 * or the recipe's oscillation band in a variable-power machine.
 	 */
+	public static basePowerDraw(recipe: Recipe, machine: Building): PowerDraw
+	{
+		return Formulas.usesVariablePower(recipe, machine)
+			? Formulas.variablePowerBand(recipe)
+			: PowerDraw.fixed(machine.powerUsage);
+	}
+
+	/**
+	 * Draw of ONE machine at the given clock speed and sloop count: clocking
+	 * scales by the machine's power exponent, somersloops square their output
+	 * multiplier (a fully slooped machine draws 4× at 2× output). Both apply to
+	 * the whole band, so min and max clock independently.
+	 */
+	public static machinePowerDraw(recipe: Recipe, machine: Building, clockSpeed: number, sloops: number): PowerDraw
+	{
+		return Formulas.basePowerDraw(recipe, machine).scale(
+			Math.pow(clockSpeed / 100, machine.powerUsageExponent)
+			* Math.pow(Formulas.sloopOutputMultiplier(machine, sloops), 2),
+		);
+	}
+
+	/** Average draw in MW of ONE machine - what the solver and the totals count. */
 	public static machinePowerUsage(recipe: Recipe, machine: Building, clockSpeed: number, sloops: number): number
 	{
-		return Formulas.basePowerUsage(recipe, machine)
-			* Math.pow(clockSpeed / 100, machine.powerUsageExponent)
-			* Math.pow(Formulas.sloopOutputMultiplier(machine, sloops), 2);
+		return Formulas.machinePowerDraw(recipe, machine, clockSpeed, sloops).average;
 	}
 
 	/** Clamps a clock speed to the game's 1–250% range at 4-decimal precision. */

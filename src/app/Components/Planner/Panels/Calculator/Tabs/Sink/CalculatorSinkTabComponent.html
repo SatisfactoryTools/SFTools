@@ -1,34 +1,40 @@
-<div class="p-2">
-	<div class="d-flex align-items-center gap-2 mb-2">
-		<input
-			type="search"
-			class="form-control form-control-sm bg-dark text-light border-secondary"
-			name="sink-filter"
-			placeholder="Filter by item name…"
-			[(ngModel)]="filter"
-		/>
-		<div class="btn-group" role="group">
-			<button
-				class="btn btn-sm btn-outline-secondary"
-				[class.active]="sortBy === 'name'"
-				type="button"
-				(click)="setSortBy('name')"
-			>Name</button>
-			<button
-				class="btn btn-sm btn-outline-secondary"
-				[class.active]="sortBy === 'points'"
-				type="button"
-				(click)="setSortBy('points')"
-			>Points</button>
+<div class="p-2 d-flex flex-column gap-2">
+	<info-note>
+		Items the solver may feed into the AWESOME Sink for points instead of leaving them as byproducts.
+		Nothing is sinkable by default.
+	</info-note>
+	<div class="card">
+		<div class="card-header d-flex align-items-center flex-wrap gap-2 py-1 px-2">
+			<input
+				type="search"
+				class="form-control form-control-sm bg-dark text-light border-secondary flex-grow-1 w-auto"
+				style="min-width: 140px;"
+				name="sink-filter"
+				placeholder="Filter by item name…"
+				[(ngModel)]="filter"
+			/>
+			<div class="btn-group btn-group-sm" role="group">
+				<button
+					class="btn py-0"
+					[class.btn-secondary]="sortBy === 'name'"
+					[class.btn-outline-secondary]="sortBy !== 'name'"
+					type="button"
+					(click)="setSortBy('name')"
+				>Name</button>
+				<button
+					class="btn py-0"
+					[class.btn-secondary]="sortBy === 'points'"
+					[class.btn-outline-secondary]="sortBy !== 'points'"
+					type="button"
+					(click)="setSortBy('points')"
+				>Points</button>
+			</div>
+			<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(items, true)">All</button>
+			<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(items, false)">None</button>
 		</div>
-		<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(items, true)">All</button>
-		<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(items, false)">None</button>
-	</div>
-
-	<div class="row g-1">
-		@for (item of items; track item.className) {
-			<div class="col-6 col-lg-4 col-xxl-3">
-				<div class="form-check d-flex align-items-center gap-1 mb-0">
+		<div class="card-body p-2">
+			@for (item of items; track item.className) {
+				<div class="form-check">
 					<input
 						class="form-check-input"
 						type="checkbox"
@@ -36,15 +42,15 @@
 						[checked]="isEnabled(item)"
 						(change)="toggle(item)"
 					/>
-					<label class="form-check-label flex-grow-1 text-truncate d-flex align-items-center gap-1" [for]="'sink-' + item.className">
+					<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'sink-' + item.className">
 						<game-icon [hash]="item.icon" [size]="18" [alt]="item.name"></game-icon>
 						<span class="text-truncate">{{ item.name }}</span>
+						<span class="small text-secondary ms-auto text-nowrap">{{ rateFormatter.amount(item.sinkPoints) }} points</span>
 					</label>
-					<span class="text-secondary flex-shrink-0 pe-2">{{ rateFormatter.amount(item.sinkPoints) }}</span>
 				</div>
-			</div>
-		} @empty {
-			<div class="col-12 text-secondary fst-italic">No sinkable items match the filter.</div>
-		}
+			} @empty {
+				<div class="text-secondary fst-italic">No sinkable items match the filter.</div>
+			}
+		</div>
 	</div>
 </div>

@@ -1,4 +1,5 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Data} from '@src/Model/Data/Data';
 import {Building} from '@src/Model/Data/Entities/Building';
@@ -14,7 +15,7 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 	selector: 'calculator-machines-tab',
 	templateUrl: './CalculatorMachinesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [GameIconComponent],
+	imports: [GameIconComponent, InfoNoteComponent],
 })
 export class CalculatorMachinesTabComponent
 {

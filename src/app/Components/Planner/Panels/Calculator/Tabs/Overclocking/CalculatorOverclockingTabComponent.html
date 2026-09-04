@@ -1,4 +1,10 @@
-<div class="p-2 d-flex flex-column gap-3" style="max-width: 680px;">
+<div class="p-2 d-flex flex-column gap-2">
+
+	<info-note>
+		Every machine the solver builds runs at the default clock speed (1–250%) unless its machine type or recipe
+		has an override - a recipe override beats the machine's. Power shards needed show in the status bar after
+		calculating.
+	</info-note>
 
 	<div class="d-flex align-items-center gap-2">
 		<label class="form-label mb-0 text-nowrap" for="default-clock-speed">Default clock speed</label>
@@ -8,14 +14,57 @@
 			(valueChange)="setDefaultClockSpeed($event)"
 		></clock-speed-input>
 	</div>
-	<div class="text-secondary">
-		Every machine the solver builds runs at this clock speed (in percent, 1–250),
-		unless its recipe has an override below. Power shards needed for overclocked
-		machines show in the status bar after calculating.
+
+	<div class="card">
+		<div class="card-header py-1 px-2 fw-semibold">Per machine type</div>
+		<table class="table table-dark table-sm align-middle mb-0 table-stack">
+			<thead>
+				<tr>
+					<th>Machine</th>
+					<th style="width: 260px;">Clock speed</th>
+					<th style="width: 36px;"></th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (row of machineRows; track $index; let i = $index) {
+					<tr>
+						<td class="stack-full">
+							<item-picker
+								[options]="machineOptions"
+								[value]="row.machineClassName"
+								placeholder="- select machine -"
+								(valueChange)="onMachineChange(row, $event)"
+							></item-picker>
+						</td>
+						<td class="stack-grow">
+							<clock-speed-input
+								[value]="row.clockSpeed"
+								(valueChange)="onMachineClockChange(row, $event)"
+							></clock-speed-input>
+						</td>
+						<td>
+							<button
+								class="btn btn-sm btn-outline-danger px-2"
+								type="button"
+								(click)="removeMachineRow(i)"
+							><fa-icon [icon]="faXmark"></fa-icon></button>
+						</td>
+					</tr>
+				} @empty {
+					<tr><td colspan="3" class="text-secondary fst-italic text-center">No machine overrides.</td></tr>
+				}
+			</tbody>
+		</table>
+		<div class="card-footer p-2">
+			<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addMachineRow()">
+				+ Add machine
+			</button>
+		</div>
 	</div>
 
-	<div>
-		<table class="table table-dark table-sm align-middle mb-2">
+	<div class="card">
+		<div class="card-header py-1 px-2 fw-semibold">Per recipe</div>
+		<table class="table table-dark table-sm align-middle mb-0 table-stack">
 			<thead>
 				<tr>
 					<th>Recipe</th>
@@ -26,7 +75,7 @@
 			<tbody>
 				@for (row of rows; track $index; let i = $index) {
 					<tr>
-						<td>
+						<td class="stack-full">
 							<item-picker
 								[options]="recipeOptions"
 								[value]="row.recipeClassName"
@@ -34,7 +83,7 @@
 								(valueChange)="onRecipeChange(row, $event)"
 							></item-picker>
 						</td>
-						<td>
+						<td class="stack-grow">
 							<clock-speed-input
 								[value]="row.clockSpeed"
 								(valueChange)="onClockChange(row, $event)"
@@ -48,13 +97,16 @@
 							><fa-icon [icon]="faXmark"></fa-icon></button>
 						</td>
 					</tr>
+				} @empty {
+					<tr><td colspan="3" class="text-secondary fst-italic text-center">No recipe overrides.</td></tr>
 				}
 			</tbody>
 		</table>
-
-		<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addRow()">
-			+ Add recipe
-		</button>
+		<div class="card-footer p-2">
+			<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addRow()">
+				+ Add recipe
+			</button>
+		</div>
 	</div>
 
 </div>

@@ -1,11 +1,8 @@
 import {Component, ChangeDetectionStrategy, Input, computed, signal} from '@angular/core';
-import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
-import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexBuildingListComponent} from '@src/Components/Codex/CodexBuildingListComponent';
 import {CodexEntityLinkComponent} from '@src/Components/Codex/CodexEntityLinkComponent';
 import {CodexItemAmountListComponent} from '@src/Components/Codex/CodexItemAmountListComponent';
-import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
+import {CodexDetailHeaderComponent} from '@src/Components/Codex/CodexDetailHeaderComponent';
 import {CodexRecipeListComponent} from '@src/Components/Codex/CodexRecipeListComponent';
 import {CodexSchematicListComponent} from '@src/Components/Codex/CodexSchematicListComponent';
 import {CodexSectionComponent} from '@src/Components/Codex/CodexSectionComponent';
@@ -21,21 +18,17 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	templateUrl: './CodexSchematicDetailComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [
-		CodexLinkDirective,
 		CodexBuildingListComponent,
+		CodexDetailHeaderComponent,
 		CodexEntityLinkComponent,
 		CodexItemAmountListComponent,
 		CodexRecipeListComponent,
 		CodexSchematicListComponent,
 		CodexSectionComponent,
-		FaIconComponent,
-		GameIconComponent,
 	],
 })
 export class CodexSchematicDetailComponent
 {
-
-	public readonly faChevronLeft = faChevronLeft;
 
 	private readonly schematicClassNameSignal = signal<string | null>(null);
 

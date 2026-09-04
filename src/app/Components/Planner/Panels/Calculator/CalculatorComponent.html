@@ -1,24 +1,56 @@
-@if (activePlan()) {
+@if (activeShare.payload(); as share) {
+
+	<!-- A shared plan has no production request to edit - the whole panel
+	     becomes the "make it yours" call to action. -->
+	<div class="p-3">
+		<div class="d-flex align-items-center gap-2 mb-1">
+			<span class="fw-semibold">{{ share.root.name }}</span>
+			<span class="badge bg-secondary">shared {{ share.sharedAt | date: 'mediumDate' }}</span>
+		</div>
+		@if (activePlan()?.description; as description) {
+			<div class="text-secondary mb-2">{{ description }}</div>
+		}
+		<info-note class="mb-3">
+			This is a shared {{ share.type === 'folder' ? 'folder' : 'plan' }} - a frozen, read-only snapshot.
+			Add it to your plans to edit it{{ share.type === 'folder' ? ' (the whole folder is added)' : '' }}.
+		</info-note>
+		<button
+			class="btn btn-sm btn-primary"
+			type="button"
+			(click)="addShareToMyPlans()"
+		><fa-icon [icon]="faDownload"></fa-icon> Add to my plans</button>
+	</div>
+
+} @else if (activePlan()) {
 
 	<div class="req-controls">
-		<button
-			class="btn btn-sm btn-outline-secondary"
-			type="button"
-			tooltip="Reset all solver settings (mode, recipes, resources, power) to the defaults" placement="bottom"
-			(click)="resetSettings()"
-		><fa-icon [icon]="faRotateLeft"></fa-icon> Reset to defaults</button>
-		<button
-			class="btn btn-sm btn-outline-secondary"
-			type="button"
-			tooltip="Replace all solver settings with those of the parent plan or folder" placement="bottom"
-			(click)="inheritSettings()"
-		><fa-icon [icon]="faCopy"></fa-icon> Inherit from {{ parentLabel() }}</button>
-		<button
-			class="btn btn-sm btn-outline-secondary"
-			type="button"
-			tooltip="Set the machine, recipe and generator fuel selections from a game save's unlocks" placement="bottom"
-			(click)="openLoadFromSave()"
-		><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
+		@if (!allGroupsFixed()) {
+			<!-- container="body" so the menu overlays the planner instead of being
+			     clipped (and scrolled) by the panel's overflow container. -->
+			<div class="btn-group" dropdown container="body" placement="bottom left">
+				<button
+					class="btn btn-sm btn-outline-secondary dropdown-toggle"
+					type="button"
+					dropdownToggle
+				><fa-icon [icon]="faSliders"></fa-icon> Settings</button>
+				<div *dropdownMenu class="dropdown-menu" style="min-width: 300px;">
+					<button class="dropdown-item" type="button" (click)="resetSettings()">
+						<fa-icon [icon]="faRotateLeft" [fixedWidth]="true"></fa-icon> Reset to defaults
+						<span class="d-block text-wrap opacity-75 small">All solver settings (mode, recipes, resources, power) back to the defaults{{ fixedGroups().length > 0 ? ' - groups fixed by the folder stay' : '' }}.</span>
+					</button>
+					<button class="dropdown-item" type="button" (click)="inheritSettings()">
+						<fa-icon [icon]="faCopy" [fixedWidth]="true"></fa-icon> Inherit from {{ parentLabel() }}
+						<span class="d-block text-wrap opacity-75 small">Replace all solver settings with those of the parent plan or folder{{ fixedGroups().length > 0 ? ' - groups fixed by the folder stay' : '' }}.</span>
+					</button>
+					<button class="dropdown-item" type="button" (click)="openLoadFromSave()">
+						<fa-icon [icon]="faFileImport" [fixedWidth]="true"></fa-icon> Load from save…
+						<span class="d-block text-wrap opacity-75 small">Set the machine, recipe and generator fuel selections from a game save's unlocks.</span>
+					</button>
+				</div>
+			</div>
+		} @else if (fixedFolder(); as folder) {
+			<span class="text-secondary"><span tooltip="Every settings group is pushed into this plan by the folder and read-only here" container="body" placement="bottom"><fa-icon [icon]="faLock"></fa-icon></span> All solver settings are fixed by folder "{{ folder.name }}".</span>
+		}
 
 		<span class="flex-grow-1"></span>
 
@@ -86,48 +118,68 @@
 		</div>
 	}
 
-	<ul class="nav nav-tabs calc-tabs">
-		@for (tab of tabs; track tab.id) {
-			<li class="nav-item"><button class="nav-link" type="button" [class.active]="activeTab() === tab.id" (click)="setTab(tab.id)"><fa-icon [icon]="tab.icon"></fa-icon> {{ tab.label }}</button></li>
-		}
-	</ul>
+	<ng-container *ngTemplateOutlet="tabStrip; context: {locks: true}"></ng-container>
 
-	@switch (activeTab()) {
-		@case ('request') { <calculator-production-tab></calculator-production-tab> }
-		@case ('input') { <calculator-input-tab></calculator-input-tab> }
-		@case ('recipes') { <calculator-recipes-tab></calculator-recipes-tab> }
-		@case ('machines') { <calculator-machines-tab></calculator-machines-tab> }
-		@case ('byproducts') { <calculator-byproducts-tab></calculator-byproducts-tab> }
-		@case ('resources') { <calculator-resources-tab></calculator-resources-tab> }
-		@case ('power') { <calculator-power-tab></calculator-power-tab> }
-		@case ('sink') { <calculator-sink-tab></calculator-sink-tab> }
-		@case ('sloops') { <calculator-sloops-tab></calculator-sloops-tab> }
-		@case ('overclocking') { <calculator-overclocking-tab></calculator-overclocking-tab> }
-		@case ('optimisation') { <calculator-optimisation-tab></calculator-optimisation-tab> }
+	@if (isFixedTab(activeTab()) && fixedFolder(); as folder) {
+		<div class="px-2 pt-2">
+			<info-note>
+				<div class="d-flex align-items-center flex-wrap gap-2">
+					<span class="flex-grow-1">
+						{{ groupLabel($any(activeTab())) }} settings are fixed by folder "{{ folder.name }}"{{ activeTab() === 'resources' && folder.resourcePool ? ' and its raw resources are one shared pool for all plans inside' : '' }}.
+						Edit them in the folder - every plan inside follows.
+					</span>
+					<button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="button" (click)="openFixedFolder()">Open folder</button>
+				</div>
+			</info-note>
+		</div>
 	}
+
+	<fieldset class="border-0 p-0 m-0 min-w-0" [disabled]="isFixedTab(activeTab())">
+		@switch (activeTab()) {
+			@case ('request') { <calculator-production-tab></calculator-production-tab> }
+			@case ('input') { <calculator-input-tab></calculator-input-tab> }
+			@case ('recipes') { <calculator-recipes-tab></calculator-recipes-tab> }
+			@case ('machines') { <calculator-machines-tab></calculator-machines-tab> }
+			@case ('byproducts') { <calculator-byproducts-tab></calculator-byproducts-tab> }
+			@case ('resources') { <calculator-resources-tab></calculator-resources-tab> }
+			@case ('power') { <calculator-power-tab></calculator-power-tab> }
+			@case ('sink') { <calculator-sink-tab></calculator-sink-tab> }
+			@case ('sloops') { <calculator-sloops-tab></calculator-sloops-tab> }
+			@case ('overclocking') { <calculator-overclocking-tab></calculator-overclocking-tab> }
+			@case ('optimisation') { <calculator-optimisation-tab></calculator-optimisation-tab> }
+		}
+	</fieldset>
 
 } @else if (activeFolder(); as folder) {
 
 	@if (folderHasCustomSettings()) {
 		<div class="req-controls">
-			<button
-				class="btn btn-sm btn-outline-secondary"
-				type="button"
-				tooltip="Reset all default settings (mode, recipes, resources, power) to the defaults" placement="bottom"
-				(click)="resetSettings()"
-			><fa-icon [icon]="faRotateLeft"></fa-icon> Reset to defaults</button>
-			<button
-				class="btn btn-sm btn-outline-secondary"
-				type="button"
-				tooltip="Replace all default settings with those of the parent folder" placement="bottom"
-				(click)="inheritSettings()"
-			><fa-icon [icon]="faCopy"></fa-icon> Inherit from {{ parentLabel() }}</button>
-			<button
-				class="btn btn-sm btn-outline-secondary"
-				type="button"
-				tooltip="Set the machine, recipe and generator fuel selections from a game save's unlocks" placement="bottom"
-				(click)="openLoadFromSave()"
-			><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
+			<div class="btn-group" dropdown container="body" placement="bottom left">
+				<button
+					class="btn btn-sm btn-outline-secondary dropdown-toggle"
+					type="button"
+					dropdownToggle
+				><fa-icon [icon]="faSliders"></fa-icon> Settings</button>
+				<div *dropdownMenu class="dropdown-menu" style="min-width: 300px;">
+					<button class="dropdown-item" type="button" (click)="resetSettings()">
+						<fa-icon [icon]="faRotateLeft" [fixedWidth]="true"></fa-icon> Reset to defaults
+						<span class="d-block text-wrap opacity-75 small">All default settings (mode, recipes, resources, power) back to the defaults.</span>
+					</button>
+					<button class="dropdown-item" type="button" (click)="inheritSettings()">
+						<fa-icon [icon]="faCopy" [fixedWidth]="true"></fa-icon> Inherit from {{ parentLabel() }}
+						<span class="d-block text-wrap opacity-75 small">Replace all default settings with those of the parent folder.</span>
+					</button>
+					<button class="dropdown-item" type="button" (click)="openLoadFromSave()">
+						<fa-icon [icon]="faFileImport" [fixedWidth]="true"></fa-icon> Load from save…
+						<span class="d-block text-wrap opacity-75 small">Set the machine, recipe and generator fuel selections from a game save's unlocks.</span>
+					</button>
+					<div class="dropdown-divider"></div>
+					<button class="dropdown-item" type="button" (click)="disableFolderSettings()">
+						<fa-icon [icon]="faXmark" [fixedWidth]="true"></fa-icon> Remove custom settings
+						<span class="d-block text-wrap opacity-75 small">The folder inherits from its parent again.</span>
+					</button>
+				</div>
+			</div>
 
 			<div class="btn-group" dropdown container="body" placement="bottom left">
 				<button
@@ -154,59 +206,133 @@
 
 			<span class="flex-grow-1"></span>
 
-			<button
-				class="btn btn-sm btn-outline-secondary"
-				type="button"
-				tooltip="Remove the custom settings - the folder inherits from its parent again" placement="bottom"
-				(click)="disableFolderSettings()"
-			>Remove custom settings</button>
+			@if (folder.fixedGroups.length > 0) {
+				@if (recalculationProgress(); as progress) {
+					<span class="text-secondary">
+						<span class="spinner-border spinner-border-sm me-1" role="status"></span>
+						Recalculating {{ progress.done + 1 }}/{{ progress.total }}: {{ progress.currentName }}
+					</span>
+					<button
+						class="btn btn-sm btn-danger"
+						type="button"
+						tooltip="Stop after the current plan" placement="bottom"
+						(click)="cancelFolderRecalculation()"
+					><fa-icon [icon]="faXmark"></fa-icon></button>
+				} @else {
+					<button
+						class="btn btn-sm"
+						[class.btn-warning]="outdatedPlans().length > 0"
+						[class.btn-outline-secondary]="outdatedPlans().length === 0"
+						type="button"
+						tooltip="Re-solve every automatic-mode plan in this folder, one by one in tree order" placement="bottom"
+						[disabled]="actions.isCalculating() || innerPlans().length === 0"
+						(click)="recalculateFolder()"
+					><fa-icon [icon]="faPlay"></fa-icon> Recalculate plans@if (outdatedPlans().length > 0) { ({{ outdatedPlans().length }} outdated)}</button>
+				}
+			}
+
 		</div>
-		<div class="px-3 pt-2 text-secondary">
-			These settings are the defaults for new plans and subfolders created in "{{ folder.name }}".
+		<div class="px-2 pt-2 d-flex flex-column gap-2">
+			@if (folder.fixedGroups.length > 0) {
+				<info-note>
+					Fixed for the {{ innerPlans().length }} plan{{ innerPlans().length === 1 ? '' : 's' }} inside: {{ fixedGroupsSummary() }} - the plans follow every change made here.
+					Other groups only seed new plans. Plans are recalculated in plan-tree order@if (folder.resourcePool && folder.fixedGroups.includes('resources')) {; earlier plans get first pick of the shared raw resources}.
+				</info-note>
+				@if (skippedOutdatedPlans().length > 0) {
+					<info-note kind="warning">
+						{{ skippedOutdatedPlans().length }} outdated plan{{ skippedOutdatedPlans().length === 1 ? ' is' : 's are' }} in manual mode or hand-modified and must be recalculated by hand.
+					</info-note>
+				}
+			} @else {
+				<info-note>
+					These settings seed new plans and subfolders created in "{{ folder.name }}".
+					Switch a group to "Fixed" to apply it to every plan inside.
+				</info-note>
+			}
 		</div>
 	} @else {
 		<div class="req-controls">
 			<span class="text-secondary">This folder inherits its solver settings from {{ parentLabel() }}.</span>
 			<span class="flex-grow-1"></span>
-			<button
-				class="btn btn-sm btn-outline-secondary"
-				type="button"
-				tooltip="Give this folder custom settings with the machine, recipe and generator fuel selections of a game save's unlocks" placement="bottom"
-				(click)="openLoadFromSave()"
-			><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
-			<button
-				class="btn btn-sm btn-primary"
-				type="button"
-				tooltip="Give this folder its own settings - they become the defaults for new plans and subfolders created here" placement="bottom"
-				(click)="enableFolderSettings()"
-			>Set default settings for folder</button>
+			@if (customSettingsBlocker(); as blocker) {
+				<span class="text-warning">{{ blocker }}</span>
+			} @else {
+				<button
+					class="btn btn-sm btn-outline-secondary"
+					type="button"
+					tooltip="Give this folder custom settings with the machine, recipe and generator fuel selections of a game save's unlocks" placement="bottom"
+					(click)="openLoadFromSave()"
+				><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
+				<button
+					class="btn btn-sm btn-primary"
+					type="button"
+					tooltip="Give this folder its own settings - they become the defaults for new plans and subfolders created here" placement="bottom"
+					(click)="enableFolderSettings()"
+				>Set default settings for folder</button>
+			}
 		</div>
 	}
 
-	<ul class="nav nav-tabs calc-tabs">
-		@for (tab of tabs; track tab.id) {
-			<li class="nav-item"><button class="nav-link" type="button" [class.active]="activeTab() === tab.id" (click)="setTab(tab.id)"><fa-icon [icon]="tab.icon"></fa-icon> {{ tab.label }}</button></li>
-		}
-	</ul>
+	<ng-container *ngTemplateOutlet="tabStrip; context: {locks: false}"></ng-container>
 
 	@switch (activeTab()) {
 		@case ('request') {
-			<div class="p-3 text-secondary">
-				A folder has no production request - open one of its plans, or
-				<button
-					class="btn btn-sm btn-outline-success ms-1"
-					type="button"
-					(click)="createPlanInFolder()"
-				>Create a plan in "{{ folder.name }}"</button>
+			<div class="p-2">
+				<info-note>
+					A folder has no production request - open one of its plans, or
+					<button
+						class="btn btn-sm btn-outline-success ms-1"
+						type="button"
+						(click)="createPlanInFolder()"
+					>Create a plan in "{{ folder.name }}"</button>
+				</info-note>
 			</div>
 		}
 		@case ('input') {
-			<div class="p-3 text-secondary">
-				A folder has no inputs - open one of its plans to add item sources for the solver.
+			<div class="p-2">
+				<info-note>A folder has no inputs - open one of its plans to add item sources for the solver.</info-note>
 			</div>
 		}
 		@default {
 			@if (folderHasCustomSettings()) {
+				@if (isGroupTab(activeTab())) {
+					<div class="d-flex align-items-center gap-2 flex-wrap px-2 pt-2">
+						<span class="text-secondary">{{ groupLabel($any(activeTab())) }} for plans inside:</span>
+						<div class="btn-group btn-group-sm" role="group">
+							<button
+								type="button"
+								class="btn"
+								[class.btn-secondary]="groupMode($any(activeTab())) === 'default'"
+								[class.btn-outline-secondary]="groupMode($any(activeTab())) !== 'default'"
+								tooltip="Seeds new plans; each plan edits its own copy" placement="bottom"
+								(click)="setGroupMode($any(activeTab()), 'default')"
+							>Default for new plans</button>
+							<button
+								type="button"
+								class="btn"
+								[class.btn-secondary]="groupMode($any(activeTab())) === 'fixed'"
+								[class.btn-outline-secondary]="groupMode($any(activeTab())) !== 'fixed'"
+								[disabled]="fixGroupsBlocker() !== null"
+								tooltip="Pushed into every plan inside and read-only there" placement="bottom"
+								(click)="setGroupMode($any(activeTab()), 'fixed')"
+							>Fixed</button>
+							@if (activeTab() === 'resources') {
+								<button
+									type="button"
+									class="btn"
+									[class.btn-secondary]="groupMode('resources') === 'pool'"
+									[class.btn-outline-secondary]="groupMode('resources') !== 'pool'"
+									[disabled]="fixGroupsBlocker() !== null"
+									tooltip="Fixed, and every limited raw resource is one pool shared by all plans inside" placement="bottom"
+									(click)="setGroupMode('resources', 'pool')"
+								>Shared pool</button>
+							}
+						</div>
+						@if (fixGroupsBlocker(); as blocker) {
+							<span class="text-warning">{{ blocker }}</span>
+						}
+					</div>
+				}
 				@switch (activeTab()) {
 					@case ('recipes') { <calculator-recipes-tab></calculator-recipes-tab> }
 					@case ('machines') { <calculator-machines-tab></calculator-machines-tab> }
@@ -219,10 +345,12 @@
 					@case ('optimisation') { <calculator-optimisation-tab></calculator-optimisation-tab> }
 				}
 			} @else {
-				<div class="p-3 text-secondary">
-					This folder inherits its solver settings from {{ parentLabel() }}.
-					Use "Set default settings for folder" above to customize them - they become
-					the defaults for new plans and subfolders created here.
+				<div class="p-2">
+					<info-note>
+						This folder inherits its solver settings from {{ parentLabel() }}.
+						Use "Set default settings for folder" above to give it its own - they become
+						the defaults for new plans and subfolders created here.
+					</info-note>
 				</div>
 			}
 		}
@@ -237,3 +365,84 @@
 @if (loadFromSave(); as target) {
 	<load-from-save-dialog [targetName]="target.name" [baseSettings]="target.baseSettings" (apply)="onLoadFromSaveApply($event)" (close)="closeLoadFromSave()"></load-from-save-dialog>
 }
+
+<!-- The tab strip adapts to the panel width (see tabsMode): labels, icons with
+     the active label only, or a single dropdown on narrow panels. -->
+<ng-template #tabStrip let-locks="locks">
+	<div class="calc-tabs-wrap" [class.menu]="tabsMode() === 'menu'" #tabsWrap>
+		@if (tabsMode() === 'menu') {
+			<div class="btn-group w-100" dropdown container="body" placement="bottom left">
+				<button class="btn btn-sm calc-tab-select dropdown-toggle text-start d-flex align-items-center gap-2" type="button" dropdownToggle>
+					<fa-icon [icon]="activeTabDefinition.icon" [fixedWidth]="true" class="tab-select-icon"></fa-icon>
+					<span class="flex-grow-1">{{ activeTabDefinition.label }}</span>
+					@if (badges().get(activeTabDefinition.id); as badge) {
+						<span class="badge rounded-pill tab-badge">{{ badge }}</span>
+					}
+					@if (locks && isFixedTab(activeTab())) {
+						<fa-icon [icon]="faLock" class="small text-secondary"></fa-icon>
+					}
+				</button>
+				<div *dropdownMenu class="dropdown-menu" style="min-width: 240px;">
+					@for (tab of tabs; track tab.id) {
+						<button class="dropdown-item d-flex align-items-center gap-2" [class.active]="activeTab() === tab.id" type="button" (click)="setTab(tab.id)">
+							<fa-icon [icon]="tab.icon" [fixedWidth]="true"></fa-icon>
+							<span class="flex-grow-1">{{ tab.label }}</span>
+							@if (badges().get(tab.id); as badge) {
+								<span class="badge rounded-pill tab-badge">{{ badge }}</span>
+							}
+							@if (locks && isFixedTab(tab.id)) {
+								<fa-icon [icon]="faLock" class="small opacity-75"></fa-icon>
+							}
+						</button>
+					}
+				</div>
+			</div>
+		} @else {
+			<ul class="nav nav-tabs calc-tabs" [class.icons]="tabsMode() === 'icons'">
+				@for (tab of tabs; track tab.id) {
+					<li class="nav-item">
+						<button
+							class="nav-link"
+							type="button"
+							[class.active]="activeTab() === tab.id"
+							[tooltip]="tabTooltip(tab, locks)"
+							container="body" placement="bottom"
+							(click)="setTab(tab.id)"
+						>
+							<ng-container *ngTemplateOutlet="tabContent; context: {tab: tab, locks: locks, label: tabsMode() === 'full' || activeTab() === tab.id}"></ng-container>
+						</button>
+					</li>
+				}
+			</ul>
+		}
+
+		<!-- Invisible natural-width copies (all labels / active label only) that decide the mode. -->
+		<ul class="nav nav-tabs calc-tabs tab-measure" #measureFull aria-hidden="true">
+			@for (tab of tabs; track tab.id) {
+				<li class="nav-item"><span class="nav-link" [class.active]="activeTab() === tab.id">
+					<ng-container *ngTemplateOutlet="tabContent; context: {tab: tab, locks: locks, label: true}"></ng-container>
+				</span></li>
+			}
+		</ul>
+		<ul class="nav nav-tabs calc-tabs icons tab-measure" #measureIcons aria-hidden="true">
+			@for (tab of tabs; track tab.id) {
+				<li class="nav-item"><span class="nav-link" [class.active]="activeTab() === tab.id">
+					<ng-container *ngTemplateOutlet="tabContent; context: {tab: tab, locks: locks, label: activeTab() === tab.id}"></ng-container>
+				</span></li>
+			}
+		</ul>
+	</div>
+</ng-template>
+
+<ng-template #tabContent let-tab="tab" let-locks="locks" let-label="label">
+	<fa-icon [icon]="tab.icon"></fa-icon>
+	@if (label) {
+		<span>{{ tab.label }}</span>
+	}
+	@if (badges().get(tab.id); as badge) {
+		<span class="badge rounded-pill tab-badge">{{ badge }}</span>
+	}
+	@if (locks && isFixedTab(tab.id)) {
+		<span class="small text-secondary"><fa-icon [icon]="faLock"></fa-icon></span>
+	}
+</ng-template>
