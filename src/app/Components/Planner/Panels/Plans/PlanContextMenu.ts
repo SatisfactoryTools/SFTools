@@ -1,4 +1,4 @@
-import {faImage, faPen, faRotateLeft, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faClone, faImage, faPen, faRotateLeft, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
@@ -46,6 +46,14 @@ export class PlanContextMenu extends PlannerContextMenu
 				label: 'Reset icon to default',
 				icon: faRotateLeft,
 				action: () => this.host.resetPlanIcon(this.plan),
+			});
+		}
+
+		if (this.plan.parentPlanId === null) {
+			items.push({
+				label: 'Clone plan',
+				icon: faClone,
+				action: () => this.host.clonePlan(this.plan, this.displayName),
 			});
 		}
 

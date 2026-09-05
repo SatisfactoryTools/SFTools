@@ -1,4 +1,4 @@
-import {faFolderPlus, faPen, faPlus, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faClone, faFolderPlus, faPen, faPlus, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
@@ -40,6 +40,11 @@ export class FolderContextMenu extends PlannerContextMenu
 				label: 'New plan…',
 				icon: faPlus,
 				action: () => this.host.startCreatePlan(this.folderId),
+			},
+			{
+				label: 'Clone folder',
+				icon: faClone,
+				action: () => this.host.cloneFolder(this.folderId),
 			},
 		];
 

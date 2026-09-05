@@ -283,6 +283,118 @@ export class PlanManager extends SyncableService<PlanStore>
 		return folder;
 	}
 
+	/**
+	 * Deep-copies the folder - subfolders, plans and subplans included - next
+	 * to the original as "Clone: [name]" (only the root is renamed). Every
+	 * copy gets a fresh id and no revision, so the API sees brand-new entities.
+	 */
+	public cloneFolder(id: string): Folder | null
+	{
+		const store = this.data();
+		const original = store.folders.find(f => f.id === id);
+		if (!original) {
+			return null;
+		}
+		const {moved} = this.extractSubtree(store, id, 'folder');
+		const copy = this.copyTree(moved.folders.map(f => f.id === id ? original : f), moved.plans);
+		const root: Folder = {
+			...copy.folders.find(f => f.id === copy.idMap.get(id))!,
+			name: `Clone: ${original.name}`,
+			order: this.nextOrder(this.orderedFolders(store, original.parentId)),
+		};
+		this.mutate(s => ({
+			folders: [...s.folders, ...copy.folders.map(f => f.id === root.id ? root : f)],
+			plans: [...s.plans, ...copy.plans],
+		}));
+		return root;
+	}
+
+	/**
+	 * Deep-copies a top-level plan with its subplans next to the original as
+	 * "Clone: [name]" (`name` is the shown name - the stored one may be blank).
+	 * Subplan nodes in the copied graphs point at the copied subplans. Every
+	 * copy gets a fresh id and no revision, so the API sees brand-new plans.
+	 */
+	public clonePlan(id: string, name: string): Plan | null
+	{
+		if (this.isSharedPlan(id)) return null;
+		const store = this.data();
+		const original = store.plans.find(p => p.id === id);
+		if (!original || original.parentPlanId !== null) {
+			return null;
+		}
+		const {moved} = this.extractSubtree(store, id, 'plan');
+		const copy = this.copyTree([], moved.plans.map(p => p.id === id ? original : p));
+		const root: Plan = {
+			...copy.plans.find(p => p.id === copy.idMap.get(id))!,
+			name: `Clone: ${name}`,
+			order: this.nextOrder(this.orderedPlans(store, original.folderId, null)),
+		};
+		this.mutate(s => ({
+			...s,
+			plans: [...s.plans, ...copy.plans.map(p => p.id === root.id ? root : p)],
+		}));
+		return root;
+	}
+
+	/**
+	 * Fresh-id deep copies of the given folders and plans. References among
+	 * them (parent folder, folder, parent plan, graph subplan nodes) follow
+	 * the new ids; references to anything outside the set stay as they are.
+	 */
+	private copyTree(folders: readonly Folder[], plans: readonly Plan[]): {folders: Folder[]; plans: Plan[]; idMap: Map<string, string>}
+	{
+		const idMap = new Map<string, string>();
+		folders.forEach(f => idMap.set(f.id, crypto.randomUUID()));
+		plans.forEach(p => idMap.set(p.id, crypto.randomUUID()));
+		const remap = (ref: string | null): string | null => ref === null ? null : idMap.get(ref) ?? ref;
+		return {
+			idMap,
+			folders: folders.map(f => ({
+				...f,
+				id: idMap.get(f.id)!,
+				parentId: remap(f.parentId),
+				settings: f.settings ? this.cloneSettings(f.settings) : null,
+				fixedGroups: [...f.fixedGroups],
+				revision: null,
+			})),
+			plans: plans.map(p => ({
+				...p,
+				id: idMap.get(p.id)!,
+				folderId: remap(p.folderId),
+				parentPlanId: remap(p.parentPlanId),
+				settings: this.cloneSettings(p.settings),
+				requests: structuredClone(p.requests),
+				inputs: structuredClone(p.inputs),
+				graph: this.copyGraph(p.graph, idMap),
+				metadata: structuredClone(p.metadata),
+				revision: null,
+			})),
+		};
+	}
+
+	/**
+	 * A raw-JSON copy of the graph (through Node.toJSON - the planner revives
+	 * it on demand, like a graph loaded from the API) with subplan nodes
+	 * pointed at the copied subplans.
+	 */
+	private copyGraph(graph: Graph | null, idMap: Map<string, string>): Graph | null
+	{
+		if (graph === null) {
+			return null;
+		}
+		const raw = JSON.parse(JSON.stringify(graph)) as Graph;
+		return {
+			...raw,
+			nodes: raw.nodes.map(node => {
+				const subplanId = (node as unknown as {subplanId?: string}).subplanId;
+				return typeof subplanId === 'string' && idMap.has(subplanId)
+					? {...node, subplanId: idMap.get(subplanId)!} as unknown as typeof node
+					: node;
+			}),
+		};
+	}
+
 	public renameFolder(id: string, name: string): void
 	{
 		this.mutate(store => ({

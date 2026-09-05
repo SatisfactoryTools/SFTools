@@ -80,6 +80,7 @@
 				[class.tree-drop-after]="dropPositionOf(item.plan.id) === 'after'"
 				[class.tree-plan-active]="item.plan.id === activePlanId()"
 				[class.tree-ancestor]="activeAncestorIds().has(item.plan.id)"
+				[class.tree-subplan]="item.isSubplan"
 				[style.padding-left.rem]="item.depth * 1 + 0.25"
 				role="button"
 				longPressContextMenu
@@ -100,11 +101,14 @@
 					<span class="tree-toggle"></span>
 				}
 				@if (item.isEditing) {
-					<span class="text-secondary tree-plan-icon">
+					<span class="text-secondary tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
 						@if (planIconHash(item.plan); as hash) {
 							<game-icon [hash]="hash" [size]="18" [alt]="planDisplayName(item.plan)"></game-icon>
 						} @else {
 							<fa-icon [icon]="faFileLines"></fa-icon>
+						}
+						@if (item.isSubplan) {
+							<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
 						}
 					</span>
 					<input
@@ -116,11 +120,14 @@
 						(blur)="commitEdit()"
 					/>
 				} @else {
-					<span class="text-secondary tree-plan-icon">
+					<span class="text-secondary tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
 						@if (planIconHash(item.plan); as hash) {
 							<game-icon [hash]="hash" [size]="18" [alt]="planDisplayName(item.plan)"></game-icon>
 						} @else {
 							<fa-icon [icon]="faFileLines"></fa-icon>
+						}
+						@if (item.isSubplan) {
+							<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
 						}
 					</span>
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="planDisplayName(item.plan)"><span (dblclick)="startRenamePlan(item.plan.id, item.plan.name)">{{ planDisplayName(item.plan) }}</span></span>
@@ -203,18 +210,22 @@
 			@for (item of localTreeItems(); track item.kind + ':' + item.id) {
 				<div
 					class="d-flex align-items-center gap-1 tree-row"
+					[class.tree-subplan]="item.isSubplan"
 					[style.padding-left.rem]="item.depth * 1 + 1.5"
-					draggable="true"
-					(dragstart)="onDragStart($event, item.kind, item.id, 'local')"
+					[attr.draggable]="item.isSubplan ? null : 'true'"
+					(dragstart)="onLocalDragStart($event, item)"
 					(dragend)="onDragEnd()"
 				>
-					<span class="text-secondary">
+					<span class="text-secondary tree-plan-icon">
 						@if (item.kind === 'folder') {
 							<fa-icon [icon]="faFolder"></fa-icon>
 						} @else if (item.iconHash) {
 							<game-icon [hash]="item.iconHash" [size]="18" [alt]="item.name"></game-icon>
 						} @else {
 							<fa-icon [icon]="faFileLines"></fa-icon>
+						}
+						@if (item.isSubplan) {
+							<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
 						}
 					</span>
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>

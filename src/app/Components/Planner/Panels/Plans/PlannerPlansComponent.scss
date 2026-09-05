@@ -58,6 +58,34 @@
 	padding-left: 0.25rem;
 }
 
+// Subplans are parts of their parent plan's graph, not standalone plans: a
+// small graph badge sits on the icon's corner and the label is quieter, so the
+// hierarchy under a plan reads differently from plans nested in folders.
+.tree-plan-icon {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+}
+
+.tree-subplan-badge {
+	position: absolute;
+	right: -0.4rem;
+	bottom: -0.25rem;
+	font-size: 0.6rem;
+	line-height: 1;
+	padding: 0.1rem;
+	border-radius: 50%;
+	color: rgb(120, 175, 235);
+	background-color: rgba(20, 30, 40, 0.95);
+	pointer-events: none;
+}
+
+.tree-subplan .tree-label {
+	font-size: 0.9rem;
+	opacity: 0.8;
+}
+
 // The whole path to the active plan stays faintly tinted so the tree shows
 // where the selection lives even in a deep hierarchy.
 .tree-ancestor {

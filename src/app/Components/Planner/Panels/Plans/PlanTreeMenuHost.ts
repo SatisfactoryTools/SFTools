@@ -11,8 +11,11 @@ export interface PlanTreeMenuHost
 	startRenameFolder(id: string, currentName: string): void;
 	startCreateFolder(parentId: string | null): void;
 	startCreatePlan(parentId: string | null): void;
+	cloneFolder(id: string): void;
 	deleteFolder(id: string, name: string): void;
 	startRenamePlan(id: string, currentName: string): void;
+	/** Top-level plans only - a cloned subplan would have no node in any parent graph. */
+	clonePlan(plan: Plan, displayName: string): void;
 	deletePlan(plan: Plan): void;
 	pickPlanIcon(plan: Plan): void;
 	resetPlanIcon(plan: Plan): void;

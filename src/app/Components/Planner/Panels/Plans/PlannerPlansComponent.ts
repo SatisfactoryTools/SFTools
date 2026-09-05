@@ -3,7 +3,7 @@ import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {TooltipDirective} from 'ngx-bootstrap/tooltip';
-import {faCaretDown, faCaretRight, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLock, faPlus} from '@fortawesome/free-solid-svg-icons';
+import {faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLock, faPlus} from '@fortawesome/free-solid-svg-icons';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
@@ -57,6 +57,8 @@ interface PlanItem
 	readonly isEditing: boolean;
 	readonly hasSubplans: boolean;
 	readonly isOpen: boolean;
+	/** Lives inside its parent plan's graph rather than in a folder. */
+	readonly isSubplan: boolean;
 }
 
 interface InputItem
@@ -77,6 +79,16 @@ interface LocalItem
 	readonly id: string;
 	readonly name: string;
 	readonly iconHash: string | null;
+	/** Subplans migrate with their parent plan and cannot be dragged on their own. */
+	readonly isSubplan: boolean;
+}
+
+/** The tree row being dragged. */
+interface DragItem
+{
+	readonly type: 'plan' | 'folder';
+	readonly id: string;
+	readonly source: 'account' | 'local';
 }
 
 interface EditState
@@ -102,6 +114,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	public readonly faCaretDown = faCaretDown;
 	public readonly faCaretRight = faCaretRight;
+	public readonly faDiagramProject = faDiagramProject;
 	public readonly faEllipsisVertical = faEllipsisVertical;
 	public readonly faFileImport = faFileImport;
 	public readonly faFileLines = faFileLines;
@@ -120,7 +133,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public editValue: string = '';
 
 	private needsFocus = false;
-	private dragItem: {type: 'plan' | 'folder'; id: string; source: 'account' | 'local'} | null = null;
+	private dragItem: DragItem | null = null;
 
 	private readonly dropTargetSignal = signal<DropTarget | null>(null);
 	public readonly dropTarget: Signal<DropTarget | null> = this.dropTargetSignal.asReadonly();
@@ -153,6 +166,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 				isEditing: isPlanEditing(node.plan.id),
 				hasSubplans: node.subplans.length > 0,
 				isOpen,
+				isSubplan: node.plan.parentPlanId !== null,
 			});
 			if (!isOpen) return;
 
@@ -213,11 +227,18 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		const tree = this.planManager.localPlanTree();
 		const items: LocalItem[] = [];
 		const addPlan = (node: PlanTreePlan, depth: number): void => {
-			items.push({kind: 'plan', depth, id: node.plan.id, name: this.planNames.displayName(node.plan), iconHash: this.planIcons.iconHash(node.plan)});
+			items.push({
+				kind: 'plan',
+				depth,
+				id: node.plan.id,
+				name: this.planNames.displayName(node.plan),
+				iconHash: this.planIcons.iconHash(node.plan),
+				isSubplan: node.plan.parentPlanId !== null,
+			});
 			node.subplans.forEach(sub => addPlan(sub, depth + 1));
 		};
 		const addFolder = (node: PlanTreeFolder, depth: number): void => {
-			items.push({kind: 'folder', depth, id: node.folder.id, name: node.folder.name, iconHash: null});
+			items.push({kind: 'folder', depth, id: node.folder.id, name: node.folder.name, iconHash: null, isSubplan: false});
 			node.children.forEach(child => addFolder(child, depth + 1));
 			node.plans.forEach(p => addPlan(p, depth + 1));
 		};
@@ -518,6 +539,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	public startCreateFolder(parentId: string | null): void
 	{
+		this.expandFolder(parentId);
 		this.editValue = '';
 		this.editStateSignal.set({mode: 'new-folder', targetId: null, parentId});
 		this.needsFocus = true;
@@ -529,15 +551,39 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	 */
 	public startCreatePlan(parentId: string | null): void
 	{
-		if (parentId !== null) {
-			this.collapsedSignal.update(set => {
-				const next = new Set(set);
-				next.delete(parentId);
-				return next;
-			});
-		}
+		this.expandFolder(parentId);
 		const plan = this.planManager.createPlan('', parentId);
 		this.planManager.setActivePlan(plan.id);
+	}
+
+	/** A collapsed folder would hide the new row / inline input added inside it. */
+	private expandFolder(folderId: string | null): void
+	{
+		if (folderId === null) {
+			return;
+		}
+		this.collapsedSignal.update(set => {
+			const next = new Set(set);
+			next.delete(folderId);
+			return next;
+		});
+	}
+
+	/** The clone lands next to the original and becomes active, ready to work in. */
+	public cloneFolder(id: string): void
+	{
+		const clone = this.planManager.cloneFolder(id);
+		if (clone) {
+			this.planManager.setActiveFolder(clone.id);
+		}
+	}
+
+	public clonePlan(plan: Plan, displayName: string): void
+	{
+		const clone = this.planManager.clonePlan(plan.id, displayName);
+		if (clone) {
+			this.planManager.setActivePlan(clone.id);
+		}
 	}
 
 	public startRenameFolder(id: string, currentName: string): void
@@ -562,9 +608,11 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 		if (value) {
 			switch (state.mode) {
-				case 'new-folder':
-					this.planManager.createFolder(value, state.parentId);
+				case 'new-folder': {
+					const folder = this.planManager.createFolder(value, state.parentId);
+					this.planManager.setActiveFolder(folder.id);
 					break;
+				}
 				case 'new-plan': {
 					const plan = this.planManager.createPlan(value, state.parentId);
 					this.planManager.setActivePlan(plan.id);
@@ -622,9 +670,24 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	// Drag-and-drop: moving between parents and reordering among siblings
 
-	public onDragStart(event: DragEvent, type: 'plan' | 'folder', id: string, source: 'account' | 'local' = 'account'): void
+	public onDragStart(event: DragEvent, type: 'plan' | 'folder', id: string): void
 	{
-		this.dragItem = {type, id, source};
+		this.dragItem = {type, id, source: 'account'};
+		event.dataTransfer!.effectAllowed = 'move';
+	}
+
+	/**
+	 * A local subplan row is not draggable, but an icon inside it can still
+	 * start a native drag that bubbles here - swallow it so the subplan cannot
+	 * be migrated apart from its parent plan.
+	 */
+	public onLocalDragStart(event: DragEvent, item: LocalItem): void
+	{
+		if (item.isSubplan) {
+			event.preventDefault();
+			return;
+		}
+		this.dragItem = {type: item.kind, id: item.id, source: 'local'};
 		event.dataTransfer!.effectAllowed = 'move';
 	}
 
@@ -632,10 +695,16 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	 * The pointer's place within the row decides the drop: the outer quarters
 	 * of a folder row (halves of a plan row) insert before/after it, the
 	 * middle of a folder row drops inside. The root header only takes "inside".
+	 * Rows that would not accept the dragged item are not marked and the
+	 * browser shows the drop as forbidden.
 	 */
 	public onDragOver(event: DragEvent, targetId: string, kind: 'root' | 'folder' | 'plan'): void
 	{
 		if (!this.dragItem) return;
+		if (!this.dropAllowed(this.dragItem, targetId, kind)) {
+			this.onDragLeave(event, targetId);
+			return;
+		}
 		event.preventDefault();
 		event.dataTransfer!.dropEffect = 'move';
 		this.dropTargetSignal.set({id: targetId, position: this.positionIn(event, kind)});
@@ -672,7 +741,12 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		}
 
 		if (target === null || target.type === 'input') {
-			this.dropInto(item, null);
+			if (this.dropAllowed(item, ROOT_ID, 'root')) {
+				this.dropInto(item, null);
+			}
+			return;
+		}
+		if (!this.dropAllowed(item, target.type === 'plan' ? target.plan.id : target.id, target.type)) {
 			return;
 		}
 		const position = drop?.position ?? 'inside';
@@ -689,6 +763,29 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	{
 		this.dragItem = null;
 		this.dropTargetSignal.set(null);
+	}
+
+	/**
+	 * A subplan never leaves its parent plan: it can only be reordered among
+	 * its sibling subplans, and nothing else can land between subplans (that
+	 * would turn a top-level plan into a subplan without a node in the parent
+	 * graph). Dropping a row onto itself is a no-op.
+	 */
+	private dropAllowed(item: DragItem, targetId: string, kind: 'root' | 'folder' | 'plan'): boolean
+	{
+		if (item.source === 'local') {
+			return true;
+		}
+		if (targetId === item.id) {
+			return false;
+		}
+		const plans = this.planManager.plans();
+		const dragged = item.type === 'plan' ? plans.find(p => p.id === item.id) : undefined;
+		const target = kind === 'plan' ? plans.find(p => p.id === targetId) : undefined;
+		if (dragged && dragged.parentPlanId !== null) {
+			return target !== undefined && target.parentPlanId === dragged.parentPlanId;
+		}
+		return target === undefined || target.parentPlanId === null;
 	}
 
 	private positionIn(event: DragEvent, kind: 'root' | 'folder' | 'plan'): DropPosition

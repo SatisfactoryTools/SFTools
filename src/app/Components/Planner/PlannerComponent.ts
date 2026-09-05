@@ -104,6 +104,15 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	private calcSubscription: Subscription | null = null;
 	private renderedPlanId: string | null = null;
 
+	/**
+	 * The ':planId' URL param last applied to (or seen matching) the active
+	 * plan. Store changes re-run the URL → state sync while the address bar
+	 * may still name the previous plan (the State → URL navigation is async);
+	 * remembering what was already applied keeps such a stale param from
+	 * re-activating the plan the user just left (e.g. right after cloning).
+	 */
+	private urlAppliedPlanId: string | null = null;
+
 	// Graph-local spot for the manual add-node dialog; non-null while it is open.
 	private readonly addNodePositionSignal = signal<GraphPoint | null>(null);
 	public readonly addNodeOpen = computed(() => this.addNodePositionSignal() !== null);
@@ -423,8 +432,17 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		this.subscription.add(
 			combineLatest([this.route.paramMap, toObservable(this.planManager.plans)]).subscribe(([params, plans]) => {
 				const planId = params.get('planId');
-				if (!planId || planId === this.planManager.activePlanId()) return;
+				if (!planId) {
+					this.urlAppliedPlanId = null;
+					return;
+				}
+				if (planId === this.urlAppliedPlanId) return;
+				if (planId === this.planManager.activePlanId()) {
+					this.urlAppliedPlanId = planId;
+					return;
+				}
 				if (plans.some(p => p.id === planId)) {
+					this.urlAppliedPlanId = planId;
 					this.planManager.setActivePlan(planId);
 				}
 			}),
@@ -1556,9 +1574,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 		// The subplan gets its own layout - routing carried over from the
 		// parent would be meaningless around the new input/product nodes.
+		// Several severed edges of one item can share an endpoint (a node
+		// feeding the same product to two outside consumers, or fed by two
+		// outside sources) - inside the subplan they all meet at the single
+		// boundary node, so they collapse into one edge carrying the sum.
 		const subGraph: Graph = {
 			nodes: [...subNodes, ...boundaryNodes],
-			edges: [...internal.map(e => ({...e, vertices: undefined, labelDistance: undefined})), ...boundaryEdges],
+			edges: [...internal.map(e => ({...e, vertices: undefined, labelDistance: undefined})), ...this.mergeParallelEdges(boundaryEdges)],
 		};
 		try {
 			// The new subplan inherits this plan's layout settings, so lay its
