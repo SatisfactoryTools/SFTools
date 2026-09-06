@@ -258,7 +258,7 @@ export class CalculatorComponent implements OnDestroy
 
 	public constructor(
 		private readonly planManager: PlanManager,
-		private readonly planNames: PlanNameResolver,
+		public readonly planNames: PlanNameResolver,
 		private readonly notifications: NotificationService,
 		public readonly actions: PlannerActionsService,
 		public readonly activeShare: ActiveShareManager,
@@ -429,7 +429,10 @@ export class CalculatorComponent implements OnDestroy
 	/** The "move" of the open share into the viewer's own plans (see ActiveShareManager). */
 	public addShareToMyPlans(): void
 	{
-		this.activeShare.addToMyPlans();
+		const share = this.activeShare.payload();
+		if (share !== null) {
+			this.activeShare.addToMyPlans(share.share);
+		}
 	}
 
 	public relayout(): void

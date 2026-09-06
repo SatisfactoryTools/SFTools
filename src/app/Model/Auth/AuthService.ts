@@ -11,6 +11,12 @@ export class AuthService
 	public readonly accessToken: Signal<string | null>;
 	public readonly currentLogin: Signal<string | null>;
 	public readonly isAuthenticated: Signal<boolean>;
+	/**
+	 * A name fit for greeting the user. Third-party sign-ins have no username
+	 * (the API offers none yet - see backend-requests.md), so their stored login
+	 * is a "via Discord" placeholder and this is null for them.
+	 */
+	public readonly displayName: Signal<string | null>;
 
 	public constructor()
 	{
@@ -19,6 +25,10 @@ export class AuthService
 		this.accessToken = this.accessTokenSignal.asReadonly();
 		this.currentLogin = this.loginSignal.asReadonly();
 		this.isAuthenticated = computed(() => this.accessToken() !== null);
+		this.displayName = computed(() => {
+			const login = this.currentLogin();
+			return login === null || login.startsWith('via ') ? null : login;
+		});
 	}
 
 	public storeSession(login: string, response: TokenResponse): void

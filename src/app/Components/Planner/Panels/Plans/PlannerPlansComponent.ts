@@ -1,4 +1,5 @@
 import {AfterViewChecked, Component, ElementRef, Signal, ViewChild, ChangeDetectionStrategy, computed, signal} from '@angular/core';
+import {toObservable} from '@angular/core/rxjs-interop';
 import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
@@ -14,6 +15,7 @@ import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/Pla
 import {DropPosition} from '@src/Components/Planner/Panels/Plans/DropPosition';
 import {DropTarget} from '@src/Components/Planner/Panels/Plans/DropTarget';
 import {FolderContextMenu} from '@src/Components/Planner/Panels/Plans/FolderContextMenu';
+import {LocalItemContextMenu} from '@src/Components/Planner/Panels/Plans/LocalItemContextMenu';
 import {PlanContextMenu} from '@src/Components/Planner/Panels/Plans/PlanContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
 import {VisitedShareContextMenu} from '@src/Components/Planner/Panels/Plans/VisitedShareContextMenu';
@@ -33,7 +35,8 @@ import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
 import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
 import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
-import {ActiveShareTreeRow} from '@src/Model/Shares/ActiveShareTreeRow';
+import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
+import {ShareTreeNode} from '@src/Model/Shares/ShareTreeNode';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 import {VisitedSharesManager} from '@src/Model/Shares/VisitedSharesManager';
 
@@ -83,12 +86,34 @@ interface LocalItem
 	readonly isSubplan: boolean;
 }
 
-/** The tree row being dragged. */
+/** A row of a share's tree in the "Shared plans" section (below the share's own row). */
+interface SharedTreeItem
+{
+	readonly kind: 'folder' | 'plan';
+	readonly depth: number;
+	/** The sharer's original id from the payload - mapped to the hydrated plan while the share is open. */
+	readonly payloadId: string;
+	/** Collapse key, unique across shares (payload ids may repeat across shares of the same plan). */
+	readonly key: string;
+	readonly name: string;
+	readonly iconHash: string | null;
+	readonly isSubplan: boolean;
+	readonly hasChildren: boolean;
+	readonly isOpen: boolean;
+}
+
+/**
+ * The tree row being dragged. Account rows move within the tree; a local
+ * row (this device's plans) or a shared row (a visited share - its id is
+ * the share uuid) is copied/moved INTO the account tree when dropped on it.
+ */
 interface DragItem
 {
 	readonly type: 'plan' | 'folder';
 	readonly id: string;
-	readonly source: 'account' | 'local';
+	readonly source: 'account' | 'local' | 'shared';
+	/** Shared rows only: the share's game version, which must be the active one. */
+	readonly versionId?: string;
 }
 
 interface EditState
@@ -143,10 +168,14 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public readonly treeItems: Signal<TreeItem[]> = computed(() => {
 		const tree = this.planManager.planTree();
 		const collapsed = this.collapsedSignal();
-		const editing = this.editStateSignal();
-		const items: TreeItem[] = [];
+		if (collapsed.has(ROOT_ID)) return [];
+		return this.flattenTree(tree.entries, collapsed, this.editStateSignal());
+	});
 
-		if (collapsed.has(ROOT_ID)) return items;
+	/** Flattens a (sub)tree into rows, honouring collapsed nodes and (for the user's own tree) the inline edit row. */
+	private flattenTree(entries: (PlanTreeFolder | PlanTreePlan)[], collapsed: ReadonlySet<string>, editing: EditState | null): TreeItem[]
+	{
+		const items: TreeItem[] = [];
 
 		const isFolderEditing = (id: string): boolean =>
 			editing?.mode === 'rename-folder' && editing.targetId === id;
@@ -195,15 +224,16 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 				items.push({type: 'input', depth: depth + 1, mode: editing.mode === 'new-folder' ? 'folder' : 'plan', parentId: node.folder.id});
 			}
 
-			node.children.forEach(child => addFolder(child, depth + 1));
-			node.plans.forEach(p => addPlan(p, depth + 1));
+			node.entries.forEach(entry => addEntry(entry, depth + 1));
 		};
 
-		tree.rootFolders.forEach(f => addFolder(f, 0));
-		tree.rootPlans.forEach(p => addPlan(p, 0));
+		const addEntry = (entry: PlanTreeFolder | PlanTreePlan, depth: number): void =>
+			'folder' in entry ? addFolder(entry, depth) : addPlan(entry, depth);
+
+		entries.forEach(entry => addEntry(entry, 0));
 
 		return items;
-	});
+	}
 
 	public readonly rootOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(ROOT_ID));
 	public readonly localOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(LOCAL_ID));
@@ -215,8 +245,81 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	/** The share currently open in the planner, or null. */
 	public readonly activeShareId: Signal<string | null>;
 
-	/** The open share's inner tree, shown inline under its list row. */
-	public readonly activeShareRows: Signal<ActiveShareTreeRow[]>;
+	/**
+	 * Every listed share's tree BELOW its root, from the device's snapshot
+	 * cache (see ShareTreeCache) - shown whether or not the share is open.
+	 * The root itself (the shared plan or folder) is not repeated: the
+	 * share's own list row is that row. Keyed by share uuid.
+	 */
+	public readonly sharedTreeItemsByShare: Signal<Map<string, SharedTreeItem[]>> = computed(() => {
+		const trees = this.shareTrees.trees();
+		const collapsed = this.collapsedSignal();
+		const data = this.versionManager.activeVersionData();
+		const result = new Map<string, SharedTreeItem[]>();
+		this.sharedList().forEach(share => {
+			const root = trees.get(share.share);
+			if (!root) {
+				return;
+			}
+			const items: SharedTreeItem[] = [];
+			const add = (node: ShareTreeNode, depth: number, isSubplan: boolean): void => {
+				const key = share.share + ':' + node.id;
+				const isOpen = !collapsed.has(key);
+				items.push({
+					kind: node.kind,
+					depth,
+					payloadId: node.id,
+					key,
+					name: node.kind === 'plan' ? this.planNames.displayNameOf(node.name) : node.name,
+					iconHash: node.kind === 'plan' && node.iconClassName !== null ? data?.iconForClassName(node.iconClassName) ?? null : null,
+					isSubplan,
+					hasChildren: node.children.length > 0,
+					isOpen,
+				});
+				if (isOpen) {
+					node.children.forEach(child => add(child, depth + 1, node.kind === 'plan'));
+				}
+			};
+			root.children.forEach(child => add(child, 0, root.kind === 'plan'));
+			result.set(share.share, items);
+		});
+		return result;
+	});
+
+	/**
+	 * Payload ids on the path from the open share's root to its selected
+	 * plan (exclusive) - those rows are highlighted as ancestors, like the
+	 * folder chain and subplan parents in "Your plans".
+	 */
+	public readonly sharedAncestorPayloadIds: Signal<Set<string>> = computed(() => {
+		const shareId = this.activeShareId();
+		const activeId = this.activeShare.activePayloadPlanId();
+		const root = shareId !== null ? this.shareTrees.trees().get(shareId) : undefined;
+		const ids = new Set<string>();
+		if (!root || activeId === null) {
+			return ids;
+		}
+		const pathTo = (node: ShareTreeNode, path: string[]): string[] | null => {
+			if (node.id === activeId) {
+				return path;
+			}
+			for (const child of node.children) {
+				const found = pathTo(child, [...path, node.id]);
+				if (found) {
+					return found;
+				}
+			}
+			return null;
+		};
+		(pathTo(root, []) ?? []).forEach(id => ids.add(id));
+		return ids;
+	});
+
+	/** True while the open share's root plan is the selected one - its list row is then the active row. */
+	public readonly activeShareRootActive: Signal<boolean> = computed(() => {
+		const root = this.activeShare.rootPlan();
+		return root !== null && root.id === this.activePlanId();
+	});
 
 	/** Shown while signed in AND this device still has local plans to migrate. */
 	public readonly showLocalSection: Signal<boolean> = computed(() =>
@@ -239,11 +342,11 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		};
 		const addFolder = (node: PlanTreeFolder, depth: number): void => {
 			items.push({kind: 'folder', depth, id: node.folder.id, name: node.folder.name, iconHash: null, isSubplan: false});
-			node.children.forEach(child => addFolder(child, depth + 1));
-			node.plans.forEach(p => addPlan(p, depth + 1));
+			node.entries.forEach(entry => addEntry(entry, depth + 1));
 		};
-		tree.rootFolders.forEach(f => addFolder(f, 0));
-		tree.rootPlans.forEach(p => addPlan(p, 0));
+		const addEntry = (entry: PlanTreeFolder | PlanTreePlan, depth: number): void =>
+			'folder' in entry ? addFolder(entry, depth) : addPlan(entry, depth);
+		tree.entries.forEach(entry => addEntry(entry, 0));
 		return items;
 	});
 
@@ -254,8 +357,9 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	 */
 	public readonly activeAncestorIds: Signal<Set<string>> = computed(() => {
 		const ids = new Set<string>();
-		const plans = this.planManager.plans();
-		const folders = this.planManager.folders();
+		// Both stores: the open share's subplans/folders highlight their ancestors the same way.
+		const plans = [...this.planManager.plans(), ...this.planManager.sharedPlans()];
+		const folders = [...this.planManager.folders(), ...this.planManager.sharedFolders()];
 
 		let plan = plans.find(p => p.id === this.activePlanId()) ?? null;
 		while (plan && plan.parentPlanId !== null) {
@@ -298,14 +402,16 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		private readonly notifications: NotificationService,
 		private readonly visitedShares: VisitedSharesManager,
 		private readonly activeShare: ActiveShareManager,
+		private readonly shareTrees: ShareTreeCache,
 		private readonly router: Router,
 	)
 	{
+		// A share visited on another device has no local tree snapshot yet - fetch it once.
+		toObservable(visitedShares.visitedShares).subscribe(shares => shares.forEach(share => shareTrees.ensure(share.share)));
 		this.activePlanId = planManager.activePlanId;
 		this.activeFolderId = planManager.activeFolderId;
 		this.sharedList = visitedShares.visitedShares;
 		this.activeShareId = activeShare.shareId;
-		this.activeShareRows = activeShare.treeRows;
 	}
 
 	// ── Sharing ─────────────────────────────────────────────────────────────
@@ -478,12 +584,25 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	// ── Shared plans (visited share links) ──────────────────────────────────
 
-	/** Opens the share in its version's planner; the version was auto-added on first visit. */
+	/**
+	 * Opens the share in its version's planner (the version was auto-added on
+	 * first visit). The row of the already-open share is its root plan - like
+	 * any plan row, clicking it selects that plan (back from a subplan).
+	 */
 	public openVisitedShare(share: VisitedShare): void
 	{
 		if (this.activeShareId() === share.share) {
+			const root = this.activeShare.rootPlan();
+			if (root !== null) {
+				this.planManager.setActivePlan(root.id);
+			}
 			return;
 		}
+		this.navigateToShare(share);
+	}
+
+	private navigateToShare(share: VisitedShare): void
+	{
 		const version = this.versionManager.versions().find(v => v.id === share.version.id);
 		if (version) {
 			void this.router.navigate(['/', this.versionManager.urlSlug(version), 'planner', 'shared', share.share]);
@@ -494,17 +613,75 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		}
 	}
 
-	/** Selects a plan inside the open share (read-only). */
-	public selectSharedPlan(plan: Plan): void
+	/** Shown name of a visited-share row - an unnamed shared plan gets the usual fallback. */
+	public visitedShareName(share: VisitedShare): string
 	{
-		this.planManager.setActivePlan(plan.id);
+		return share.type === 'plan' ? this.planNames.displayNameOf(share.name) : share.name;
+	}
+
+	/**
+	 * Icon of a visited-share row. A plan share's row IS its plan, so it shows
+	 * the plan's icon: the hydrated plan's while the share is open, else the
+	 * class name from the visit-time entry or the tree snapshot (resolved
+	 * against the active version's data - item icons are stable across
+	 * versions). Null falls back to the generic type icon.
+	 */
+	public visitedShareIconHash(share: VisitedShare): string | null
+	{
+		if (share.type !== 'plan') {
+			return null;
+		}
+		if (share.share === this.activeShareId()) {
+			const plan = this.activeShare.rootPlan();
+			if (plan !== null) {
+				return this.planIcons.iconHash(plan);
+			}
+		}
+		const className = share.iconClassName !== undefined ? share.iconClassName : this.shareTrees.treeOf(share.share)?.iconClassName ?? null;
+		return className === null ? null : this.versionManager.activeVersionData()?.iconForClassName(className) ?? null;
+	}
+
+	public sharedTreeItemsOf(shareId: string): SharedTreeItem[]
+	{
+		return this.sharedTreeItemsByShare().get(shareId) ?? [];
+	}
+
+	public shareHasChildren(shareId: string): boolean
+	{
+		return (this.shareTrees.treeOf(shareId)?.children.length ?? 0) > 0;
+	}
+
+	/** A shared tree row is the active one while its share is open and its hydrated plan is selected. */
+	public isSharedRowActive(share: VisitedShare, item: SharedTreeItem): boolean
+	{
+		return share.share === this.activeShareId() && this.activeShare.hydratedPlanId(item.payloadId) === this.activePlanId();
+	}
+
+	public isSharedRowAncestor(share: VisitedShare, item: SharedTreeItem): boolean
+	{
+		return share.share === this.activeShareId() && this.sharedAncestorPayloadIds().has(item.payloadId);
+	}
+
+	/** Selects a plan of a share (read-only) - opening the share first when it is not the open one. */
+	public selectSharedTreePlan(share: VisitedShare, item: SharedTreeItem): void
+	{
+		this.activeShare.selectPlan(share.share, item.payloadId);
+		if (this.activeShareId() !== share.share) {
+			this.navigateToShare(share);
+		}
+	}
+
+	/** Whether the open share's list row is expanded to show its tree (collapse keyed by share id, like any node). */
+	public isShareExpanded(shareId: string): boolean
+	{
+		return !this.collapsedSignal().has(shareId);
 	}
 
 	public onVisitedShareContextMenu(event: MouseEvent, share: VisitedShare): void
 	{
 		event.preventDefault();
 		event.stopPropagation();
-		this.contextMenu.open(new VisitedShareContextMenu(share, this), event.clientX, event.clientY);
+		this.contextMenu.open(new VisitedShareContextMenu(share, this.visitedShareName(share), this), event.clientX, event.clientY);
 	}
 
 	public copyShareLink(share: VisitedShare): void
@@ -512,6 +689,37 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		navigator.clipboard.writeText(`${window.location.origin}/shared/${share.share}`)
 			.then(() => this.notifications.showSuccess('Share link copied.'))
 			.catch(() => this.notifications.show('Could not copy the share link.'));
+	}
+
+	public isShareVersionActive(share: VisitedShare): boolean
+	{
+		return this.activeShare.isShareVersionActive(share.version.id);
+	}
+
+	public addShareToMyPlans(share: VisitedShare): void
+	{
+		this.activeShare.addToMyPlans(share.share);
+	}
+
+	public onSharedDragStart(event: DragEvent, share: VisitedShare): void
+	{
+		this.dragItem = {type: share.type, id: share.share, source: 'shared', versionId: share.version.id};
+		event.dataTransfer!.effectAllowed = 'copy';
+	}
+
+	// ── Plans on this device ────────────────────────────────────────────────
+
+	public onLocalContextMenu(event: MouseEvent, item: LocalItem): void
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		this.contextMenu.open(new LocalItemContextMenu(item.id, item.kind, item.name, this), event.clientX, event.clientY);
+	}
+
+	public addLocalToMyPlans(id: string, kind: 'plan' | 'folder', folderId: string | null = null): void
+	{
+		this.planManager.moveLocalToAccount(id, kind, folderId);
+		this.notifications.showSuccess('Moved to your plans.');
 	}
 
 	/** Non-destructive: the share itself is permanent, reopening the link restores the entry. */
@@ -706,8 +914,11 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 			return;
 		}
 		event.preventDefault();
-		event.dataTransfer!.dropEffect = 'move';
-		this.dropTargetSignal.set({id: targetId, position: this.positionIn(event, kind)});
+		event.dataTransfer!.dropEffect = this.dragItem.source === 'shared' ? 'copy' : 'move';
+		this.dropTargetSignal.set({
+			id: targetId,
+			position: this.dragItem.source === 'account' ? this.positionIn(event, kind) : 'inside',
+		});
 	}
 
 	public onDragLeave(event: DragEvent, targetId: string): void
@@ -733,10 +944,16 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		this.dragItem = null;
 		if (!item) return;
 
-		// A local plan/folder dropped onto the account migrates it up (placed at
-		// the root; the target row is ignored for a cross-section move).
-		if (item.source === 'local') {
-			this.planManager.moveLocalToAccount(item.id, item.type);
+		// A local or shared row dropped onto the account tree lands in the
+		// folder the target row stands for (a plan row = its folder), last.
+		if (item.source !== 'account') {
+			const folderId = this.crossSectionFolder(target);
+			if (folderId === undefined) return;
+			if (item.source === 'local') {
+				this.addLocalToMyPlans(item.id, item.type, folderId);
+			} else {
+				this.activeShare.addToMyPlans(item.id, folderId);
+			}
 			return;
 		}
 
@@ -773,8 +990,13 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	 */
 	private dropAllowed(item: DragItem, targetId: string, kind: 'root' | 'folder' | 'plan'): boolean
 	{
-		if (item.source === 'local') {
-			return true;
+		// Rows coming INTO the account tree land in a folder: any folder, the
+		// root, or a top-level plan's folder. Shares are version-scoped.
+		if (item.source !== 'account') {
+			if (item.source === 'shared' && !this.activeShare.isShareVersionActive(item.versionId ?? '')) {
+				return false;
+			}
+			return kind !== 'plan' || this.planManager.plans().some(p => p.id === targetId && p.parentPlanId === null);
 		}
 		if (targetId === item.id) {
 			return false;
@@ -801,6 +1023,22 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		return fraction < 0.25 ? 'before' : fraction > 0.75 ? 'after' : 'inside';
 	}
 
+	/**
+	 * The folder a cross-section drop lands in: the folder row itself, the
+	 * root header (null), or a top-level plan row's folder. Undefined for rows
+	 * that take no such drop (subplans - they have no folder).
+	 */
+	private crossSectionFolder(target: TreeItem | null): string | null | undefined
+	{
+		if (target === null || target.type === 'input') {
+			return null;
+		}
+		if (target.type === 'folder') {
+			return target.id;
+		}
+		return target.plan.parentPlanId === null ? target.plan.folderId : undefined;
+	}
+
 	/** Appends the dragged item to the folder (null = root). */
 	private dropInto(item: {type: 'plan' | 'folder'; id: string}, folderId: string | null): void
 	{
@@ -815,35 +1053,42 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	/**
 	 * Inserts the dragged item right before/after the target row. Folders and
-	 * plans are separate sibling lists, so a plan dropped beside a folder row
-	 * (or a folder beside a plan row) joins the matching list of that parent
-	 * at its end.
+	 * plans of one level share a single order, so a plan dropped beside a
+	 * folder row (or a folder beside a plan row) lands exactly there. Beside a
+	 * subplan only plans can land, among that parent's subplans.
 	 */
 	private dropBeside(item: {type: 'plan' | 'folder'; id: string}, target: FolderItem | PlanItem, after: boolean): void
 	{
-		if (target.type === 'folder') {
-			const parentId = this.planManager.folders().find(f => f.id === target.id)?.parentId ?? null;
-			if (item.type === 'folder') {
-				const siblings = this.planManager.siblingFolders(parentId).filter(f => f.id !== item.id);
-				const index = siblings.findIndex(f => f.id === target.id);
-				if (this.confirmFolderMove(item.id, parentId)) {
-					this.planManager.placeFolder(item.id, parentId, index < 0 ? null : index + (after ? 1 : 0));
-				}
-			} else {
-				this.dropInto(item, parentId);
+		// Beside a subplan: only plans can land there, among that parent's subplans.
+		if (target.type === 'plan' && target.plan.parentPlanId !== null) {
+			const targetPlan = target.plan;
+			if (item.type !== 'plan') {
+				this.dropInto(item, this.planManager.folderIdOfPlan(targetPlan));
+				return;
 			}
-			return;
-		}
-
-		const targetPlan = target.plan;
-		if (item.type === 'plan') {
 			const siblings = this.planManager.siblingPlans(targetPlan.folderId, targetPlan.parentPlanId).filter(p => p.id !== item.id);
 			const index = siblings.findIndex(p => p.id === targetPlan.id);
 			if (this.confirmPlanMove(item.id, targetPlan.folderId, targetPlan.parentPlanId)) {
 				this.planManager.placePlan(item.id, targetPlan.folderId, targetPlan.parentPlanId, index < 0 ? null : index + (after ? 1 : 0));
 			}
-		} else {
-			this.dropInto(item, this.planManager.folderIdOfPlan(targetPlan));
+			return;
+		}
+
+		// Beside a folder or top-level plan: folders and plans share one
+		// position sequence per level, so either kind lands exactly there.
+		const targetId = target.type === 'folder' ? target.id : target.plan.id;
+		const folderId = target.type === 'folder'
+			? this.planManager.folders().find(f => f.id === target.id)?.parentId ?? null
+			: target.plan.folderId;
+		const siblings = this.planManager.siblingEntries(folderId).filter(e => e.id !== item.id);
+		const index = siblings.findIndex(e => e.id === targetId);
+		const position = index < 0 ? null : index + (after ? 1 : 0);
+		if (item.type === 'folder') {
+			if (this.confirmFolderMove(item.id, folderId)) {
+				this.planManager.placeFolder(item.id, folderId, position);
+			}
+		} else if (this.confirmPlanMove(item.id, folderId, null)) {
+			this.planManager.placePlan(item.id, folderId, null, position);
 		}
 	}
 

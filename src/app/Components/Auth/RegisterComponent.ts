@@ -1,9 +1,11 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
-import {RouterLink} from '@angular/router';
+import {ActivatedRoute, RouterLink} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {HttpErrorResponse} from '@angular/common/http';
+import {AuthLayoutComponent} from '@src/Components/Auth/AuthLayoutComponent';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
 import {AuthApiService} from '@src/Model/API/AuthApiService';
+import {AuthReturnUrlService} from '@src/Model/Auth/AuthReturnUrlService';
 
 /**
  * Account creation. Signing up through a third-party provider is the primary
@@ -15,7 +17,7 @@ import {AuthApiService} from '@src/Model/API/AuthApiService';
 	selector: 'auth-register',
 	templateUrl: './RegisterComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, RouterLink, OAuthProviderButtonsComponent],
+	imports: [FormsModule, RouterLink, AuthLayoutComponent, OAuthProviderButtonsComponent],
 })
 export class RegisterComponent
 {
@@ -29,8 +31,11 @@ export class RegisterComponent
 	public error = '';
 	public success = false;
 
-	public constructor(private readonly authApiService: AuthApiService)
+	public readonly returnUrl: string;
+
+	public constructor(private readonly authApiService: AuthApiService, route: ActivatedRoute)
 	{
+		this.returnUrl = AuthReturnUrlService.sanitize(route.snapshot.queryParamMap.get('returnUrl'));
 	}
 
 	public submit(): void

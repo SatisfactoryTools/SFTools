@@ -1,10 +1,6 @@
-<div class="card">
-	<div class="card-header">
-		<h5 class="mb-0">Planner</h5>
-	</div>
-	<div class="card-body">
-		<h6 class="mb-2">Items</h6>
-		<div class="mb-4" style="max-width: 480px;">
+<settings-section title="Planner" [icon]="sectionIcon" description="Behaviour of the planner's pickers, tabs and panels.">
+		<div class="subsection-title">Items</div>
+		<div style="max-width: 480px;">
 			<label class="form-label" for="unmakeable-items">Items the plan cannot produce</label>
 			<select
 				id="unmakeable-items"
@@ -23,7 +19,7 @@
 			</div>
 		</div>
 
-		<h6 class="mb-2">Production request</h6>
+		<div class="subsection-title">Production request</div>
 		<div class="mb-3" style="max-width: 480px;">
 			<label class="form-label" for="tab-labels">Tab labels</label>
 			<select
@@ -38,7 +34,7 @@
 			</select>
 			<div class="form-text">{{ tabLabelsDescription }}</div>
 		</div>
-		<div class="form-check mb-4">
+		<div class="form-check">
 			<input
 				class="form-check-input"
 				type="checkbox"
@@ -53,13 +49,12 @@
 			</div>
 		</div>
 
-		<h6 class="mb-2">Panels</h6>
-		<p class="text-secondary">
-			Panel positions and sizes are remembered automatically as you arrange them.
+		<div class="subsection-title">Panels</div>
+		<info-note class="mb-3">
+			Panel positions and sizes are remembered automatically as you arrange them, per device.
 			Resetting returns every planner panel to its default position and size.
-		</p>
-		<button type="button" class="btn btn-outline-danger" (click)="resetPanels()">
+		</info-note>
+		<button type="button" class="btn btn-sm btn-outline-danger" (click)="resetPanels()">
 			Reset panel positions and sizes
 		</button>
-	</div>
-</div>
+</settings-section>

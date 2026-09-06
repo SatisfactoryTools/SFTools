@@ -1,8 +1,12 @@
 @if (authService.isAuthenticated()) {
 	<li class="nav-item dropdown" dropdown>
 		<a class="nav-link dropdown-toggle" dropdownToggle href="javascript: void(0);">
-			<fa-icon [icon]="faCircleUser"></fa-icon>
-			{{ authService.currentLogin() }}
+			@if (account.avatarUrl(); as avatar) {
+				<img class="avatar" [src]="avatar" alt="">
+			} @else {
+				<fa-icon [icon]="faCircleUser"></fa-icon>
+			}
+			{{ account.name() ?? authService.currentLogin() }}
 		</a>
 		<ul *dropdownMenu class="dropdown-menu dropdown-menu-end">
 			<li>
@@ -20,24 +24,10 @@
 		</ul>
 	</li>
 } @else {
-	<li class="nav-item dropdown" dropdown>
-		<a class="nav-link dropdown-toggle" dropdownToggle href="javascript: void(0);">
-			<fa-icon [icon]="faCircleUser"></fa-icon>
-			Account
+	<li class="nav-item">
+		<a class="nav-link" routerLink="/auth/login" [queryParams]="{returnUrl: router.url}" routerLinkActive="active">
+			<fa-icon [icon]="faRightToBracket"></fa-icon>
+			Sign in
 		</a>
-		<ul *dropdownMenu class="dropdown-menu dropdown-menu-end">
-			<li>
-				<a class="dropdown-item" routerLink="/auth/login">
-					<fa-icon [icon]="faRightToBracket"></fa-icon>
-					Login
-				</a>
-			</li>
-			<li>
-				<a class="dropdown-item" routerLink="/auth/register">
-					<fa-icon [icon]="faUserPlus"></fa-icon>
-					Register
-				</a>
-			</li>
-		</ul>
 	</li>
 }

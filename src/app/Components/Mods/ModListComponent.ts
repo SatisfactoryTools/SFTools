@@ -2,21 +2,19 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {Router, RouterLink} from '@angular/router';
-import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
 import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {Mod} from '@src/Model/API/Schema/Mods/Mod';
+import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 
 /** All mods visible to the user - their own (manageable) and public ones - plus the create form. */
 @Component({
 	templateUrl: './ModListComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [DatePipe, FaIconComponent, FormsModule, RouterLink],
+	imports: [DatePipe, FormsModule, RouterLink, BackLinkComponent],
 })
 export class ModListComponent
 {
 
-	public readonly faChevronLeft = faChevronLeft;
 
 	public mods: Mod[] = [];
 	public loading = true;

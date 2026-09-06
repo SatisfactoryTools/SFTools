@@ -5,6 +5,7 @@ import {catchError, switchMap} from 'rxjs/operators';
 import {env} from '@env/env';
 import {CreateVersionRequest} from '@src/Model/API/Schema/CreateVersionRequest';
 import {LinkVersionsResponse} from '@src/Model/API/Schema/LinkVersionsResponse';
+import {PlanCountsResponse} from '@src/Model/API/Schema/Plans/PlanCountsResponse';
 import {Version} from '@src/Model/API/Schema/Version';
 import {VersionDataLocation} from '@src/Model/API/Schema/VersionDataLocation';
 import {VersionFile} from '@src/Model/API/Schema/VersionFile';
@@ -29,6 +30,12 @@ export class VersionsApiService
 	public createVersion(request: CreateVersionRequest): Observable<Version>
 	{
 		return this.http.post<Version>(`${env.apiUrl}/v1/versions`, request);
+	}
+
+	/** The signed-in user's plan count and last edit per version - one cheap call for the home page (401 anonymously). */
+	public planCounts(): Observable<PlanCountsResponse>
+	{
+		return this.http.get<PlanCountsResponse>(`${env.apiUrl}/v1/versions/plan-counts`);
 	}
 
 	/** Fetches a single version by id - public, works for any version whose UUID is known. */

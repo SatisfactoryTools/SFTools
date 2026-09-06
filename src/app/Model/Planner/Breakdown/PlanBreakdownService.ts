@@ -525,7 +525,7 @@ export class PlanBreakdownService
 		if (ancestors.has(planId)) {
 			return result;
 		}
-		const plan = this.planManager.plans().find(p => p.id === planId) ?? null;
+		const plan = this.planManager.findPlan(planId);
 		const graph = this.reviveGraph(plan?.graph ?? null);
 		if (!graph) {
 			return result;

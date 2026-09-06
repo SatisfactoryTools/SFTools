@@ -2,11 +2,10 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {DatePipe} from '@angular/common';
 import {FormsModule} from '@angular/forms';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
-import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
 import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {Mod} from '@src/Model/API/Schema/Mods/Mod';
 import {ModVersion} from '@src/Model/API/Schema/Mods/ModVersion';
+import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 
 /**
  * One mod: rename / visibility / deletion for the owner, plus its version
@@ -17,12 +16,11 @@ import {ModVersion} from '@src/Model/API/Schema/Mods/ModVersion';
 @Component({
 	templateUrl: './ModDetailComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [DatePipe, FaIconComponent, FormsModule, RouterLink],
+	imports: [DatePipe, FormsModule, RouterLink, BackLinkComponent],
 })
 export class ModDetailComponent
 {
 
-	public readonly faChevronLeft = faChevronLeft;
 
 	public mod: Mod | null = null;
 	public loading = true;

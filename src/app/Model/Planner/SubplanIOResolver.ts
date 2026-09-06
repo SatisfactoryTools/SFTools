@@ -30,7 +30,7 @@ export class SubplanIOResolver
 	 */
 	public refresh(node: SubplanNode): SubplanNode
 	{
-		const plan = this.planManager.plans().find(p => p.id === node.subplanId);
+		const plan = this.planManager.findPlan(node.subplanId);
 		if (!plan) {
 			return node;
 		}

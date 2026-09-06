@@ -3,15 +3,21 @@
 }
 
 <div class="d-flex flex-column gap-2">
+	@if (loading) {
+		<div class="text-center text-secondary small py-2">
+			<span class="spinner-border spinner-border-sm me-2" role="status"></span>Loading sign-in options…
+		</div>
+	}
 	@for (provider of displayedProviders; track provider.key) {
 		<button
 			type="button"
-			class="btn btn-primary d-flex align-items-center justify-content-center gap-2"
+			class="btn provider-btn"
 			[disabled]="startingProvider !== null"
 			(click)="start(provider)"
 		>
-			<fa-icon [icon]="provider.icon" [fixedWidth]="true"></fa-icon>
-			{{ startingProvider === provider.key ? 'Redirecting…' : verb + ' ' + provider.label }}
+			<span class="provider-icon" [style.color]="provider.color"><fa-icon [icon]="provider.icon" [fixedWidth]="true"></fa-icon></span>
+			<span class="provider-label">{{ startingProvider === provider.key ? 'Redirecting…' : verb + ' ' + provider.label }}</span>
+			<span class="provider-spacer"></span>
 		</button>
 	}
 </div>

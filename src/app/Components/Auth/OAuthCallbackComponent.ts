@@ -1,21 +1,23 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {HttpErrorResponse} from '@angular/common/http';
+import {AuthLayoutComponent} from '@src/Components/Auth/AuthLayoutComponent';
 import {OAuthApiService} from '@src/Model/API/OAuthApiService';
 import {TokenResponse} from '@src/Model/API/Schema/Auth/TokenResponse';
+import {AuthReturnUrlService} from '@src/Model/Auth/AuthReturnUrlService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {OAuthProviders} from '@src/Model/Auth/OAuthProviders';
 
 /**
  * Landing page of the OAuth redirect (/auth/callback/{provider}): forwards
  * every query parameter the provider sent to the backend callback endpoint,
- * then either stores the token pair (sign-in) or returns to the account page
- * (link flow). The state and code are single-use, so this runs exactly once.
+ * then either stores the token pair (sign-in, returning to the page the user
+ * signed in from) or returns to the account page (link flow). The state and code are single-use, so this runs exactly once.
  */
 @Component({
 	templateUrl: './OAuthCallbackComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [RouterLink],
+	imports: [RouterLink, AuthLayoutComponent],
 })
 export class OAuthCallbackComponent
 {
@@ -26,6 +28,7 @@ export class OAuthCallbackComponent
 	public constructor(
 		private readonly oauthApiService: OAuthApiService,
 		private readonly authService: AuthService,
+		private readonly authReturnUrl: AuthReturnUrlService,
 		private readonly router: Router,
 		route: ActivatedRoute,
 	)
@@ -48,7 +51,7 @@ export class OAuthCallbackComponent
 				// There is no username to show for third-party sign-ins; the
 				// navbar displays the provider instead.
 				this.authService.storeSession(`via ${this.providerLabel}`, response as TokenResponse);
-				void this.router.navigate(['/']);
+				void this.router.navigateByUrl(this.authReturnUrl.consume());
 			},
 			error: (err: HttpErrorResponse) => {
 				this.error = (err.error as {error?: string})?.error ?? `Signing in with ${this.providerLabel} failed. Please try again.`;

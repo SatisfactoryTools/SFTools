@@ -14,4 +14,10 @@ export interface VisitedShare
 	readonly sharedAt: string;
 	readonly visitedAt: string;
 	readonly version: ShareVersion;
+	/**
+	 * A plan share's icon class name (its chosen icon, else its first
+	 * product); null = none, undefined = unknown (folder shares, and rows
+	 * from the API) - then the ShareTreeCache snapshot supplies it.
+	 */
+	readonly iconClassName?: string | null;
 }

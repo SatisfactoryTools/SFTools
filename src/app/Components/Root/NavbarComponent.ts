@@ -7,6 +7,7 @@ import {faDiagramProject, faGear, faMagnifyingGlass} from '@fortawesome/free-sol
 import {CollapseModule} from 'ngx-bootstrap/collapse';
 import {NavbarVersionSwitcherComponent} from '@src/Components/Root/NavbarVersionSwitcherComponent';
 import {NavbarSearchComponent} from '@src/Components/Root/NavbarSearchComponent';
+import {NavbarCommunityLinksComponent} from '@src/Components/Root/NavbarCommunityLinksComponent';
 import {NavbarUserDropdownComponent} from '@src/Components/Root/NavbarUserDropdownComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
@@ -23,6 +24,7 @@ import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService'
 		NavbarVersionSwitcherComponent,
 		NavbarSearchComponent,
 		NavbarUserDropdownComponent,
+		NavbarCommunityLinksComponent,
 	],
 	// On desktop the search is centered between the side groups and shrinks
 	// when they leave too little room; on mobile it flows inside the collapse.
@@ -30,6 +32,22 @@ import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService'
 		/* Phone shortcuts and the menu button compete with the brand for one
 		   row: the shortcut label goes first (below 420px), then the wordmark
 		   shrinks to the S mark (below 360px). */
+		/* Phone shortcuts and the menu toggler share one look: white glyph, soft white frame. */
+		.navbar-shortcut,
+		.navbar-toggler {
+			--bs-btn-color: #fff;
+			--bs-btn-border-color: rgba(255, 255, 255, 0.45);
+			--bs-btn-hover-color: #fff;
+			--bs-btn-hover-bg: rgba(255, 255, 255, 0.15);
+			--bs-btn-hover-border-color: rgba(255, 255, 255, 0.7);
+			--bs-btn-active-color: #fff;
+			--bs-btn-active-bg: rgba(255, 255, 255, 0.25);
+			--bs-btn-active-border-color: rgba(255, 255, 255, 0.7);
+			border-color: rgba(255, 255, 255, 0.45);
+		}
+		.navbar-shortcut {
+			padding: 0.3rem 0.6rem;
+		}
 		@media (max-width: 419.98px) {
 			.shortcut-label { display: none; }
 		}

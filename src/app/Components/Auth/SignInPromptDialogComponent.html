@@ -1,0 +1,44 @@
+@if (signInPrompt.visible()) {
+	<div class="prompt-backdrop" (click)="signInPrompt.continueWithout()">
+		<div class="prompt-dialog card border-secondary" role="dialog" aria-modal="true" aria-labelledby="sign-in-prompt-title" (click)="$event.stopPropagation()">
+			<button type="button" class="btn-close prompt-close" aria-label="Continue without signing in" (click)="signInPrompt.continueWithout()"></button>
+
+			<div class="prompt-hero">
+				<img src="/assets/logo-mark.png" alt="">
+				<h4 id="sign-in-prompt-title" class="mb-2">Don't lose your factories</h4>
+				<p class="text-secondary small mb-0">
+					You're planning without an account, so everything lives in this browser only.
+					Clear it or switch devices and it's gone.
+				</p>
+			</div>
+
+			<div class="card-body">
+				<ul class="benefits">
+					<li>
+						<span class="benefit-icon"><fa-icon [icon]="faCloudArrowUp"></fa-icon></span>
+						<span>Plans, custom versions and settings synced to every device you use.</span>
+					</li>
+					<li>
+						<span class="benefit-icon"><fa-icon [icon]="faShareNodes"></fa-icon></span>
+						<span>Share plans with a link - friends open them read-only, or copy them.</span>
+					</li>
+					<li>
+						<span class="benefit-icon"><fa-icon [icon]="faPuzzlePiece"></fa-icon></span>
+						<span>Author your own mods and bake them into custom game versions.</span>
+					</li>
+				</ul>
+
+				<oauth-provider-buttons verb="Sign in with" [returnUrl]="returnUrl"></oauth-provider-buttons>
+
+				<div class="text-center small mt-2">
+					<a routerLink="/auth/login" [queryParams]="{returnUrl, method: 'password'}" (click)="signInPrompt.hide()">Sign in with username &amp; password</a>
+				</div>
+			</div>
+
+			<div class="card-footer d-flex justify-content-between align-items-center gap-2">
+				<button type="button" class="btn btn-link btn-sm p-0 text-secondary" (click)="signInPrompt.disable()">Don't ask again</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary" (click)="signInPrompt.continueWithout()">Continue without signing in</button>
+			</div>
+		</div>
+	</div>
+}

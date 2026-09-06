@@ -19,6 +19,7 @@ import {PlanStore} from '@src/Model/Planner/PlanStore';
 import {PlanTree} from '@src/Model/Planner/PlanTree';
 import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
 import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
+import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
 import {PlanInput} from '@src/Model/Planner/PlanInput';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {ProductionRequest} from '@src/Model/Planner/ProductionRequest';
@@ -49,6 +50,9 @@ export class PlanManager extends SyncableService<PlanStore>
 	 */
 	private readonly sharedStoreSignal = signal<PlanStore>(EMPTY_STORE);
 	public readonly sharedPlans: Signal<Plan[]> = computed(() => this.sharedStoreSignal().plans);
+	public readonly sharedFolders: Signal<Folder[]> = computed(() => this.sharedStoreSignal().folders);
+	/** The open share's tree, built exactly like the user's own - the plans panel renders both the same way. */
+	public readonly sharedPlanTree: Signal<PlanTree> = computed(() => this.buildTree(this.sharedStoreSignal()));
 
 	public readonly activePlan: Signal<Plan | null> = computed(() =>
 		this.plans().find(p => p.id === this.activePlanId())
@@ -86,8 +90,9 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public readonly planTree: Signal<PlanTree> = computed(() => this.buildTree(this.data()));
 
-	// While signed in, the localStorage plans stay put and surface here so the
-	// user can migrate them into their account by drag and drop.
+	// While signed in, the localStorage plans of the active version stay put
+	// and surface here so the user can migrate them into their account by drag
+	// and drop.
 	private readonly localStoreSignal = signal<PlanStore>(EMPTY_STORE);
 	public readonly localPlanTree: Signal<PlanTree> = computed(() => this.buildTree(this.localStoreSignal()));
 	public readonly isAuthenticated: Signal<boolean> = computed(() => this.authService.isAuthenticated());
@@ -102,15 +107,26 @@ export class PlanManager extends SyncableService<PlanStore>
 	private readonly scrubbedGraphsSubject = new Subject<string[]>();
 	public readonly scrubbedGraphs: Observable<string[]> = this.scrubbedGraphsSubject.asObservable();
 
+	/**
+	 * Emits the active version's id each time the plan store has finished
+	 * (re)loading for it. Anything that must add plans right after a version
+	 * switch waits for this - importing earlier would be wiped by the reload.
+	 */
+	private readonly storeLoadedSubject = new Subject<string | null>();
+	public readonly storeLoaded: Observable<string | null> = this.storeLoadedSubject.asObservable();
+
 	public constructor(
 		authService: AuthService,
 		plansApiService: PlansApiService,
 		foldersApiService: FoldersApiService,
 		private readonly versionManager: VersionManager,
 		notifications: NotificationService,
+		plannerLocation: PlannerLocationService,
 	)
 	{
-		const localBackend = new LocalPlanStoreBackend('sftools.plans');
+		// Local plans are version-scoped like the API's - the backend follows
+		// the active version by itself.
+		const localBackend = new LocalPlanStoreBackend(versionManager, plannerLocation);
 		super(
 			authService,
 			localBackend,
@@ -123,9 +139,9 @@ export class PlanManager extends SyncableService<PlanStore>
 			this.refreshLocalStore();
 		}
 
-		// Plans are version-scoped on the API; switching the active game
-		// version means a different plan collection, so re-fetch and drop the
-		// now-foreign active plan. A shared plan survives: opening a share
+		// Plans are version-scoped (on the API and in localStorage); switching
+		// the active game version means a different plan collection, so
+		// re-fetch and drop the now-foreign active plan. A shared plan survives: opening a share
 		// activates its version, and the (async) emission here must not wipe
 		// the selection the share flow just made. (Root singleton - no
 		// teardown needed.)
@@ -139,6 +155,9 @@ export class PlanManager extends SyncableService<PlanStore>
 				this.activeFolderIdSignal.set(null);
 			}
 			this.reload();
+			if (authService.isAuthenticated()) {
+				this.refreshLocalStore();
+			}
 		});
 	}
 
@@ -171,6 +190,24 @@ export class PlanManager extends SyncableService<PlanStore>
 		this.localPlanBackend.load().subscribe(store => this.localStoreSignal.set(store ?? EMPTY_STORE));
 	}
 
+	/**
+	 * A plan by id from either store - the user's own plans or the open
+	 * share's read-only ones. Read paths (breakdowns, subplan IO) must use
+	 * this rather than plans(), or a shared plan's graph looks empty.
+	 */
+	public findPlan(id: string): Plan | null
+	{
+		return this.plans().find(p => p.id === id)
+			?? this.sharedPlans().find(p => p.id === id)
+			?? null;
+	}
+
+	protected override onLoaded(): void
+	{
+		// The initial load may settle inside the base constructor, before these fields exist.
+		this.storeLoadedSubject?.next(this.versionManager?.activeVersion()?.id ?? null);
+	}
+
 	/** True when the id belongs to a plan of the currently open share (read-only). */
 	public isSharedPlan(id: string): boolean
 	{
@@ -192,22 +229,48 @@ export class PlanManager extends SyncableService<PlanStore>
 	}
 
 	/** Appends already-hydrated folders/plans (e.g. a copied share) to the store. */
-	public importTree(folders: Folder[], plans: Plan[]): void
+	/**
+	 * Adds a detached subtree to the store. With a root given, that root is
+	 * placed last inside the target folder (null = top level); without one the
+	 * nodes are appended as they are.
+	 */
+	public importTree(folders: Folder[], plans: Plan[], root: {id: string; type: 'plan' | 'folder'} | null = null, folderId: string | null = null): void
 	{
-		this.mutate(store => ({
-			folders: [...store.folders, ...folders],
-			plans: [...store.plans, ...plans],
-		}));
+		this.mutate(store => {
+			const placed = root === null ? {folders, plans} : this.placeRoot(store, {folders, plans}, root, folderId);
+			return {
+				folders: [...store.folders, ...placed.folders],
+				plans: [...store.plans, ...placed.plans],
+			};
+		});
 	}
 
-	/** Moves a local plan/folder (with its whole subtree) into the account. */
-	public moveLocalToAccount(id: string, type: 'plan' | 'folder'): void
+	/** Moves a local plan/folder (with its whole subtree) into the account, placed last in the given folder (null = top level). */
+	public moveLocalToAccount(id: string, type: 'plan' | 'folder', folderId: string | null = null): void
 	{
 		const {moved, rest} = this.extractSubtree(this.localStoreSignal(), id, type);
 		this.localStoreSignal.set(rest);
 		this.localPlanBackend.save(rest).subscribe();
 		const current = this.data();
-		this.persist({folders: [...current.folders, ...moved.folders], plans: [...current.plans, ...moved.plans]});
+		const placed = this.placeRoot(current, moved, {id, type}, folderId);
+		this.persist({folders: [...current.folders, ...placed.folders], plans: [...current.plans, ...placed.plans]});
+	}
+
+	/** Re-parents a detached subtree's root into the target folder, ordered after the folder's current children. */
+	private placeRoot(store: PlanStore, subtree: PlanStore, root: {id: string; type: 'plan' | 'folder'}, folderId: string | null): PlanStore
+	{
+		if (root.type === 'folder') {
+			const order = this.nextOrder(this.orderedEntries(store, folderId));
+			return {
+				folders: subtree.folders.map(f => f.id === root.id ? {...f, parentId: folderId, order} : f),
+				plans: subtree.plans,
+			};
+		}
+		const order = this.nextOrder(this.orderedEntries(store, folderId));
+		return {
+			folders: subtree.folders,
+			plans: subtree.plans.map(p => p.id === root.id ? {...p, folderId, parentPlanId: null, order} : p),
+		};
 	}
 
 	/** Moves an account plan/folder (with its whole subtree) back to this device. */
@@ -276,7 +339,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			settings: null,
 			fixedGroups: [],
 			resourcePool: false,
-			order: this.nextOrder(this.data().folders.filter(f => f.parentId === parentId)),
+			order: this.nextOrder(this.orderedEntries(this.data(), parentId)),
 			revision: null,
 		};
 		this.mutate(store => ({...store, folders: [...store.folders, folder]}));
@@ -300,7 +363,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		const root: Folder = {
 			...copy.folders.find(f => f.id === copy.idMap.get(id))!,
 			name: `Clone: ${original.name}`,
-			order: this.nextOrder(this.orderedFolders(store, original.parentId)),
+			order: this.nextOrder(this.orderedEntries(store, original.parentId)),
 		};
 		this.mutate(s => ({
 			folders: [...s.folders, ...copy.folders.map(f => f.id === root.id ? root : f)],
@@ -328,7 +391,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		const root: Plan = {
 			...copy.plans.find(p => p.id === copy.idMap.get(id))!,
 			name: `Clone: ${name}`,
-			order: this.nextOrder(this.orderedPlans(store, original.folderId, null)),
+			order: this.nextOrder(this.orderedEntries(store, original.folderId)),
 		};
 		this.mutate(s => ({
 			...s,
@@ -892,9 +955,10 @@ export class PlanManager extends SyncableService<PlanStore>
 	}
 
 	/**
-	 * Moves the plan among the siblings of the target (a folder's top-level
-	 * plans, or a plan's subplans) at the given index - null appends. An
-	 * explicit index materialises the whole sibling list's order.
+	 * Moves the plan among the siblings of the target (a folder's contents -
+	 * plans and subfolders share one order - or a plan's subplans) at the
+	 * given index - null appends. An explicit index materialises the whole
+	 * sibling list's order.
 	 */
 	public placePlan(planId: string, folderId: string | null, parentPlanId: string | null, index: number | null): void
 	{
@@ -907,13 +971,15 @@ export class PlanManager extends SyncableService<PlanStore>
 			if (!plan) {
 				return store;
 			}
-			const siblings = this.orderedPlans(store, folderId, parentPlanId).filter(p => p.id !== planId);
+			// Top-level plans share their position sequence with the folder's subfolders; subplans have their own.
+			const siblings: (Folder | Plan)[] = parentPlanId === null
+				? this.orderedEntries(store, folderId).filter(e => e.id !== planId)
+				: this.orderedPlans(store, folderId, parentPlanId).filter(p => p.id !== planId);
 			const moved: Plan = {...plan, folderId: parentPlanId === null ? folderId : null, parentPlanId};
 			const placed = index === null
 				? [...siblings, {...moved, order: this.nextOrder(siblings)}]
 				: this.withOrders([...siblings.slice(0, index), moved, ...siblings.slice(index)]);
-			const byId = new Map(placed.map(p => [p.id, p]));
-			const next = {...store, plans: store.plans.map(p => byId.get(p.id) ?? p)};
+			const next = this.withEntries(store, placed);
 			const fixed = this.fixedFolderForFolderIn(next.folders, parentPlanId === null ? folderId : this.topLevelFolderIdOf(moved, next.plans));
 			return fixed
 				? this.pushFixedSettings(next, fixed, new Set([planId, ...this.collectDescendantPlanIds(planId, next.plans)]))
@@ -928,8 +994,8 @@ export class PlanManager extends SyncableService<PlanStore>
 	}
 
 	/**
-	 * Moves the folder among the new parent's subfolders at the given index
-	 * (null appends). Under a folder that fixes settings groups the moved
+	 * Moves the folder among the new parent's contents (subfolders and plans
+	 * share one order) at the given index - null appends. Under a folder that fixes settings groups the moved
 	 * folder and its subfolders lose their custom settings and their plans
 	 * take the fixed values (the caller confirms first).
 	 */
@@ -945,13 +1011,12 @@ export class PlanManager extends SyncableService<PlanStore>
 			if (!folder) {
 				return s;
 			}
-			const siblings = this.orderedFolders(s, newParentId).filter(f => f.id !== folderId);
+			const siblings = this.orderedEntries(s, newParentId).filter(e => e.id !== folderId);
 			const moved: Folder = {...folder, parentId: newParentId};
 			const placed = index === null
 				? [...siblings, {...moved, order: this.nextOrder(siblings)}]
 				: this.withOrders([...siblings.slice(0, index), moved, ...siblings.slice(index)]);
-			const byId = new Map(placed.map(f => [f.id, f]));
-			let next: PlanStore = {...s, folders: s.folders.map(f => byId.get(f.id) ?? f)};
+			let next: PlanStore = this.withEntries(s, placed);
 
 			const fixed = this.fixedFolderForFolderIn(next.folders, newParentId);
 			if (fixed) {
@@ -977,9 +1042,10 @@ export class PlanManager extends SyncableService<PlanStore>
 		return this.orderedPlans(this.data(), folderId, parentPlanId);
 	}
 
-	public siblingFolders(parentId: string | null): Folder[]
+	/** A folder's direct contents (subfolders and top-level plans) in display order - null = root level. */
+	public siblingEntries(folderId: string | null): (Folder | Plan)[]
 	{
-		return this.orderedFolders(this.data(), parentId);
+		return this.orderedEntries(this.data(), folderId);
 	}
 
 	/** The folder a plan lives in - for a subplan, the folder of its top-level ancestor. */
@@ -998,9 +1064,25 @@ export class PlanManager extends SyncableService<PlanStore>
 			.sort(PlanManager.bySiblingOrder);
 	}
 
-	private orderedFolders(store: PlanStore, parentId: string | null): Folder[]
+	/** A folder's direct contents - subfolders and top-level plans - in display order (null = root level). */
+	private orderedEntries(store: PlanStore, folderId: string | null): (Folder | Plan)[]
 	{
-		return store.folders.filter(f => f.parentId === parentId).sort(PlanManager.bySiblingOrder);
+		return [
+			...store.folders.filter(f => f.parentId === folderId),
+			...store.plans.filter(p => p.parentPlanId === null && p.folderId === folderId),
+		].sort(PlanManager.byMixedSiblingOrder);
+	}
+
+	/** Writes a re-ordered mixed sibling list back into the store. */
+	private withEntries(store: PlanStore, entries: (Folder | Plan)[]): PlanStore
+	{
+		const folders = new Map(entries.filter(PlanManager.isFolder).map(f => [f.id, f]));
+		const plans = new Map(entries.filter((e): e is Plan => !PlanManager.isFolder(e)).map(p => [p.id, p]));
+		return {
+			...store,
+			folders: store.folders.map(f => folders.get(f.id) ?? f),
+			plans: store.plans.map(p => plans.get(p.id) ?? p),
+		};
 	}
 
 	/** Gives the list explicit positions 0..n-1 in its current order. */
@@ -1035,6 +1117,25 @@ export class PlanManager extends SyncableService<PlanStore>
 		return orderA - orderB || a.name.localeCompare(b.name);
 	}
 
+	/**
+	 * Folders and plans of one level share a single position sequence, so
+	 * the user can interleave them freely. Among unordered (never dragged)
+	 * items folders come first, as the tree always listed them before.
+	 */
+	private static byMixedSiblingOrder(a: Folder | Plan, b: Folder | Plan): number
+	{
+		const orderA = a.order ?? Number.POSITIVE_INFINITY;
+		const orderB = b.order ?? Number.POSITIVE_INFINITY;
+		return orderA - orderB
+			|| (PlanManager.isFolder(a) ? 0 : 1) - (PlanManager.isFolder(b) ? 0 : 1)
+			|| a.name.localeCompare(b.name);
+	}
+
+	private static isFolder(item: Folder | Plan): item is Folder
+	{
+		return 'parentId' in item;
+	}
+
 	private mutate(updater: (store: PlanStore) => PlanStore): void
 	{
 		this.persist(updater(this.data()));
@@ -1063,19 +1164,28 @@ export class PlanManager extends SyncableService<PlanStore>
 				.filter(p => p.folderId === folderId && p.parentPlanId === null)
 				.sort(byPlanName)
 				.map(buildPlan);
-			return {folder, children, plans};
+			return {folder, children, plans, entries: mixed(children, plans)};
 		};
 
-		return {
-			rootFolders: store.folders
-				.filter(f => f.parentId === null)
-				.sort(byName)
-				.map(f => buildFolder(f.id)),
-			rootPlans: store.plans
-				.filter(p => p.folderId === null && p.parentPlanId === null)
-				.sort(byPlanName)
-				.map(buildPlan),
+		// One display order across both kinds; a node is looked up by the id of its folder/plan.
+		const mixed = (folders: PlanTreeFolder[], plans: PlanTreePlan[]): (PlanTreeFolder | PlanTreePlan)[] => {
+			const byId = new Map<string, PlanTreeFolder | PlanTreePlan>();
+			folders.forEach(node => byId.set(node.folder.id, node));
+			plans.forEach(node => byId.set(node.plan.id, node));
+			return [...folders.map(node => node.folder), ...plans.map(node => node.plan)]
+				.sort(PlanManager.byMixedSiblingOrder)
+				.map(item => byId.get(item.id)!);
 		};
+
+		const rootFolders = store.folders
+			.filter(f => f.parentId === null)
+			.sort(byName)
+			.map(f => buildFolder(f.id));
+		const rootPlans = store.plans
+			.filter(p => p.folderId === null && p.parentPlanId === null)
+			.sort(byPlanName)
+			.map(buildPlan);
+		return {rootFolders, rootPlans, entries: mixed(rootFolders, rootPlans)};
 	}
 
 	/** The plan's descendant subplans (all levels), e.g. for undo/redo snapshots. */
@@ -1179,7 +1289,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			inputs: [],
 			graph: null,
 			metadata: {graphDirty: false},
-			order: this.nextOrder(this.orderedPlans(this.data(), folderId, parentPlanId)),
+			order: this.nextOrder(parentPlanId === null ? this.orderedEntries(this.data(), folderId) : this.orderedPlans(this.data(), folderId, parentPlanId)),
 			revision: null,
 			// iconClassName left undefined: "not chosen yet" (see Plan).
 		};

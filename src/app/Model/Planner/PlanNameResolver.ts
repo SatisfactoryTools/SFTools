@@ -12,7 +12,13 @@ export class PlanNameResolver
 
 	public displayName(plan: Plan): string
 	{
-		return plan.name.trim() !== '' ? plan.name : 'Unnamed plan';
+		return this.displayNameOf(plan.name);
+	}
+
+	/** The same fallback for a bare plan name - e.g. a share payload's root or a visited-share entry. */
+	public displayNameOf(name: string): string
+	{
+		return name.trim() !== '' ? name : 'Unnamed plan';
 	}
 
 }

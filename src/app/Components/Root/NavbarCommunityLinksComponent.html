@@ -1,0 +1,52 @@
+@for (link of community; track link.key) {
+	<li class="nav-item">
+		<a class="nav-link" [href]="link.url" target="_blank" rel="noopener" [tooltip]="link.label" placement="bottom" container="body">
+			<fa-icon [icon]="link.icon" [fixedWidth]="true"></fa-icon>
+			<span class="d-lg-none ms-1">{{ link.label }}</span>
+		</a>
+	</li>
+}
+
+<!-- Desktop: the heart opens a dropdown. -->
+<li class="nav-item dropdown d-none d-lg-block" dropdown container="body" placement="bottom right">
+	<a class="nav-link support-toggle" dropdownToggle href="javascript: void(0);" aria-label="Support the project">
+		<fa-icon [icon]="faHeart" [fixedWidth]="true"></fa-icon>
+	</a>
+	<div *dropdownMenu class="dropdown-menu dropdown-menu-end support-menu">
+		<div class="support-head">
+			<fa-icon [icon]="faHeart"></fa-icon>
+			<div>
+				<div class="support-title">Support the project</div>
+				<div class="support-sub">Satisfactory Tools is free and stays free.</div>
+			</div>
+		</div>
+		<div class="support-text">If it saves you time and you feel like giving something back, a donation helps keep the servers running.</div>
+		@for (link of donations; track link.key) {
+			<a class="support-link" [href]="link.url" target="_blank" rel="noopener">
+				<span class="brand" [style.color]="link.color"><fa-icon [icon]="link.icon" [fixedWidth]="true"></fa-icon></span>
+				<span class="label">Donate via {{ link.label }}</span>
+				<fa-icon class="ext" [icon]="faExternal"></fa-icon>
+			</a>
+		}
+	</div>
+</li>
+
+<!-- Collapsed phone menu: no floating dropdown (it can open off-screen); a tap-to-expand group instead, like the user menu. -->
+<li class="nav-item d-lg-none support-inline">
+	<button type="button" class="nav-link support-inline-head" [attr.aria-expanded]="inlineOpen" (click)="inlineOpen = !inlineOpen">
+		<fa-icon [icon]="faHeart" [fixedWidth]="true"></fa-icon>
+		<span>Support the project</span>
+		<fa-icon class="caret" [icon]="inlineOpen ? faCaretUp : faCaretDown"></fa-icon>
+	</button>
+	@if (inlineOpen) {
+		<div class="support-inline-body">
+			<div class="support-inline-sub">Satisfactory Tools is free and stays free. If it saves you time, a donation helps keep the servers running.</div>
+			@for (link of donations; track link.key) {
+				<a class="nav-link support-inline-link" [href]="link.url" target="_blank" rel="noopener">
+					<span class="brand" [style.color]="link.color"><fa-icon [icon]="link.icon" [fixedWidth]="true"></fa-icon></span>
+					Donate via {{ link.label }}
+				</a>
+			}
+		</div>
+	}
+</li>

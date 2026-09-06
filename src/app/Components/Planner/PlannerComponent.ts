@@ -69,6 +69,7 @@ import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
 import {NotificationService} from '@src/Model/NotificationService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 
@@ -155,10 +156,17 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		private readonly plannerLocation: PlannerLocationService,
 		private readonly activeShare: ActiveShareManager,
 		private readonly folderRecalculation: FolderRecalculationService,
+		private readonly signInPrompt: SignInPromptService,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
 	)
 	{
+		// Nudge signed-out users towards an account - but not when they arrive
+		// through someone's share link, which should just open.
+		if (route.snapshot.paramMap.get('shareId') === null) {
+			signInPrompt.maybePrompt();
+		}
+
 		panelLayout.register({
 			id: 'plans',
 			label: 'Plans',
@@ -452,20 +460,26 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		// ignores the initial null so a shared link isn't stripped on load.
 		// Query params carry independent state (the codex panel), so keep them.
 		// Shared plans are addressed by their share URL, never a plan id -
-		// while one is open (or selected), the address bar stays untouched.
+		// while one is selected, the address bar stays untouched. Selecting
+		// one of the user's OWN plans or folders while a share is open leaves
+		// the share URL (and with it share mode - see the paramMap subscription
+		// below), so the selection is not left half-applied on a share page.
 		this.subscription.add(
-			toObservable(this.planManager.activePlanId).pipe(skip(1)).subscribe(id => {
-				if (this.route.snapshot.paramMap.get('shareId') !== null) return;
-				if (id !== null && this.planManager.isSharedPlan(id)) return;
-				if (id === this.route.snapshot.paramMap.get('planId')) return;
-				const version = this.versionManager.activeVersion();
-				if (!version) return;
-				const slug = this.versionManager.urlSlug(version);
-				void this.router.navigate(
-					id ? ['/', slug, 'planner', id] : ['/', slug, 'planner'],
-					{queryParamsHandling: 'preserve'},
-				);
-			}),
+			toObservable(computed(() => ({id: this.planManager.activePlanId(), folderId: this.planManager.activeFolderId()})))
+				.pipe(skip(1))
+				.subscribe(({id, folderId}) => {
+					if (id !== null && this.planManager.isSharedPlan(id)) return;
+					const inShare = this.route.snapshot.paramMap.get('shareId') !== null;
+					if (inShare && id === null && folderId === null) return;
+					if (!inShare && id === this.route.snapshot.paramMap.get('planId')) return;
+					const version = this.versionManager.activeVersion();
+					if (!version) return;
+					const slug = this.versionManager.urlSlug(version);
+					void this.router.navigate(
+						id ? ['/', slug, 'planner', id] : ['/', slug, 'planner'],
+						{queryParamsHandling: 'preserve'},
+					);
+				}),
 		);
 
 		// Closing the codex panel drops its query param, so a refresh doesn't

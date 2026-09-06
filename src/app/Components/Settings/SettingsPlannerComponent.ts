@@ -3,16 +3,21 @@ import {FormsModule} from '@angular/forms';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {TabLabelsMode} from '@src/Model/Settings/TabLabelsMode';
 import {UnmakeableItemsDisplay} from '@src/Model/Settings/UnmakeableItemsDisplay';
+import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {faTableColumns} from '@fortawesome/free-solid-svg-icons';
 
 /** "Planner" settings section - unmakeable-items display and the panel-layout reset. */
 @Component({
 	selector: 'settings-planner',
 	templateUrl: './SettingsPlannerComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule],
+	imports: [FormsModule, SettingsSectionComponent, InfoNoteComponent],
 })
 export class SettingsPlannerComponent
 {
+
+	public readonly sectionIcon = faTableColumns;
 
 	public readonly unmakeableItemsOptions: {value: UnmakeableItemsDisplay; label: string; description: string}[] = [
 		{

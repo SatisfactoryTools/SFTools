@@ -1,47 +1,61 @@
 @if (conflictService.conflict()) {
 	<div class="conflict-backdrop">
-		<div class="conflict-dialog card border-secondary">
-			<div class="card-header">
-				<h5 class="mb-0">Settings differ</h5>
+		<div class="conflict-dialog card border-secondary" role="dialog" aria-modal="true" aria-labelledby="settings-conflict-title">
+			<div class="card-header d-flex align-items-center gap-2">
+				<fa-icon [icon]="faCodeCompare" class="text-info"></fa-icon>
+				<h5 id="settings-conflict-title" class="mb-0">Which settings should win?</h5>
 			</div>
 
-			<div class="p-3" style="overflow-y: auto;">
-				<p class="text-secondary">
-					Your account has different settings from this device. Choose which set to keep -
-					the other is replaced. This does not affect your plans or panel layout.
-				</p>
+			<div class="conflict-body">
+				<info-note>
+					Your account and this device disagree on {{ rows.length }} {{ rows.length === 1 ? 'setting' : 'settings' }}.
+					Pick the set to keep - the other one is replaced. Plans and the planner panel layout are not affected.
+				</info-note>
 
 				<div class="table-responsive">
-					<table class="table table-sm align-middle mb-0">
+					<table class="table table-sm align-middle mb-0 conflict-table">
 						<thead>
 							<tr>
-								<th>Setting</th>
-								<th>Account</th>
-								<th>This device</th>
+								<th style="width: 40%;">Setting</th>
+								<th>
+									<span class="side-head account"><fa-icon [icon]="faCloud"></fa-icon> Account</span>
+								</th>
+								<th>
+									<span class="side-head device"><fa-icon [icon]="faDesktop"></fa-icon> This device</span>
+								</th>
 							</tr>
 						</thead>
 						<tbody>
-							@for (row of rows; track row.label) {
-								<tr>
-									<td>{{ row.label }}</td>
-									<td>
-										@if (row.remoteColor) { <span class="swatch" [style.background]="row.remoteColor"></span> }
-										{{ row.remote }}
-									</td>
-									<td>
-										@if (row.localColor) { <span class="swatch" [style.background]="row.localColor"></span> }
-										{{ row.local }}
-									</td>
+							@for (group of groups; track group.name) {
+								<tr class="group-row">
+									<th colspan="3">{{ group.name }}</th>
 								</tr>
+								@for (row of group.rows; track row.label) {
+									<tr>
+										<td>{{ row.label }}</td>
+										<td>
+											@if (row.remoteColor) { <span class="swatch" [style.background]="row.remoteColor"></span> }
+											{{ row.remote }}
+										</td>
+										<td>
+											@if (row.localColor) { <span class="swatch" [style.background]="row.localColor"></span> }
+											{{ row.local }}
+										</td>
+									</tr>
+								}
 							}
 						</tbody>
 					</table>
 				</div>
 			</div>
 
-			<div class="card-footer d-flex justify-content-end gap-2">
-				<button type="button" class="btn btn-sm btn-outline-light" (click)="acceptRemote()">Use account settings</button>
-				<button type="button" class="btn btn-sm btn-primary" (click)="acceptLocal()">Keep this device's settings</button>
+			<div class="card-footer">
+				<button type="button" class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-2" (click)="acceptRemote()">
+					<fa-icon [icon]="faCloud"></fa-icon> Use account settings
+				</button>
+				<button type="button" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-2" (click)="acceptLocal()">
+					<fa-icon [icon]="faDesktop"></fa-icon> Keep this device's settings
+				</button>
 			</div>
 		</div>
 	</div>

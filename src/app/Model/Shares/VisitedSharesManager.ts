@@ -8,6 +8,7 @@ import {NotificationService} from '@src/Model/NotificationService';
 import {LocalStorageDataBackend} from '@src/Model/Sync/LocalStorageDataBackend';
 import {SyncableService} from '@src/Model/Sync/SyncableService';
 import {MergeVisitedSharesConflictResolver} from '@src/Model/Shares/MergeVisitedSharesConflictResolver';
+import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 import {VisitedSharesApiDataBackend} from '@src/Model/Shares/VisitedSharesApiDataBackend';
 import {VISITED_SHARES_CAP, VisitedShareStore} from '@src/Model/Shares/VisitedShareStore';
@@ -33,6 +34,7 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 		authService: AuthService,
 		sharesApi: SharesApiService,
 		notifications: NotificationService,
+		private readonly shareTrees: ShareTreeCache,
 	)
 	{
 		super(
@@ -88,6 +90,7 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 			sharedAt: payload.sharedAt,
 			visitedAt: new Date().toISOString(),
 			version: payload.version,
+			iconClassName: payload.type === 'plan' ? this.shareTrees.buildTree(payload).iconClassName : undefined,
 		};
 		const rest = this.data().shares.filter(share => share.share !== payload.share);
 		this.persist({shares: [entry, ...rest].slice(0, VISITED_SHARES_CAP)});

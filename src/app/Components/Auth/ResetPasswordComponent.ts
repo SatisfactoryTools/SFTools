@@ -2,13 +2,14 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {Router, RouterLink, ActivatedRoute} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {HttpErrorResponse} from '@angular/common/http';
+import {AuthLayoutComponent} from '@src/Components/Auth/AuthLayoutComponent';
 import {AuthApiService} from '@src/Model/API/AuthApiService';
 
 @Component({
 	selector: 'auth-reset-password',
 	templateUrl: './ResetPasswordComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, RouterLink],
+	imports: [FormsModule, RouterLink, AuthLayoutComponent],
 })
 export class ResetPasswordComponent
 {

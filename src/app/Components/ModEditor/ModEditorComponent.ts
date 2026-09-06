@@ -1,8 +1,6 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {ActivatedRoute, RouterLink} from '@angular/router';
-import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
+import {ActivatedRoute} from '@angular/router';
 import {ModEntryFormComponent} from '@src/Components/ModEditor/ModEntryFormComponent';
 import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {DataSchema} from '@src/Model/API/Schema/Data/DataSchema';
@@ -12,6 +10,7 @@ import {ModDataValidator} from '@src/Model/ModEditor/ModDataValidator';
 import {ModEntryDescriptor} from '@src/Model/ModEditor/ModEntryDescriptor';
 import {ModImageStore} from '@src/Model/ModEditor/ModImageStore';
 import {ModSchemaDescriptors} from '@src/Model/ModEditor/ModSchemaDescriptors';
+import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 
 /**
  * Editor for one mod version's data: builds a JSON document in the Data
@@ -26,13 +25,12 @@ import {ModSchemaDescriptors} from '@src/Model/ModEditor/ModSchemaDescriptors';
 @Component({
 	templateUrl: './ModEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, RouterLink, ModEntryFormComponent],
+	imports: [FormsModule, ModEntryFormComponent, BackLinkComponent],
 	host: {class: 'container-fluid d-block my-4', style: 'max-width: 1100px;'},
 })
 export class ModEditorComponent
 {
 
-	public readonly faChevronLeft = faChevronLeft;
 
 	public readonly descriptors = ModSchemaDescriptors.ALL;
 

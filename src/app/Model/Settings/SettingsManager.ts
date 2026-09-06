@@ -5,6 +5,7 @@ import {NotificationService} from '@src/Model/NotificationService';
 import {LocalStorageDataBackend} from '@src/Model/Sync/LocalStorageDataBackend';
 import {SyncableService} from '@src/Model/Sync/SyncableService';
 import {PanelLayoutState} from '@src/Components/Planner/Panel/PanelLayoutState';
+import {AccountSettings} from '@src/Model/Settings/AccountSettings';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {InteractiveSettingsConflictResolver} from '@src/Model/Settings/InteractiveSettingsConflictResolver';
 import {NumberSettings} from '@src/Model/Settings/NumberSettings';
@@ -28,6 +29,7 @@ export class SettingsManager extends SyncableService<Settings>
 	public readonly numbers: Signal<NumberSettings> = computed(() => this.settings().numbers);
 	public readonly graph: Signal<GraphSettings> = computed(() => this.settings().graph);
 	public readonly planner: Signal<PlannerSettings> = computed(() => this.settings().planner);
+	public readonly account: Signal<AccountSettings> = computed(() => this.settings().account);
 	public readonly panels: Signal<PanelLayoutState | null> = computed(() => this.settings().panels);
 
 	public constructor(
@@ -59,6 +61,11 @@ export class SettingsManager extends SyncableService<Settings>
 	public updatePlanner(patch: Partial<PlannerSettings>): void
 	{
 		this.persist({...this.settings(), planner: {...this.planner(), ...patch}});
+	}
+
+	public updateAccount(patch: Partial<AccountSettings>): void
+	{
+		this.persist({...this.settings(), account: {...this.account(), ...patch}});
 	}
 
 	/** Replaces the remembered panel layout; null resets it to the defaults. */

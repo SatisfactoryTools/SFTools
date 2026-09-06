@@ -25,4 +25,10 @@ export interface PlanTreeMenuHost
 	shareFolder(id: string, name: string): void;
 	copyShareLink(share: VisitedShare): void;
 	removeVisitedShare(share: VisitedShare): void;
+	/** False while another game version is active - adding then switches to the share's version first. */
+	isShareVersionActive(share: VisitedShare): boolean;
+	/** Copies the share into the top level of the user's plans (of its own game version). */
+	addShareToMyPlans(share: VisitedShare): void;
+	/** Moves a plan/folder of this device into the user's account plans (a folder, or the top level). */
+	addLocalToMyPlans(id: string, kind: 'plan' | 'folder', folderId?: string | null): void;
 }

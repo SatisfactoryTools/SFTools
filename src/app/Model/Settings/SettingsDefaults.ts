@@ -42,6 +42,9 @@ export class SettingsDefaults
 			tabBadges: true,
 			tabLabels: 'auto',
 		},
+		account: {
+			signInPrompts: true,
+		},
 		panels: null,
 	};
 
@@ -56,6 +59,7 @@ export class SettingsDefaults
 				nodeColors: {...SettingsDefaults.SETTINGS.graph.nodeColors, ...(data?.graph?.nodeColors ?? {})},
 			},
 			planner: {...SettingsDefaults.SETTINGS.planner, ...(data?.planner ?? {})},
+			account: {...SettingsDefaults.SETTINGS.account, ...(data?.account ?? {})},
 			panels: data?.panels ?? null,
 		};
 	}

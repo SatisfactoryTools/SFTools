@@ -204,3 +204,17 @@ circle.pg-port-adsorbed {
 @container panel (max-width: 300px) {
 	.table-stack-sm { @include table-stacked; }
 }
+
+// Small uppercase label heading a group of controls or content inside a card
+// (settings sections, About page). Successive groups get breathing room.
+.subsection-title {
+	font-size: 0.78rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #9fb0c0;
+	margin: 0 0 0.6rem;
+}
+.subsection-title:not(:first-child) {
+	margin-top: 1.5rem;
+}

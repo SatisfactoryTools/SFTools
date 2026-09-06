@@ -18,11 +18,15 @@ export class ShareImportService
 	{
 	}
 
-	/** Returns the payload-id → copied-id map, so callers can locate a specific copy. */
-	public import(payload: SharePayload): Map<string, string>
+	/**
+	 * Copies the share into the given folder (null = top level), placed last.
+	 * Returns the payload-id → copied-id map, so callers can locate a specific copy.
+	 */
+	public import(payload: SharePayload, folderId: string | null = null): Map<string, string>
 	{
 		const hydration = this.hydrator.hydrate(payload);
-		this.planManager.importTree(hydration.folders, hydration.plans);
+		const rootId = hydration.idMap.get(payload.root.id)!;
+		this.planManager.importTree(hydration.folders, hydration.plans, {id: rootId, type: payload.type}, folderId);
 		return hydration.idMap;
 	}
 

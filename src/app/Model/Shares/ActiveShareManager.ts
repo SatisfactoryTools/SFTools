@@ -1,7 +1,7 @@
 import {Injectable, Signal, computed, signal} from '@angular/core';
 import {Router} from '@angular/router';
 import {Observable, of} from 'rxjs';
-import {catchError, map, switchMap, tap} from 'rxjs/operators';
+import {catchError, filter, map, switchMap, take, tap, timeout} from 'rxjs/operators';
 import {SharesApiService} from '@src/Model/API/SharesApiService';
 import {VersionsApiService} from '@src/Model/API/VersionsApiService';
 import {SharedFolderNode} from '@src/Model/API/Schema/Shares/SharedFolderNode';
@@ -10,10 +10,13 @@ import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {NotificationService} from '@src/Model/NotificationService';
+import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
-import {ActiveShareTreeRow} from '@src/Model/Shares/ActiveShareTreeRow';
+import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
+import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
 import {ShareHydration} from '@src/Model/Shares/ShareHydration';
 import {ShareImportService} from '@src/Model/Shares/ShareImportService';
+import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
 import {SharePayloadHydrator} from '@src/Model/Shares/SharePayloadHydrator';
 import {VisitedSharesManager} from '@src/Model/Shares/VisitedSharesManager';
 
@@ -44,29 +47,18 @@ export class ActiveShareManager
 	/** The last successfully fetched share, so redirect → planner does not fetch twice. */
 	private cachedPayload: {shareId: string; payload: SharePayload} | null = null;
 
-	public readonly treeRows: Signal<ActiveShareTreeRow[]> = computed(() => {
+	/** A plan (by its payload id) chosen from the list before its share was open - selected once hydrated. */
+	private pendingPlan: {shareId: string; payloadPlanId: string} | null = null;
+
+	/** The hydrated root plan of an open plan share (null for folder shares or while closed). */
+	public readonly rootPlan: Signal<Plan | null> = computed(() => {
 		const payload = this.payloadSignal();
 		const hydration = this.hydrationSignal();
-		if (payload === null || hydration === null) {
-			return [];
+		if (payload === null || hydration === null || payload.type !== 'plan') {
+			return null;
 		}
-		const planById = new Map(hydration.plans.map(plan => [plan.id, plan]));
-		const rows: ActiveShareTreeRow[] = [];
-		const addPlan = (node: SharedPlanNode, depth: number): void => {
-			rows.push({kind: 'plan', depth, name: node.name, plan: planById.get(hydration.idMap.get(node.id)!) ?? null});
-			node.subplans.forEach(sub => addPlan(sub, depth + 1));
-		};
-		const addFolder = (node: SharedFolderNode, depth: number): void => {
-			rows.push({kind: 'folder', depth, name: node.name, plan: null});
-			node.children.forEach(child => addFolder(child, depth + 1));
-			node.plans.forEach(plan => addPlan(plan, depth + 1));
-		};
-		if (payload.type === 'folder') {
-			addFolder(payload.root as SharedFolderNode, 0);
-		} else {
-			addPlan(payload.root as SharedPlanNode, 0);
-		}
-		return rows;
+		const id = hydration.idMap.get(payload.root.id);
+		return hydration.plans.find(plan => plan.id === id) ?? null;
 	});
 
 	public constructor(
@@ -76,6 +68,7 @@ export class ActiveShareManager
 		private readonly visitedShares: VisitedSharesManager,
 		private readonly hydrator: SharePayloadHydrator,
 		private readonly shareImport: ShareImportService,
+		private readonly shareTrees: ShareTreeCache,
 		private readonly planManager: PlanManager,
 		private readonly authService: AuthService,
 		private readonly notifications: NotificationService,
@@ -99,6 +92,7 @@ export class ActiveShareManager
 			switchMap(payload => this.ensureVersion(payload).pipe(map(() => payload))),
 			tap(payload => {
 				this.cachedPayload = {shareId, payload};
+				this.shareTrees.record(payload);
 				this.visitedShares.recordVisit(payload);
 			}),
 		);
@@ -122,9 +116,11 @@ export class ActiveShareManager
 				this.planManager.loadSharedStore(hydration.folders, hydration.plans);
 				this.hydrationSignal.set(hydration);
 				this.payloadSignal.set(payload);
-				const first = this.treeRows().find(row => row.plan !== null)?.plan ?? null;
+				const pending = this.pendingPlan?.shareId === shareId ? hydration.idMap.get(this.pendingPlan.payloadPlanId) ?? null : null;
+				this.pendingPlan = null;
+				const first = pending ?? this.rootPlan()?.id ?? this.firstPlanOf(this.planManager.sharedPlanTree().entries)?.id ?? null;
 				if (first !== null) {
-					this.planManager.setActivePlan(first.id);
+					this.planManager.setActivePlan(first);
 				}
 			},
 			error: () => {
@@ -132,6 +128,40 @@ export class ActiveShareManager
 				this.notifications.show('Could not load the shared plan.');
 			},
 		});
+	}
+
+	/** The hydrated id of a payload plan of the open share, or null while the share is not open. */
+	public hydratedPlanId(payloadPlanId: string): string | null
+	{
+		return this.hydrationSignal()?.idMap.get(payloadPlanId) ?? null;
+	}
+
+	/** The payload id of the open share's plan that is currently selected, or null. */
+	public activePayloadPlanId(): string | null
+	{
+		const activeId = this.planManager.activePlanId();
+		let result: string | null = null;
+		this.hydrationSignal()?.idMap.forEach((hydratedId, payloadId) => {
+			if (hydratedId === activeId) {
+				result = payloadId;
+			}
+		});
+		return result;
+	}
+
+	/**
+	 * Selects a plan of a share by its payload id: right away when that share
+	 * is open, otherwise once the share (which the caller navigates to) has
+	 * been hydrated.
+	 */
+	public selectPlan(shareId: string, payloadPlanId: string): void
+	{
+		const hydrated = this.shareIdSignal() === shareId ? this.hydratedPlanId(payloadPlanId) : null;
+		if (hydrated !== null) {
+			this.planManager.setActivePlan(hydrated);
+			return;
+		}
+		this.pendingPlan = {shareId, payloadPlanId};
 	}
 
 	/** Leaves share mode; the cached payload stays so reopening is instant. */
@@ -148,39 +178,104 @@ export class ActiveShareManager
 	}
 
 	/**
-	 * The "move" to the viewer's own plans: copies the whole share (fresh
-	 * ids), drops the visited-list entry, and opens the copy of whichever
-	 * shared plan is on screen. Works for anonymous users too - their plans
-	 * live in localStorage.
+	 * Plans are version-scoped, so a share can only be copied into the plans
+	 * of its own game version. True while that version is active - a drop
+	 * target in the current tree makes sense only then; addToMyPlans itself
+	 * switches versions when needed.
 	 */
-	public addToMyPlans(): void
+	public isShareVersionActive(shareVersionId: string): boolean
 	{
-		const payload = this.payloadSignal();
-		const hydration = this.hydrationSignal();
-		if (payload === null || hydration === null) {
-			return;
-		}
+		return this.versionManager.activeVersion()?.id === shareVersionId;
+	}
 
-		// The viewed shared plan's payload id, so the copy of that exact plan can be opened.
-		const activeId = this.planManager.activePlanId();
-		let activePayloadId: string | null = null;
-		hydration.idMap.forEach((ephemeralId, payloadId) => {
-			if (ephemeralId === activeId) {
-				activePayloadId = payloadId;
-			}
+	/**
+	 * The "move" to the viewer's own plans: copies the whole share (fresh
+	 * ids) into the given folder (null = top level) and drops the visited-list
+	 * entry. Works for any visited share, open or not (the payload is fetched
+	 * when needed), and for anonymous users too - their plans live in
+	 * localStorage. When the share is the one open in the planner, the copy
+	 * of whichever shared plan is on screen is opened, which leaves share mode.
+	 */
+	public addToMyPlans(shareId: string, folderId: string | null = null): void
+	{
+		this.prepare(shareId).subscribe({
+			next: payload => {
+				if (!this.isShareVersionActive(payload.version.id)) {
+					this.addAfterVersionSwitch(payload);
+					return;
+				}
+				const open = this.shareIdSignal() === shareId ? this.hydrationSignal() : null;
+
+				// The viewed shared plan's payload id, so the copy of that exact plan can be opened.
+				const activeId = this.planManager.activePlanId();
+				let activePayloadId: string | null = null;
+				open?.idMap.forEach((ephemeralId, payloadId) => {
+					if (ephemeralId === activeId) {
+						activePayloadId = payloadId;
+					}
+				});
+
+				const importMap = this.shareImport.import(payload, folderId);
+				this.visitedShares.remove(payload.share);
+				this.notifications.showSuccess('Added to your plans.');
+
+				if (open === null) {
+					return;
+				}
+				const version = this.versionManager.versions().find(v => v.id === payload.version.id);
+				if (!version) {
+					return;
+				}
+				const slug = this.versionManager.urlSlug(version);
+				const targetId = activePayloadId !== null ? importMap.get(activePayloadId) ?? null : null;
+				void this.router.navigate(targetId !== null ? ['/', slug, 'planner', targetId] : ['/', slug, 'planner']);
+			},
+			error: () => this.notifications.show('Could not load the shared plan.'),
 		});
+	}
 
-		const importMap = this.shareImport.import(payload);
-		this.visitedShares.remove(payload.share);
-		this.notifications.showSuccess('Added to your plans.');
+	/** A folder share opens on its first plan in display order (the order the panel lists the tree in). */
+	private firstPlanOf(entries: (PlanTreeFolder | PlanTreePlan)[]): Plan | null
+	{
+		for (const entry of entries) {
+			const plan = 'folder' in entry ? this.firstPlanOf(entry.entries) : entry.plan;
+			if (plan !== null) {
+				return plan;
+			}
+		}
+		return null;
+	}
 
+	/**
+	 * A share of another game version: switch the planner to that version
+	 * (prepare() already made sure it is in the viewer's list), wait until
+	 * the plan store has reloaded for it, then copy the share in at the top
+	 * level and open the copy. Importing before the reload settles would be
+	 * overwritten by it.
+	 */
+	private addAfterVersionSwitch(payload: SharePayload): void
+	{
 		const version = this.versionManager.versions().find(v => v.id === payload.version.id);
 		if (!version) {
+			this.notifications.show('The game version this share was made for is no longer available.');
 			return;
 		}
 		const slug = this.versionManager.urlSlug(version);
-		const targetId = activePayloadId !== null ? importMap.get(activePayloadId) ?? null : null;
-		void this.router.navigate(targetId !== null ? ['/', slug, 'planner', targetId] : ['/', slug, 'planner']);
+		this.planManager.storeLoaded.pipe(
+			filter(versionId => versionId === version.id),
+			take(1),
+			timeout(15000),
+		).subscribe({
+			next: () => {
+				const importMap = this.shareImport.import(payload, null);
+				this.visitedShares.remove(payload.share);
+				this.notifications.showSuccess(`Added to your plans in ${version.name}.`);
+				const rootId = payload.type === 'plan' ? importMap.get(payload.root.id) ?? null : null;
+				void this.router.navigate(rootId !== null ? ['/', slug, 'planner', rootId] : ['/', slug, 'planner']);
+			},
+			error: () => this.notifications.show(`Could not switch to ${version.name} - the shared plan was not added.`),
+		});
+		void this.router.navigate(['/', slug, 'planner']);
 	}
 
 	/**

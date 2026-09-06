@@ -1,0 +1,13 @@
+<div class="auth-card card border-secondary">
+	<div class="auth-head">
+		<img src="/assets/logo-mark.png" alt="Satisfactory Tools">
+		<h1 class="h4 mb-1">{{ title }}</h1>
+		@if (subtitle !== '') {
+			<p class="text-secondary small mb-0">{{ subtitle }}</p>
+		}
+	</div>
+	<div class="card-body">
+		<ng-content></ng-content>
+	</div>
+	<ng-content select="[auth-footer]"></ng-content>
+</div>

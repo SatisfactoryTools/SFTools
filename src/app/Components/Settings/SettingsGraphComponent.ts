@@ -5,13 +5,16 @@ import {MachineDisplayMode} from '@src/Model/Settings/MachineDisplayMode';
 import {NodeColors} from '@src/Model/Settings/NodeColors';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 
 /** "Graph" settings section - icons, the sloop glow, machine display and node colours. */
 @Component({
 	selector: 'settings-graph',
 	templateUrl: './SettingsGraphComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule],
+	imports: [FormsModule, SettingsSectionComponent, InfoNoteComponent],
 	styles: [`
 		.node-preview {
 			display: inline-flex;
@@ -29,6 +32,8 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 })
 export class SettingsGraphComponent
 {
+
+	public readonly sectionIcon = faDiagramProject;
 
 	/** Icon-visibility toggles, in the order they appear on a node/edge. */
 	public readonly iconToggles: {key: keyof GraphSettings; label: string}[] = [

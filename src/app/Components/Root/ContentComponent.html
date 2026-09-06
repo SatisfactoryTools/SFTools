@@ -1,7 +1,7 @@
 <navbar/>
 
 @if (notifications.message()) {
-	<div class="position-fixed top-0 start-50 translate-middle-x" style="margin-top: 64px; z-index: 1055; min-width: 320px; max-width: 600px;">
+	<div class="position-fixed top-0 start-50 translate-middle-x" style="margin-top: 60px; z-index: 1055; min-width: 320px; max-width: 600px;">
 		<div
 			class="alert mb-0 shadow-sm py-2 px-3 d-flex align-items-center gap-2"
 			[class.alert-danger]="notifications.type() === 'error'"
@@ -16,8 +16,10 @@
 	</div>
 }
 
-<div class="container-fluid" style="margin-top: 60px;">
+<!-- Padding, not margin: a margin would swallow the pages' own top margins (margin collapsing). -->
+<div class="container-fluid" style="padding-top: 56px;">
 	<router-outlet/>
 </div>
 
 <settings-conflict-dialog/>
+<sign-in-prompt-dialog/>

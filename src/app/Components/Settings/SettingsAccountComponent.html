@@ -1,0 +1,37 @@
+<settings-section title="Account" [icon]="sectionIcon" description="Where your data lives, and how often we ask you to sign in.">
+		<div class="subsection-title">Status</div>
+		@if (auth.isAuthenticated()) {
+			<p class="mb-2">
+				@if (account.name(); as name) {
+					Signed in as <strong>{{ name }}</strong>.
+				} @else {
+					Signed in.
+				}
+				Your plans, custom versions and these settings are stored in your account.
+			</p>
+			<a routerLink="/account" class="btn btn-sm btn-outline-primary">Display name &amp; sign-in methods</a>
+		} @else {
+			<info-note kind="warning" class="mb-2">
+				You are not signed in. Plans, custom versions and these settings are kept in this browser
+				only - clearing site data or switching devices loses them.
+			</info-note>
+			<a routerLink="/auth/login" [queryParams]="{returnUrl: '/settings'}" class="btn btn-sm btn-primary">Sign in</a>
+		}
+
+		<div class="subsection-title">Reminders</div>
+		<div class="form-check">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="sign-in-prompts"
+				[ngModel]="signInPrompts"
+				(ngModelChange)="setSignInPrompts($event)"
+			/>
+			<label class="form-check-label" for="sign-in-prompts">Remind me to sign in</label>
+			<div class="form-text">
+				While signed out, the planner asks once per session whether you want to sign in and the home
+				page shows a sign-in panel. Turn this off to work without an account undisturbed - the
+				sign-in link in the top bar stays either way.
+			</div>
+		</div>
+</settings-section>

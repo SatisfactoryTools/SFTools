@@ -1,8 +1,5 @@
-<div class="card">
-	<div class="card-header">
-		<h5 class="mb-0">Numbers</h5>
-	</div>
-	<div class="card-body">
+<settings-section title="Numbers" [icon]="sectionIcon" description="How amounts, clock speeds and power read throughout the planner.">
+		<div class="subsection-title">Format</div>
 		<div class="row g-3">
 			<div class="col-12 col-lg-6">
 				<label class="form-label" for="decimal-separator">Decimal separator</label>
@@ -91,14 +88,11 @@
 			</div>
 		</div>
 
-		<hr class="my-4">
-
-		<h6 class="text-secondary">Preview</h6>
+		<div class="subsection-title">Preview</div>
 		<div class="row g-2">
 			<div class="col-auto"><span class="badge text-bg-secondary">Amount: {{ rateFormatter.amount(1234.5678) }}</span></div>
 			<div class="col-auto"><span class="badge text-bg-secondary">Clock: {{ rateFormatter.clock(66.6667) }}%</span></div>
 			<div class="col-auto"><span class="badge text-bg-secondary">Machines: {{ rateFormatter.machineCount(3.84615) }}×</span></div>
 			<div class="col-auto"><span class="badge text-bg-secondary">Power: {{ rateFormatter.power(1500) }}</span></div>
 		</div>
-	</div>
-</div>
+</settings-section>

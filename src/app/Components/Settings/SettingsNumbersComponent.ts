@@ -5,16 +5,20 @@ import {DecimalSeparator} from '@src/Model/Settings/DecimalSeparator';
 import {PowerDisplay} from '@src/Model/Settings/PowerDisplay';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
+import {faHashtag} from '@fortawesome/free-solid-svg-icons';
 
 /** "Numbers" settings section - how numbers and units are rendered everywhere. */
 @Component({
 	selector: 'settings-numbers',
 	templateUrl: './SettingsNumbersComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule],
+	imports: [FormsModule, SettingsSectionComponent],
 })
 export class SettingsNumbersComponent
 {
+
+	public readonly sectionIcon = faHashtag;
 
 	public constructor(
 		private readonly settings: SettingsManager,

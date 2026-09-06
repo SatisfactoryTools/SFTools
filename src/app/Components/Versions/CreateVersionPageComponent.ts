@@ -2,8 +2,9 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {Router, RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
+import {faCubes, faGlobe, faPuzzlePiece, faSliders, faTag} from '@fortawesome/free-solid-svg-icons';
 import {forkJoin, of} from 'rxjs';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
@@ -25,6 +26,7 @@ import {DataTransformer} from '@src/Model/Data/DataTransformer';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {WorldLimitsCalculator} from '@src/Model/Data/WorldLimitsCalculator';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 
 /** One editable row of the world resource table. */
 interface WorldResourceRow
@@ -65,19 +67,65 @@ const EMPTY_COUNTS: PurityCounts = {impure: 0, normal: 0, pure: 0};
 @Component({
 	templateUrl: './CreateVersionPageComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, RouterLink, ItemPickerComponent, GameIconComponent],
+	imports: [FaIconComponent, FormsModule, RouterLink, ItemPickerComponent, GameIconComponent, InfoNoteComponent, BackLinkComponent],
 	// The theme leaves Bootstrap's table text color dark - force the themed color.
 	styles: `
 		.table {
 			--bs-table-color: var(--bs-body-color);
 			--bs-table-bg: transparent;
 		}
+		.step-icon {
+			width: 1.6rem;
+			height: 1.6rem;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			background: rgba(76, 155, 232, 0.16);
+			color: #4c9be8;
+			font-size: 0.8rem;
+			flex-shrink: 0;
+		}
+		.cost-group .btn {
+			min-width: 3.4rem;
+		}
+		.summary-card {
+			position: sticky;
+			top: 76px;
+		}
+		.summary-list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.35rem;
+			margin: 0;
+			padding: 0;
+			list-style: none;
+			font-size: 0.9rem;
+		}
+		.summary-list li {
+			display: flex;
+			justify-content: space-between;
+			gap: 0.75rem;
+		}
+		.summary-list .value {
+			text-align: right;
+			font-weight: 600;
+		}
+		.summary-name {
+			padding: 0.5rem 0.75rem;
+			background: rgba(255, 255, 255, 0.05);
+			border-left: 3px solid #4c9be8;
+			word-break: break-word;
+		}
 	`,
 })
 export class CreateVersionPageComponent
 {
 
-	public readonly faChevronLeft = faChevronLeft;
+	public readonly faCubes = faCubes;
+	public readonly faSliders = faSliders;
+	public readonly faPuzzlePiece = faPuzzlePiece;
+	public readonly faGlobe = faGlobe;
+	public readonly faTag = faTag;
 
 	/** The multiplier sets the server accepts (see custom-versions.md). */
 	public readonly recipeCostOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
@@ -342,13 +390,14 @@ export class CreateVersionPageComponent
 			&& (this.recipeCost !== 1 || this.powerCost !== 1 || this.picked.length > 0 || this.worldRows.length > 0);
 	}
 
-	/** Mirrors the server's default name so the empty name field shows what it will become. */
-	public get namePlaceholder(): string
+	public get baseVersion(): Version | null
 	{
-		const base = this.baseVersions.find(version => version.id === this.baseId);
-		if (!base) {
-			return '';
-		}
+		return this.baseVersions.find(version => version.id === this.baseId) ?? null;
+	}
+
+	/** The non-default choices, as the server words them in the default name. */
+	public get changes(): string[]
+	{
 		const parts: string[] = [];
 		if (this.recipeCost !== 1) {
 			parts.push(`recipe ×${this.recipeCost}`);
@@ -362,7 +411,32 @@ export class CreateVersionPageComponent
 		if (this.worldRows.length > 0) {
 			parts.push('modified resources');
 		}
+		return parts;
+	}
+
+	/** Mirrors the server's default name so the empty name field shows what it will become. */
+	public get namePlaceholder(): string
+	{
+		const base = this.baseVersion;
+		if (!base) {
+			return '';
+		}
+		const parts = this.changes;
 		return parts.length > 0 ? `${base.name} (${parts.join(', ')})` : base.name;
+	}
+
+	/** What the world section contributes, for the summary. */
+	public get worldSummary(): string
+	{
+		if (this.worldRows.length === 0) {
+			return 'Unchanged';
+		}
+		const settings = this.loadedSettings;
+		if (settings === null || (settings.mode === 'none' && settings.purity === 'no-change')) {
+			return this.worldDirty ? 'Edited by hand' : 'Vanilla counts';
+		}
+		const mode = this.worldModeOptions.find(option => option.value === settings.mode)?.label ?? settings.mode;
+		return `${mode}, seed ${settings.seed}`;
 	}
 
 	public create(): void

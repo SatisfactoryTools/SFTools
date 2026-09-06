@@ -76,6 +76,7 @@
 		} @else {
 			<div
 				class="d-flex align-items-center gap-1 tree-row"
+				[class.tree-drag-over]="dropPositionOf(item.plan.id) === 'inside'"
 				[class.tree-drop-before]="dropPositionOf(item.plan.id) === 'before'"
 				[class.tree-drop-after]="dropPositionOf(item.plan.id) === 'after'"
 				[class.tree-plan-active]="item.plan.id === activePlanId()"
@@ -148,48 +149,106 @@
 		</div>
 
 		@if (sharedOpen()) {
+			<info-note class="mb-1">Opened from share links - frozen, read-only snapshots, listed across all game versions. Drag one onto &ldquo;Your plans&rdquo; (or use its menu) to get your own editable copy.</info-note>
+
 			@for (share of sharedList(); track share.share) {
 				<div
 					class="d-flex align-items-center gap-1 tree-row"
-					[class.tree-plan-active]="share.share === activeShareId() && activeShareRows().length <= 1"
-					[class.tree-ancestor]="share.share === activeShareId() && activeShareRows().length > 1"
+					[class.tree-plan-active]="share.share === activeShareId() && activeShareRootActive()"
+					[class.tree-ancestor]="share.share === activeShareId() && !activeShareRootActive()"
 					style="padding-left: 0.25rem"
 					role="button"
 					longPressContextMenu
+					draggable="true"
 					(click)="openVisitedShare(share)"
 					(contextmenu)="onVisitedShareContextMenu($event, share)"
+					(dragstart)="onSharedDragStart($event, share)"
+					(dragend)="onDragEnd()"
 				>
-					<span class="tree-toggle"></span>
-					<span class="text-secondary"><fa-icon [icon]="share.type === 'folder' ? faFolder : faFileLines"></fa-icon></span>
-					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="share.name">{{ share.name }}</span>
+					@if (shareHasChildren(share.share)) {
+						<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(share.share); $event.stopPropagation()">
+							<fa-icon [icon]="isShareExpanded(share.share) ? faCaretDown : faCaretRight"></fa-icon>
+						</button>
+					} @else {
+						<span class="tree-toggle"></span>
+					}
+					<span class="text-secondary tree-plan-icon">
+						@if (share.type === 'folder') {
+							<fa-icon [icon]="isShareExpanded(share.share) ? faFolderOpen : faFolder"></fa-icon>
+						} @else if (visitedShareIconHash(share); as hash) {
+							<game-icon [hash]="hash" [size]="18" [alt]="visitedShareName(share)"></game-icon>
+						} @else {
+							<fa-icon [icon]="faFileLines"></fa-icon>
+						}
+					</span>
+					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="visitedShareName(share)">{{ visitedShareName(share) }}</span>
 					<span class="badge bg-secondary text-truncate flex-shrink-0" style="max-width: 7rem" [truncateTitle]="share.version.name">{{ share.version.name }}</span>
 					<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Shared plan menu" (click)="onVisitedShareContextMenu($event, share)">
 						<fa-icon [icon]="faEllipsisVertical"></fa-icon>
 					</button>
 				</div>
 
-				<!-- The open share's frozen tree; a lone-plan share needs no
-				     inner row, its list row above already is the plan. -->
-				@if (share.share === activeShareId() && activeShareRows().length > 1) {
-					@for (row of activeShareRows(); track $index) {
-						<div
-							class="d-flex align-items-center gap-1 tree-row"
-							[class.tree-plan-active]="row.plan !== null && row.plan.id === activePlanId()"
-							[style.padding-left.rem]="row.depth * 1 + 1.5"
-							[attr.role]="row.plan !== null ? 'button' : null"
-							(click)="row.plan !== null && selectSharedPlan(row.plan)"
-						>
-							<span class="text-secondary">
-								@if (row.kind === 'folder') {
-									<fa-icon [icon]="faFolder"></fa-icon>
-								} @else if (row.plan !== null && planIconHash(row.plan); as hash) {
-									<game-icon [hash]="hash" [size]="18" [alt]="row.name"></game-icon>
+				<!-- The share's frozen tree below its root (the list row above
+				     already is the root), rendered like "Your plans" rows and
+				     shown for every share - from the device's snapshot cache. -->
+				@if (isShareExpanded(share.share)) {
+					@for (item of sharedTreeItemsOf(share.share); track item.key) {
+						@if (item.kind === 'folder') {
+							<div
+								class="d-flex align-items-center gap-1 tree-row"
+								[class.tree-ancestor]="isSharedRowAncestor(share, item)"
+								[style.padding-left.rem]="item.depth * 1 + 1.25"
+								longPressContextMenu
+								(contextmenu)="onVisitedShareContextMenu($event, share)"
+							>
+								@if (item.hasChildren) {
+									<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.key); $event.stopPropagation()">
+										<fa-icon [icon]="item.isOpen ? faCaretDown : faCaretRight"></fa-icon>
+									</button>
 								} @else {
-									<fa-icon [icon]="faFileLines"></fa-icon>
+									<span class="tree-toggle"></span>
 								}
-							</span>
-							<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="row.name">{{ row.name }}</span>
-						</div>
+								<span class="text-secondary"><fa-icon [icon]="item.isOpen && item.hasChildren ? faFolderOpen : faFolder"></fa-icon></span>
+								<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>
+								<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Shared plan menu" (click)="onVisitedShareContextMenu($event, share)">
+									<fa-icon [icon]="faEllipsisVertical"></fa-icon>
+								</button>
+							</div>
+						} @else {
+							<div
+								class="d-flex align-items-center gap-1 tree-row"
+								[class.tree-plan-active]="isSharedRowActive(share, item)"
+								[class.tree-ancestor]="isSharedRowAncestor(share, item)"
+								[class.tree-subplan]="item.isSubplan"
+								[style.padding-left.rem]="item.depth * 1 + 1.25"
+								role="button"
+								longPressContextMenu
+								(click)="selectSharedTreePlan(share, item)"
+								(contextmenu)="onVisitedShareContextMenu($event, share)"
+							>
+								@if (item.hasChildren) {
+									<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.key); $event.stopPropagation()">
+										<fa-icon [icon]="item.isOpen ? faCaretDown : faCaretRight"></fa-icon>
+									</button>
+								} @else {
+									<span class="tree-toggle"></span>
+								}
+								<span class="text-secondary tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
+									@if (item.iconHash; as hash) {
+										<game-icon [hash]="hash" [size]="18" [alt]="item.name"></game-icon>
+									} @else {
+										<fa-icon [icon]="faFileLines"></fa-icon>
+									}
+									@if (item.isSubplan) {
+										<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
+									}
+								</span>
+								<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>
+								<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Shared plan menu" (click)="onVisitedShareContextMenu($event, share)">
+									<fa-icon [icon]="faEllipsisVertical"></fa-icon>
+								</button>
+							</div>
+						}
 					}
 				}
 			}
@@ -201,11 +260,11 @@
 			<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleLocal()" [tooltip]="localOpen() ? 'Collapse' : 'Expand'" placement="top">
 				<fa-icon [icon]="localOpen() ? faCaretDown : faCaretRight"></fa-icon>
 			</button>
-			<span class="fw-semibold flex-grow-1">Local plans</span>
+			<span class="fw-semibold flex-grow-1">Plans on this device</span>
 		</div>
 
 		@if (localOpen()) {
-			<info-note class="mb-1">On this device only, not synced. Drag a plan or folder onto &ldquo;Your plans&rdquo; to move it into your account.</info-note>
+			<info-note class="mb-1">Made for this game version while signed out - stored in this browser only, not synced. Drag a plan or folder onto &ldquo;Your plans&rdquo; (or use its menu) to move it into your account and edit it.</info-note>
 
 			@for (item of localTreeItems(); track item.kind + ':' + item.id) {
 				<div
@@ -213,6 +272,8 @@
 					[class.tree-subplan]="item.isSubplan"
 					[style.padding-left.rem]="item.depth * 1 + 1.5"
 					[attr.draggable]="item.isSubplan ? null : 'true'"
+					longPressContextMenu
+					(contextmenu)="!item.isSubplan && onLocalContextMenu($event, item)"
 					(dragstart)="onLocalDragStart($event, item)"
 					(dragend)="onDragEnd()"
 				>
@@ -229,6 +290,11 @@
 						}
 					</span>
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>
+					@if (!item.isSubplan) {
+						<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Local plan menu" (click)="onLocalContextMenu($event, item)">
+							<fa-icon [icon]="faEllipsisVertical"></fa-icon>
+						</button>
+					}
 				</div>
 			}
 		}

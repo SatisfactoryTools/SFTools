@@ -84,7 +84,17 @@ export abstract class SyncableService<T> implements OnDestroy
 		backend.load().pipe(catchError(() => of(null))).subscribe(data => {
 			if (data !== null) this.dataSignal.set(data);
 			this.loadedSignal.set(true);
+			this.onLoaded();
 		});
+	}
+
+	/**
+	 * Called after every backend load settles (initial and reload). Beware:
+	 * the initial call can happen inside this base constructor, before a
+	 * subclass's own fields exist.
+	 */
+	protected onLoaded(): void
+	{
 	}
 
 	protected onLogin(): void

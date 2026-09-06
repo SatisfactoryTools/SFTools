@@ -1,32 +1,45 @@
-<div class="row py-3 g-3">
-	<div class="col-12 col-md-4 col-lg-3">
-		<h4 class="mb-3">Settings</h4>
-		<div class="list-group">
-			@for (section of sections; track section.id) {
-				<button
-					type="button"
-					class="list-group-item list-group-item-action d-flex align-items-center gap-2"
-					[class.active]="activeSection() === section.id"
-					(click)="selectSection(section.id)"
-				>
-					<fa-icon [icon]="section.icon"></fa-icon>
-					<span>{{ section.label }}</span>
-				</button>
+<div class="container mt-5 mb-5" style="max-width: 1080px;">
+	<back-link link="/" label="Home"></back-link>
+	<h2 class="mt-2 mb-3">Settings</h2>
+
+	<div class="row g-3">
+		<div class="col-12 col-md-4 col-lg-3 d-flex flex-column gap-3">
+			<nav class="settings-nav" aria-label="Settings sections">
+				@for (section of sections; track section.id) {
+					<button
+						type="button"
+						[class.active]="activeSection() === section.id"
+						(click)="selectSection(section.id)"
+					>
+						<span class="nav-icon"><fa-icon [icon]="section.icon"></fa-icon></span>
+						<span>{{ section.label }}</span>
+					</button>
+				}
+			</nav>
+			<info-note class="d-none d-md-flex">
+				@if (auth.isAuthenticated()) {
+					Changes save automatically and follow your account to every device.
+				} @else {
+					Changes save automatically in this browser. Sign in to carry them to other devices.
+				}
+			</info-note>
+		</div>
+
+		<div class="col-12 col-md-8 col-lg-9">
+			@switch (activeSection()) {
+				@case ('numbers') {
+					<settings-numbers></settings-numbers>
+				}
+				@case ('graph') {
+					<settings-graph></settings-graph>
+				}
+				@case ('planner') {
+					<settings-planner></settings-planner>
+				}
+				@case ('account') {
+					<settings-account></settings-account>
+				}
 			}
 		</div>
-	</div>
-
-	<div class="col-12 col-md-8 col-lg-9">
-		@switch (activeSection()) {
-			@case ('numbers') {
-				<settings-numbers></settings-numbers>
-			}
-			@case ('graph') {
-				<settings-graph></settings-graph>
-			}
-			@case ('planner') {
-				<settings-planner></settings-planner>
-			}
-		}
 	</div>
 </div>

@@ -1,6 +1,6 @@
 @if (isBound) {
-	<div class="d-flex align-items-center gap-2 mb-2">
-		<a [routerLink]="['/mods', modId]" class="btn btn-sm btn-outline-secondary"><fa-icon [icon]="faChevronLeft"></fa-icon> Back to mod</a>
+	<div class="d-flex align-items-center gap-2 mb-2 pt-4">
+		<back-link [link]="['/mods', modId ?? '']" label="Back to mod"></back-link>
 		<h2 class="mb-0 flex-grow-1">
 			{{ mod?.name ?? 'Mod' }}
 			<span class="text-secondary">- {{ modVersion?.name ?? '…' }}</span>
