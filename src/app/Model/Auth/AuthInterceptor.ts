@@ -1,7 +1,7 @@
 import {Injectable} from '@angular/core';
 import {HttpBackend, HttpClient, HttpErrorResponse, HttpEvent, HttpHandler, HttpInterceptor, HttpRequest} from '@angular/common/http';
-import {BehaviorSubject, Observable, of, throwError} from 'rxjs';
-import {catchError, filter, switchMap, take} from 'rxjs/operators';
+import {Observable, throwError} from 'rxjs';
+import {catchError, finalize, map, share, switchMap} from 'rxjs/operators';
 import {env} from '@env/env';
 import {TokenResponse} from '@src/Model/API/Schema/Auth/TokenResponse';
 import {AuthService} from '@src/Model/Auth/AuthService';
@@ -11,8 +11,14 @@ import {NotificationService} from '@src/Model/NotificationService';
 export class AuthInterceptor implements HttpInterceptor
 {
 
-	private isRefreshing = false;
-	private readonly refreshSubject = new BehaviorSubject<string | null>(null);
+	/**
+	 * The refresh call currently in flight, shared by every request that needs
+	 * it. Sharing the observable (rather than a token subject) matters for the
+	 * failure path: when the refresh is rejected, every waiting request errors
+	 * too instead of hanging forever - a hung request at boot (settings or the
+	 * version list) leaves the root resolvers pending and the page blank.
+	 */
+	private refreshInFlight: Observable<string> | null = null;
 	private readonly bypassHttp: HttpClient;
 
 	public constructor(
@@ -59,42 +65,50 @@ export class AuthInterceptor implements HttpInterceptor
 		return this.doRefresh().pipe(
 			switchMap(newToken => next.handle(this.withToken(req, newToken))),
 			catchError(err => {
-				this.authService.clearSession();
-				this.notificationService.show('Session expired. Please log in again.');
+				if (this.isSessionRejected(err)) {
+					// Only an explicit rejection (invalid/revoked/missing refresh
+					// token) ends the session. A network hiccup or a 5xx from the
+					// auth server must not log the user out - the token is still
+					// good and the next request simply retries the refresh.
+					this.authService.clearSession();
+					this.notificationService.show('Your session has expired. Please log in again.', 10_000);
+				}
 				return throwError(() => err);
 			}),
 		);
 	}
 
+	private isSessionRejected(err: unknown): boolean
+	{
+		if (!(err instanceof HttpErrorResponse)) {
+			// Not an HTTP failure - the "no refresh token" case.
+			return true;
+		}
+		return err.status >= 400 && err.status < 500;
+	}
+
 	private doRefresh(): Observable<string>
 	{
-		if (this.isRefreshing) {
-			return this.refreshSubject.pipe(
-				filter((token): token is string => token !== null),
-				take(1),
+		if (this.refreshInFlight === null) {
+			this.refreshInFlight = this.requestRefresh().pipe(
+				finalize(() => this.refreshInFlight = null),
+				share(),
 			);
 		}
+		return this.refreshInFlight;
+	}
 
-		this.isRefreshing = true;
-		this.refreshSubject.next(null);
-
+	private requestRefresh(): Observable<string>
+	{
 		const refreshToken = this.authService.getRefreshToken();
 		if (!refreshToken) {
-			this.isRefreshing = false;
 			return throwError(() => new Error('No refresh token available'));
 		}
 
 		return this.bypassHttp.post<TokenResponse>(`${env.apiUrl}/v1/auth/refresh`, {refreshToken}).pipe(
-			switchMap(response => {
-				this.isRefreshing = false;
+			map(response => {
 				this.authService.storeSession(this.authService.currentLogin() ?? '', response);
-				this.refreshSubject.next(response.accessToken);
-				return of(response.accessToken);
-			}),
-			catchError(err => {
-				this.isRefreshing = false;
-				this.refreshSubject.next(null);
-				return throwError(() => err);
+				return response.accessToken;
 			}),
 		);
 	}

@@ -28,6 +28,13 @@ export class GraphTouchGestures
 	/** A long press (ours or the browser's native contextmenu) happened in this touch - swallow its end. */
 	private pressHandled = false;
 	private pinch: {distance: number; centerX: number; centerY: number} | null = null;
+	/**
+	 * A pinch ended but a finger is still down. That finger is ignored until
+	 * every finger lifts: the single-finger pan state dates from before the
+	 * pinch, so letting the leftover finger pan would first jump the canvas by
+	 * the distance travelled during the pinch.
+	 */
+	private pinchSettling = false;
 	private lastTap: {x: number; y: number; time: number} | null = null;
 
 	private readonly touchStartListener = (event: TouchEvent) => this.onTouchStart(event);
@@ -74,6 +81,7 @@ export class GraphTouchGestures
 			this.moved = false;
 			this.pressHandled = false;
 			this.pinch = null;
+			this.pinchSettling = false;
 			if (!onCell) {
 				event.stopPropagation();
 			}
@@ -92,6 +100,8 @@ export class GraphTouchGestures
 			event.stopPropagation();
 			this.cancelLongPress();
 			this.lastTap = null;
+			// A second finger back down after a pinch starts a fresh pinch.
+			this.pinchSettling = false;
 			const [a, b] = [event.touches[0], event.touches[1]];
 			this.pinch = {
 				distance: this.distance(a, b),
@@ -118,6 +128,12 @@ export class GraphTouchGestures
 			return;
 		}
 
+		if (this.pinchSettling) {
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
+
 		if (!this.start || !this.last || event.touches.length !== 1) {
 			return;
 		}
@@ -138,13 +154,13 @@ export class GraphTouchGestures
 	{
 		this.cancelLongPress();
 
-		if (this.pinch) {
+		if (this.pinch || this.pinchSettling) {
 			event.stopPropagation();
 			if (event.touches.length < 2) {
 				this.pinch = null;
-			}
-			if (event.touches.length === 0) {
 				this.start = null;
+				this.last = null;
+				this.pinchSettling = event.touches.length > 0;
 			}
 			// A finger lifted after pinching is not a tap.
 			this.lastTap = null;

@@ -22,6 +22,83 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 	<base href="/">
+	<script>
+		// Runs before the app bundle. If a bundle script fails to load (a cached
+		// index.html referencing files a later deploy replaced) or the app throws
+		// while bootstrapping, Angular never renders and the page stays blank -
+		// this shows a message with a reload button instead. A stale index.html
+		// is retried once automatically, since a reload fetches a fresh copy.
+		(function () {
+			var RELOAD_KEY = 'sftools.lastLoadErrorReload';
+			var RELOAD_COOLDOWN = 60000;
+
+			function showError(title, detail, showReload) {
+				if (document.getElementById('load-error')) return;
+				var box = document.createElement('div');
+				box.id = 'load-error';
+				box.setAttribute('role', 'alert');
+				box.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:#0f2537;color:#ebebeb;font-family:Lato,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;z-index:9999;';
+				var card = document.createElement('div');
+				card.style.cssText = 'max-width:520px;background:#20374c;padding:28px 32px;box-shadow:0 .5rem 1rem rgba(0,0,0,.3);';
+				var h = document.createElement('h1');
+				h.textContent = title;
+				h.style.cssText = 'font-size:1.5rem;font-weight:700;margin:0 0 12px;';
+				var p = document.createElement('p');
+				p.textContent = detail;
+				p.style.cssText = 'margin:0 0 20px;line-height:1.5;';
+				card.appendChild(h);
+				card.appendChild(p);
+				if (showReload) {
+					var btn = document.createElement('button');
+					btn.type = 'button';
+					btn.textContent = 'Reload page';
+					btn.style.cssText = 'background:#DF691A;color:#fff;border:0;padding:10px 20px;font-size:1rem;font-weight:700;cursor:pointer;';
+					btn.onclick = function () { location.reload(); };
+					card.appendChild(btn);
+				}
+				box.appendChild(card);
+				(document.body || document.documentElement).appendChild(box);
+			}
+
+			function lastReloadRecently() {
+				try {
+					var last = parseInt(sessionStorage.getItem(RELOAD_KEY) || '0', 10);
+					return Date.now() - last < RELOAD_COOLDOWN;
+				} catch (e) {
+					return true;
+				}
+			}
+
+			function rememberReload() {
+				try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch (e) { /* ignore */ }
+			}
+
+			window.addEventListener('error', function (event) {
+				var target = event.target;
+				if (!(target instanceof HTMLScriptElement) || !target.src) return;
+				if (!lastReloadRecently()) {
+					rememberReload();
+					location.reload();
+					return;
+				}
+				showError(
+					'Satisfactory Tools could not be loaded',
+					'A part of the application failed to download. This usually means your browser has an outdated copy of the page cached. Please reload; if the problem persists, try a hard refresh (Ctrl+Shift+R) or clearing the site data.',
+					true
+				);
+			}, true);
+
+			document.addEventListener('sftools:boot-failed', function (event) {
+				var err = event.detail;
+				var message = err && err.message ? String(err.message) : String(err);
+				showError(
+					'Satisfactory Tools failed to start',
+					'An unexpected error occurred while starting the application: ' + message,
+					true
+				);
+			});
+		})();
+	</script>
 </head>
 <body>
 <root></root>
