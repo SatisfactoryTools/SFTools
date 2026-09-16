@@ -5,7 +5,7 @@
 	} @else {
 		@if (folderOverview(); as fo) {
 			<div class="text-secondary mb-2">
-				{{ fo.plans.length }} plan{{ fo.plans.length === 1 ? '' : 's' }} in this folder (subfolders included)@if (outdatedPlanCount() > 0) {, <span class="text-warning">{{ outdatedPlanCount() }} need{{ outdatedPlanCount() === 1 ? 's' : '' }} recalculation</span>}@if (manualPlanCount() > 0) {, {{ manualPlanCount() }} manual or hand-modified}.
+				{{ fo.plans.length }} plan{{ fo.plans.length === 1 ? '' : 's' }} in this folder (subfolders included)@if (outdatedPlanCount() > 0) {, <span class="text-warning">{{ outdatedPlanCount() }} need{{ outdatedPlanCount() === 1 ? 's' : '' }} recalculation</span>}@if (manualPlanCount() > 0) {, {{ manualPlanCount() }} manual or edited by hand}.
 				@if (fo.fixedSummary !== '') {
 					<span class="d-block">Fixed for every plan inside: {{ fo.fixedSummary }}.</span>
 				}
@@ -25,7 +25,7 @@
 										[class.btn-secondary]="!showAllRecipes()"
 										[class.btn-outline-secondary]="showAllRecipes()"
 										(click)="setShowAllRecipes(false)"
-									>Alts only</button>
+									>Alternates only</button>
 									<button
 										type="button"
 										class="btn py-0"
@@ -45,7 +45,7 @@
 												<tbody>
 													@if (folderOverview(); as fo) {
 														@for (row of fo.resources; track row.item.className) {
-															<tr (click)="row.plans.length > 0 && toggleRow('resource:' + row.item.className)" [style.cursor]="row.plans.length > 0 ? 'pointer' : 'default'" [class.resource-off]="row.disabled">
+															<tr (click)="row.plans.length > 0 && toggleRow('resource:' + row.item.className)" [style.cursor]="row.plans.length > 0 ? 'pointer' : 'default'" [class.resource-off]="row.disabled" [class.has-limit-bar]="fo.resourcesMode === 'pool' && !!folderLimitFraction(row)">
 																<td>
 																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
 																		<fa-icon [icon]="isRowExpanded('resource:' + row.item.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small" [class.invisible]="row.plans.length === 0"></fa-icon>
@@ -53,17 +53,17 @@
 																		{{ row.item.name }}
 																	</span>
 																</td>
-																<td class="text-end text-nowrap" style="width: 45%;">
-																	<span [class.text-secondary]="rateFormatter.isZero(row.used)" [class.text-danger]="folderExceedsLimit(row)">{{ rateFormatter.rate(row.used, row.item) }}</span>
+																<td class="text-end">
+																	<span class="text-nowrap" [class.text-secondary]="rateFormatter.isZero(row.used)" [class.text-danger]="folderExceedsLimit(row)">{{ rateFormatter.rate(row.used, row.item) }}</span>&ngsp;
 																	@if (row.disabled) {
-																		<span class="text-secondary"> / off</span>
+																		<span class="text-secondary text-nowrap">/ off</span>
 																	} @else if (fo.resourcesMode === 'pool') {
-																		<span class="text-secondary"> / {{ row.limit === null ? '∞' : rateFormatter.rate(row.limit, row.item) }}</span>
+																		<span class="text-secondary text-nowrap">/ {{ row.limit === null ? '∞' : rateFormatter.rate(row.limit, row.item) }}</span>
 																	} @else if (fo.resourcesMode === 'fixed' && row.limit !== null) {
 																		<small class="text-secondary d-block text-wrap">cap per plan {{ rateFormatter.rate(row.limit, row.item) }}</small>
 																	}
 																	@if (fo.resourcesMode === 'pool' && folderLimitFraction(row); as fraction) {
-																		<div class="limit-bar mt-1">
+																		<div class="limit-bar">
 																			<div [style.width.%]="fraction * 100" [class]="folderExceedsLimit(row) ? 'bg-danger' : 'bg-info'"></div>
 																		</div>
 																	}
@@ -82,21 +82,21 @@
 														}
 													} @else if (poolStatus(); as statuses) {
 														@for (status of statuses; track status.item.className) {
-															<tr [class.resource-off]="status.disabled">
+															<tr [class.resource-off]="status.disabled" [class.has-limit-bar]="!!poolFraction(status)">
 																<td>
 																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(status.usedByPlan)">
 																		<game-icon [hash]="status.item.icon" [size]="18" [alt]="status.item.name"></game-icon>
 																		{{ status.item.name }}
 																	</span>
 																</td>
-																<td class="text-end text-nowrap" style="width: 45%;">
-																	<span [class.text-secondary]="rateFormatter.isZero(status.usedByPlan)" [class.text-danger]="status.overUse">{{ rateFormatter.rate(status.usedByPlan, status.item) }}</span>
-																	<span class="text-secondary"> / {{ status.disabled ? 'off' : status.available === null ? '∞' : rateFormatter.rate(status.available, status.item) }}</span>
+																<td class="text-end">
+																	<span class="text-nowrap" [class.text-secondary]="rateFormatter.isZero(status.usedByPlan)" [class.text-danger]="status.overUse">{{ rateFormatter.rate(status.usedByPlan, status.item) }}</span>&ngsp;
+																	<span class="text-secondary text-nowrap">/ {{ status.disabled ? 'off' : status.available === null ? '∞' : rateFormatter.rate(status.available, status.item) }}</span>
 																	@if (status.limit !== null && !status.disabled) {
 																		<small class="text-secondary d-block text-wrap">pool {{ rateFormatter.rate(status.limit, status.item) }}, others {{ rateFormatter.rate(status.usedByOthers, status.item) }}</small>
 																	}
 																	@if (poolFraction(status); as fraction) {
-																		<div class="limit-bar mt-1">
+																		<div class="limit-bar">
 																			<div [style.width.%]="fraction * 100" [class]="status.overUse ? 'bg-danger' : 'bg-info'"></div>
 																		</div>
 																	}
@@ -105,18 +105,18 @@
 														}
 													} @else {
 														@for (row of resources(); track row.item.className) {
-															<tr [class.resource-off]="row.disabled">
+															<tr [class.resource-off]="row.disabled" [class.has-limit-bar]="!!limitFraction(row)">
 																<td>
 																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
 																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
 																		{{ row.item.name }}
 																	</span>
 																</td>
-																<td class="text-end text-nowrap" style="width: 45%;">
-																	<span [class.text-secondary]="rateFormatter.isZero(row.used)" [class.text-danger]="exceedsLimit(row)">{{ rateFormatter.rate(row.used, row.item) }}</span>
-																	<span class="text-secondary"> / {{ limitText(row) }}</span>
+																<td class="text-end">
+																	<span class="text-nowrap" [class.text-secondary]="rateFormatter.isZero(row.used)" [class.text-danger]="exceedsLimit(row)">{{ rateFormatter.rate(row.used, row.item) }}</span>&ngsp;
+																	<span class="text-secondary text-nowrap">/ {{ limitText(row) }}</span>
 																	@if (limitFraction(row); as fraction) {
-																		<div class="limit-bar mt-1">
+																		<div class="limit-bar">
 																			<div [style.width.%]="fraction * 100" [class]="exceedsLimit(row) ? 'bg-danger' : 'bg-info'"></div>
 																		</div>
 																	}
@@ -206,7 +206,7 @@
 														@for (row of fo.production; track row.kind + row.item.className) {
 															<tr (click)="toggleRow('production:' + row.kind + row.item.className)" style="cursor: pointer;">
 																<td>
-																	<span class="d-inline-flex align-items-center gap-1">
+																	<span class="d-inline-flex flex-wrap align-items-center gap-1">
 																		<fa-icon [icon]="isRowExpanded('production:' + row.kind + row.item.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small"></fa-icon>
 																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
 																		{{ row.item.name }}
@@ -232,7 +232,7 @@
 														@for (row of production(); track row.kind + row.item.className) {
 															<tr>
 																<td>
-																	<span class="d-inline-flex align-items-center gap-1">
+																	<span class="d-inline-flex flex-wrap align-items-center gap-1">
 																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
 																		{{ row.item.name }}
 																		@if (row.kind === 'byproduct') {
@@ -332,7 +332,7 @@
 																<td class="stack-full">
 																	<a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(plan.planId)">{{ plan.name }}</a>
 																	@if (plan.outdated) {
-																		<span class="badge text-bg-warning ms-1" title="Settings or pool share changed after this plan was solved">outdated</span>
+																		<span class="badge text-bg-warning ms-1" title="Settings or the shared resources changed after this plan was calculated">outdated</span>
 																	}
 																</td>
 																<td class="text-end text-nowrap text-warning" data-label="Usage"><power-draw [draw]="plan.consumption"></power-draw></td>

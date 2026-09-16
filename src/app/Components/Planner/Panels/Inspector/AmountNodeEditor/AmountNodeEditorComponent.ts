@@ -29,9 +29,9 @@ const TYPE_LABELS: Record<string, string> = {
 
 /**
  * Inspector editor for the single-scalar nodes - input, product, mine,
- * byproduct, sink (item rate) and generator (machine count). Only the amount
- * is editable for now; a change is automatically applied to the graph after a
- * short quiet period, swapping the node in and reconciling its edges exactly
+ * byproduct, sink (item rate) and generator (machine count, plus the clock
+ * speed those machines run at); a change is automatically applied to the
+ * graph after a short quiet period, swapping the node in and reconciling its edges exactly
  * like the recipe editor. Note that input and byproduct nodes are elastic:
  * the reconciler resizes them back to the flow their edges actually carry,
  * so a raise only sticks up to what the connected counterparts can absorb.
@@ -51,6 +51,12 @@ export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 	@Input({required: true}) public node!: Node;
 
 	public amount = 0;
+
+	/** Generator nodes only: the clock speed all of the node's generators run at. */
+	public clockSpeed = 100;
+
+	/** The clock the drafted machine count is stated at - the last one applied to the field. */
+	private draftClockBase = 100;
 
 	/**
 	 * The node instance the draft was built from - a still-pending apply must
@@ -82,12 +88,14 @@ export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 			// reconciler may clamp elastic nodes), unless the user kept typing.
 			if (!this.applyPending) {
 				this.amount = this.node.amount;
+				this.clockSpeed = this.draftClockBase = this.generator?.clockSpeed ?? 100;
 			}
 			return;
 		}
 		this.flushPendingApply();
 		this.loadedNode = this.node;
 		this.amount = this.node.amount;
+		this.clockSpeed = this.draftClockBase = this.generator?.clockSpeed ?? 100;
 	}
 
 	/** An edit made just before deselecting the node must still reach the graph. */
@@ -121,8 +129,8 @@ export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 	public get lockTooltip(): string
 	{
 		return this.node.locked
-			? 'Locked - the solver builds around this node as it is. Click to unlock.'
-			: 'Unlocked - the solver may replace this node. Click to lock it.';
+			? 'Locked - the calculation keeps this node as it is. Click to unlock.'
+			: 'Unlocked - the calculation may change or replace this node. Click to lock it.';
 	}
 
 	public get amountLabel(): string
@@ -140,7 +148,42 @@ export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 	public get draftPower(): number | null
 	{
 		const generator = this.generator;
-		return generator ? Formulas.generatorPowerProduction(generator.generator, this.amount || 0) : null;
+		return generator
+			? Formulas.generatorPowerProduction(generator.generator, this.amount || 0, this.draftClock)
+			: null;
+	}
+
+	/** Whole power shards the drafted generators need; 0 at or below 100%. */
+	public get draftShards(): number
+	{
+		return Math.ceil((this.amount || 0) - 1e-9) * Formulas.powerShards(this.draftClock);
+	}
+
+	/** Whether the clock speed field applies - only overclockable generators have one. */
+	public get canClock(): boolean
+	{
+		return this.generator?.generator.canOverclock ?? false;
+	}
+
+	/**
+	 * Raising the clock keeps the power: the machine count is restated at the
+	 * new clock, so the graph's flows stay exactly as they were and only the
+	 * building count (and the shards) change.
+	 */
+	public onClockChange(): void
+	{
+		const clock = this.draftClock;
+		if (clock !== this.draftClockBase && this.draftClockBase > 0) {
+			this.amount = Math.round((this.amount || 0) * this.draftClockBase / clock * 1e6) / 1e6;
+		}
+		this.draftClockBase = clock;
+		this.applyPending = true;
+		this.applySubject.next();
+	}
+
+	private get draftClock(): number
+	{
+		return Formulas.clampClock(this.clockSpeed || 100);
 	}
 
 	public toggleLock(): void
@@ -171,7 +214,21 @@ export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 
 		const node = this.loadedNode;
 		const amount = this.amount || 0;
-		if (!node || amount <= 0 || Math.abs(amount - node.amount) <= 1e-9) {
+		if (!node || amount <= 0) {
+			return;
+		}
+		if (node instanceof GeneratorNode) {
+			const clock = this.draftClock;
+			if (Math.abs(amount - node.amount) <= 1e-9 && clock === node.clockSpeed) {
+				return;
+			}
+			const replacement = this.resizer.withGenerator(node, amount, clock);
+			if (replacement) {
+				this.actions.requestNodeUpdate(replacement);
+			}
+			return;
+		}
+		if (Math.abs(amount - node.amount) <= 1e-9) {
 			return;
 		}
 		const updated = this.resizer.withSize(node, amount);

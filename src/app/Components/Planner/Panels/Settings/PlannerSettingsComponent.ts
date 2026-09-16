@@ -28,6 +28,7 @@ export class PlannerSettingsComponent
 
 	/** A shared plan's settings are shown but locked (the write paths are guarded anyway). */
 	public readonly readOnly: Signal<boolean>;
+	public readonly readOnlyNote: Signal<string>;
 
 	private readonly collapsedSignal = signal(new Set<string>());
 
@@ -38,7 +39,10 @@ export class PlannerSettingsComponent
 	)
 	{
 		this.activePlan = planManager.activePlan;
-		this.readOnly = planManager.activePlanShared;
+		this.readOnly = planManager.activePlanReadOnly;
+		this.readOnlyNote = computed(() => planManager.activePlanShared()
+			? 'Shared plan - read-only. You can look at the settings but not change them.'
+			: 'Plan on this device - read-only. Add it to your plans to change the settings.');
 		this.graphSettings = computed(() => GraphLayoutDefaults.resolve(this.activePlan()?.settings.graph));
 	}
 

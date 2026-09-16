@@ -6,9 +6,9 @@
 		</div>
 		<div class="card-body d-flex flex-column gap-2">
 			<info-note>
-				Paste share links (one per line) and/or pick an exported .sft file, then choose
-				which production lines to import. Each becomes a plan with the requested items,
-				inputs and recipe selection of the original.
+				Paste share links (one per line) or pick an exported .sft file, then choose
+				which production lines to import. Each one becomes a plan with the same items,
+				inputs and recipes as the original.
 			</info-note>
 
 			<textarea
@@ -42,7 +42,7 @@
 								<game-icon [hash]="row.iconHash" [size]="20" [alt]="row.plan.name"></game-icon>
 								<span class="text-truncate">{{ row.plan.name }}</span>
 								@if (row.hasMaximise) {
-									<span class="text-warning" tooltip="Uses maximise - may import differently" container="body" placement="top">
+									<span class="text-warning" tooltip="Uses maximise - the result may look different here" container="body" placement="top">
 										<fa-icon [icon]="faTriangleExclamation"></fa-icon>
 									</span>
 								}
@@ -58,8 +58,8 @@
 				</div>
 				@if (hasMaximiseRows()) {
 					<info-note kind="warning">
-						Plans marked with a warning use maximise, which worked differently in the old
-						tools - they may import with different results here.
+						Plans marked with a warning use "maximise", which worked differently in the old
+						tools. Their result may look different here.
 					</info-note>
 				}
 			}

@@ -75,6 +75,15 @@ export class VersionManager
 	private activeVersionIdSignal = signal<string | null>(null);
 
 	/**
+	 * The version the route was resolved with. The list is a reloadable
+	 * resource, so a failed refresh (or a custom version dropped from the list
+	 * while login/logout re-resolves it) would otherwise blank activeVersion
+	 * while the planner keeps running on the data it already loaded - silently
+	 * switching off everything that needs the version, sharing included.
+	 */
+	private activeVersionResolvedSignal = signal<Version | null>(null);
+
+	/**
 	 * Versions created this session while signed in, available immediately -
 	 * the canonical list only refreshes when the versions resource reloads.
 	 * Merged by id, with the resource's entry winning once it arrives.
@@ -118,9 +127,15 @@ export class VersionManager
 	/** True once the version list - including the anonymous localStorage versions - is usable. */
 	public ready = computed(() => !this.api.versionsResource.isLoading() && this.localVersionsLoadedSignal());
 
-	public activeVersion = computed(() =>
-		this.versions().find(v => this.urlSlug(v) === this.activeVersionSlugSignal()) ?? null,
-	);
+	public activeVersion = computed(() => {
+		const slug = this.activeVersionSlugSignal();
+		if (slug === null) {
+			return null;
+		}
+		// The list entry wins (it carries the freshest dataPath); the version
+		// resolved on navigation stands in while the list is missing it.
+		return this.versions().find(v => this.urlSlug(v) === slug) ?? this.activeVersionResolvedSignal();
+	});
 	public activeVersionData = computed<Data | null>(() => {
 		const file = this.api.versionDataResource.value();
 		return file ? this.transformer.transform(file, this.activeVersion()?.worldData?.limits ?? null) : null;
@@ -142,6 +157,7 @@ export class VersionManager
 		const version = this.findByUrlSlug(slugOrId);
 		this.activeVersionSlugSignal.set(slugOrId);
 		this.activeVersionIdSignal.set(version?.id ?? null);
+		this.activeVersionResolvedSignal.set(version);
 		this.api.setVersionDataPath(version?.dataPath ?? null);
 	}
 
@@ -149,6 +165,7 @@ export class VersionManager
 	{
 		this.activeVersionSlugSignal.set(null);
 		this.activeVersionIdSignal.set(null);
+		this.activeVersionResolvedSignal.set(null);
 		this.api.setVersionDataPath(null);
 	}
 

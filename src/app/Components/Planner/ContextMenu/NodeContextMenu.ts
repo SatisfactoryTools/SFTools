@@ -85,8 +85,8 @@ export class NodeContextMenu extends PlannerContextMenu
 
 		// Resize the node to the smallest/largest size its connected edges
 		// imply; grayed when there is nothing to change.
-		items.push(this.resizeItem('Minimise to edges', faCompress, this.resize.minimise));
-		items.push(this.resizeItem('Maximise to edges', faExpand, this.resize.maximise));
+		items.push(this.resizeItem('Shrink to connections', faCompress, this.resize.minimise));
+		items.push(this.resizeItem('Grow to connections', faExpand, this.resize.maximise));
 
 		// Deleting a subplan node deletes the subplan from the plans tree too
 		// (the planner confirms first).

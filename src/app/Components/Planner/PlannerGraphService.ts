@@ -2440,8 +2440,8 @@ export class PlannerGraphService implements OnDestroy
 		let line: string;
 		if (open <= 1e-6) {
 			line = info.side === 'out'
-				? `All ${rate(total)} allocated to consumers - drag to connect another.`
-				: `All ${rate(total)} supplied by producers - drag to connect another.`;
+				? `All ${rate(total)} already goes to other nodes - drag to connect one more.`
+				: `All ${rate(total)} already comes from other nodes - drag to connect one more.`;
 		} else if (Math.abs(open - total) <= 1e-6) {
 			line = info.side === 'out'
 				? `${rate(open)} unallocated - drag to connect to a consumer.`
@@ -2460,7 +2460,7 @@ export class PlannerGraphService implements OnDestroy
 			return {
 				title: `${node.getDisplayName()} - locked`,
 				lines: [
-					'Subplan nodes are always locked: the solver connects to their inputs and outputs but never changes what is inside.',
+					'Subplan nodes are always locked. The calculation connects to their inputs and outputs but never changes what is inside.',
 					'Double-click the node to open and edit the subplan.',
 				],
 			};
@@ -2468,8 +2468,8 @@ export class PlannerGraphService implements OnDestroy
 		return {
 			title: `${node.getDisplayName()} - locked`,
 			lines: [
-				'This node is user-owned: the solver builds around it and never replaces or rebalances it.',
-				'Unlock it from the right-click menu or the Inspector.',
+				'This node is locked. The calculation keeps it as it is and never changes or replaces it.',
+				'Unlock it from the right-click menu or in the Inspector panel.',
 			],
 		};
 	}
@@ -2485,7 +2485,7 @@ export class PlannerGraphService implements OnDestroy
 	private capacityWarningLine(warning: GraphNodeCapacityWarning): string
 	{
 		return `Not enough machines to reach the target: needs ${this.rateFormatter.clock(warning.target / warning.capacity * 100)}% `
-			+ 'of the built capacity. Add machines or raise clock speeds.';
+			+ 'of what the machines can do. Add machines or raise the clock speeds.';
 	}
 
 	private outputWarningLine(itemClassName: string, produced: number, consumed: number): string
@@ -2500,7 +2500,8 @@ export class PlannerGraphService implements OnDestroy
 
 	private generatorStats(node: GeneratorNode): string
 	{
-		return `${this.rateFormatter.amount(node.amount)}× (${node.fuel.item.name}) - ${this.rateFormatter.power(node.powerProduction())}`;
+		const clock = node.clockSpeed === 100 ? '' : ` @ ${this.rateFormatter.clock(node.clockSpeed)}%`;
+		return `${this.rateFormatter.amount(node.amount)}×${clock} (${node.fuel.item.name}) - ${this.rateFormatter.power(node.powerProduction())}`;
 	}
 
 	/** IO node stat line: the node's role (Product, Byproduct, …) and its rate. */

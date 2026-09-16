@@ -14,12 +14,15 @@ import {VisitedSharesApiDataBackend} from '@src/Model/Shares/VisitedSharesApiDat
 import {VISITED_SHARES_CAP, VisitedShareStore} from '@src/Model/Shares/VisitedShareStore';
 
 /**
- * The "Shared plans" list: every share link the user has opened, newest
- * visit first, capped (oldest evicted). Entries leave the list when the
- * share is copied into the user's own plans ("move" semantics) or removed
- * by hand - both are non-destructive, shares are permanent and reopening
- * the link brings the entry back. Anonymous users keep the list in
- * localStorage; login merges it into the account.
+ * The "Shared plans" list: every share link the user has opened, most
+ * recently ADDED first, capped (oldest evicted). Reopening a listed share
+ * leaves it where it is - the order is stable, so rows do not jump around
+ * while the user works through the list (visitedAt is the first visit).
+ * Entries leave the list when the share is copied into the user's own
+ * plans ("move" semantics) or removed by hand - both are non-destructive,
+ * shares are permanent and reopening the link brings the entry back.
+ * Anonymous users keep the list in localStorage; login merges it into the
+ * account.
  */
 @Injectable({providedIn: 'root'})
 export class VisitedSharesManager extends SyncableService<VisitedShareStore>
@@ -76,11 +79,25 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 		});
 	}
 
-	/** Upserts the share at the top of the list, snapshotting its metadata from the loaded payload. */
+	/**
+	 * A first visit adds the share at the top of the list, snapshotting its
+	 * metadata from the loaded payload. A repeat visit keeps the entry in
+	 * place and its visitedAt as is (so no re-sync and no reordering - on
+	 * this device, on the server, or after a reload), only filling in an
+	 * icon the entry still lacks.
+	 */
 	public recordVisit(payload: SharePayload): void
 	{
 		if (!this.loaded()) {
 			this.pendingVisit = payload;
+			return;
+		}
+		const existing = this.data().shares.find(share => share.share === payload.share);
+		if (existing) {
+			if (existing.iconClassName === undefined && payload.type === 'plan') {
+				const iconClassName = this.shareTrees.buildTree(payload).iconClassName;
+				this.persist({shares: this.data().shares.map(share => share === existing ? {...share, iconClassName} : share)});
+			}
 			return;
 		}
 		const entry: VisitedShare = {
@@ -92,8 +109,7 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 			version: payload.version,
 			iconClassName: payload.type === 'plan' ? this.shareTrees.buildTree(payload).iconClassName : undefined,
 		};
-		const rest = this.data().shares.filter(share => share.share !== payload.share);
-		this.persist({shares: [entry, ...rest].slice(0, VISITED_SHARES_CAP)});
+		this.persist({shares: [entry, ...this.data().shares].slice(0, VISITED_SHARES_CAP)});
 	}
 
 	public remove(shareUuid: string): void

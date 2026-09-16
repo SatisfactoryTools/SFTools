@@ -8,6 +8,7 @@ import {ClockSpeedInputComponent} from '@src/Components/Planner/Panels/Calculato
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 import {Formulas} from '@src/Model/Planner/Formulas';
+import {GeneratorClockSpeed} from '@src/Model/Planner/GeneratorClockSpeed';
 import {MachineClockSpeed} from '@src/Model/Planner/MachineClockSpeed';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {RecipeClockSpeed} from '@src/Model/Planner/RecipeClockSpeed';
@@ -16,8 +17,11 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 /**
  * Clock speeds for the solver: a default for every machine it builds, plus
  * per-machine-type and per-recipe overrides (a recipe override beats its
- * machine's). Blank rows live only in the component - settings carry the
- * rows with a recipe or machine chosen.
+ * machine's). Power generators keep their own list - the machine default is
+ * about production machines, and a generator's power and fuel rise together
+ * with its clock, so clocking one only trades buildings for power shards.
+ * Blank rows live only in the component - settings carry the rows with a
+ * recipe, machine or generator chosen.
  */
 @Component({
 	selector: 'calculator-overclocking-tab',
@@ -33,6 +37,8 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 	public rows: RecipeClockSpeed[] = [];
 
 	public machineRows: MachineClockSpeed[] = [];
+
+	public generatorRows: GeneratorClockSpeed[] = [];
 
 	/** The plan or folder whose settings the rows were loaded from. */
 	private loadedOwnerId: string | null = null;
@@ -69,6 +75,10 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 		this.machineRows = machineOverrides.length > 0
 			? machineOverrides.map(row => ({...row}))
 			: [this.blankMachineRow()];
+		const generatorOverrides = this.planManager.activeSettings()?.generatorClockSpeeds ?? [];
+		this.generatorRows = generatorOverrides.length > 0
+			? generatorOverrides.map(row => ({...row}))
+			: [this.blankGeneratorRow()];
 	}
 
 	private blankRow(): RecipeClockSpeed
@@ -79,6 +89,11 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 	private blankMachineRow(): MachineClockSpeed
 	{
 		return {machineClassName: '', clockSpeed: 100};
+	}
+
+	private blankGeneratorRow(): GeneratorClockSpeed
+	{
+		return {generatorClassName: '', clockSpeed: 100};
 	}
 
 	public get defaultClockSpeed(): number
@@ -123,6 +138,61 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 				label: machine.name,
 				iconHash: machine.icon,
 			}));
+	}
+
+	/** Picker choices: every fuel-burning power generator that can be overclocked. */
+	public get generatorOptions(): ItemPickerOption[]
+	{
+		const data = this.versionManager.activeVersionData();
+		if (!data) return [];
+		return data.getPowerGenerators()
+			.filter(generator => generator.canOverclock)
+			.slice()
+			.sort((a, b) => a.name.localeCompare(b.name))
+			.map(generator => ({
+				value: generator.className,
+				label: generator.name,
+				iconHash: generator.icon,
+			}));
+	}
+
+	public onGeneratorChange(row: GeneratorClockSpeed, value: string): void
+	{
+		row.generatorClassName = value;
+		this.syncGenerators();
+	}
+
+	public onGeneratorClockChange(row: GeneratorClockSpeed, value: number): void
+	{
+		row.clockSpeed = value;
+		this.syncGenerators();
+	}
+
+	public addGeneratorRow(): void
+	{
+		this.generatorRows.push(this.blankGeneratorRow());
+	}
+
+	public removeGeneratorRow(index: number): void
+	{
+		this.generatorRows.splice(index, 1);
+		if (this.generatorRows.length === 0) {
+			this.generatorRows.push(this.blankGeneratorRow());
+		}
+		this.syncGenerators();
+	}
+
+	public syncGenerators(): void
+	{
+		const settings = this.planManager.activeSettings();
+		if (!settings) return;
+		const overrides = this.generatorRows
+			.filter(row => row.generatorClassName !== '')
+			.map(row => ({...row}));
+		this.planManager.updateActiveSettings({
+			...settings,
+			generatorClockSpeeds: overrides.length > 0 ? overrides : undefined,
+		});
 	}
 
 	public onMachineChange(row: MachineClockSpeed, value: string): void

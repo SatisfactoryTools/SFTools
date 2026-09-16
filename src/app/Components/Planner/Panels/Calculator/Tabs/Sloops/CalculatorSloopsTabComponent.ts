@@ -23,9 +23,9 @@ export class CalculatorSloopsTabComponent
 {
 
 	public readonly accuracyOptions: SloopAccuracyOption[] = [
-		{value: 'low', label: 'Low', description: 'Fastest - the result may be off the optimum.'},
-		{value: 'medium', label: 'Medium', description: 'Closer to the optimum, slower.'},
-		{value: 'high', label: 'High', description: 'Closest to the optimum - can take a long time.'},
+		{value: 'low', label: 'Low', description: 'Fastest. The result may be worse than the best possible one.'},
+		{value: 'medium', label: 'Medium', description: 'Closer to the best result, but slower.'},
+		{value: 'high', label: 'High', description: 'Closest to the best result. Can take a long time.'},
 	];
 
 	public constructor(

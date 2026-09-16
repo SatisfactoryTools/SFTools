@@ -1,13 +1,14 @@
 import {Component, ChangeDetectionStrategy, Input, OnChanges, OnDestroy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faLock, faLockOpen, faPlus, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faLock, faLockOpen, faPlus, faRotateLeft, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {ClockSpeedInputComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Overclocking/ClockSpeedInputComponent';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {GroupingModeOption} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/GroupingModeOption';
 import {IORateDraft} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/IORateDraft';
@@ -15,6 +16,7 @@ import {MachineGroupDraft} from '@src/Components/Planner/Panels/Inspector/Recipe
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
+import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
@@ -40,7 +42,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'recipe-node-editor',
 	templateUrl: './RecipeNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, BsDropdownModule, TooltipDirective, GameIconComponent, InfoNoteComponent],
+	imports: [FormsModule, FaIconComponent, BsDropdownModule, TooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent],
 	styles: [`
 		.io-tiles {
 			display: flex;
@@ -73,23 +75,24 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	public readonly faLock = faLock;
 	public readonly faLockOpen = faLockOpen;
 	public readonly faPlus = faPlus;
+	public readonly faRotateLeft = faRotateLeft;
 	public readonly faXmark = faXmark;
 
 	public readonly groupingOptions: GroupingModeOption[] = [
 		{
 			mode: 'underclock-last',
-			label: 'Underclock last',
-			description: 'Machines at 100%, the last one at the remaining clock speed.',
+			label: 'Underclock the last machine',
+			description: 'All machines run at the default clock speed, only the last one runs slower.',
 		},
 		{
 			mode: 'clock-equally',
-			label: 'Clock equally',
-			description: 'All machines share the same clock speed.',
+			label: 'Same clock for all',
+			description: 'All machines run at the same clock speed, at most the default one.',
 		},
 		{
 			mode: 'no-clocking',
-			label: 'No clocking',
-			description: 'Whole machines at 100%, trading efficiency for simplicity.',
+			label: 'Whole machines only',
+			description: 'Only whole machines at the default clock speed. Simpler to build, but may make more than needed.',
 		},
 	];
 
@@ -100,6 +103,17 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	public inputRates: IORateDraft[] = [];
 	public outputRates: IORateDraft[] = [];
 	public groupingMode: GroupingMode = 'underclock-last';
+
+	/**
+	 * The clock speed Calculate, Autofill and "add group" build machines at.
+	 * Seeded from the plan's Overclocking settings, but editable here: a graph
+	 * built by hand never goes through the production request panel, and the
+	 * machines still have to come out at the right clock.
+	 */
+	public defaultClockSpeed = 100;
+
+	/** Once the field is edited the plan's value no longer overwrites it. */
+	private defaultClockEdited = false;
 
 	/** Boosted recipe cycles per minute delivered to the outputs - the draft's source of truth. */
 	private outputCycles = 0;
@@ -121,6 +135,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	public constructor(
 		private readonly actions: PlannerActionsService,
 		private readonly normalizer: MachineGroupNormalizer,
+		private readonly clocks: ClockSpeedResolver,
 		public readonly rateFormatter: RateFormatter,
 	)
 	{
@@ -146,6 +161,8 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.machineClassName = this.node.machine.className;
 		this.groups = this.node.groups.map(group => ({...group}));
 		this.groupingMode = this.node.groupingMode;
+		this.defaultClockEdited = false;
+		this.defaultClockSpeed = this.planClockSpeed;
 		this.outputCycles = this.node.target * this.referenceCycles(this.node.machine) * this.node.outputBoostRatio();
 		this.refreshRates();
 	}
@@ -166,8 +183,8 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	public get lockTooltip(): string
 	{
 		return this.node.locked
-			? 'Locked - the solver builds around this node as it is. Click to unlock.'
-			: 'Unlocked - the solver may replace this node. Click to lock it.';
+			? 'Locked - the calculation keeps this node as it is. Click to unlock.'
+			: 'Unlocked - the calculation may change or replace this node. Click to lock it.';
 	}
 
 	public get selectedMachine(): Building | null
@@ -196,6 +213,43 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 			return true;
 		}
 		return Math.abs(this.draftTarget - node.target) > 1e-9 * Math.max(1, node.target);
+	}
+
+	/**
+	 * What the Overclocking tab asks for this recipe (its own row, else its
+	 * machine's row, else the plan's default), 100% when nothing is set - the
+	 * value the field starts at.
+	 */
+	private get planClockSpeed(): number
+	{
+		const machine = this.selectedMachine;
+		return machine ? this.clocks.forRecipe(this.editedNode.recipe, machine) : 100;
+	}
+
+	/** The field's value, clamped to the game's range; the plan's when it is blank. */
+	private get buildClockSpeed(): number
+	{
+		const value = this.defaultClockSpeed;
+		return isFinite(value) && value > 0 ? Formulas.clampClock(value) : this.planClockSpeed;
+	}
+
+	/** Whether the field still holds the plan's value - shown as a hint next to it. */
+	public get usesPlanClockSpeed(): boolean
+	{
+		return this.buildClockSpeed === this.planClockSpeed;
+	}
+
+	public onDefaultClockChange(value: number): void
+	{
+		this.defaultClockSpeed = value;
+		this.defaultClockEdited = true;
+	}
+
+	/** Back to what the Overclocking tab says for this recipe. */
+	public resetDefaultClock(): void
+	{
+		this.defaultClockSpeed = this.planClockSpeed;
+		this.defaultClockEdited = false;
 	}
 
 	/** Fraction of time the drafted machines would run, capped at 100%. */
@@ -252,6 +306,10 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 
 	public onMachineChange(): void
 	{
+		// Another machine may have its own row in the Overclocking tab.
+		if (!this.defaultClockEdited) {
+			this.defaultClockSpeed = this.planClockSpeed;
+		}
 		this.clampSloops();
 		this.refreshRates();
 		this.scheduleApply(true);
@@ -288,7 +346,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 			return;
 		}
 		this.groups = this.normalizer
-			.recalculated(this.sanitizedGroups(), this.draftTarget, this.groupingMode)
+			.recalculated(this.sanitizedGroups(), this.draftTarget, this.groupingMode, this.buildClockSpeed)
 			.map(group => ({...group}));
 		this.refreshRates();
 		this.scheduleApply(false);
@@ -308,7 +366,9 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		}
 		this.groups = [
 			...this.groups,
-			...this.normalizer.generate(amount, 100, this.fillSloops(machine), this.groupingMode).map(group => ({...group})),
+			...this.normalizer
+				.generateForTarget(amount, this.buildClockSpeed, this.fillSloops(machine), this.groupingMode)
+				.map(group => ({...group})),
 		];
 		this.refreshRates();
 		this.scheduleApply(false);
@@ -316,7 +376,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 
 	public addGroup(): void
 	{
-		this.groups.push({machines: 1, clockSpeed: 100, sloops: 0});
+		this.groups.push({machines: 1, clockSpeed: this.buildClockSpeed, sloops: 0});
 		this.refreshRates();
 		this.scheduleApply(true);
 	}

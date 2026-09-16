@@ -66,9 +66,9 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 
 	public readonly modeOptions: ResourceWeightModeOption[] = [
 		{mode: 'map', label: 'Automatic (from map resources)', description: 'The most abundant resource on the map weighs 1; rarer ones weigh more in proportion. Water and other unlimited resources weigh 0.01.'},
-		{mode: 'limits', label: 'Automatic (from limits)', description: 'The largest limit in force weighs 1; tighter limits weigh more in proportion. Unlimited resources weigh 0.01.'},
-		{mode: 'equal', label: 'All equal', description: 'Every resource weighs 1 - the solver minimises the total amount mined.'},
-		{mode: 'manual', label: 'Manual', description: 'Your own weights - started from the values of the previous mode.'},
+		{mode: 'limits', label: 'Automatic (from limits)', description: 'The resource with the largest limit gets weight 1. Rarer resources get a higher weight in proportion. Unlimited resources get 0.01.'},
+		{mode: 'equal', label: 'All equal', description: 'Every resource has weight 1. The plan mines as little as possible in total.'},
+		{mode: 'manual', label: 'Manual', description: 'Your own weights. They start from the values of the previous mode.'},
 	];
 
 	/**

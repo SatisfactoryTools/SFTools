@@ -122,25 +122,25 @@ export class AboutComponent
 		{
 			icon: faDiagramProject,
 			title: 'Planner',
-			text: 'Production plans with an optimising solver, manual graph editing, subplans, folders with shared settings and per-plan overrides.',
+			text: 'Production plans that are calculated for you, editing the graph by hand, subplans, and folders with shared settings.',
 			link: null,
 		},
 		{
 			icon: faBookOpen,
 			title: 'Codex',
-			text: 'Browse items, buildings, recipes and milestones of any game version, with search from anywhere in the planner.',
+			text: 'Browse the items, buildings, recipes and milestones of any game version. Search from anywhere in the planner.',
 			link: null,
 		},
 		{
 			icon: faSliders,
 			title: 'Custom versions',
-			text: 'Derive your own game version from a public one: recipe and power cost multipliers, mods, and modded resource-node layouts baked into its data.',
+			text: 'Make your own game version based on a public one, with recipe and power cost multipliers, mods, and the resource nodes of a modded world.',
 			link: null,
 		},
 		{
 			icon: faPuzzlePiece,
 			title: 'Mods',
-			text: 'Author sets of data changes - new or overridden items, recipes, buildings - and share them publicly or keep them private.',
+			text: 'Create sets of changes to the game data - new or changed items, recipes and buildings - and share them or keep them private.',
 			link: null,
 		},
 	];

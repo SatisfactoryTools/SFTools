@@ -9,8 +9,8 @@
 			</div>
 			<h1 class="hero-title">Plan factories that <em>actually work</em>.</h1>
 			<p class="hero-lead">
-				An optimising production and logistic planner for Satisfactory, supporting every factory -
-				from the first smelter to a 1 TW nuclear grid.
+				A production planner for Satisfactory that finds the best setup for you. It works for every factory,
+				from your first smelter to a 1 TW nuclear grid.
 			</p>
 			<div class="hero-actions">
 				@if (continueLink; as link) {
@@ -51,7 +51,7 @@
 				</div>
 				<div class="card-body">
 					<oauth-provider-buttons verb="Sign in with" returnUrl="/"></oauth-provider-buttons>
-					<info-note class="mt-2 side-note">Steam can't create a new account - sign in another way first, then link Steam from your account page.</info-note>
+					<info-note class="mt-2 side-note">Steam cannot create a new account. Sign in another way first, then connect Steam on your account page.</info-note>
 					<div class="text-center small mt-2">
 						<a routerLink="/auth/login" [queryParams]="{method: 'password'}">Sign in with username &amp; password</a>
 						<span class="text-secondary"> · </span>
@@ -111,7 +111,7 @@
 	<section>
 		<div class="section-head">
 			<h2>Game versions</h2>
-			<p>Pick the version you play - each has its own codex, recipes and planner.</p>
+			<p>Pick the version you play. Each one has its own codex, recipes and planner.</p>
 		</div>
 		<div class="version-grid">
 			@for (version of publicVersions; track version.id) {
@@ -154,12 +154,12 @@
 	<section>
 		<div class="section-head">
 			<h2>Your custom versions</h2>
-			<p>Derived from a public version with your own modifiers, mods or world.</p>
+			<p>Based on a public version, with your own cost multipliers, mods or world.</p>
 		</div>
 		@if (customVersions.length === 0) {
 			<info-note class="mb-3">
-				A custom version starts from a public one and bakes in recipe and power cost multipliers,
-				mods, or a reshaped set of resource nodes - the planner then treats it like any other version.
+				A custom version starts from a public one and adds recipe and power cost multipliers,
+				mods, or a changed set of resource nodes. The planner then treats it like any other version.
 			</info-note>
 		}
 		<div class="version-grid">

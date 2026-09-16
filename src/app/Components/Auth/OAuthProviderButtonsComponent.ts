@@ -83,7 +83,7 @@ export class OAuthProviderButtonsComponent
 				this.loading = false;
 			},
 			error: () => {
-				this.error = 'Third-party sign-in is unavailable right now.';
+				this.error = 'Signing in with these services is not possible right now.';
 				this.loading = false;
 			},
 		});

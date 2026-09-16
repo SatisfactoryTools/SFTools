@@ -85,7 +85,7 @@ export class ProductionSolverService
 		// solver still minimises their cost, as long as at least one is priced.
 		const weightedInputs = optimisation.inputs && request.inputs.some(input => input.weight > 0);
 		if (Object.keys(optimisation.rawResources).length === 0 && optimisation.power <= 0 && optimisation.machines <= 0 && !weightedInputs) {
-			throw new Error('No optimisation goal is enabled - enable at least one in the Optimisation tab.');
+			throw new Error('No goal is enabled. Enable at least one in the Optimisation tab.');
 		}
 		const maximise = this.maximiseTarget(plan, data);
 		if (maximise !== null) {
@@ -124,6 +124,7 @@ export class ProductionSolverService
 			defaultClockSpeed: Formulas.clampClock(plan.settings.defaultClockSpeed ?? 100),
 			recipeClockSpeeds: this.recipeClockSpeeds(plan),
 			machineClockSpeeds: this.machineClockSpeeds(plan),
+			generatorClockSpeeds: this.generatorClockSpeeds(plan),
 			// Pooled folders hand the plan only what the sibling plans left.
 			resourceLimits: this.pool.effectiveLimits(plan),
 			generators: this.enabledGenerators(plan, data),
@@ -148,7 +149,7 @@ export class ProductionSolverService
 		}
 		const categories = new Set<MaximiseCategory>(rows.map(row => this.categoryOf(row.itemClassName)));
 		if (categories.size > 1) {
-			throw new Error('Only one category (items, power or sink points) can be maximised at a time.');
+			throw new Error('Only one kind of target (items, power or sink points) can be maximised at a time.');
 		}
 		const category = [...categories][0];
 		const items = category !== 'items' ? [] : [...new Set(rows.map(row => row.itemClassName))]
@@ -196,7 +197,7 @@ export class ProductionSolverService
 	 */
 	public diagnoseFailure(plan: Plan, lockedNodes: Node[] = []): Observable<string>
 	{
-		const generic = 'No solution found - the request cannot be satisfied with the current recipes, resource limits and locked nodes.';
+		const generic = 'No solution found. What you asked for cannot be made with the current recipes, resource limits and locked nodes.';
 		const data = this.versionManager.activeVersionData();
 		if (data === null) {
 			return of(generic);
@@ -204,16 +205,16 @@ export class ProductionSolverService
 
 		const unproducible = this.findUnproducibleRequests(plan, data, lockedNodes);
 		if (unproducible.length > 0) {
-			return of(`No solution: ${unproducible.join(', ')} cannot be produced with the currently enabled recipes and available raw resources - check the Recipes, Machines and Resources tabs.`);
+			return of(`No solution: ${unproducible.join(', ')} cannot be made with the enabled recipes and the available raw resources. Check the Recipes, Machines and Resources tabs.`);
 		}
 
 		if ((this.powerDemand(plan) > 0 || (plan.settings.producePowerForFactory ?? false))
 			&& this.enabledGenerators(plan, data).length === 0) {
-			return of('No solution: power is needed (requested or to run the factory) but no generator fuels are enabled - enable some in the Power tab.');
+			return of('No solution: power is needed (as a target or to run the factory) but no generator fuel is enabled. Enable some in the Power tab.');
 		}
 
 		if (this.sinkPointsDemand(plan) > 0 && this.sinkableItems(plan, data).length === 0) {
-			return of('No solution: sink points are requested but no sinkable items are enabled - enable some in the Sink tab.');
+			return of('No solution: sink points are a target but no item may go into the sink. Enable some in the Sink tab.');
 		}
 
 		// Dropping the limits from a maximise plan makes it unbounded rather
@@ -228,9 +229,9 @@ export class ProductionSolverService
 						return generic;
 					}
 					return poolFolder === null
-						? 'No solution: the raw resource limits are too low or a needed resource is switched off - raise them or enable it in the Resources tab.'
-						: `No solution: the shared raw resource pool of folder ${poolFolder} has too little left for this request - `
-							+ 'other plans in the folder already use part of it. Raise the folder limits or reduce the other plans.';
+						? 'No solution: the raw resource limits are too low, or a needed resource is switched off. Raise the limits or enable the resource in the Resources tab.'
+						: `No solution: the shared raw resources of folder ${poolFolder} are not enough for this plan. `
+							+ 'Other plans in the folder already use a part of them. Raise the folder limits or make the other plans smaller.';
 				}),
 			);
 		}
@@ -405,6 +406,18 @@ export class ProductionSolverService
 		return clocks;
 	}
 
+	/** Resolves the plan's per-generator clock overrides, dropping blank rows and clamping to 1–250%. Duplicate generators: last row wins. */
+	private generatorClockSpeeds(plan: Plan): Record<string, number>
+	{
+		const clocks: Record<string, number> = {};
+		for (const entry of plan.settings.generatorClockSpeeds ?? []) {
+			if (entry.generatorClassName !== '' && isFinite(entry.clockSpeed)) {
+				clocks[entry.generatorClassName] = Formulas.clampClock(entry.clockSpeed);
+			}
+		}
+		return clocks;
+	}
+
 	/** The clock speed the solver runs this recipe at in this machine: recipe override, else machine override, else the default. */
 	private clockFor(request: SolverRequest, recipe: Recipe, machine: Building): number
 	{
@@ -416,17 +429,31 @@ export class ProductionSolverService
 	private enabledGenerators(plan: Plan, data: Data): GeneratorFuelOption[]
 	{
 		const options: GeneratorFuelOption[] = [];
+		// Generators keep their own clock speeds - the machine default is about
+		// production machines and would silently reshape every power plant.
+		const clocks = this.generatorClockSpeeds(plan);
 		Object.entries(plan.settings.enabledFuels ?? {}).forEach(([generatorClass, fuelClasses]) => {
 			const generator = data.searchBuildingByClassName(generatorClass);
 			if (!generator) return;
+			const clockSpeed = generator.canOverclock ? clocks[generatorClass] ?? 100 : 100;
 			fuelClasses.forEach(fuelClass => {
 				const fuel = generator.fuel.find(f => f.item.className === fuelClass);
 				if (fuel) {
-					options.push({generator, fuel});
+					options.push({generator, fuel, clockSpeed});
 				}
 			});
 		});
 		return options;
+	}
+
+	/**
+	 * The generator column's LP name: {fuel}@Gen%{generator}#{clock}. The
+	 * column counts generators AT that clock, exactly like a recipe column
+	 * counts machines at its own.
+	 */
+	private generatorVariableName(option: GeneratorFuelOption): string
+	{
+		return option.fuel.item.className + '@Gen%' + option.generator.className + '#' + option.clockSpeed;
 	}
 
 	/** LP names cannot contain hyphens, so the node's UUID is compacted. */
@@ -479,8 +506,8 @@ export class ProductionSolverService
 					});
 				});
 				if (request.optimisation.machines > 0) {
-					request.generators.forEach(({generator, fuel}) =>
-						optimisation.push(request.optimisation.machines + ' ' + fuel.item.className + '@Gen%' + generator.className));
+					request.generators.forEach(option =>
+						optimisation.push(request.optimisation.machines + ' ' + this.generatorVariableName(option)));
 				}
 			}
 
@@ -545,17 +572,18 @@ export class ProductionSolverService
 		// fluid), yields the burn byproduct, and feeds the power balance.
 		// Surplus power is free to discard, so generators only run when their
 		// byproduct is needed (or, later, when power itself is demanded).
-		request.generators.forEach(({generator, fuel}) => {
-			const varName = fuel.item.className + '@Gen%' + generator.className;
-			const burnRate = Formulas.generatorBurnRate(generator, fuel);
+		request.generators.forEach(option => {
+			const {generator, fuel, clockSpeed} = option;
+			const varName = this.generatorVariableName(option);
+			const burnRate = Formulas.generatorBurnRate(generator, fuel, clockSpeed);
 			add(fuel.item.className, '- ' + burnRate + ' ' + varName);
 			if (fuel.supplementalItem !== null) {
-				add(fuel.supplementalItem.className, '- ' + Formulas.generatorSupplementalRate(generator) + ' ' + varName);
+				add(fuel.supplementalItem.className, '- ' + Formulas.generatorSupplementalRate(generator, clockSpeed) + ' ' + varName);
 			}
 			if (fuel.byproduct !== null) {
 				add(fuel.byproduct.className, '+ ' + (burnRate * fuel.byproductAmount) + ' ' + varName);
 			}
-			powerTerms.push('+ ' + generator.powerProduction + ' ' + varName);
+			powerTerms.push('+ ' + Formulas.generatorPowerProduction(generator, 1, clockSpeed) + ' ' + varName);
 		});
 
 		// Mines exist for every raw resource regardless of the optimisation
@@ -812,9 +840,12 @@ export class ProductionSolverService
 				const id = crypto.randomUUID();
 				const [recipeClass, type] = column.Name.split('@');
 				if (type?.startsWith('Gen%')) {
-					const generator = data.getBuildingByClassName(type.slice(4));
+					// {generator}#{clock}; the clock is absent in plans solved
+					// before generators could be overclocked.
+					const [generatorClass, generatorClock] = type.slice(4).split('#');
+					const generator = data.getBuildingByClassName(generatorClass);
 					const fuel = generator.fuel.find(f => f.item.className === recipeClass)!;
-					return new GeneratorNode(id, column.Primal, generator, fuel);
+					return new GeneratorNode(id, column.Primal, generator, fuel, generatorClock ? parseFloat(generatorClock) : 100);
 				}
 				switch (type) {
 					case 'Mine':
@@ -926,7 +957,7 @@ export class ProductionSolverService
 			const maxSolution = await this.awaitSolve(this.buildLp(maxRequest, data, roundLocked), this.solveOptions(maxRequest, plan), run);
 			const maxStatus = this.mapStatus(maxSolution.Status);
 			if (maxStatus === 'Unbounded') {
-				throw new Error('The maximised production is unbounded - limit the raw resources (Resources tab) so "as much as possible" is a finite amount.');
+				throw new Error('There is no limit to how much can be made. Set raw resource limits in the Resources tab so that "as much as possible" is a real number.');
 			}
 			if (maxStatus !== 'Optimal') {
 				if (first) {

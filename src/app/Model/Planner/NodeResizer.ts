@@ -1,4 +1,5 @@
 import {Injectable} from '@angular/core';
+import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
@@ -26,7 +27,10 @@ import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 export class NodeResizer
 {
 
-	public constructor(private readonly normalizer: MachineGroupNormalizer)
+	public constructor(
+		private readonly normalizer: MachineGroupNormalizer,
+		private readonly clocks: ClockSpeedResolver,
+	)
 	{
 	}
 
@@ -58,11 +62,11 @@ export class NodeResizer
 			if (node.fuel.byproduct?.className !== itemClassName) {
 				return null;
 			}
-			const perMachine = Formulas.generatorBurnRate(node.generator, node.fuel) * node.fuel.byproductAmount;
+			const perMachine = Formulas.generatorBurnRate(node.generator, node.fuel, node.clockSpeed) * node.fuel.byproductAmount;
 			if (perMachine <= 0) {
 				return null;
 			}
-			return this.placed(node, new GeneratorNode(node.id, (this.outputTotal(node, itemClassName) + addition) / perMachine, node.generator, node.fuel), true);
+			return this.placed(node, new GeneratorNode(node.id, (this.outputTotal(node, itemClassName) + addition) / perMachine, node.generator, node.fuel, node.clockSpeed), true);
 		}
 		// Only the producing item nodes qualify - their amount IS the output rate.
 		if ((node instanceof InputNode || node instanceof MineNode) && node.item.className === itemClassName) {
@@ -86,7 +90,7 @@ export class NodeResizer
 			return this.rebuiltRecipe(node, node.target * factor, this.uniformSloops(node.groups));
 		}
 		if (node instanceof GeneratorNode) {
-			return this.placed(node, new GeneratorNode(node.id, node.amount * factor, node.generator, node.fuel), true);
+			return this.placed(node, new GeneratorNode(node.id, node.amount * factor, node.generator, node.fuel, node.clockSpeed), true);
 		}
 		if (node instanceof ItemAmountNode) {
 			return this.replacedItemNode(node, node.amount * factor, true);
@@ -111,12 +115,26 @@ export class NodeResizer
 			return null;
 		}
 		if (node instanceof GeneratorNode) {
-			return this.placed(node, new GeneratorNode(node.id, size, node.generator, node.fuel), true);
+			return this.placed(node, new GeneratorNode(node.id, size, node.generator, node.fuel, node.clockSpeed), true);
 		}
 		if (node instanceof ItemAmountNode) {
 			return this.replacedItemNode(node, size, true);
 		}
 		return null;
+	}
+
+	/**
+	 * The same generator node at a new machine count and clock speed. A user
+	 * edit, so it comes back locked. Power and fuel follow from the two
+	 * together - a generator's clock only decides how many buildings (and
+	 * power shards) a given generation takes.
+	 */
+	public withGenerator(node: GeneratorNode, amount: number, clockSpeed: number): GeneratorNode | null
+	{
+		if (amount <= 0 || clockSpeed <= 0) {
+			return null;
+		}
+		return this.placed(node, new GeneratorNode(node.id, amount, node.generator, node.fuel, clockSpeed), true);
 	}
 
 	/**
@@ -154,7 +172,7 @@ export class NodeResizer
 		if (target <= 0) {
 			return null;
 		}
-		const groups = this.normalizer.generate(target, 100, sloops, node.groupingMode);
+		const groups = this.normalizer.generateForTarget(target, this.clocks.forRecipe(node.recipe, node.machine), sloops, node.groupingMode);
 		const replacement = new RecipeNode(node.id, target, groups, node.machine, node.recipe);
 		replacement.groupingMode = node.groupingMode;
 		return this.placed(node, replacement, true);

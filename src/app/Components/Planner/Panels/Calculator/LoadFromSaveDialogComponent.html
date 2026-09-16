@@ -6,16 +6,16 @@
 		</div>
 		<div class="card-body d-flex flex-column gap-2">
 			<info-note>
-				Pick a Satisfactory save file (.sav) - its unlocked machines, recipes and
-				generator fuels replace the current selections of &ldquo;{{ targetName }}&rdquo;.
-				Unlocks this version does not know (e.g. from mods) are ignored.
+				Pick a Satisfactory save file (.sav). The machines, recipes and generator fuels you have unlocked
+				in that save replace the current selection of &ldquo;{{ targetName }}&rdquo;.
+				Unlocks this version does not know (for example from mods) are ignored.
 			</info-note>
 
 			@switch (state()) {
 				@case ('parsing') {
 					<div class="d-flex align-items-center gap-2 py-2">
 						<div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-						<span>Reading the save file&hellip; large saves can take a while.</span>
+						<span>Reading the save file&hellip; large saves can take a moment.</span>
 					</div>
 				}
 				@case ('ready') {
@@ -44,7 +44,7 @@
 						@if (mapped.summary.unknownEntries > 0) {
 							<div class="text-warning small">
 								<fa-icon [icon]="faTriangleExclamation"></fa-icon>
-								{{ mapped.summary.unknownEntries }} unlocks from the save are unknown to this version and were ignored
+								{{ mapped.summary.unknownEntries }} unlocks from the save are unknown to this version and were skipped
 								(usually mods that are not enabled here).
 							</div>
 						}

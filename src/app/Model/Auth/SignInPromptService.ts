@@ -72,7 +72,7 @@ export class SignInPromptService
 	{
 		this.settings.updateAccount({signInPrompts: false});
 		this.visibleSignal.set(false);
-		this.notifications.showSuccess('Sign-in reminders are off. You can turn them back on under Settings → Account.');
+		this.notifications.showSuccess('Sign-in reminders are off. You can turn them back on in Settings → Account.');
 	}
 
 }

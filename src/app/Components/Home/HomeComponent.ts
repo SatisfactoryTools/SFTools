@@ -1,7 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faArrowRight, faBookOpen, faCircleInfo, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faSliders, faUser, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faArrowRight, faBookOpen, faCircleInfo, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faUser, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {HomeFeature} from '@src/Components/Home/HomeFeature';
@@ -40,7 +40,8 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 /**
  * The landing page: hero with the way back into the last planner (or into
  * the current release), a sign-in panel for signed-out users, the feature
- * tiles, and the game version picker (public + own custom).
+ * tiles, and the game version picker (public + own custom). Share links the
+ * user has opened are listed only in the planner's Plans panel.
  */
 @Component({
 	templateUrl: './HomeComponent.html',
@@ -432,6 +433,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 		.plan-meta .edited {
 			font-size: 0.72rem;
 		}
+
 	`],
 })
 export class HomeComponent
@@ -450,6 +452,7 @@ export class HomeComponent
 	public readonly communityLinks = CommunityLinks.COMMUNITY;
 	public readonly donationLinks = CommunityLinks.DONATIONS;
 	public readonly faDiagramProject = faDiagramProject;
+	public readonly faShareNodes = faShareNodes;
 
 	public constructor(
 		protected readonly versionManager: VersionManager,
@@ -520,25 +523,25 @@ export class HomeComponent
 			{
 				icon: faDiagramProject,
 				title: 'Planner',
-				text: 'Describe what you want to produce; an optimising solver lays out the factory. Then edit the graph by hand.',
+				text: 'Say what you want to produce and the planner works out the factory for you. Then edit the graph by hand.',
 				link: slug === null ? null : ['/', slug, 'planner'],
 			},
 			{
 				icon: faBookOpen,
 				title: 'Codex',
-				text: 'Every item, recipe, building and milestone of each game version, searchable.',
+				text: 'Every item, recipe, building and milestone of each game version, with search.',
 				link: slug === null ? null : ['/', slug, 'codex'],
 			},
 			{
 				icon: faSliders,
 				title: 'Custom versions',
-				text: 'Your own ruleset: recipe and power cost multipliers, mods, reshaped resource nodes.',
+				text: 'Your own rules: recipe and power cost multipliers, mods, changed resource nodes.',
 				link: ['/create-version'],
 			},
 			{
 				icon: faPuzzlePiece,
 				title: 'Mods',
-				text: 'Author sets of data changes - new or overridden items, recipes and buildings - and share them.',
+				text: 'Create sets of changes to the game data - new or changed items, recipes and buildings - and share them.',
 				link: ['/mods'],
 			},
 		];
@@ -651,7 +654,7 @@ export class HomeComponent
 	/** Only removes the user's link (or localStorage entry) - the version itself is shared and keeps existing. */
 	public removeVersion(version: Version): void
 	{
-		if (confirm(`Remove "${version.name}" from your versions? Plans referencing it keep working, and creating the same definition again brings it back.`)) {
+		if (confirm(`Remove "${version.name}" from your versions? Plans that use it keep working. Creating a version with the same settings brings it back.`)) {
 			this.versionManager.removeCustomVersion(version);
 		}
 	}

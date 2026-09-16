@@ -33,14 +33,14 @@
 								<span>{{ row.item.name }}</span>
 							</div>
 						</td>
-						<td class="text-end text-success" data-label="Sources">{{ rateFormatter.rate(row.totalSources, row.item) }}</td>
-						<td class="text-end text-info" data-label="Targets">{{ rateFormatter.rate(row.totalTargets, row.item) }}</td>
+						<td class="text-end text-success" data-label="Sources">{{ rateFormatter.amount(row.totalSources) }}<wbr>{{ unitText(row.item) }}</td>
+						<td class="text-end text-info" data-label="Targets">{{ rateFormatter.amount(row.totalTargets) }}<wbr>{{ unitText(row.item) }}</td>
 					</tr>
 					@if (isExpanded(row)) {
 						@for (flow of row.sources; track flow.key) {
 							<tr class="stack-sub">
 								<td class="ps-4 stack-grow">{{ flow.name }}</td>
-								<td class="text-end text-secondary">{{ rateFormatter.rate(flow.amount, row.item) }}</td>
+								<td class="text-end text-secondary">{{ rateFormatter.amount(flow.amount) }}<wbr>{{ unitText(row.item) }}</td>
 								<td></td>
 							</tr>
 						}
@@ -48,7 +48,7 @@
 							<tr class="stack-sub">
 								<td class="ps-4 stack-grow">{{ flow.name }}</td>
 								<td></td>
-								<td class="text-end text-secondary">{{ rateFormatter.rate(flow.amount, row.item) }}</td>
+								<td class="text-end text-secondary">{{ rateFormatter.amount(flow.amount) }}<wbr>{{ unitText(row.item) }}</td>
 							</tr>
 						}
 					}

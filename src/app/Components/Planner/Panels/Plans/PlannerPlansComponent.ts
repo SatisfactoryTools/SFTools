@@ -4,7 +4,7 @@ import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {TooltipDirective} from 'ngx-bootstrap/tooltip';
-import {faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLock, faPlus} from '@fortawesome/free-solid-svg-icons';
+import {faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes} from '@fortawesome/free-solid-svg-icons';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
@@ -21,6 +21,7 @@ import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMen
 import {VisitedShareContextMenu} from '@src/Components/Planner/Panels/Plans/VisitedShareContextMenu';
 import {ShareLinkDialogComponent} from '@src/Components/Planner/Panels/Plans/ShareLinkDialogComponent';
 import {SharesApiService} from '@src/Model/API/SharesApiService';
+import {ShareCreateRequest} from '@src/Model/API/Schema/Shares/ShareCreateRequest';
 import {ShareType} from '@src/Model/API/Schema/Shares/ShareType';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -30,11 +31,13 @@ import {Plan} from '@src/Model/Planner/Plan';
 import {PlanIconResolver} from '@src/Model/Planner/PlanIconResolver';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
+import {PlanStore} from '@src/Model/Planner/PlanStore';
 import {PlanTree} from '@src/Model/Planner/PlanTree';
 import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
 import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
 import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
+import {ShareTreeBuilder} from '@src/Model/Shares/ShareTreeBuilder';
 import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
 import {ShareTreeNode} from '@src/Model/Shares/ShareTreeNode';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
@@ -74,7 +77,7 @@ interface InputItem
 
 type TreeItem = FolderItem | PlanItem | InputItem;
 
-/** A read-only row in the "Local plans" migration section. */
+/** A row in the "On this device" section: plans open read-only, folders only label the rows below. */
 interface LocalItem
 {
 	readonly kind: 'folder' | 'plan';
@@ -84,6 +87,8 @@ interface LocalItem
 	readonly iconHash: string | null;
 	/** Subplans migrate with their parent plan and cannot be dragged on their own. */
 	readonly isSubplan: boolean;
+	readonly hasChildren: boolean;
+	readonly isOpen: boolean;
 }
 
 /** A row of a share's tree in the "Shared plans" section (below the share's own row). */
@@ -146,8 +151,11 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public readonly faFolder = faFolder;
 	public readonly faFolderOpen = faFolderOpen;
 	public readonly faFolderPlus = faFolderPlus;
+	public readonly faLaptop = faLaptop;
+	public readonly faLayerGroup = faLayerGroup;
 	public readonly faLock = faLock;
 	public readonly faPlus = faPlus;
+	public readonly faShareNodes = faShareNodes;
 
 	public readonly activePlanId: Signal<string | null>;
 	public readonly activeFolderId: Signal<string | null>;
@@ -215,7 +223,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 					? 'This folder fixes ' + node.folder.fixedGroups
 						.map(group => group === 'resources' && node.folder.resourcePool ? 'Resources (shared pool)' : SettingsGroups.labelOf(group))
 						.join(', ')
-						+ ' for every plan inside - those settings are read-only in the plans and follow the folder.'
+						+ ' for every plan inside. The plans cannot change these settings and follow the folder.'
 					: null,
 			});
 			if (!isOpen) return;
@@ -236,11 +244,46 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	}
 
 	public readonly rootOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(ROOT_ID));
+
+	/** Plans (subplans excluded) in the user's own tree - the section header shows the count. */
+	public readonly planCount: Signal<number> = computed(() => this.countPlans(this.planManager.planTree().entries));
+
+	/** True when the user's own tree has nothing in it yet - the section shows a short hint instead of rows. */
+	public readonly rootEmpty: Signal<boolean> = computed(() => this.planManager.planTree().entries.length === 0);
+
+	/** Plans (subplans excluded) stored only in this browser. */
+	public readonly localPlanCount: Signal<number> = computed(() => this.countPlans(this.planManager.localPlanTree().entries));
+
+	private countPlans(entries: (PlanTreeFolder | PlanTreePlan)[]): number
+	{
+		return entries.reduce((sum, entry) => sum + ('folder' in entry ? this.countPlans(entry.entries) : 1), 0);
+	}
 	public readonly localOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(LOCAL_ID));
 	public readonly sharedOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(SHARED_ID));
 
-	/** Every share link the user has opened, newest visit first, across all versions. */
-	public readonly sharedList: Signal<VisitedShare[]>;
+	/** Every share link the user has opened, most recently added first, across all versions. */
+	private readonly allShares: Signal<VisitedShare[]>;
+
+	/**
+	 * The listed shares: those made for the active game version, so every
+	 * row opens in place and can be dragged into "Your plans". Shares of
+	 * other versions show up in that version's planner instead.
+	 */
+	public readonly sharedList: Signal<VisitedShare[]> = computed(() => {
+		const versionId = this.versionManager.activeVersion()?.id;
+		return this.allShares().filter(share => share.version.id === versionId);
+	});
+
+	/** Visited shares made for another game version than the active one. */
+	public readonly otherVersionShareCount: Signal<number> = computed(() => {
+		const versionId = this.versionManager.activeVersion()?.id;
+		return this.allShares().filter(share => share.version.id !== versionId).length;
+	});
+
+	/** The section shows whenever any share was visited - possibly just as an empty state counting the other versions' shares. */
+	public readonly showSharedSection: Signal<boolean> = computed(() => this.allShares().length > 0);
+
+	public readonly activeVersionName: Signal<string> = computed(() => this.versionManager.activeVersion()?.name ?? 'this version');
 
 	/** The share currently open in the planner, or null. */
 	public readonly activeShareId: Signal<string | null>;
@@ -325,11 +368,13 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	public readonly showLocalSection: Signal<boolean> = computed(() =>
 		this.planManager.isAuthenticated() && this.localTreeItems().length > 0);
 
-	/** Flattened, always-expanded, read-only rows of this device's local plans. */
+	/** Flattened rows of this device's local plans; folders and plans with subplans fold by id, like the account tree. */
 	public readonly localTreeItems: Signal<LocalItem[]> = computed(() => {
 		const tree = this.planManager.localPlanTree();
+		const collapsed = this.collapsedSignal();
 		const items: LocalItem[] = [];
 		const addPlan = (node: PlanTreePlan, depth: number): void => {
+			const isOpen = !collapsed.has(node.plan.id);
 			items.push({
 				kind: 'plan',
 				depth,
@@ -337,12 +382,28 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 				name: this.planNames.displayName(node.plan),
 				iconHash: this.planIcons.iconHash(node.plan),
 				isSubplan: node.plan.parentPlanId !== null,
+				hasChildren: node.subplans.length > 0,
+				isOpen,
 			});
-			node.subplans.forEach(sub => addPlan(sub, depth + 1));
+			if (isOpen) {
+				node.subplans.forEach(sub => addPlan(sub, depth + 1));
+			}
 		};
 		const addFolder = (node: PlanTreeFolder, depth: number): void => {
-			items.push({kind: 'folder', depth, id: node.folder.id, name: node.folder.name, iconHash: null, isSubplan: false});
-			node.entries.forEach(entry => addEntry(entry, depth + 1));
+			const isOpen = !collapsed.has(node.folder.id);
+			items.push({
+				kind: 'folder',
+				depth,
+				id: node.folder.id,
+				name: node.folder.name,
+				iconHash: null,
+				isSubplan: false,
+				hasChildren: node.entries.length > 0,
+				isOpen,
+			});
+			if (isOpen) {
+				node.entries.forEach(entry => addEntry(entry, depth + 1));
+			}
 		};
 		const addEntry = (entry: PlanTreeFolder | PlanTreePlan, depth: number): void =>
 			'folder' in entry ? addFolder(entry, depth) : addPlan(entry, depth);
@@ -357,9 +418,9 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	 */
 	public readonly activeAncestorIds: Signal<Set<string>> = computed(() => {
 		const ids = new Set<string>();
-		// Both stores: the open share's subplans/folders highlight their ancestors the same way.
-		const plans = [...this.planManager.plans(), ...this.planManager.sharedPlans()];
-		const folders = [...this.planManager.folders(), ...this.planManager.sharedFolders()];
+		// All three stores: the open share's and this device's subplans/folders highlight their ancestors the same way.
+		const plans = [...this.planManager.plans(), ...this.planManager.sharedPlans(), ...this.planManager.localPlans()];
+		const folders = [...this.planManager.folders(), ...this.planManager.sharedFolders(), ...this.planManager.localFolders()];
 
 		let plan = plans.find(p => p.id === this.activePlanId()) ?? null;
 		while (plan && plan.parentPlanId !== null) {
@@ -403,6 +464,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		private readonly visitedShares: VisitedSharesManager,
 		private readonly activeShare: ActiveShareManager,
 		private readonly shareTrees: ShareTreeCache,
+		private readonly shareTreeBuilder: ShareTreeBuilder,
 		private readonly router: Router,
 	)
 	{
@@ -410,39 +472,81 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		toObservable(visitedShares.visitedShares).subscribe(shares => shares.forEach(share => shareTrees.ensure(share.share)));
 		this.activePlanId = planManager.activePlanId;
 		this.activeFolderId = planManager.activeFolderId;
-		this.sharedList = visitedShares.visitedShares;
+		this.allShares = visitedShares.visitedShares;
 		this.activeShareId = activeShare.shareId;
 	}
 
 	// ── Sharing ─────────────────────────────────────────────────────────────
 
-	public canShare(): boolean
-	{
-		return this.authService.isAuthenticated() && this.versionManager.activeVersion() !== null;
-	}
-
 	public sharePlan(plan: Plan): void
 	{
-		this.createShare('plan', plan.id, this.planNames.displayName(plan));
+		this.createShare('plan', plan.id, this.planNames.displayName(plan), this.accountStore);
 	}
 
 	public shareFolder(id: string, name: string): void
 	{
-		this.createShare('folder', id, name);
+		this.createShare('folder', id, name, this.accountStore);
 	}
 
-	private createShare(type: ShareType, id: string, name: string): void
+	/** "On this device" rows: their plans exist nowhere but this browser, so the tree goes with the request. */
+	public shareLocalItem(id: string, kind: 'plan' | 'folder', name: string): void
+	{
+		this.createShare(kind, id, name, this.deviceStore, true);
+	}
+
+	/** The tree shown under "Your plans" - the account's while signed in, this browser's while signed out. */
+	private get accountStore(): PlanStore
+	{
+		return {folders: this.planManager.folders(), plans: this.planManager.plans()};
+	}
+
+	/** The tree shown under "On this device" - only ever populated while signed in. */
+	private get deviceStore(): PlanStore
+	{
+		return {folders: this.planManager.localFolders(), plans: this.planManager.localPlans()};
+	}
+
+	/**
+	 * Creates the share link. A plan the server already has is shared by id;
+	 * one that lives only in this browser - everything made while signed out,
+	 * and the "On this device" plans of a signed-in user - is sent along with
+	 * the request instead (see anonymous-shares.md), so sharing never needs an
+	 * account.
+	 */
+	private createShare(type: ShareType, id: string, name: string, store: PlanStore, deviceStore = false): void
 	{
 		const version = this.versionManager.activeVersion();
 		if (!version) {
+			this.notifications.show('Could not create the share link - no game version is open.');
 			return;
 		}
-		this.sharesApi.createShare({version: version.id, type, id}).subscribe({
+		const onServer = this.authService.isAuthenticated() && !deviceStore;
+		const request = onServer
+			? {version: version.id, type, id}
+			: this.treeShareRequest(version.id, type, id, store);
+		if (!request) {
+			this.notifications.show('Could not create the share link - this plan could not be read.');
+			return;
+		}
+		this.sharesApi.createShare(request).subscribe({
 			next: response => {
 				this.shareLinkSignal.set({link: `${window.location.origin}/shared/${response.share}`, name});
 			},
-			error: () => this.notifications.show('Could not create the share link.'),
+			// The API answers a rejected tree (too big, too deep) with a message meant for the user.
+			error: (err: {error?: {error?: string}}) =>
+				this.notifications.show(err?.error?.error ?? 'Could not create the share link.'),
 		});
+	}
+
+	/** The share request carrying the tree itself; null when the row is not in the store any more. */
+	private treeShareRequest(versionId: string, type: ShareType, id: string, store: PlanStore): ShareCreateRequest | null
+	{
+		if (type === 'plan') {
+			const plan = store.plans.find(candidate => candidate.id === id);
+			return plan ? {version: versionId, type, root: this.shareTreeBuilder.plan(plan, store)} : null;
+		}
+		const folder = store.folders.find(candidate => candidate.id === id);
+		return folder ? {version: versionId, type, root: this.shareTreeBuilder.folder(folder, store)} : null;
 	}
 
 	public closeShareDialog(): void
@@ -709,6 +813,14 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 
 	// ── Plans on this device ────────────────────────────────────────────────
 
+	/** Opens a device plan read-only, so it can be checked before it is moved into the account. Folder rows are labels only. */
+	public selectLocalItem(item: LocalItem): void
+	{
+		if (item.kind === 'plan') {
+			this.planManager.setActivePlan(item.id);
+		}
+	}
+
 	public onLocalContextMenu(event: MouseEvent, item: LocalItem): void
 	{
 		event.preventDefault();
@@ -865,7 +977,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	{
 		const name = this.planNames.displayName(plan);
 		const message = plan.parentPlanId !== null
-			? `Delete subplan "${name}"? Its node is removed from the parent plan too.`
+			? `Delete subplan "${name}"? Its node is also removed from the parent plan.`
 			: `Delete plan "${name}"?`;
 		if (!confirm(message)) return;
 		this.planManager.deletePlan(plan.id);
@@ -1107,7 +1219,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 			return true;
 		}
 		const groups = fixed.fixedGroups.map(group => SettingsGroups.labelOf(group)).join(', ');
-		return confirm(`Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings are replaced by the folder's fixed values.`);
+		return confirm(`Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings are replaced by the settings fixed by the folder.`);
 	}
 
 	/** A folder with custom settings loses them under a folder that fixes settings groups - ask once. */
@@ -1125,7 +1237,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		}
 		const names = withSettings.map(f => `"${f.name}"`).join(', ');
 		return confirm(`Move "${moved.name}" into "${fixed.name}"? ${names} ${withSettings.length === 1 ? 'loses its' : 'lose their'} custom settings - `
-			+ `"${fixed.name}" fixes settings for everything inside it.`);
+			+ `"${fixed.name}" sets the settings for everything inside it.`);
 	}
 
 	private isInside(folder: Folder, ancestorId: string, folders: Folder[]): boolean

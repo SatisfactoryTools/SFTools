@@ -1,11 +1,11 @@
-<span class="stat" [title]="'Power consumption' + (powerRangeText() ? ' - varies ' + powerRangeText() : '')">Power <b>{{ powerText() }}</b>@if (powerRangeText()) {<small class="range">{{ powerRangeText() }}</small>}</span>
+<span class="stat" [title]="'Power consumption' + (powerRangeText() ? ' - varies ' + powerRangeText() : '')"><fa-icon class="stat-icon" [icon]="faBolt"></fa-icon><span class="lbl">Power </span><b>{{ powerText() }}</b>@if (powerRangeText()) {<small class="range">{{ powerRangeText() }}</small>}</span>
 @if (hasProduction()) {
-	<span class="stat" title="Power production">Production <b class="production">{{ productionText() }}</b></span>
+	<span class="stat" title="Power production"><span class="lbl">Production </span><span class="abbr">Prod. </span><b class="production">{{ productionText() }}</b></span>
 	<span class="stat" [title]="'Production minus consumption' + (netRangeText() ? ' - varies ' + netRangeText() : '')">Net <b [class.production]="netIsSurplus()" [class.deficit]="!netIsSurplus()">{{ netText() }}</b>@if (netRangeText()) {<small class="range">{{ netRangeText() }}</small>}</span>
 }
-<span class="stat">Buildings <b>{{ rateFormatter.amount(buildings()) }}</b></span>
-<span class="stat" title="Somersloops"><game-icon [hash]="sloopIcon()" [size]="16" alt="Sloops"></game-icon> <b>{{ sloops() }}</b></span>
-<span class="stat" title="Power shards"><game-icon [hash]="shardIcon()" [size]="16" alt="Shards"></game-icon> <b>{{ shards() }}</b></span>
+<span class="stat" title="Buildings"><fa-icon class="stat-icon" [icon]="faIndustry"></fa-icon><span class="lbl">Buildings </span><b>{{ rateFormatter.amount(buildings()) }}</b></span>
+<span class="stat" [class.zero]="sloops() === 0" title="Somersloops"><game-icon [hash]="sloopIcon()" [size]="16" alt="Sloops"></game-icon> <b>{{ sloops() }}</b></span>
+<span class="stat" [class.zero]="shards() === 0" title="Power shards"><game-icon [hash]="shardIcon()" [size]="16" alt="Shards"></game-icon> <b>{{ shards() }}</b></span>
 
 <span class="right">
 	@if (warningCount() > 0) {
@@ -26,7 +26,7 @@
 						@for (line of poolWarnings(); track $index) {
 							<span class="d-block text-wrap opacity-75">{{ line }}</span>
 						}
-						<span class="d-block text-wrap opacity-75">Recalculate the plan (or the whole folder) to fit the pool again.</span>
+						<span class="d-block text-wrap opacity-75">Recalculate the plan (or the whole folder) so it fits into the shared pool again.</span>
 					</div>
 				}
 				@for (entry of warningEntries(); track entry.nodeId) {
@@ -46,18 +46,18 @@
 	}
 
 	@if (actions.isCalculating()) {
-		<span class="state state-busy"><span class="dot"></span>calculating…</span>
+		<span class="state state-busy" title="calculating…"><span class="dot"></span><span class="state-text">calculating…</span></span>
 	} @else if (actions.solveError(); as error) {
-		<span class="state state-error"><span class="dot"></span>{{ error }}</span>
+		<span class="state state-error" [title]="error"><span class="dot"></span><span class="state-text">{{ error }}</span></span>
 	} @else if (hasGraph() && graphDirty()) {
-		<span class="state state-modified"><span class="dot"></span>solved · modified</span>
+		<span class="state state-modified" title="calculated · edited by hand"><span class="dot"></span><span class="state-text">calculated · edited by hand</span></span>
 	} @else if (hasGraph() && recalculationNeeded()) {
-		<span class="state state-modified" title="The folder changed this plan's settings - recalculate"><span class="dot"></span>settings changed · recalculate</span>
+		<span class="state state-modified" title="The folder changed the settings of this plan - recalculate"><span class="dot"></span><span class="state-text">settings changed · recalculate</span></span>
 	} @else if (hasGraph() && poolWarnings().length > 0) {
-		<span class="state state-error" title="Other plans in the folder took part of this plan's raw resources - recalculate"><span class="dot"></span>pool exceeded · recalculate</span>
+		<span class="state state-error" title="Other plans in the folder took some of the raw resources this plan uses - recalculate"><span class="dot"></span><span class="state-text">over the shared limit · recalculate</span></span>
 	} @else if (hasGraph()) {
-		<span class="state state-solved"><span class="dot"></span>solved · up to date</span>
+		<span class="state state-solved" title="calculated · up to date"><span class="dot"></span><span class="state-text">calculated · up to date</span></span>
 	} @else {
-		<span class="state state-idle"><span class="dot"></span>no graph</span>
+		<span class="state state-idle" title="nothing calculated yet"><span class="dot"></span><span class="state-text">nothing calculated yet</span></span>
 	}
 </span>

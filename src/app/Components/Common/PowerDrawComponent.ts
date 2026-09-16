@@ -7,7 +7,8 @@ import {RateFormatter} from '@src/Model/RateFormatter';
  * THE way a power figure renders in the planner: the average as the number
  * and, when the figure oscillates (variable-draw machines), the min–max band
  * on its own small muted line underneath. The band never sits beside the
- * number, so it cannot widen a table column or a stacked mobile row.
+ * number and may wrap when squeezed, so it cannot widen a table column or a
+ * stacked mobile row.
  */
 @Component({
 	selector: 'power-draw',
@@ -22,7 +23,6 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 		.range {
 			display: block;
 			line-height: 1.2;
-			white-space: nowrap;
 		}
 	`],
 })

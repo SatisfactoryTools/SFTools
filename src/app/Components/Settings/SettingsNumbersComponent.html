@@ -1,4 +1,4 @@
-<settings-section title="Numbers" [icon]="sectionIcon" description="How amounts, clock speeds and power read throughout the planner.">
+<settings-section title="Numbers" [icon]="sectionIcon" description="How amounts, clock speeds and power are shown in the planner.">
 		<div class="subsection-title">Format</div>
 		<div class="row g-3">
 			<div class="col-12 col-lg-6">
@@ -22,13 +22,13 @@
 					[ngModel]="numbers.powerDisplay"
 					(ngModelChange)="setPowerDisplay($event)"
 				>
-					<option value="scaled">Scale units - MW / GW / TW</option>
+					<option value="scaled">Bigger units when needed - MW / GW / TW</option>
 					<option value="mw">Megawatts only - MW</option>
 				</select>
 			</div>
 
 			<div class="col-12 col-lg-6">
-				<label class="form-label" for="item-precision">Item amount precision</label>
+				<label class="form-label" for="item-precision">Decimal places for item amounts</label>
 				<input
 					id="item-precision"
 					type="number"
@@ -39,11 +39,11 @@
 					[ngModel]="numbers.itemAmountPrecision"
 					(ngModelChange)="setItemAmountPrecision($event)"
 				/>
-				<div class="form-text">Decimals shown for amounts and rates (e.g. graph edges).</div>
+				<div class="form-text">How many decimal places amounts and rates show, for example on graph connections.</div>
 			</div>
 
 			<div class="col-12 col-lg-6">
-				<label class="form-label" for="clock-precision">Clock speed precision</label>
+				<label class="form-label" for="clock-precision">Decimal places for clock speeds</label>
 				<input
 					id="clock-precision"
 					type="number"
@@ -54,11 +54,11 @@
 					[ngModel]="numbers.clockSpeedPrecision"
 					(ngModelChange)="setClockSpeedPrecision($event)"
 				/>
-				<div class="form-text">Decimals shown for clock speeds (game maximum is 4).</div>
+				<div class="form-text">How many decimal places clock speeds show. The game allows at most 4.</div>
 			</div>
 
 			<div class="col-12 col-lg-6">
-				<label class="form-label" for="machine-precision">Machine count precision</label>
+				<label class="form-label" for="machine-precision">Decimal places for machine counts</label>
 				<input
 					id="machine-precision"
 					type="number"
@@ -69,7 +69,7 @@
 					[ngModel]="numbers.machineCountPrecision"
 					(ngModelChange)="setMachineCountPrecision($event)"
 				/>
-				<div class="form-text">Decimals shown for machine counts (decimal machine display, see Graph).</div>
+				<div class="form-text">How many decimal places machine counts show, when the graph shows them as decimals (see Graph).</div>
 			</div>
 
 			<div class="col-12">

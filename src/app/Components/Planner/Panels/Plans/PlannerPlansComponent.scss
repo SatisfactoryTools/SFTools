@@ -114,3 +114,89 @@
 .tree-drop-after {
 	box-shadow: inset 0 -2px 0 rgba(74, 144, 217, 0.9);
 }
+
+// Section headers ("Your plans", "On this device", "Shared with you") are
+// bands rather than tree rows: a tinted strip with a small-caps label, so the
+// eye separates the three lists before it reads a single plan name.
+.tree-section {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	padding: 0.3rem 0.5rem 0.3rem 0.4rem;
+	margin-bottom: 0.35rem;
+	border-radius: 0.3rem;
+	background-color: rgba(255, 255, 255, 0.06);
+	border-left: 3px solid rgba(255, 255, 255, 0.18);
+	color: #aebbcf;
+	cursor: pointer;
+	user-select: none;
+
+	&:hover {
+		background-color: rgba(255, 255, 255, 0.09);
+	}
+
+	&.open {
+		border-left-color: rgba(74, 144, 217, 0.75);
+	}
+
+	&.tree-drag-over {
+		border-left-color: rgba(74, 144, 217, 0.9);
+	}
+}
+
+.tree-section-caret {
+	font-size: 0.7rem;
+	width: 0.7rem;
+	text-align: center;
+	flex-shrink: 0;
+	opacity: 0.7;
+}
+
+.tree-section-icon {
+	font-size: 0.8rem;
+	flex-shrink: 0;
+	opacity: 0.8;
+}
+
+.tree-section-label {
+	flex-grow: 1;
+	font-weight: 700;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.tree-section-count {
+	font-size: 0.7rem;
+	line-height: 1;
+	padding: 0.2rem 0.45rem;
+	border-radius: 1rem;
+	background-color: rgba(255, 255, 255, 0.1);
+	color: #c5d0db;
+	flex-shrink: 0;
+}
+
+.tree-section-actions {
+	display: inline-flex;
+	align-items: center;
+	margin-left: 0.15rem;
+	flex-shrink: 0;
+}
+
+.tree-section-note {
+	margin: 0.15rem 0 0.4rem;
+}
+
+.tree-empty {
+	padding: 0.35rem 0.5rem 0.5rem 1.6rem;
+	font-size: 0.875rem;
+	color: #8899bb;
+	font-style: italic;
+}
+
+// Folders read as containers at a glance: a warm folder tint, like a desktop
+// file manager, against the neutral plan icons.
+.tree-folder-icon {
+	color: #d7a955;
+	flex-shrink: 0;
+}

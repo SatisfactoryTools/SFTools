@@ -123,22 +123,27 @@ export class Formulas
 		return Math.ceil((clockSpeed - 100) / Formulas.CLOCK_PER_SHARD - 1e-9);
 	}
 
-	/** Fuel items (m³ for fluids) burned per minute by ONE generator. */
-	public static generatorBurnRate(generator: Building, fuel: Fuel): number
+	/**
+	 * Fuel items (m³ for fluids) burned per minute by ONE generator at the
+	 * given clock speed. A generator's power and its fuel draw both scale
+	 * straight with the clock, so overclocking one buys nothing but fewer
+	 * buildings (paid for in power shards).
+	 */
+	public static generatorBurnRate(generator: Building, fuel: Fuel, clockSpeed: number = 100): number
 	{
-		return generator.powerProduction * 60 / fuel.item.energy;
+		return generator.powerProduction * 60 / fuel.item.energy * (clockSpeed / 100);
 	}
 
-	/** Supplemental fluid m³ per minute for ONE generator. */
-	public static generatorSupplementalRate(generator: Building): number
+	/** Supplemental fluid m³ per minute for ONE generator at the given clock speed. */
+	public static generatorSupplementalRate(generator: Building, clockSpeed: number = 100): number
 	{
-		return generator.powerProduction * generator.supplementalToPowerRatio * 0.06;
+		return generator.powerProduction * generator.supplementalToPowerRatio * 0.06 * (clockSpeed / 100);
 	}
 
-	/** MW produced by the given (fractional) number of generators. */
-	public static generatorPowerProduction(generator: Building, count: number): number
+	/** MW produced by the given (fractional) number of generators at the given clock speed. */
+	public static generatorPowerProduction(generator: Building, count: number, clockSpeed: number = 100): number
 	{
-		return generator.powerProduction * count;
+		return generator.powerProduction * count * (clockSpeed / 100);
 	}
 
 	/** Sink points per minute for sinking the item at the given rate. */

@@ -478,8 +478,9 @@ export class PlanBreakdownService
 		generators.forEach(node => {
 			const row = this.getOrCreate(map, node.generator.className,
 				() => ({building: node.generator, machines: 0, shards: 0, sloops: 0}));
-			// Generator counts are fractional at 100% clock - building them takes whole machines.
-			row.machines += Math.ceil(node.amount - 1e-9);
+			// Generator counts are fractional - building them takes whole machines.
+			row.machines += node.wholeGenerators();
+			row.shards += node.powerShards();
 		});
 
 		return this.sortedByBuildingName(map).map(row => ({
@@ -552,7 +553,7 @@ export class PlanBreakdownService
 	private countMachines(recipes: RecipeNode[], generators: GeneratorNode[]): number
 	{
 		return recipes.reduce((sum, node) => sum + node.amount, 0)
-			+ generators.reduce((sum, node) => sum + Math.ceil(node.amount - 1e-9), 0);
+			+ generators.reduce((sum, node) => sum + node.wholeGenerators(), 0);
 	}
 
 	/** Multiple nodes may reference the same subplan - one row each, scaled by occurrence count. */

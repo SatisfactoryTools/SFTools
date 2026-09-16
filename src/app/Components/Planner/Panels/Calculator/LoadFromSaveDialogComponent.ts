@@ -87,7 +87,7 @@ export class LoadFromSaveDialogComponent implements OnDestroy
 
 		const data = this.versionManager.activeVersionData();
 		if (!data) {
-			this.errorSignal.set('No game data is loaded for the active version.');
+			this.errorSignal.set('The game data of this version is not loaded.');
 			this.stateSignal.set('error');
 			return;
 		}

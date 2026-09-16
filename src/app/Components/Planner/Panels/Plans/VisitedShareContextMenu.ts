@@ -43,7 +43,7 @@ export class VisitedShareContextMenu extends PlannerContextMenu
 				action: () => this.host.copyShareLink(this.share),
 			},
 			{
-				label: 'Remove from shared plans',
+				label: 'Remove from this list',
 				icon: faXmark,
 				action: () => this.host.removeVisitedShare(this.share),
 			},

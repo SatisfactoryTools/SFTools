@@ -1,9 +1,9 @@
 <div class="p-2 d-flex flex-column gap-2">
 
 	<info-note>
-		Every machine the solver builds runs at the default clock speed (1–250%) unless its machine type or recipe
-		has an override - a recipe override beats the machine's. Power shards needed show in the status bar after
-		calculating.
+		All machines run at the default clock speed (1–250%). Below you can set a different speed for a machine type
+		or for a recipe. A recipe setting wins over a machine setting. After calculating, the status bar shows how many
+		power shards are needed.
 	</info-note>
 
 	<div class="d-flex align-items-center gap-2">
@@ -51,7 +51,7 @@
 						</td>
 					</tr>
 				} @empty {
-					<tr><td colspan="3" class="text-secondary fst-italic text-center">No machine overrides.</td></tr>
+					<tr><td colspan="3" class="text-secondary fst-italic text-center">No machine types with their own clock speed.</td></tr>
 				}
 			</tbody>
 		</table>
@@ -98,13 +98,64 @@
 						</td>
 					</tr>
 				} @empty {
-					<tr><td colspan="3" class="text-secondary fst-italic text-center">No recipe overrides.</td></tr>
+					<tr><td colspan="3" class="text-secondary fst-italic text-center">No recipes with their own clock speed.</td></tr>
 				}
 			</tbody>
 		</table>
 		<div class="card-footer p-2">
 			<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addRow()">
 				+ Add recipe
+			</button>
+		</div>
+	</div>
+
+	<div class="card">
+		<div class="card-header py-1 px-2 fw-semibold">Per power generator</div>
+		<info-note class="d-block p-2 pb-0">
+			Generators are not touched by the default clock speed. A clocked generator makes more power and burns more
+			fuel in step, so this only means fewer buildings - paid for in power shards.
+		</info-note>
+		<table class="table table-dark table-sm align-middle mb-0 table-stack">
+			<thead>
+				<tr>
+					<th>Generator</th>
+					<th style="width: 260px;">Clock speed</th>
+					<th style="width: 36px;"></th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (row of generatorRows; track $index; let i = $index) {
+					<tr>
+						<td class="stack-full">
+							<item-picker
+								[options]="generatorOptions"
+								[value]="row.generatorClassName"
+								placeholder="- select generator -"
+								(valueChange)="onGeneratorChange(row, $event)"
+							></item-picker>
+						</td>
+						<td class="stack-grow">
+							<clock-speed-input
+								[value]="row.clockSpeed"
+								(valueChange)="onGeneratorClockChange(row, $event)"
+							></clock-speed-input>
+						</td>
+						<td>
+							<button
+								class="btn btn-sm btn-outline-danger px-2"
+								type="button"
+								(click)="removeGeneratorRow(i)"
+							><fa-icon [icon]="faXmark"></fa-icon></button>
+						</td>
+					</tr>
+				} @empty {
+					<tr><td colspan="3" class="text-secondary fst-italic text-center">No generators with their own clock speed.</td></tr>
+				}
+			</tbody>
+		</table>
+		<div class="card-footer p-2">
+			<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addGeneratorRow()">
+				+ Add generator
 			</button>
 		</div>
 	</div>

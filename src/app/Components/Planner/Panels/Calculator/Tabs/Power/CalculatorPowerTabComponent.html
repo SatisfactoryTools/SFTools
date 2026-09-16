@@ -30,19 +30,19 @@
 				<span class="text-light" style="width: 40px;">{{ excessPowerPercent }}%</span>
 			</div>
 			<info-note>
-				The solver adds generators covering every machine's average draw, fuel production included. The excess
-				is a safety margin for miners, pumps and variable-draw swings.
+				Generators are added to cover the average power use of every machine, including fuel production.
+				The excess is a safety margin for miners, pumps and machines whose power use goes up and down.
 			</info-note>
 			@if (producePowerForFactory && maxSloops > 0) {
 				<info-note kind="warning">
-					Producing power for the factory combined with somersloop optimisation
-					(Sloops tab) makes the solve much harder - calculations can take very long.
+					Producing power for the factory together with somersloops
+					(Sloops tab) makes the calculation much harder. It can take a very long time.
 				</info-note>
 			}
 		</div>
 	</div>
 
-	<info-note>Generators and fuels the solver may build. Enabling a fuel enables its generator.</info-note>
+	<info-note>Generators and fuels the plan may use. Enabling a fuel also enables its generator.</info-note>
 
 	@for (generator of generators; track generator.className) {
 		<div class="card">

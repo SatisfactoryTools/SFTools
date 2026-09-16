@@ -183,8 +183,11 @@ export class GraphComposer
 			node = new ByproductNode(existing.id, amount, existing.item);
 		} else if (existing instanceof InputNode) {
 			node = new InputNode(existing.id, amount, existing.item);
-		} else if (existing instanceof GeneratorNode) {
-			node = new GeneratorNode(existing.id, amount, existing.generator, existing.fuel);
+		} else if (existing instanceof GeneratorNode && incoming instanceof GeneratorNode) {
+			// Generators are linear in their clock, so the incoming count is
+			// restated at the existing node's clock - same power, same fuel.
+			const incomingAtExistingClock = incoming.amount * incoming.clockSpeed / existing.clockSpeed;
+			node = new GeneratorNode(existing.id, existing.amount + incomingAtExistingClock, existing.generator, existing.fuel, existing.clockSpeed);
 		} else {
 			throw new Error(`Cannot merge node of type: ${existing.type}`);
 		}
@@ -212,7 +215,7 @@ export class GraphComposer
 		} else if (incoming instanceof InputNode) {
 			node = new InputNode(match.id, incoming.amount, incoming.item);
 		} else if (incoming instanceof GeneratorNode) {
-			node = new GeneratorNode(match.id, incoming.amount, incoming.generator, incoming.fuel);
+			node = new GeneratorNode(match.id, incoming.amount, incoming.generator, incoming.fuel, incoming.clockSpeed);
 		} else {
 			throw new Error(`Cannot adopt node of type: ${incoming.type}`);
 		}

@@ -53,7 +53,7 @@ export class SolverService implements OnDestroy
 			).pipe(
 				timeout({
 					each: timeoutMs,
-					with: () => throwError(() => new Error(`Solver timed out (${Math.round(timeoutMs / 1000)} s). The problem may be too complex.`)),
+					with: () => throwError(() => new Error(`The calculation took too long (${Math.round(timeoutMs / 1000)} s) and was stopped. The plan may be too complex.`)),
 				}),
 			).subscribe(subscriber);
 
@@ -88,7 +88,7 @@ export class SolverService implements OnDestroy
 		});
 		worker.addEventListener('error', (event: ErrorEvent) => {
 			console.error('[SolverWorker] Worker crashed:', event.message, event);
-			this.workerErrorSubject.next(new Error(`Solver worker crashed: ${event.message}`));
+			this.workerErrorSubject.next(new Error(`The calculation crashed: ${event.message}`));
 		});
 		return worker;
 	}

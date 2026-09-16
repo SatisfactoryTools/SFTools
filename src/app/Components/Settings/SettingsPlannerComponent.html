@@ -1,4 +1,4 @@
-<settings-section title="Planner" [icon]="sectionIcon" description="Behaviour of the planner's pickers, tabs and panels.">
+<settings-section title="Planner" [icon]="sectionIcon" description="How item lists, tabs and panels in the planner behave.">
 		<div class="subsection-title">Items</div>
 		<div style="max-width: 480px;">
 			<label class="form-label" for="unmakeable-items">Items the plan cannot produce</label>
@@ -14,8 +14,8 @@
 			</select>
 			<div class="form-text">
 				{{ unmakeableItemsDescription }}
-				Applies to the production request, input and add-node item pickers, based on each plan's
-				enabled recipes, machines and generator fuels.
+				Applies to the item lists in the production request, inputs and the add-node dialog. Based on the recipes,
+				machines and generator fuels enabled in each plan.
 			</div>
 		</div>
 
@@ -44,15 +44,15 @@
 			/>
 			<label class="form-check-label" for="tab-badges">Show counts on the tabs</label>
 			<div class="form-text">
-				A small number on each tab summarises what is set there - items requested, recipes enabled of all,
-				clock-speed overrides and so on.
+				A small number on each tab shows what is set there: how many items are requested, how many recipes are
+				enabled, how many clock speeds are changed, and so on.
 			</div>
 		</div>
 
 		<div class="subsection-title">Panels</div>
 		<info-note class="mb-3">
-			Panel positions and sizes are remembered automatically as you arrange them, per device.
-			Resetting returns every planner panel to its default position and size.
+			Panel positions and sizes are remembered automatically on each device.
+			Resetting puts every planner panel back to its default position and size.
 		</info-note>
 		<button type="button" class="btn btn-sm btn-outline-danger" (click)="resetPanels()">
 			Reset panel positions and sizes

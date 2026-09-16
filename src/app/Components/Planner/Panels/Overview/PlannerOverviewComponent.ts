@@ -44,9 +44,14 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 		.overview-grid {
 			container-type: inline-size;
 		}
+		/* Each column is a "panel" container of its own: in a two- or three-column
+		   grid a card is ~300px wide however wide the panel is, so the
+		   narrow-panel table rules must see the card's width, not the panel's. */
 		.overview-col {
 			flex: 0 0 100%;
 			max-width: 100%;
+			container-type: inline-size;
+			container-name: panel;
 		}
 		@container (min-width: 620px) {
 			.overview-col { flex: 0 0 50%; max-width: 50%; }
@@ -54,10 +59,18 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 		@container (min-width: 960px) {
 			.overview-col { flex: 0 0 33.3333%; max-width: 33.3333%; }
 		}
+		/* Usage bar along the bottom edge of the whole row. The row is the
+		   positioning context; its cells get extra bottom padding so the bar
+		   never sits on the text. */
+		tr.has-limit-bar { position: relative; }
+		tr.has-limit-bar > td { padding-bottom: 0.6rem; }
 		.limit-bar {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 1px;
 			height: 4px;
 			background: rgba(255, 255, 255, 0.08);
-			border-radius: 2px;
 			overflow: hidden;
 		}
 		.limit-bar > div { height: 100%; }

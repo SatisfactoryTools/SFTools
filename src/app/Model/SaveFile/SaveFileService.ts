@@ -25,7 +25,7 @@ export class SaveFileService
 				{type: 'module'},
 			);
 			const timeoutId = setTimeout(() => {
-				subscriber.error(new Error(`Parsing the save file timed out after ${Math.round(PARSE_TIMEOUT_MS / 1000)} s.`));
+				subscriber.error(new Error(`Reading the save file took too long (${Math.round(PARSE_TIMEOUT_MS / 1000)} s) and was stopped.`));
 			}, PARSE_TIMEOUT_MS);
 
 			worker.addEventListener('message', ({data}: MessageEvent<SaveFileWorkerResponse>) => {
@@ -38,7 +38,7 @@ export class SaveFileService
 			});
 			worker.addEventListener('error', (event: ErrorEvent) => {
 				console.error('[SaveFileWorker] Worker crashed:', event.message, event);
-				subscriber.error(new Error('The save file parser crashed unexpectedly.'));
+				subscriber.error(new Error('Reading the save file failed unexpectedly.'));
 			});
 
 			file.arrayBuffer().then(

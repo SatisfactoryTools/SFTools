@@ -1,7 +1,7 @@
 <div class="p-2 d-flex flex-column gap-2">
 	<info-note>
-		How much of each raw resource the solver may mine. The weight is the cost of mining one unit - costlier
-		resources are avoided where recipes allow.
+		How much of each raw resource the plan may mine. The weight is the cost of mining one unit.
+		Resources with a higher weight are used less when other recipes make that possible.
 	</info-note>
 	<div class="d-flex align-items-center gap-2 flex-wrap">
 		<label class="form-label mb-0 text-nowrap" for="resource-weight-mode">Resource weights</label>
@@ -20,8 +20,8 @@
 		<info-note>{{ modeDescription }}</info-note>
 	} @else {
 		<info-note kind="warning">
-			Raw resource weights are disabled in the Optimisation tab - the solver ignores the weights below and does not
-			minimise mining.
+			Raw resource weights are turned off in the Optimisation tab. The weights below are ignored and the plan
+			does not try to mine less.
 		</info-note>
 	}
 
@@ -61,10 +61,10 @@
 									other plans {{ rateFormatter.rate(status.usedByOthers, status.item) }} · {{ status.available === null ? '∞' : rateFormatter.rate(status.available, status.item) }} available
 								</small>
 								@if (status.overUse) {
-									<small class="text-danger d-block">Over the available share - recalculate this plan.</small>
+									<small class="text-danger d-block">Uses more than its share - recalculate this plan.</small>
 								}
 							} @else if (status.limit === 0) {
-								<small class="text-secondary">nothing may be mined</small>
+								<small class="text-secondary">cannot be mined</small>
 							} @else {
 								<small class="text-secondary">unlimited</small>
 							}

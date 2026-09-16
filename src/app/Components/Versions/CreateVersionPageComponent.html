@@ -4,7 +4,7 @@
 	<div class="mt-3 mb-3">
 		<h2 class="mb-1">Create custom version</h2>
 		<p class="text-secondary mb-0">
-			Derive your own game version from a public one. The planner and codex then treat it like any other version.
+			Make your own game version based on a public one. The planner and codex then treat it like any other version.
 		</p>
 	</div>
 
@@ -24,8 +24,8 @@
 						}
 					</select>
 					<info-note>
-						Everything below is applied on top of this version's data. Mods are merged first;
-						the cost modifiers apply afterwards, so they also affect mod-added content.
+						Everything below is applied on top of the data of this version. Mods are added first, then the
+						cost multipliers, so the multipliers also affect content from mods.
 					</info-note>
 				</div>
 			</div>
@@ -34,7 +34,7 @@
 			<div class="card">
 				<div class="card-header d-flex align-items-center gap-2 py-2">
 					<span class="step-icon"><fa-icon [icon]="faSliders"></fa-icon></span>
-					<span class="fw-semibold">Gameplay modifiers</span>
+					<span class="fw-semibold">Cost multipliers</span>
 				</div>
 				<div class="card-body d-flex flex-column gap-3">
 					<div>
@@ -53,7 +53,7 @@
 								>×{{ cost }}</button>
 							}
 						</div>
-						<div class="form-text">Scales every recipe's ingredient amounts.</div>
+						<div class="form-text">Multiplies the ingredient amounts of every recipe.</div>
 					</div>
 					<div>
 						<div class="d-flex justify-content-between align-items-baseline mb-1">
@@ -71,7 +71,7 @@
 								>×{{ cost }}</button>
 							}
 						</div>
-						<div class="form-text">Scales every machine's power draw.</div>
+						<div class="form-text">Multiplies the power use of every machine.</div>
 					</div>
 				</div>
 			</div>
@@ -113,7 +113,7 @@
 					}
 					@if (!auth.isAuthenticated()) {
 						<info-note>
-							Only public mods are offered - <a routerLink="/auth/login" [queryParams]="{returnUrl: '/create-version'}">sign in</a> to create and use your own.
+							Only public mods are shown. <a routerLink="/auth/login" [queryParams]="{returnUrl: '/create-version'}">sign in</a> to create and use your own.
 						</info-note>
 					}
 				</div>
@@ -130,8 +130,8 @@
 				</div>
 				<div class="card-body d-flex flex-column gap-2">
 					<info-note>
-						Optional. Generate the node counts of a modded world (seed, mode, purity) and the planner
-						uses them as default resource limits - or load the vanilla counts and edit them by hand.
+						Optional. Load the resource node counts of a modded world (seed, mode, purity). The planner
+						then uses them as the default resource limits. You can also load the vanilla counts and edit them by hand.
 					</info-note>
 
 					<div class="row g-2 align-items-end">
@@ -237,7 +237,7 @@
 															<span class="input-group-text bg-dark text-secondary border-secondary">/min</span>
 														</div>
 														@if (!limitMatches(row)) {
-															<span class="small text-secondary opacity-50">doesn't match the node counts</span>
+															<span class="small text-secondary opacity-50">does not match the node counts</span>
 														}
 													</div>
 												} @else {
@@ -251,10 +251,10 @@
 						</div>
 
 						<info-note>
-							Limits assume the best extractor on every node at 250% clock, capped by one belt (1200/min)
-							or pipe (600/min) per node. Water stays unlimited.
+							The limits assume the best extractor on every node at 250% clock speed, but at most one belt (1200/min)
+							or one pipe (600/min) per node. Water is always unlimited.
 							@if (geyserSummary; as geysers) {
-								Geysers (impure / normal / pure): {{ geysers }} - not part of the limits.
+								Geysers (impure / normal / pure): {{ geysers }}. They are not part of the limits.
 							}
 						</info-note>
 					}
@@ -276,7 +276,7 @@
 						[placeholder]="namePlaceholder"
 						maxlength="100"
 					/>
-					<div class="form-text">Left empty, the version is named after its base and modifiers.</div>
+					<div class="form-text">If you leave this empty, the name is made from the base version and your changes.</div>
 				</div>
 			</div>
 
@@ -303,7 +303,7 @@
 					</div>
 
 					@if (changes.length === 0) {
-						<info-note kind="warning">Change at least one modifier, add a mod, or load world nodes - otherwise this would just be the base version again.</info-note>
+						<info-note kind="warning">Change at least one multiplier, add a mod, or load world nodes. Otherwise this would be the same as the base version.</info-note>
 					}
 
 					@if (error; as message) {

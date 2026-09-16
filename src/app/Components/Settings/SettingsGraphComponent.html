@@ -1,4 +1,4 @@
-<settings-section title="Graph" [icon]="sectionIcon" description="How the production graph draws its nodes and edges.">
+<settings-section title="Graph" [icon]="sectionIcon" description="How the production graph draws its nodes and connections.">
 		<div class="subsection-title">Icons</div>
 		<div class="row g-2">
 			@for (item of iconToggles; track item.key) {
@@ -17,7 +17,7 @@
 			}
 		</div>
 
-		<div class="subsection-title">Edges</div>
+		<div class="subsection-title">Connections</div>
 		<div class="form-check">
 			<input
 				id="showEdgeLabelBox"
@@ -26,7 +26,7 @@
 				[ngModel]="graph.showEdgeLabelBox"
 				(ngModelChange)="setToggle('showEdgeLabelBox', $event)"
 			/>
-			<label class="form-check-label" for="showEdgeLabelBox">Box behind edge labels</label>
+			<label class="form-check-label" for="showEdgeLabelBox">Box behind connection labels</label>
 		</div>
 
 		<div class="subsection-title">Effects</div>
@@ -38,7 +38,7 @@
 				[ngModel]="graph.sloopGlow"
 				(ngModelChange)="setToggle('sloopGlow', $event)"
 			/>
-			<label class="form-check-label" for="sloopGlow">Glow around slooped recipe nodes</label>
+			<label class="form-check-label" for="sloopGlow">Glow around nodes with somersloops</label>
 		</div>
 
 		<div class="subsection-title">Recipe nodes</div>
@@ -85,10 +85,10 @@
 						<option [ngValue]="option.value">{{ option.label }}</option>
 					}
 				</select>
-				<div class="form-text">Nodes, their text and icons - and the connection ports - grow or shrink together.</div>
+				<div class="form-text">Nodes, their text, icons and connection points grow or shrink together.</div>
 			</div>
 			<div class="col-12 col-lg-6">
-				<label class="form-label" for="edge-scale">Edge label scale</label>
+				<label class="form-label" for="edge-scale">Connection label size</label>
 				<select
 					id="edge-scale"
 					class="form-select"
@@ -99,10 +99,10 @@
 						<option [ngValue]="option.value">{{ option.label }}</option>
 					}
 				</select>
-				<div class="form-text">The item name, rate and icon boxes on the edges.</div>
+				<div class="form-text">The item name, rate and icon boxes on the connections.</div>
 			</div>
 		</div>
-		<info-note>Already laid-out graphs keep their positions until re-laid out (the Re-layout button in the planner) - larger nodes may overlap until then.</info-note>
+		<info-note>Existing graphs keep their layout until you press Rearrange in the planner. Until then, bigger nodes may overlap.</info-note>
 
 		<div class="subsection-title">Node colours</div>
 		<div class="row g-2">
@@ -119,5 +119,5 @@
 				</div>
 			}
 		</div>
-		<info-note class="mt-3">Per-machine recipe colours are configured per plan, in the Planner settings panel.</info-note>
+		<info-note class="mt-3">Colours per machine are set for each plan in the Planner settings panel.</info-note>
 </settings-section>

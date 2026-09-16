@@ -1,13 +1,13 @@
-import {faDownload} from '@fortawesome/free-solid-svg-icons';
+import {faDownload, faShareNodes} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
 
 /**
- * Context menu of a "Plans on this device" row: the rows are read-only
- * migration leftovers, so the only action is moving the plan or folder
- * (with everything inside) into the account - same as dragging it onto
- * "Your plans".
+ * Context menu of an "On this device" row: the plans open read-only by click,
+ * so the actions here are moving the plan or folder (with everything inside)
+ * into the account - same as dragging it onto "Your plans" - and sharing it,
+ * which sends its tree with the request since the server has no copy of it.
  */
 export class LocalItemContextMenu extends PlannerContextMenu
 {
@@ -34,6 +34,11 @@ export class LocalItemContextMenu extends PlannerContextMenu
 				label: 'Add to my plans',
 				icon: faDownload,
 				action: () => this.host.addLocalToMyPlans(this.id, this.kind),
+			},
+			{
+				label: 'Share…',
+				icon: faShareNodes,
+				action: () => this.host.shareLocalItem(this.id, this.kind, this.name),
 			},
 		];
 	}

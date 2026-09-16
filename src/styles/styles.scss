@@ -200,7 +200,12 @@ circle.pg-port-adsorbed {
 	}
 }
 // Three/four-column figure tables still fit a 320px docked panel; only
-// narrower panels stack them.
+// narrower panels stack them. Their figure columns carry fixed widths on
+// purpose: when the panel is tight the browser shrinks fixed columns only
+// after the auto (name) column has wrapped down to its longest word, so the
+// figures keep one line as long as possible. That needs every figure to be
+// breakable somewhere (a space before the unit or a <wbr>), otherwise the
+// table grows past the panel and gets clipped.
 @container panel (max-width: 300px) {
 	.table-stack-sm { @include table-stacked; }
 }

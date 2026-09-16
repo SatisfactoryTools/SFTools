@@ -20,17 +20,17 @@ const CHOICE = (labels: Record<string, string>) => (value: unknown): string => l
 // label here is a compile error, so the dialog can never silently skip one.
 const NUMBER_LABELS: Record<keyof NumberSettings, SettingsFieldLabel> = {
 	decimalSeparator: {label: 'Decimal separator', format: CHOICE({dot: 'Dot (1234.5)', comma: 'Comma (1234,5)'})},
-	itemAmountPrecision: {label: 'Item amount precision', format: DECIMALS},
-	clockSpeedPrecision: {label: 'Clock speed precision', format: DECIMALS},
-	machineCountPrecision: {label: 'Machine count precision', format: DECIMALS},
-	powerDisplay: {label: 'Power display', format: CHOICE({scaled: 'Scaled (MW/GW/TW)', mw: 'Megawatts only'})},
+	itemAmountPrecision: {label: 'Decimal places for item amounts', format: DECIMALS},
+	clockSpeedPrecision: {label: 'Decimal places for clock speeds', format: DECIMALS},
+	machineCountPrecision: {label: 'Decimal places for machine counts', format: DECIMALS},
+	powerDisplay: {label: 'Power display', format: CHOICE({scaled: 'Bigger units (MW/GW/TW)', mw: 'Megawatts only'})},
 	showFluidUnit: {label: 'Show fluid m³ unit', format: YES_NO},
 };
 
 const GRAPH_LABELS: Record<Exclude<keyof GraphSettings, 'nodeColors'>, SettingsFieldLabel> = {
 	sloopGlow: {label: 'Sloop glow', format: YES_NO},
-	showEdgeItemIcons: {label: 'Item icons on edges', format: YES_NO},
-	showEdgeLabelBox: {label: 'Box behind edge labels', format: YES_NO},
+	showEdgeItemIcons: {label: 'Item icons on connections', format: YES_NO},
+	showEdgeLabelBox: {label: 'Box behind connection labels', format: YES_NO},
 	showNodeItemIcons: {label: 'Item icons on nodes', format: YES_NO},
 	showNodeBuildingIcons: {label: 'Building icons on nodes', format: YES_NO},
 	showSubplanItemIcons: {label: 'Input/output icons on subplans', format: YES_NO},
@@ -45,15 +45,15 @@ const GRAPH_LABELS: Record<Exclude<keyof GraphSettings, 'nodeColors'>, SettingsF
 		}),
 	},
 	nodeScale: {label: 'Node size', format: PERCENT},
-	edgeScale: {label: 'Edge label size', format: PERCENT},
+	edgeScale: {label: 'Connection label size', format: PERCENT},
 };
 
 const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 	unmakeableItems: {
 		label: 'Items the plan cannot produce',
-		format: CHOICE({show: 'Show all', strike: 'Strike through', hide: 'Hide'}),
+		format: CHOICE({show: 'Show all', strike: 'Cross out', hide: 'Hide'}),
 	},
-	tabBadges: {label: 'Counts on production request tabs', format: YES_NO},
+	tabBadges: {label: 'Counts on the production request tabs', format: YES_NO},
 	tabLabels: {
 		label: 'Production request tab labels',
 		format: CHOICE({auto: 'Fit to width', icons: 'Icons only', labels: 'Always labels'}),

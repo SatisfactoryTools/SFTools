@@ -124,7 +124,7 @@ export class ActiveShareManager
 				}
 			},
 			error: () => {
-				this.loadErrorSignal.set('This share does not exist (or the link is malformed).');
+				this.loadErrorSignal.set('This shared plan does not exist, or the link is broken.');
 				this.notifications.show('Could not load the shared plan.');
 			},
 		});
@@ -257,7 +257,7 @@ export class ActiveShareManager
 	{
 		const version = this.versionManager.versions().find(v => v.id === payload.version.id);
 		if (!version) {
-			this.notifications.show('The game version this share was made for is no longer available.');
+			this.notifications.show('The game version of this shared plan is no longer available.');
 			return;
 		}
 		const slug = this.versionManager.urlSlug(version);
@@ -273,7 +273,7 @@ export class ActiveShareManager
 				const rootId = payload.type === 'plan' ? importMap.get(payload.root.id) ?? null : null;
 				void this.router.navigate(rootId !== null ? ['/', slug, 'planner', rootId] : ['/', slug, 'planner']);
 			},
-			error: () => this.notifications.show(`Could not switch to ${version.name} - the shared plan was not added.`),
+			error: () => this.notifications.show(`Could not switch to ${version.name}. The shared plan was not added.`),
 		});
 		void this.router.navigate(['/', slug, 'planner']);
 	}

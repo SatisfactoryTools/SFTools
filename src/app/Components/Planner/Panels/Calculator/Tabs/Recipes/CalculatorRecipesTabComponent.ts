@@ -116,7 +116,7 @@ export class CalculatorRecipesTabComponent
 			return '';
 		}
 		const names = recipe.producedIn.filter(building => building !== undefined).map(building => building.name);
-		return `Not available to the solver - ${names.join(', ')} ${names.length > 1 ? 'are' : 'is'} disabled in the Machines tab`;
+		return `Cannot be used - ${names.join(', ')} ${names.length > 1 ? 'are' : 'is'} disabled in the Machines tab`;
 	}
 
 	public toggle(recipe: Recipe): void

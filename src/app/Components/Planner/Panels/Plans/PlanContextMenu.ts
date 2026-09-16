@@ -57,13 +57,13 @@ export class PlanContextMenu extends PlannerContextMenu
 			});
 		}
 
-		if (this.host.canShare()) {
-			items.push({
-				label: 'Share…',
-				icon: faShareNodes,
-				action: () => this.host.sharePlan(this.plan),
-			});
-		}
+		// Always offered - sharing needs an account, and sharePlan() says so
+		// (and offers to sign in) rather than the entry quietly disappearing.
+		items.push({
+			label: 'Share…',
+			icon: faShareNodes,
+			action: () => this.host.sharePlan(this.plan),
+		});
 
 		// Deleting a subplan also removes its node from the parent plan's graph
 		// (see PlanManager.deletePlan).

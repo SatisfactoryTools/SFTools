@@ -6,6 +6,7 @@ import {FolderTreeSchema} from '@src/Model/API/Schema/Plans/FolderTreeSchema';
 import {PlanSchema} from '@src/Model/API/Schema/Plans/PlanSchema';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Folder} from '@src/Model/Planner/Folder';
+import {PlanDataSerializer} from '@src/Model/Planner/PlanDataSerializer';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanSettingsNormalizer} from '@src/Model/Planner/PlanSettingsNormalizer';
 import {PlanStore} from '@src/Model/Planner/PlanStore';
@@ -41,7 +42,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			concatMap(store => this.syncToApi(store).pipe(
 				catchError(err => {
 					console.error('Plan API sync failed:', err);
-					this.notifications.show('Could not save to cloud. Your changes are saved locally.');
+					this.notifications.show('Could not save to your account. Your changes are saved in this browser.');
 					return of(void 0);
 				}),
 			)),
@@ -79,9 +80,9 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 				const store: PlanStore = {folders, plans};
 				this.lastSynced = store;
 				this.lastSyncedData.clear();
-				plans.forEach(p => this.lastSyncedData.set(p.id, this.serializePlanData(p)));
+				plans.forEach(p => this.lastSyncedData.set(p.id, PlanDataSerializer.plan(p)));
 				this.lastSyncedFolderData.clear();
-				folders.forEach(f => this.lastSyncedFolderData.set(f.id, this.serializeFolderData(f)));
+				folders.forEach(f => this.lastSyncedFolderData.set(f.id, PlanDataSerializer.folder(f)));
 				return store;
 			}),
 		);
@@ -111,8 +112,8 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 		const old = this.lastSynced;
 		// Frozen now, compared against the last synced strings, and committed
 		// as the new baseline once the sync succeeds.
-		const serializedData = new Map(newStore.plans.map(p => [p.id, this.serializePlanData(p)]));
-		const serializedFolderData = new Map(newStore.folders.map(f => [f.id, this.serializeFolderData(f)]));
+		const serializedData = new Map(newStore.plans.map(p => [p.id, PlanDataSerializer.plan(p)]));
+		const serializedFolderData = new Map(newStore.folders.map(f => [f.id, PlanDataSerializer.folder(f)]));
 		const oldFolderIds = new Set(old.folders.map(f => f.id));
 		const newFolderIds = new Set(newStore.folders.map(f => f.id));
 		const oldPlanIds = new Set(old.plans.map(p => p.id));
@@ -247,16 +248,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 	}
 
 	/** Namespaced keys ("settings", "fixedGroups", …) so more can join later. */
-	private serializeFolderData(folder: Folder): string
-	{
-		return JSON.stringify({
-			settings: folder.settings ?? undefined,
-			fixedGroups: folder.fixedGroups.length > 0 ? folder.fixedGroups : undefined,
-			resourcePool: folder.resourcePool || undefined,
-			order: folder.order,
-		});
-	}
-
 	private hydratePlan(schema: PlanSchema): Plan
 	{
 		let data: {settings?: Plan['settings']; requests?: Plan['requests']; inputs?: Plan['inputs']; graph?: Plan['graph']; metadata?: Plan['metadata']; iconClassName?: Plan['iconClassName']; order?: number} = {};
@@ -308,19 +299,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			order: data.order,
 			revision: schema.revision,
 		};
-	}
-
-	private serializePlanData(plan: Plan): string
-	{
-		return JSON.stringify({
-			settings: plan.settings,
-			requests: plan.requests,
-			inputs: plan.inputs,
-			graph: plan.graph,
-			metadata: plan.metadata,
-			iconClassName: plan.iconClassName,
-			order: plan.order,
-		});
 	}
 
 	private folderDepth(id: string, folders: Folder[]): number

@@ -19,7 +19,7 @@
 		<p class="text-secondary">Loading mod data…</p>
 	}
 	@if (loadState === 'error') {
-		<div class="alert alert-danger">Could not load this mod version (missing, not yours, or the data failed to fetch).</div>
+		<div class="alert alert-danger">Could not load this mod version. It may not exist, may not be yours, or the data could not be downloaded.</div>
 	}
 	@if (loadWarnings.length > 0) {
 		<div class="alert alert-warning py-2">
@@ -30,7 +30,7 @@
 } @else {
 	<div class="d-flex align-items-center justify-content-between">
 		<h2 class="mb-0">Mod editor</h2>
-		<span class="text-secondary small">Scratchpad - entries overwrite or extend a base version by className.</span>
+		<span class="text-secondary small">Entries here replace or add to the data of the base version, matched by className.</span>
 	</div>
 }
 

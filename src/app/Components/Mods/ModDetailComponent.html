@@ -4,7 +4,7 @@
 	@if (loading) {
 		<p class="text-secondary mt-3">Loading…</p>
 	} @else if (notFound) {
-		<div class="alert alert-danger mt-3">This mod does not exist (or is not visible to you).</div>
+		<div class="alert alert-danger mt-3">This mod does not exist, or you are not allowed to see it.</div>
 	} @else if (mod; as currentMod) {
 		@if (error; as message) {
 			<div class="alert alert-danger mt-3 py-2">{{ message }}</div>
@@ -80,7 +80,7 @@
 					}
 				</div>
 			} @empty {
-				<div class="text-secondary fst-italic p-2">No versions yet{{ currentMod.owned ? ' - add one above, then fill its data in the editor' : '' }}.</div>
+				<div class="text-secondary fst-italic p-2">No versions yet{{ currentMod.owned ? '. Add one above, then fill in its data in the editor' : '' }}.</div>
 			}
 		</div>
 	}

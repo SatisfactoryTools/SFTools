@@ -26,8 +26,9 @@ export class PlannerInspectorComponent
 	/** A lone selected single-scalar node (item nodes and generators) - edited through the amount editor. */
 	public readonly singleAmountNode: Signal<Node | null>;
 
-	/** A shared plan is inspected, never edited - the editors render disabled. */
+	/** A read-only plan (shared, or on this device while signed in) is inspected, never edited - the editors render disabled. */
 	public readonly readOnly: Signal<boolean>;
+	public readonly readOnlyNote: Signal<string>;
 
 	public constructor(
 		private readonly plannerGraph: PlannerGraphService,
@@ -35,7 +36,10 @@ export class PlannerInspectorComponent
 	)
 	{
 		this.selectedNodes = plannerGraph.selectedNodes;
-		this.readOnly = planManager.activePlanShared;
+		this.readOnly = planManager.activePlanReadOnly;
+		this.readOnlyNote = computed(() => planManager.activePlanShared()
+			? 'Shared plan - read-only. You can look at the values but not change them.'
+			: 'Plan on this device - read-only. Add it to your plans to change it.');
 		this.singleRecipeNode = computed(() => {
 			const nodes = this.selectedNodes();
 			return nodes.length === 1 && nodes[0] instanceof RecipeNode ? nodes[0] : null;

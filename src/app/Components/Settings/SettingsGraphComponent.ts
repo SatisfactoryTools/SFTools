@@ -37,7 +37,7 @@ export class SettingsGraphComponent
 
 	/** Icon-visibility toggles, in the order they appear on a node/edge. */
 	public readonly iconToggles: {key: keyof GraphSettings; label: string}[] = [
-		{key: 'showEdgeItemIcons', label: 'Item icons on graph edges'},
+		{key: 'showEdgeItemIcons', label: 'Item icons on connections'},
 		{key: 'showNodeItemIcons', label: 'Item icons on nodes'},
 		{key: 'showNodeBuildingIcons', label: 'Building icons on nodes'},
 		{key: 'showSubplanItemIcons', label: 'Input/output icons on subplans'},
@@ -59,22 +59,22 @@ export class SettingsGraphComponent
 		{
 			value: 'total-and-groups',
 			label: 'Machine total and groups',
-			description: 'The number of machines to build, then one line per machine group.',
+			description: 'The number of machines to build, then one line for each machine group.',
 		},
 		{
 			value: 'decimal',
 			label: 'Decimal machine count',
-			description: 'A single line with the exact fractional machine count, ignoring machine groups.',
+			description: 'One line with the exact machine count as a decimal number. Machine groups are not shown.',
 		},
 		{
 			value: 'percent',
 			label: 'Total clock percentage',
-			description: 'A single line with the total clock speed needed - 375% is 3.75 machines at 100% - ignoring machine groups.',
+			description: 'One line with the total clock speed needed. 375% means 3.75 machines at 100%. Machine groups are not shown.',
 		},
 		{
 			value: 'groups-only',
 			label: 'Machine groups only',
-			description: 'The machine name, then one line per machine group - no total.',
+			description: 'The machine name, then one line for each machine group. No total.',
 		},
 	];
 

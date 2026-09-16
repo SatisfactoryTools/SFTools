@@ -1,12 +1,11 @@
 <div class="p-2 d-flex flex-column gap-2">
 	<info-note>
-		Inputs are item sources the solver may draw from, up to the amount given. The weight is the cost per
-		unit - a low weight makes an input cheaper than mining or crafting.
+		Inputs are items you already have, for example from another factory. The plan may use up to the amount given.
+		The weight is the cost of one unit. A low weight makes using the input cheaper than mining or crafting it.
 	</info-note>
 	@if (!weightsEnabled()) {
 		<info-note kind="warning">
-			Input weights are disabled in the Optimisation tab - every input is free for the solver and the weights
-			below are ignored.
+			Input weights are turned off in the Optimisation tab. Every input is free and the weights below are ignored.
 		</info-note>
 	}
 	<table class="table table-dark table-sm align-middle mb-0 table-stack">

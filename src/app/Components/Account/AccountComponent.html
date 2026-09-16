@@ -48,7 +48,7 @@
 						}
 					</div>
 					<div class="form-text">
-						Shown in the top bar and greetings instead of your login or provider nickname. Leave empty to use
+						Shown in the top bar and greetings instead of your login or the nickname from the sign-in service. Leave empty to use
 						<strong>{{ fallbackName }}</strong>.
 					</div>
 					@if (nameSaved) {
@@ -109,7 +109,7 @@
 
 		@if (!hasPassword) {
 			<p class="text-secondary small mt-2">
-				To set a password (needed before removing your last connected account),
+				To set a password (needed before you remove your last connected sign-in method),
 				contact <code>greeny.dev</code> on Discord.
 			</p>
 		}

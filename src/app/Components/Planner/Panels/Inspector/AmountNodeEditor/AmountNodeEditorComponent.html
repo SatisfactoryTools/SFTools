@@ -44,10 +44,32 @@
 				</div>
 			</div>
 
+			@if (canClock) {
+				<div class="d-flex align-items-center gap-2">
+					<label class="form-label text-secondary mb-0 text-nowrap" for="amount-node-clock">Clock speed</label>
+					<div class="input-group input-group-sm">
+						<input
+							id="amount-node-clock"
+							type="number"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							[(ngModel)]="clockSpeed"
+							(ngModelChange)="onClockChange()"
+							min="1"
+							max="250"
+							step="any"
+						>
+						<span class="input-group-text bg-dark text-secondary border-secondary">%</span>
+					</div>
+				</div>
+			}
+
 			@if (draftPower !== null) {
 				<div class="d-flex align-items-center gap-2">
 					<span class="text-secondary">Power</span>
 					<span class="text-success">{{ rateFormatter.power(draftPower!) }}</span>
+					@if (draftShards > 0) {
+						<span class="text-secondary">· {{ draftShards }} power shard{{ draftShards === 1 ? '' : 's' }}</span>
+					}
 				</div>
 			}
 

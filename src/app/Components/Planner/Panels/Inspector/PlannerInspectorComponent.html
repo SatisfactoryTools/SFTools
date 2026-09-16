@@ -1,11 +1,11 @@
 @if (readOnly()) {
 	<div class="px-2 pt-2">
-		<info-note>Shared plan - read-only. Values are shown, editing is disabled.</info-note>
+		<info-note>{{ readOnlyNote() }}</info-note>
 	</div>
 }
 @if (selectedNodes().length === 0) {
 	<div class="p-2">
-		<info-note>Select a node on the canvas to inspect it.</info-note>
+		<info-note>Click a node in the graph to see its details.</info-note>
 	</div>
 } @else if (selectedNodes().length > 1) {
 	<div class="p-2">
@@ -23,6 +23,6 @@
 	</fieldset>
 } @else {
 	<div class="p-2">
-		<info-note>Editing this node type is coming later.</info-note>
+		<info-note>This kind of node cannot be edited yet.</info-note>
 	</div>
 }

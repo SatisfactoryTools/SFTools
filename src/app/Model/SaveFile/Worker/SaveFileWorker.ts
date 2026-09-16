@@ -35,7 +35,7 @@ function extractUnlocks(save: SatisfactorySave): SaveFileUnlocks
 	const recipes = readReferencedClassNames(objects, ['.FGRecipeManager', '.BP_RecipeManager_C'], 'mAvailableRecipes');
 
 	if (schematics === null && recipes === null) {
-		throw new Error('No unlock progression was found in this file - it does not look like a Satisfactory save.');
+		throw new Error('No unlock progress was found in this file. It does not look like a Satisfactory save.');
 	}
 
 	return {
@@ -76,9 +76,9 @@ function readReferencedClassNames(objects: (SaveEntity | SaveComponent)[], typeP
 function parseErrorMessage(e: unknown): string
 {
 	if (e instanceof UnsupportedVersionError) {
-		return 'This save was created with an unsupported game version - only saves from Update 6 or newer can be read.';
+		return 'This save comes from a game version that is not supported. Only saves from Update 6 or newer can be read.';
 	}
 	// Malformed input makes the parser throw plain Errors carrying internal
 	// byte offsets - none of them mean anything to the user.
-	return 'The file could not be read - it is either corrupted or not a Satisfactory save file.';
+	return 'The file could not be read. It is either damaged or not a Satisfactory save file.';
 }

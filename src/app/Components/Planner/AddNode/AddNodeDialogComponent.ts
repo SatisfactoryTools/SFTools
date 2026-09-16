@@ -23,6 +23,7 @@ import {Fuel} from '@src/Model/Data/Entities/Parts/Fuel';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Formulas} from '@src/Model/Planner/Formulas';
+import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
 import {MakeableItemsResolver} from '@src/Model/Planner/MakeableItemsResolver';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
@@ -87,6 +88,7 @@ export class AddNodeDialogComponent implements OnInit
 		private readonly versionManager: VersionManager,
 		private readonly planManager: PlanManager,
 		private readonly normalizer: MachineGroupNormalizer,
+		private readonly clocks: ClockSpeedResolver,
 		private readonly makeableItems: MakeableItemsResolver,
 	)
 	{
@@ -303,15 +305,16 @@ export class AddNodeDialogComponent implements OnInit
 			return;
 		}
 
+		const clockSpeed = this.clocks.forGenerator(generator);
 		let perMachine = 0;
 		if (filter.role === 'consumer') {
 			if (fuel.item.className === filter.itemClassName) {
-				perMachine = Formulas.generatorBurnRate(generator, fuel);
+				perMachine = Formulas.generatorBurnRate(generator, fuel, clockSpeed);
 			} else if (fuel.supplementalItem?.className === filter.itemClassName) {
-				perMachine = Formulas.generatorSupplementalRate(generator);
+				perMachine = Formulas.generatorSupplementalRate(generator, clockSpeed);
 			}
 		} else if (fuel.byproduct?.className === filter.itemClassName) {
-			perMachine = Formulas.generatorBurnRate(generator, fuel) * fuel.byproductAmount;
+			perMachine = Formulas.generatorBurnRate(generator, fuel, clockSpeed) * fuel.byproductAmount;
 		}
 		if (perMachine > 0) {
 			// Rounded off float noise; generator counts may be fractional.
@@ -367,7 +370,7 @@ export class AddNodeDialogComponent implements OnInit
 				const recipeNode = new RecipeNode(
 					id,
 					target,
-					this.normalizer.generate(target, 100, 0, groupingMode),
+					this.normalizer.generateForTarget(target, this.clocks.forRecipe(recipe, machine), 0, groupingMode),
 					machine,
 					recipe,
 				);
@@ -393,7 +396,7 @@ export class AddNodeDialogComponent implements OnInit
 				if (!fuel) {
 					return;
 				}
-				node = new GeneratorNode(id, this.amount, generator, fuel);
+				node = new GeneratorNode(id, this.amount, generator, fuel, this.clocks.forGenerator(generator));
 				break;
 			}
 			case 'sink':

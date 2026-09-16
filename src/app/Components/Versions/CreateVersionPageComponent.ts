@@ -258,7 +258,7 @@ export class CreateVersionPageComponent
 		if (this.worldLoading || !this.worldSeedValid) {
 			return;
 		}
-		if (this.worldDirty && !confirm('Reload the node counts from the world settings? Your manual edits will be replaced.')) {
+		if (this.worldDirty && !confirm('Load the node counts from the world settings again? Your own edits will be replaced.')) {
 			return;
 		}
 		const base = this.baseVersions.find(version => version.id === this.baseId);

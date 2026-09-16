@@ -1,6 +1,7 @@
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
+import {GeneratorClockSpeed} from '@src/Model/Planner/GeneratorClockSpeed';
 import {MachineClockSpeed} from '@src/Model/Planner/MachineClockSpeed';
 import {OptimisationSettings} from '@src/Model/Planner/OptimisationSettings';
 import {RecipeClockSpeed} from '@src/Model/Planner/RecipeClockSpeed';
@@ -84,6 +85,12 @@ export interface PlanSettings
 	readonly recipeClockSpeeds?: RecipeClockSpeed[];
 	/** Per-machine clock-speed overrides; a recipe override still wins over its machine's. */
 	readonly machineClockSpeeds?: MachineClockSpeed[];
+	/**
+	 * Per-generator clock-speed overrides. Generators produce power and burn
+	 * fuel in step with their clock, so this only trades buildings for power
+	 * shards - generators not listed here run at 100%.
+	 */
+	readonly generatorClockSpeeds?: GeneratorClockSpeed[];
 	/** Somersloops the solver may slot into machines. Absent = none. */
 	readonly maxSloops?: number;
 	/** Solve accuracy when somersloops are available (MIP gap). Absent = low. */

@@ -226,7 +226,7 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 	{
 		const versionData = this.versionManager.activeVersionData();
 		if (!versionData) {
-			this.addError('No game data is loaded for the active version.');
+			this.addError('The game data of this version is not loaded.');
 			return;
 		}
 		const conversion = this.converter.convert(data, versionData);

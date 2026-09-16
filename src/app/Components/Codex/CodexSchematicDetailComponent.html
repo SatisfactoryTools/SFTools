@@ -39,7 +39,7 @@
 			<codex-section heading="Requires" [flush]="true">
 				@if (requiredSchematics().length > 1) {
 					<p class="text-secondary small mb-0 px-3 pt-2">
-						{{ schematic.dependency.requireAll ? 'All of the following are required:' : 'Any of the following suffices:' }}
+						{{ schematic.dependency.requireAll ? 'All of these are needed:' : 'Any one of these is enough:' }}
 					</p>
 				}
 				<codex-schematic-list [schematics]="requiredSchematics()"/>

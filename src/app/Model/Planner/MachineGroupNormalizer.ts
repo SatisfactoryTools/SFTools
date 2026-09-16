@@ -46,13 +46,29 @@ export class MachineGroupNormalizer
 	}
 
 	/**
+	 * Groups covering a target given in machine-equivalents at 100% clock,
+	 * built from machines running at `clockSpeed`. 600% of target at a 250%
+	 * clock is 2.4 such machines, which "same clock for all" turns into
+	 * 3 × 200% - the fewest machines that can do it, none over the clock asked
+	 * for.
+	 */
+	public generateForTarget(target: number, clockSpeed: number, sloops: number, mode: GroupingMode): MachineGroup[]
+	{
+		// The same rounded clock on both sides, or the division and the groups'
+		// own rounding could disagree and leave the capacity a hair short.
+		const clock = this.roundClock(clockSpeed);
+		return this.generate(target * 100 / clock, clock, sloops, mode);
+	}
+
+	/**
 	 * Regenerates machine groups for a target (machine-equivalents at 100%)
 	 * while keeping the somersloop distribution: groups are bucketed by sloop
 	 * count, each bucket keeps its share of the capacity and is arranged
 	 * separately, so the node's boost - and with it the input/output ratio -
-	 * is preserved instead of mixed sloops being reset.
+	 * is preserved instead of mixed sloops being reset. Machines are built at
+	 * `clockSpeed` (the plan's clock for this recipe).
 	 */
-	public recalculated(groups: MachineGroup[], target: number, mode: GroupingMode): MachineGroup[]
+	public recalculated(groups: MachineGroup[], target: number, mode: GroupingMode, clockSpeed: number = 100): MachineGroup[]
 	{
 		const buckets = new Map<number, number>();
 		groups.forEach(group => {
@@ -63,10 +79,10 @@ export class MachineGroupNormalizer
 		});
 		const totalCapacity = [...buckets.values()].reduce((sum, capacity) => sum + capacity, 0);
 		if (totalCapacity <= 0) {
-			return this.generate(target, 100, groups[0]?.sloops ?? 0, mode);
+			return this.generateForTarget(target, clockSpeed, groups[0]?.sloops ?? 0, mode);
 		}
 		return [...buckets.entries()].flatMap(([sloops, capacity]) =>
-			this.generate(target * capacity / totalCapacity, 100, sloops, mode));
+			this.generateForTarget(target * capacity / totalCapacity, clockSpeed, sloops, mode));
 	}
 
 	/** Machines needed to cover the amount whole, ignoring sub-snap-grid dust; never less than one. */

@@ -7,9 +7,11 @@ import {VisitedShareStore} from '@src/Model/Shares/VisitedShareStore';
 
 /**
  * Syncs the visited-shares list through the per-entry API: save() diffs the
- * store against the last-synced state - new or re-visited entries become
- * PUTs (oldest first, so server-stamped timestamps preserve relative order),
- * missing ones become DELETEs. The server owns visitedAt and the cap.
+ * store against the last-synced state - new entries become PUTs (oldest
+ * first, so server-stamped timestamps preserve relative order), missing ones
+ * become DELETEs. The server owns visitedAt and the cap. Repeat visits do
+ * not touch visitedAt (see VisitedSharesManager.recordVisit), so they never
+ * PUT and never reorder the server's list.
  */
 export class VisitedSharesApiDataBackend implements DataBackend<VisitedShareStore>
 {
@@ -60,7 +62,7 @@ export class VisitedSharesApiDataBackend implements DataBackend<VisitedShareStor
 			// Failed syncs keep lastSynced as it was, so the next save retries.
 			catchError(err => {
 				console.error('Visited shares sync failed:', err);
-				this.notifications.show('Could not save the shared plans list to the cloud.');
+				this.notifications.show('Could not save the list of shared plans to your account.');
 				return of(void 0);
 			}),
 		);

@@ -35,7 +35,7 @@ export class EdgeContextMenu extends PlannerContextMenu
 			this.amountItem('Minimise', faCompress, this.minimise),
 			this.amountItem('Maximise', faExpand, this.maximise),
 			{
-				label: 'Delete edge',
+				label: 'Delete connection',
 				icon: faTrashCan,
 				action: () => this.actions.requestEdgeDelete(this.edge),
 			},

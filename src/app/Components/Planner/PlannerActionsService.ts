@@ -137,7 +137,7 @@ export class PlannerActionsService
 	/** Recalculating a manually modified graph rebuilds its unlocked parts - always ask first. */
 	public confirmGraphOverwrite(): boolean
 	{
-		return confirm('Recalculate the plan? Locked nodes are kept; the rest of the graph will be rebuilt.');
+		return confirm('Recalculate the plan? Locked nodes are kept. The rest of the graph is built again.');
 	}
 
 	public requestCancel(): void

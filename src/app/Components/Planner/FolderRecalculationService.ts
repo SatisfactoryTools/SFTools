@@ -122,7 +122,7 @@ export class FolderRecalculationService
 		if (this.cancelled) {
 			this.notifications.show('Folder recalculation cancelled.');
 		} else if (failures.length > 0) {
-			this.notifications.show(`Recalculated the folder; ${failures.length} plan${failures.length === 1 ? '' : 's'} could not be solved: ${failures.join('; ')}`);
+			this.notifications.show(`Recalculated the folder. ${failures.length} plan${failures.length === 1 ? '' : 's'} could not be calculated: ${failures.join('; ')}`);
 		} else {
 			this.notifications.showSuccess(`Recalculated ${plans.length} plan${plans.length === 1 ? '' : 's'}.`);
 		}

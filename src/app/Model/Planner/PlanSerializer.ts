@@ -139,7 +139,8 @@ export class PlanSerializer
 				if (!fuel) {
 					throw new Error(`Generator ${generator.className} has no fuel ${raw['fuelItemClassName']}`);
 				}
-				node = new GeneratorNode(id, amount, generator, fuel);
+				// Absent on plans saved before generators could be overclocked.
+				node = new GeneratorNode(id, amount, generator, fuel, (raw['clockSpeed'] as number | undefined) ?? 100);
 				break;
 			}
 			case 'subplan':

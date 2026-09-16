@@ -12,6 +12,7 @@ export interface VisitedShare
 	readonly type: ShareType;
 	readonly name: string;
 	readonly sharedAt: string;
+	/** When the share was first opened - repeat visits do not refresh it, so the list order stays put. */
 	readonly visitedAt: string;
 	readonly version: ShareVersion;
 	/**

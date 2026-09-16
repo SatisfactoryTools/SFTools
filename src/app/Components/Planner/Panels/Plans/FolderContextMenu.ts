@@ -48,13 +48,13 @@ export class FolderContextMenu extends PlannerContextMenu
 			},
 		];
 
-		if (this.host.canShare()) {
-			items.push({
-				label: 'Share…',
-				icon: faShareNodes,
-				action: () => this.host.shareFolder(this.folderId, this.folderName),
-			});
-		}
+		// Always offered - sharing needs an account, and shareFolder() says so
+		// (and offers to sign in) rather than the entry quietly disappearing.
+		items.push({
+			label: 'Share…',
+			icon: faShareNodes,
+			action: () => this.host.shareFolder(this.folderId, this.folderName),
+		});
 
 		items.push({
 			label: 'Delete folder',

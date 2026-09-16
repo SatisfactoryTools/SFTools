@@ -206,13 +206,15 @@ export class CalculatorComponent implements OnDestroy
 	];
 
 	public readonly modeOptions: CalculationModeOption[] = [
-		{mode: 'automatic', label: 'Automatic', description: 'Recalculates as the request changes'},
-		{mode: 'manual-fresh', label: 'Manual (fresh)', description: 'Replaces the current graph'},
-		{mode: 'manual-upgrade', label: 'Manual (upgrade)', description: 'Merges into the current graph, summing matching nodes'},
-		{mode: 'manual-append', label: 'Manual (append)', description: 'Adds beside the current graph without merging'},
+		{mode: 'automatic', label: 'Automatic', description: 'Recalculates every time you change something'},
+		{mode: 'manual-fresh', label: 'Manual (replace)', description: 'Replaces the current graph'},
+		{mode: 'manual-upgrade', label: 'Manual (merge)', description: 'Adds to the current graph. Matching nodes are combined.'},
+		{mode: 'manual-append', label: 'Manual (add)', description: 'Adds the result next to the current graph. Nothing is combined.'},
 	];
 
 	public readonly activePlan: Signal<Plan | null>;
+	/** The active plan is one left on this device while signed in - read-only until moved into the account. */
+	public readonly activePlanLocal: Signal<boolean>;
 	public readonly activeFolder: Signal<Folder | null>;
 	public readonly mode: Signal<CalculationMode>;
 	public readonly graphDirty: Signal<boolean>;
@@ -289,7 +291,7 @@ export class CalculatorComponent implements OnDestroy
 		});
 		this.fixedFolder = computed(() => {
 			const plan = planManager.activePlan();
-			return plan && !planManager.activePlanShared() ? planManager.fixedFolderOf(plan) : null;
+			return plan && !planManager.activePlanReadOnly() ? planManager.fixedFolderOf(plan) : null;
 		});
 		this.fixedGroups = computed(() => this.fixedFolder()?.fixedGroups ?? []);
 		this.allGroupsFixed = computed(() => SettingsGroups.all.every(group => this.fixedGroups().includes(group)));
@@ -316,6 +318,7 @@ export class CalculatorComponent implements OnDestroy
 		this.recalculationProgress = folderRecalculation.progress;
 
 		this.activePlan = planManager.activePlan;
+		this.activePlanLocal = planManager.activePlanLocal;
 		this.activeFolder = planManager.activeFolder;
 		this.graphDirty = planManager.activePlanGraphDirty;
 		// Plans saved before calculation modes existed have no mode - treat them as automatic.
@@ -325,9 +328,9 @@ export class CalculatorComponent implements OnDestroy
 		this.buttonLabel = computed(() => {
 			switch (this.mode()) {
 				case 'manual-fresh': return 'Calculate';
-				case 'manual-upgrade': return 'Calculate (upgrade)';
-				case 'manual-append': return 'Calculate (append)';
-				default: return this.graphDirty() ? 'Resume auto' : 'Automatic';
+				case 'manual-upgrade': return 'Calculate (merge)';
+				case 'manual-append': return 'Calculate (add)';
+				default: return this.graphDirty() ? 'Back to automatic' : 'Automatic';
 			}
 		});
 		this.hasGraph = computed(() => (this.activePlan()?.graph?.nodes.length ?? 0) > 0);
@@ -426,6 +429,13 @@ export class CalculatorComponent implements OnDestroy
 		this.tabState.setActiveTab(tab);
 	}
 
+	/** Moves a plan left on this device (with its subplans) into the account, where it turns editable. */
+	public addLocalPlanToMyPlans(plan: Plan): void
+	{
+		this.planManager.moveLocalToAccount(plan.id, 'plan');
+		this.notifications.showSuccess('Moved to your plans.');
+	}
+
 	/** The "move" of the open share into the viewer's own plans (see ActiveShareManager). */
 	public addShareToMyPlans(): void
 	{
@@ -468,7 +478,7 @@ export class CalculatorComponent implements OnDestroy
 
 	public resetSettings(): void
 	{
-		if (!confirm('Reset all solver settings (mode, recipes, resources, power) to the defaults?')) {
+		if (!confirm('Set all settings (mode, recipes, resources, power) back to the defaults?')) {
 			return;
 		}
 		this.planManager.updateActiveSettings(this.planManager.defaultSettings());
@@ -476,7 +486,7 @@ export class CalculatorComponent implements OnDestroy
 
 	public inheritSettings(): void
 	{
-		if (!confirm(`Replace all solver settings with those of ${this.parentLabel()}?`)) {
+		if (!confirm(`Replace all settings with those of ${this.parentLabel()}?`)) {
 			return;
 		}
 		this.planManager.updateActiveSettings(this.parentSettings());
@@ -494,7 +504,7 @@ export class CalculatorComponent implements OnDestroy
 	public disableFolderSettings(): void
 	{
 		const folder = this.activeFolder();
-		if (!folder || !confirm('Remove this folder\'s custom settings? It will inherit from its parent again.')) {
+		if (!folder || !confirm('Remove this folder\'s own settings? It will use the settings of its parent again.')) {
 			return;
 		}
 		this.planManager.setFolderSettings(folder.id, null);

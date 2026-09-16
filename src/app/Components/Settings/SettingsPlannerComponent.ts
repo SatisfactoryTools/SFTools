@@ -23,17 +23,17 @@ export class SettingsPlannerComponent
 		{
 			value: 'show',
 			label: 'Show all items',
-			description: 'Item pickers offer every item, whether or not the plan can produce it.',
+			description: 'Item lists show every item, even those the plan cannot produce.',
 		},
 		{
 			value: 'strike',
-			label: 'Strike through unavailable items',
-			description: 'Items no enabled recipe or generator can produce are struck through and moved to the end of the list.',
+			label: 'Cross out items the plan cannot produce',
+			description: 'Items that no enabled recipe or generator can produce are crossed out and moved to the end of the list.',
 		},
 		{
 			value: 'hide',
-			label: 'Hide unavailable items (spoiler protection)',
-			description: 'Items no enabled recipe or generator can produce are not offered at all - nothing is spoiled before you unlock it.',
+			label: 'Hide items the plan cannot produce (no spoilers)',
+			description: 'Items that no enabled recipe or generator can produce are not shown at all. Nothing is spoiled before you unlock it.',
 		},
 	];
 
@@ -52,9 +52,9 @@ export class SettingsPlannerComponent
 	}
 
 	public readonly tabLabelsOptions: {value: TabLabelsMode; label: string; description: string}[] = [
-		{value: 'auto', label: 'Fit to width', description: 'Labels when the whole row fits; otherwise icons with the active tab labelled, and a dropdown on narrow panels.'},
-		{value: 'icons', label: 'Icons only', description: 'Icons with the active tab labelled whenever they fit; a dropdown on narrow panels.'},
-		{value: 'labels', label: 'Always labels', description: 'Every tab labelled, wrapping onto more rows when needed; a dropdown on panels too narrow even for icons.'},
+		{value: 'auto', label: 'Fit to width', description: 'Text labels when the whole row fits. Otherwise icons, with a label only on the active tab. A dropdown on narrow panels.'},
+		{value: 'icons', label: 'Icons only', description: 'Icons, with a label only on the active tab. A dropdown on narrow panels.'},
+		{value: 'labels', label: 'Always labels', description: 'A text label on every tab, on more rows when needed. A dropdown on panels too narrow even for icons.'},
 	];
 
 	public get tabLabels(): TabLabelsMode
@@ -90,7 +90,7 @@ export class SettingsPlannerComponent
 	/** Clears the remembered layout; the planner rebuilds its defaults on next open. */
 	public resetPanels(): void
 	{
-		if (confirm('Reset all planner panel positions and sizes to their defaults?')) {
+		if (confirm('Put all planner panels back to their default positions and sizes?')) {
 			this.settings.updatePanels(null);
 		}
 	}

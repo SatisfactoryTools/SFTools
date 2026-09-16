@@ -11,13 +11,36 @@
 			<div class="text-secondary mb-2">{{ description }}</div>
 		}
 		<info-note class="mb-3">
-			This is a shared {{ share.type === 'folder' ? 'folder' : 'plan' }} - a frozen, read-only snapshot.
-			Add it to your plans to edit it{{ share.type === 'folder' ? ' (the whole folder is added)' : '' }}.
+			This is a shared {{ share.type === 'folder' ? 'folder' : 'plan' }}. It is read-only and never changes.
+			Add it to your plans to get your own copy that you can edit{{ share.type === 'folder' ? ' (the whole folder is added)' : '' }}.
 		</info-note>
 		<button
 			class="btn btn-sm btn-primary"
 			type="button"
 			(click)="addShareToMyPlans()"
+		><fa-icon [icon]="faDownload"></fa-icon> Add to my plans</button>
+	</div>
+
+} @else if (activePlanLocal() && activePlan(); as plan) {
+
+	<!-- A plan left on this device while signed in: read-only until it is
+	     moved into the account, so the panel is the "move it" call to action. -->
+	<div class="p-3">
+		<div class="d-flex align-items-center gap-2 mb-1">
+			<span class="fw-semibold">{{ planNames.displayName(plan) }}</span>
+			<span class="badge bg-secondary">on this device</span>
+		</div>
+		@if (plan.description; as description) {
+			<div class="text-secondary mb-2">{{ description }}</div>
+		}
+		<info-note class="mb-3">
+			This plan was made while you were signed out and is saved only in this browser. It is read-only here.
+			Add it to your plans to move it into your account and edit it.
+		</info-note>
+		<button
+			class="btn btn-sm btn-primary"
+			type="button"
+			(click)="addLocalPlanToMyPlans(plan)"
 		><fa-icon [icon]="faDownload"></fa-icon> Add to my plans</button>
 	</div>
 
@@ -36,20 +59,20 @@
 				<div *dropdownMenu class="dropdown-menu" style="min-width: 300px;">
 					<button class="dropdown-item" type="button" (click)="resetSettings()">
 						<fa-icon [icon]="faRotateLeft" [fixedWidth]="true"></fa-icon> Reset to defaults
-						<span class="d-block text-wrap opacity-75 small">All solver settings (mode, recipes, resources, power) back to the defaults{{ fixedGroups().length > 0 ? ' - groups fixed by the folder stay' : '' }}.</span>
+						<span class="d-block text-wrap opacity-75 small">Set all settings (mode, recipes, resources, power) back to the defaults{{ fixedGroups().length > 0 ? '. Groups fixed by the folder are kept' : '' }}.</span>
 					</button>
 					<button class="dropdown-item" type="button" (click)="inheritSettings()">
 						<fa-icon [icon]="faCopy" [fixedWidth]="true"></fa-icon> Inherit from {{ parentLabel() }}
-						<span class="d-block text-wrap opacity-75 small">Replace all solver settings with those of the parent plan or folder{{ fixedGroups().length > 0 ? ' - groups fixed by the folder stay' : '' }}.</span>
+						<span class="d-block text-wrap opacity-75 small">Copy all settings from the parent plan or folder{{ fixedGroups().length > 0 ? '. Groups fixed by the folder are kept' : '' }}.</span>
 					</button>
 					<button class="dropdown-item" type="button" (click)="openLoadFromSave()">
 						<fa-icon [icon]="faFileImport" [fixedWidth]="true"></fa-icon> Load from save…
-						<span class="d-block text-wrap opacity-75 small">Set the machine, recipe and generator fuel selections from a game save's unlocks.</span>
+						<span class="d-block text-wrap opacity-75 small">Enable only the machines, recipes and generator fuels you have unlocked in a game save.</span>
 					</button>
 				</div>
 			</div>
 		} @else if (fixedFolder(); as folder) {
-			<span class="text-secondary"><span tooltip="Every settings group is pushed into this plan by the folder and read-only here" container="body" placement="bottom"><fa-icon [icon]="faLock"></fa-icon></span> All solver settings are fixed by folder "{{ folder.name }}".</span>
+			<span class="text-secondary"><span tooltip="All settings come from the folder and cannot be changed here" container="body" placement="bottom"><fa-icon [icon]="faLock"></fa-icon></span> All settings are fixed by folder "{{ folder.name }}".</span>
 		}
 
 		<span class="flex-grow-1"></span>
@@ -57,10 +80,10 @@
 		<button
 			class="btn btn-sm btn-outline-secondary"
 			type="button"
-			tooltip="Re-layout graph - repositions nodes and edges without changing any amounts" placement="bottom"
+			tooltip="Rearrange the graph. Nodes and connections are moved, amounts stay the same." placement="bottom"
 			[disabled]="actions.isCalculating() || !hasGraph()"
 			(click)="relayout()"
-		><fa-icon [icon]="faSitemap"></fa-icon> Re-layout</button>
+		><fa-icon [icon]="faSitemap"></fa-icon> Rearrange</button>
 
 		<!-- container="body" so the menu overlays the planner instead of being
 		     clipped (and scrolled) by the panel's overflow container. -->
@@ -111,9 +134,9 @@
 		</div>
 	</div>
 
-	@if (actions.solveError(); as error) {
+	@if (actions.solveError()) {
 		<div class="alert alert-danger d-flex align-items-start gap-2 py-2 px-3 mx-2 mt-2 mb-0">
-			<span class="flex-grow-1">{{ actions.solveErrorDetail() ?? 'The solver could not find a solution (' + error + ').' }}</span>
+			<span class="flex-grow-1">{{ actions.solveErrorDetail() ?? 'No solution was found.' }}</span>
 			<button type="button" class="btn-close btn-close-white flex-shrink-0" aria-label="Dismiss" (click)="actions.setSolveError(null)"></button>
 		</div>
 	}
@@ -126,7 +149,7 @@
 				<div class="d-flex align-items-center flex-wrap gap-2">
 					<span class="flex-grow-1">
 						{{ groupLabel($any(activeTab())) }} settings are fixed by folder "{{ folder.name }}"{{ activeTab() === 'resources' && folder.resourcePool ? ' and its raw resources are one shared pool for all plans inside' : '' }}.
-						Edit them in the folder - every plan inside follows.
+						Change them in the folder and every plan inside follows.
 					</span>
 					<button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="button" (click)="openFixedFolder()">Open folder</button>
 				</div>
@@ -163,20 +186,20 @@
 				<div *dropdownMenu class="dropdown-menu" style="min-width: 300px;">
 					<button class="dropdown-item" type="button" (click)="resetSettings()">
 						<fa-icon [icon]="faRotateLeft" [fixedWidth]="true"></fa-icon> Reset to defaults
-						<span class="d-block text-wrap opacity-75 small">All default settings (mode, recipes, resources, power) back to the defaults.</span>
+						<span class="d-block text-wrap opacity-75 small">Set all settings (mode, recipes, resources, power) back to the defaults.</span>
 					</button>
 					<button class="dropdown-item" type="button" (click)="inheritSettings()">
 						<fa-icon [icon]="faCopy" [fixedWidth]="true"></fa-icon> Inherit from {{ parentLabel() }}
-						<span class="d-block text-wrap opacity-75 small">Replace all default settings with those of the parent folder.</span>
+						<span class="d-block text-wrap opacity-75 small">Copy all settings from the parent folder.</span>
 					</button>
 					<button class="dropdown-item" type="button" (click)="openLoadFromSave()">
 						<fa-icon [icon]="faFileImport" [fixedWidth]="true"></fa-icon> Load from save…
-						<span class="d-block text-wrap opacity-75 small">Set the machine, recipe and generator fuel selections from a game save's unlocks.</span>
+						<span class="d-block text-wrap opacity-75 small">Enable only the machines, recipes and generator fuels you have unlocked in a game save.</span>
 					</button>
 					<div class="dropdown-divider"></div>
 					<button class="dropdown-item" type="button" (click)="disableFolderSettings()">
 						<fa-icon [icon]="faXmark" [fixedWidth]="true"></fa-icon> Remove custom settings
-						<span class="d-block text-wrap opacity-75 small">The folder inherits from its parent again.</span>
+						<span class="d-block text-wrap opacity-75 small">The folder uses the settings of its parent again.</span>
 					</button>
 				</div>
 			</div>
@@ -224,7 +247,7 @@
 						[class.btn-warning]="outdatedPlans().length > 0"
 						[class.btn-outline-secondary]="outdatedPlans().length === 0"
 						type="button"
-						tooltip="Re-solve every automatic-mode plan in this folder, one by one in tree order" placement="bottom"
+						tooltip="Recalculate every automatic plan in this folder, one after another in list order" placement="bottom"
 						[disabled]="actions.isCalculating() || innerPlans().length === 0"
 						(click)="recalculateFolder()"
 					><fa-icon [icon]="faPlay"></fa-icon> Recalculate plans@if (outdatedPlans().length > 0) { ({{ outdatedPlans().length }} outdated)}</button>
@@ -235,24 +258,24 @@
 		<div class="px-2 pt-2 d-flex flex-column gap-2">
 			@if (folder.fixedGroups.length > 0) {
 				<info-note>
-					Fixed for the {{ innerPlans().length }} plan{{ innerPlans().length === 1 ? '' : 's' }} inside: {{ fixedGroupsSummary() }} - the plans follow every change made here.
-					Other groups only seed new plans. Plans are recalculated in plan-tree order@if (folder.resourcePool && folder.fixedGroups.includes('resources')) {; earlier plans get first pick of the shared raw resources}.
+					Fixed for the {{ innerPlans().length }} plan{{ innerPlans().length === 1 ? '' : 's' }} inside: {{ fixedGroupsSummary() }}. Every change made here applies to all of them.
+					The other groups are only starting values for new plans. Plans are recalculated in the order of the plan list@if (folder.resourcePool && folder.fixedGroups.includes('resources')) {, so plans higher in the list get the shared raw resources first}.
 				</info-note>
 				@if (skippedOutdatedPlans().length > 0) {
 					<info-note kind="warning">
-						{{ skippedOutdatedPlans().length }} outdated plan{{ skippedOutdatedPlans().length === 1 ? ' is' : 's are' }} in manual mode or hand-modified and must be recalculated by hand.
+						{{ skippedOutdatedPlans().length }} outdated plan{{ skippedOutdatedPlans().length === 1 ? ' is' : 's are' }} in manual mode or edited by hand. Recalculate {{ skippedOutdatedPlans().length === 1 ? 'it' : 'them' }} yourself.
 					</info-note>
 				}
 			} @else {
 				<info-note>
-					These settings seed new plans and subfolders created in "{{ folder.name }}".
-					Switch a group to "Fixed" to apply it to every plan inside.
+					New plans and subfolders created in "{{ folder.name }}" start with these settings.
+					Set a group to "Fixed" to make every plan inside use it.
 				</info-note>
 			}
 		</div>
 	} @else {
 		<div class="req-controls">
-			<span class="text-secondary">This folder inherits its solver settings from {{ parentLabel() }}.</span>
+			<span class="text-secondary">This folder uses the settings of {{ parentLabel() }}.</span>
 			<span class="flex-grow-1"></span>
 			@if (customSettingsBlocker(); as blocker) {
 				<span class="text-warning">{{ blocker }}</span>
@@ -260,13 +283,13 @@
 				<button
 					class="btn btn-sm btn-outline-secondary"
 					type="button"
-					tooltip="Give this folder custom settings with the machine, recipe and generator fuel selections of a game save's unlocks" placement="bottom"
+					tooltip="Give this folder its own settings, with only the machines, recipes and generator fuels unlocked in a game save" placement="bottom"
 					(click)="openLoadFromSave()"
 				><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
 				<button
 					class="btn btn-sm btn-primary"
 					type="button"
-					tooltip="Give this folder its own settings - they become the defaults for new plans and subfolders created here" placement="bottom"
+					tooltip="Give this folder its own settings. New plans and subfolders created here start with them." placement="bottom"
 					(click)="enableFolderSettings()"
 				>Set default settings for folder</button>
 			}
@@ -279,7 +302,7 @@
 		@case ('request') {
 			<div class="p-2">
 				<info-note>
-					A folder has no production request - open one of its plans, or
+					A folder does not produce anything itself. Open one of its plans, or
 					<button
 						class="btn btn-sm btn-outline-success ms-1"
 						type="button"
@@ -290,7 +313,7 @@
 		}
 		@case ('input') {
 			<div class="p-2">
-				<info-note>A folder has no inputs - open one of its plans to add item sources for the solver.</info-note>
+				<info-note>A folder has no inputs. Open one of its plans to add them.</info-note>
 			</div>
 		}
 		@default {
@@ -304,7 +327,7 @@
 								class="btn"
 								[class.btn-secondary]="groupMode($any(activeTab())) === 'default'"
 								[class.btn-outline-secondary]="groupMode($any(activeTab())) !== 'default'"
-								tooltip="Seeds new plans; each plan edits its own copy" placement="bottom"
+								tooltip="Starting values for new plans. Each plan can change its own copy." placement="bottom"
 								(click)="setGroupMode($any(activeTab()), 'default')"
 							>Default for new plans</button>
 							<button
@@ -313,7 +336,7 @@
 								[class.btn-secondary]="groupMode($any(activeTab())) === 'fixed'"
 								[class.btn-outline-secondary]="groupMode($any(activeTab())) !== 'fixed'"
 								[disabled]="fixGroupsBlocker() !== null"
-								tooltip="Pushed into every plan inside and read-only there" placement="bottom"
+								tooltip="Used by every plan inside. The plans cannot change it." placement="bottom"
 								(click)="setGroupMode($any(activeTab()), 'fixed')"
 							>Fixed</button>
 							@if (activeTab() === 'resources') {
@@ -323,7 +346,7 @@
 									[class.btn-secondary]="groupMode('resources') === 'pool'"
 									[class.btn-outline-secondary]="groupMode('resources') !== 'pool'"
 									[disabled]="fixGroupsBlocker() !== null"
-									tooltip="Fixed, and every limited raw resource is one pool shared by all plans inside" placement="bottom"
+									tooltip="Fixed, and all plans inside share the limited raw resources between them" placement="bottom"
 									(click)="setGroupMode('resources', 'pool')"
 								>Shared pool</button>
 							}
@@ -347,9 +370,9 @@
 			} @else {
 				<div class="p-2">
 					<info-note>
-						This folder inherits its solver settings from {{ parentLabel() }}.
-						Use "Set default settings for folder" above to give it its own - they become
-						the defaults for new plans and subfolders created here.
+						This folder uses the settings of {{ parentLabel() }}.
+						Use "Set default settings for folder" above to give this folder its own settings.
+						New plans and subfolders created here will start with them.
 					</info-note>
 				</div>
 			}

@@ -384,7 +384,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 						factoryPower: [plan.settings.producePowerForFactory, plan.settings.excessPowerPercent],
 						optimisation: plan.settings.optimisation,
 						sloops: [plan.settings.maxSloops, plan.settings.sloopAccuracy],
-						clocks: [plan.settings.defaultClockSpeed, plan.settings.recipeClockSpeeds, plan.settings.machineClockSpeeds],
+						clocks: [plan.settings.defaultClockSpeed, plan.settings.recipeClockSpeeds, plan.settings.machineClockSpeeds, plan.settings.generatorClockSpeeds],
 						grouping: plan.settings.defaultGroupingMode,
 					}),
 				};
@@ -464,11 +464,19 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		// one of the user's OWN plans or folders while a share is open leaves
 		// the share URL (and with it share mode - see the paramMap subscription
 		// below), so the selection is not left half-applied on a share page.
+		// A plan left on this device has no URL either (its id means nothing
+		// to the account): looking at one shows the bare planner URL. The
+		// device flag is part of the key so moving the open plan into the
+		// account (it stays selected) puts its id into the address bar.
 		this.subscription.add(
-			toObservable(computed(() => ({id: this.planManager.activePlanId(), folderId: this.planManager.activeFolderId()})))
+			toObservable(computed(() => {
+				const id = this.planManager.activePlanId();
+				return {id, folderId: this.planManager.activeFolderId(), local: id !== null && this.planManager.isLocalPlan(id)};
+			}))
 				.pipe(skip(1))
-				.subscribe(({id, folderId}) => {
-					if (id !== null && this.planManager.isSharedPlan(id)) return;
+				.subscribe(({id: activeId, folderId, local}) => {
+					if (activeId !== null && this.planManager.isSharedPlan(activeId)) return;
+					const id = local ? null : activeId;
 					const inShare = this.route.snapshot.paramMap.get('shareId') !== null;
 					if (inShare && id === null && folderId === null) return;
 					if (!inShare && id === this.route.snapshot.paramMap.get('planId')) return;
@@ -506,9 +514,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			}),
 		);
 
+		// A plan re-renders when it becomes another plan, or when the SAME plan
+		// changes read-only state - moving a device plan into the account (or
+		// back) keeps it selected, and the canvas must follow.
 		this.subscription.add(
 			toObservable(this.planManager.activePlan).pipe(skip(1)).subscribe(plan => {
-				if (plan?.id === this.renderedPlanId) return;
+				if (plan?.id === this.renderedPlanId && (plan === null || this.planManager.isReadOnlyPlan(plan.id) === this.plannerGraph.readOnly)) return;
 				this.actions.setSolveError(null);
 				this.renderPlan(plan);
 			}),
@@ -572,9 +583,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 	private openContextMenu(request: GraphContextMenuRequest): void
 	{
-		// A shared plan's canvas offers no context menus - every entry would
+		// A read-only plan's canvas offers no context menus - every entry would
 		// be an edit. Subplans still open by double-click.
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		let menu: PlannerContextMenu;
@@ -678,7 +689,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyNodeUpdate(updated: Node): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -741,7 +752,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	/** Validates an edge-add request against the current plan; null when it no longer applies. */
 	private prepareEdgeAdd(request: GraphEdgeAddRequest): PreparedEdgeAdd | null
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return null;
 		}
 		const plan = this.planManager.activePlan();
@@ -800,7 +811,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		const menu = new EdgeShortageMenu(
 			`${item?.name ?? request.itemClassName} - needs ${this.rateFormatter.rate(prepared.demand, item)}, ${this.rateFormatter.rate(prepared.spare, item)} free`,
 			`Increase output by ${this.rateFormatter.rate(deficit, item)}`,
-			`Keep output (edge gets ${this.rateFormatter.rate(prepared.spare, item)})`,
+			`Keep output (connection gets ${this.rateFormatter.rate(prepared.spare, item)})`,
 			() => this.applyEdgeAddIncreasing(request),
 			() => {
 				const revalidated = this.prepareEdgeAdd(request);
@@ -851,7 +862,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyEdgeAmount(request: GraphEdgeAmountRequest): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -863,7 +874,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		try {
 			graph = this.planSerializer.reviveGraph(plan.graph);
 		} catch (err) {
-			this.notifications.show('Could not change edge amount: ' + String(err));
+			this.notifications.show('Could not change the connection amount: ' + String(err));
 			return;
 		}
 
@@ -911,7 +922,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyEdgeDelete(edge: GraphEdge): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -923,7 +934,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		try {
 			graph = this.planSerializer.reviveGraph(plan.graph);
 		} catch (err) {
-			this.notifications.show('Could not delete edge: ' + String(err));
+			this.notifications.show('Could not delete the connection: ' + String(err));
 			return;
 		}
 
@@ -948,7 +959,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyNodeDelete(nodeIds: string[]): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -974,8 +985,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		if (subplans.length > 0) {
 			const names = subplans.map(node => `"${node.getDisplayName()}"`).join(', ');
 			const message = subplans.length === 1
-				? `Delete subplan ${names}? This removes it from your plans as well.`
-				: `Delete subplans ${names}? This removes them from your plans as well.`;
+				? `Delete subplan ${names}? This also removes it from your plans.`
+				: `Delete subplans ${names}? This also removes them from your plans.`;
 			if (!confirm(message)) {
 				return;
 			}
@@ -1000,7 +1011,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private beginConnectToBlank(request: GraphConnectToBlankRequest): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -1030,8 +1041,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	@HostListener('document:keydown', ['$event'])
 	public onDocumentKeyDown(event: KeyboardEvent): void
 	{
-		// Undo, delete and done-toggle are all edits - inert on a shared plan.
-		if (this.planManager.activePlanShared()) {
+		// Undo, delete and done-toggle are all edits - inert on a read-only plan.
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		// Form fields keep their native editing keys (text undo, delete).
@@ -1091,7 +1102,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 	private restoreSnapshot(pop: (current: GraphSnapshot) => GraphSnapshot | null): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -1143,7 +1154,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	/** Toggles user ownership of nodes; a lock change is a manual graph edit and persists as such. */
 	private applyLockChange(request: NodeLockRequest): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -1183,7 +1194,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private applyDoneChange(request: NodeDoneRequest): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -1317,7 +1328,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private async relayoutGraph(): Promise<void>
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -1329,7 +1340,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		try {
 			graph = this.planSerializer.reviveGraph(plan.graph);
 		} catch (err) {
-			this.notifications.show('Could not re-layout graph: ' + String(err));
+			this.notifications.show('Could not rearrange the graph: ' + String(err));
 			return;
 		}
 		if (graph.nodes.length === 0) {
@@ -1341,7 +1352,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		try {
 			await this.plannerGraph.layout(graph.nodes, graph.edges, plan.settings.graph);
 		} catch (err) {
-			this.notifications.show('Could not re-layout graph: ' + String(err));
+			this.notifications.show('Could not rearrange the graph: ' + String(err));
 			return;
 		}
 
@@ -1351,10 +1362,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 	private openSubplan(subplanId: string): void
 	{
-		// Shared graphs reference shared subplans (hydrated alongside them) -
-		// opening one keeps the planner in read-only mode.
-		if (this.planManager.plans().some(p => p.id === subplanId)
-			|| this.planManager.sharedPlans().some(p => p.id === subplanId)) {
+		// Shared graphs reference shared subplans (hydrated alongside them),
+		// device plans reference device subplans - opening one keeps the
+		// planner in read-only mode.
+		if (this.planManager.findPlan(subplanId) !== null) {
 			this.planManager.setActivePlan(subplanId);
 		} else {
 			this.notifications.show('This subplan no longer exists.');
@@ -1392,7 +1403,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	public onAddNode(node: Node): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const position = this.addNodePositionSignal();
@@ -1481,7 +1492,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	/** Creates a new empty subplan under the active plan, represented by a node at the clicked spot. */
 	private createSubplanNode(position: GraphPoint): void
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -1521,7 +1532,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 */
 	private async convertToSubplan(nodeIds: string[]): Promise<void>
 	{
-		if (this.planManager.activePlanShared()) {
+		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
 		const plan = this.planManager.activePlan();
@@ -1740,12 +1751,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			this.plannerGraph.clear();
 			return;
 		}
-		// Shared plans render their frozen graph exactly as saved: no canvas
-		// interaction, no subplan refresh (the shared subplans are frozen with
-		// it), no write-back. restore() rebuilds the x6 instance, so the flag
-		// takes effect on every plan switch in both directions.
-		const shared = this.planManager.isSharedPlan(plan.id);
-		this.plannerGraph.readOnly = shared;
+		// Read-only plans (shared, or left on this device while signed in)
+		// render their graph exactly as saved: no canvas interaction, no
+		// subplan refresh (their subplans live in the same read-only store),
+		// no write-back. restore() rebuilds the x6 instance, so the flag takes
+		// effect on every plan switch in both directions.
+		const readOnly = this.planManager.isReadOnlyPlan(plan.id);
+		this.plannerGraph.readOnly = readOnly;
 		if (!plan.graph) {
 			// Manual mode builds from scratch: give an uncalculated plan an
 			// interactive blank canvas so nodes can be added by right-click.
@@ -1766,12 +1778,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 		// Subplans may have changed since the parent graph was saved - pick up
 		// their current name and outside interface on every render.
-		if (!shared) {
+		if (!readOnly) {
 			graph = this.refreshSubplanNodes(graph);
 		}
 
 		this.renderedPlanId = plan.id;
-		if (!shared && graph !== plan.graph) {
+		if (!readOnly && graph !== plan.graph) {
 			this.planManager.setGraph(plan.id, graph);
 		}
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph);
@@ -1779,8 +1791,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 	private calculate(): void
 	{
-		// A shared plan is a frozen snapshot - never solved, never touched.
-		if (this.planManager.activePlanShared()) return;
+		// A read-only plan is never solved, never touched.
+		if (this.planManager.activePlanReadOnly()) return;
 		const plan = this.planManager.activePlan();
 		if (!plan) return;
 		if (this.actions.isCalculating()) {
@@ -1810,7 +1822,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			result$ = this.productionSolver.solve({...plan, requests: validRequests}, lockedNodes);
 		} catch (err) {
 			// Solver problems surface only as the closable label above the request panel.
-			this.actions.setSolveError('solver error', 'Could not start solver: ' + String(err));
+			this.actions.setSolveError('error', 'Could not start the calculation: ' + String(err));
 			return;
 		}
 
@@ -1819,8 +1831,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		this.calcSubscription = result$.pipe(finalize(() => this.actions.setCalculating(false))).subscribe({
 			next: result => {
 				if (result.status !== 'Optimal') {
-					this.actions.setSolveError(`solver: ${result.status}`);
-					this.explainSolveFailure({...plan, requests: validRequests}, lockedNodes, result.status);
+					this.actions.setSolveError('no solution');
+					this.explainSolveFailure({...plan, requests: validRequests}, lockedNodes);
 					return;
 				}
 				this.history.push(this.snapshotOf(plan));
@@ -1830,12 +1842,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 					// Undefined clears stale maximise results of earlier solves.
 					this.planManager.setAchievedMaximums(plan.id, result.achievedMaximums);
 				}).catch(err => {
-					this.actions.setSolveError('graph render failed', 'Graph render failed: ' + String(err));
+					this.actions.setSolveError('error', 'Could not draw the graph: ' + String(err));
 				});
 			},
 			error: err => {
 				console.error('Solver error:', err);
-				this.actions.setSolveError('solver error', 'Solver error: ' + String(err instanceof Error ? err.message : err));
+				this.actions.setSolveError('error', 'Calculation failed: ' + String(err instanceof Error ? err.message : err));
 			},
 		});
 	}
@@ -1851,12 +1863,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	 * Runs the failure diagnosis in the background (it may re-solve once) and
 	 * surfaces the explanation as the closable label above the request panel.
 	 */
-	private explainSolveFailure(plan: Plan, lockedNodes: Node[], status: string): void
+	private explainSolveFailure(plan: Plan, lockedNodes: Node[]): void
 	{
 		this.subscription.add(
 			this.productionSolver.diagnoseFailure(plan, lockedNodes).subscribe(message => {
-				const hint = lockedNodes.length > 0 ? ' Locked nodes also constrain the solution.' : '';
-				this.actions.setSolveError(`solver: ${status}`, message + hint);
+				const hint = lockedNodes.length > 0 ? ' Locked nodes also limit what is possible.' : '';
+				this.actions.setSolveError('no solution', message + hint);
 			}),
 		);
 	}

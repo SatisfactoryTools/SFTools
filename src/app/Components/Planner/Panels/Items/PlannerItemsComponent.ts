@@ -3,6 +3,7 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {Item} from '@src/Model/Data/Entities/Item';
 import {ItemRow} from '@src/Model/Planner/Breakdown/ItemRow';
 import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
@@ -62,6 +63,17 @@ export class PlannerItemsComponent
 	public isExpanded(row: ItemRow): boolean
 	{
 		return this.searchTerm().trim() !== '' || this.expandedKeysSignal().has(row.item.className);
+	}
+
+	/**
+	 * The unit part of a rate, rendered after a <wbr> so that a long figure like
+	 * "14366.67/min" may break before its unit in a narrow panel instead of
+	 * widening the table. Matches RateFormatter.rate() spacing.
+	 */
+	public unitText(item: Item): string
+	{
+		const unit = this.rateFormatter.unit(item);
+		return unit.startsWith('/') ? unit : ' ' + unit;
 	}
 
 	public toggle(row: ItemRow): void

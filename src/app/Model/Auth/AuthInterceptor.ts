@@ -5,6 +5,7 @@ import {catchError, finalize, map, share, switchMap} from 'rxjs/operators';
 import {env} from '@env/env';
 import {TokenResponse} from '@src/Model/API/Schema/Auth/TokenResponse';
 import {AuthService} from '@src/Model/Auth/AuthService';
+import {AuthenticatedRequest} from '@src/Model/Auth/AuthenticatedRequest';
 import {NotificationService} from '@src/Model/NotificationService';
 
 @Injectable()
@@ -32,7 +33,16 @@ export class AuthInterceptor implements HttpInterceptor
 
 	public intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>>
 	{
-		if (!req.url.startsWith(env.apiUrl) || req.url.includes('/v1/auth/')) {
+		if (!req.url.startsWith(env.apiUrl)) {
+			return next.handle(req);
+		}
+
+		// The auth endpoints themselves (login, refresh, callbacks...) are left
+		// alone: no Bearer, and a 401 there is a credentials problem rather
+		// than an expired token. The few that act on the signed-in user opt
+		// back in via AuthenticatedRequest, so they get the same refresh
+		// handling as every other API call.
+		if (req.url.includes('/v1/auth/') && !AuthenticatedRequest.isMarked(req)) {
 			return next.handle(req);
 		}
 
@@ -71,7 +81,7 @@ export class AuthInterceptor implements HttpInterceptor
 					// auth server must not log the user out - the token is still
 					// good and the next request simply retries the refresh.
 					this.authService.clearSession();
-					this.notificationService.show('Your session has expired. Please log in again.', 10_000);
+					this.notificationService.show('You were signed out. Please sign in again.', 10_000);
 				}
 				return throwError(() => err);
 			}),

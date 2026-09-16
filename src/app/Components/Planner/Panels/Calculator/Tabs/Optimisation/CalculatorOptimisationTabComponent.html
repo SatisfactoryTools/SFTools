@@ -1,15 +1,16 @@
 <div class="p-2 d-flex flex-column gap-2">
 
 	<info-note>
-		The solver minimises the enabled goals combined; the weights set their relative worth
+		The calculation keeps the total of the enabled goals as low as possible. The weights say how important
+		each goal is compared to the others
 		(e.g. how much 1 MW costs compared to 1 machine).
 	</info-note>
 
 	@if (noneEnabled) {
 		<info-note kind="warning">
-			At least one optimisation goal must be enabled - the solver will not run without one.
+			At least one goal must be enabled, otherwise nothing can be calculated.
 			@if (inputsEnabled && !hasInputs) {
-				Input weights only count once the plan has inputs.
+				Input weights only matter when the plan has inputs.
 			}
 		</info-note>
 	}
@@ -31,7 +32,7 @@
 							<label class="form-check-label fw-semibold" for="opt-resources">Raw resources</label>
 						</div>
 					</td>
-					<td class="text-secondary stack-grow">Weight per unit mined - set per resource in the Resources tab.</td>
+					<td class="text-secondary stack-grow">Cost of each unit mined. Set for each resource in the Resources tab.</td>
 					<td style="width: 100px;"></td>
 				</tr>
 				<tr>
@@ -47,7 +48,7 @@
 							<label class="form-check-label fw-semibold" for="opt-inputs">Input weights</label>
 						</div>
 					</td>
-					<td class="text-secondary stack-grow">Weight per unit drawn from an input - set per input in the Input tab. Off makes every input free.</td>
+					<td class="text-secondary stack-grow">Cost of each unit taken from an input. Set for each input in the Input tab. When off, every input is free.</td>
 					<td></td>
 				</tr>
 				<tr>
@@ -63,7 +64,7 @@
 							<label class="form-check-label fw-semibold" for="opt-power">Power</label>
 						</div>
 					</td>
-					<td class="text-secondary stack-grow">Weight per MW</td>
+					<td class="text-secondary stack-grow">Cost of 1 MW</td>
 					<td>
 						<input
 							type="number"
@@ -90,7 +91,7 @@
 							<label class="form-check-label fw-semibold" for="opt-machines">Machine count</label>
 						</div>
 					</td>
-					<td class="text-secondary stack-grow">Weight per machine</td>
+					<td class="text-secondary stack-grow">Cost of 1 machine</td>
 					<td>
 						<input
 							type="number"

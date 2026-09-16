@@ -24,7 +24,7 @@ export class SettingsGroups
 		power: ['enabledFuels', 'producePowerForFactory', 'excessPowerPercent'],
 		sink: ['sinkableItems'],
 		sloops: ['maxSloops', 'sloopAccuracy'],
-		overclocking: ['defaultClockSpeed', 'recipeClockSpeeds', 'machineClockSpeeds'],
+		overclocking: ['defaultClockSpeed', 'recipeClockSpeeds', 'machineClockSpeeds', 'generatorClockSpeeds'],
 		optimisation: ['optimisation'],
 	};
 

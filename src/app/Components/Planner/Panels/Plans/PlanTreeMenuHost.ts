@@ -19,10 +19,11 @@ export interface PlanTreeMenuHost
 	deletePlan(plan: Plan): void;
 	pickPlanIcon(plan: Plan): void;
 	resetPlanIcon(plan: Plan): void;
-	/** Sharing needs an account and an active version - false hides the menu entries. */
-	canShare(): boolean;
+	/** Always offered - a plan the server does not have is shared by sending its tree along. */
 	sharePlan(plan: Plan): void;
 	shareFolder(id: string, name: string): void;
+	/** The same, for an "On this device" row (never on the server, even while signed in). */
+	shareLocalItem(id: string, kind: 'plan' | 'folder', name: string): void;
 	copyShareLink(share: VisitedShare): void;
 	removeVisitedShare(share: VisitedShare): void;
 	/** False while another game version is active - adding then switches to the share's version first. */

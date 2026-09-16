@@ -6,4 +6,6 @@ export interface GeneratorFuelOption
 {
 	readonly generator: Building;
 	readonly fuel: Fuel;
+	/** Clock speed in percent each of these generators runs at (1-250). */
+	readonly clockSpeed: number;
 }

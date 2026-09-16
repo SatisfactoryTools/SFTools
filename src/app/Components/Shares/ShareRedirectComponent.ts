@@ -42,12 +42,12 @@ export class ShareRedirectComponent
 			next: payload => {
 				const version = versionManager.versions().find(v => v.id === payload.version.id);
 				if (!version) {
-					this.errorSignal.set('The game version this share was made for is no longer available.');
+					this.errorSignal.set('The game version of this shared plan is no longer available.');
 					return;
 				}
 				void router.navigate(['/', versionManager.urlSlug(version), 'planner', 'shared', shareId], {replaceUrl: true});
 			},
-			error: () => this.errorSignal.set('This share does not exist (or the link is malformed).'),
+			error: () => this.errorSignal.set('This shared plan does not exist, or the link is broken.'),
 		});
 	}
 

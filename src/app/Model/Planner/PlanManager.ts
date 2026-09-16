@@ -46,7 +46,8 @@ export class PlanManager extends SyncableService<PlanStore>
 	 * Read-only plans of the currently open share. Deliberately a SEPARATE
 	 * signal, never merged into the synced store: the sync backends only ever
 	 * see data(), so shared plans are structurally unsyncable. Every mutator
-	 * below additionally guards against shared ids as defense in depth.
+	 * below additionally guards against read-only ids (shared and this
+	 * device's, see isReadOnlyPlan) as defense in depth.
 	 */
 	private readonly sharedStoreSignal = signal<PlanStore>(EMPTY_STORE);
 	public readonly sharedPlans: Signal<Plan[]> = computed(() => this.sharedStoreSignal().plans);
@@ -57,14 +58,28 @@ export class PlanManager extends SyncableService<PlanStore>
 	public readonly activePlan: Signal<Plan | null> = computed(() =>
 		this.plans().find(p => p.id === this.activePlanId())
 		?? this.sharedPlans().find(p => p.id === this.activePlanId())
+		?? this.localPlans().find(p => p.id === this.activePlanId())
 		?? null,
 	);
 
-	/** True while the active plan is a read-only shared one - the planner's read-only mode switch. */
+	/** True while the active plan is a read-only shared one. */
 	public readonly activePlanShared: Signal<boolean> = computed(() => {
 		const id = this.activePlanId();
 		return id !== null && this.sharedPlans().some(p => p.id === id);
 	});
+
+	/** True while the active plan is one of this device's plans, opened for a look while signed in. */
+	public readonly activePlanLocal: Signal<boolean> = computed(() => {
+		const id = this.activePlanId();
+		return id !== null && this.localPlans().some(p => p.id === id);
+	});
+
+	/**
+	 * The planner's read-only mode switch: the active plan lives outside the
+	 * synced store (an open share, or a plan left on this device while signed
+	 * in) and can be looked at but not edited.
+	 */
+	public readonly activePlanReadOnly: Signal<boolean> = computed(() => this.activePlanShared() || this.activePlanLocal());
 
 	public readonly activeFolder: Signal<Folder | null> = computed(() =>
 		this.folders().find(f => f.id === this.activeFolderId()) ?? null,
@@ -91,9 +106,12 @@ export class PlanManager extends SyncableService<PlanStore>
 	public readonly planTree: Signal<PlanTree> = computed(() => this.buildTree(this.data()));
 
 	// While signed in, the localStorage plans of the active version stay put
-	// and surface here so the user can migrate them into their account by drag
-	// and drop.
+	// and surface here so the user can look at them (read-only, like a share)
+	// and migrate them into their account by drag and drop. Like the shared
+	// store, this one is never merged into the synced data().
 	private readonly localStoreSignal = signal<PlanStore>(EMPTY_STORE);
+	public readonly localPlans: Signal<Plan[]> = computed(() => this.localStoreSignal().plans);
+	public readonly localFolders: Signal<Folder[]> = computed(() => this.localStoreSignal().folders);
 	public readonly localPlanTree: Signal<PlanTree> = computed(() => this.buildTree(this.localStoreSignal()));
 	public readonly isAuthenticated: Signal<boolean> = computed(() => this.authService.isAuthenticated());
 
@@ -191,14 +209,15 @@ export class PlanManager extends SyncableService<PlanStore>
 	}
 
 	/**
-	 * A plan by id from either store - the user's own plans or the open
-	 * share's read-only ones. Read paths (breakdowns, subplan IO) must use
-	 * this rather than plans(), or a shared plan's graph looks empty.
+	 * A plan by id from any store - the user's own plans, the open share's
+	 * read-only ones or this device's. Read paths (breakdowns, subplan IO)
+	 * must use this rather than plans(), or a read-only plan's graph looks empty.
 	 */
 	public findPlan(id: string): Plan | null
 	{
 		return this.plans().find(p => p.id === id)
 			?? this.sharedPlans().find(p => p.id === id)
+			?? this.localPlans().find(p => p.id === id)
 			?? null;
 	}
 
@@ -212,6 +231,18 @@ export class PlanManager extends SyncableService<PlanStore>
 	public isSharedPlan(id: string): boolean
 	{
 		return this.sharedPlans().some(p => p.id === id);
+	}
+
+	/** True when the id belongs to a plan left on this device while signed in (read-only until moved into the account). */
+	public isLocalPlan(id: string): boolean
+	{
+		return this.localPlans().some(p => p.id === id);
+	}
+
+	/** True when the plan can only be looked at - every mutator is a no-op for it. */
+	public isReadOnlyPlan(id: string): boolean
+	{
+		return this.isSharedPlan(id) || this.isLocalPlan(id);
 	}
 
 	/** Loads an opened share's hydrated tree into the separate read-only store. */
@@ -273,13 +304,14 @@ export class PlanManager extends SyncableService<PlanStore>
 		};
 	}
 
-	/** Moves an account plan/folder (with its whole subtree) back to this device. */
+	/**
+	 * Moves an account plan/folder (with its whole subtree) back to this
+	 * device. A moved active plan stays selected - it just turns read-only.
+	 * Local folders cannot be selected, so a moved active folder is dropped.
+	 */
 	public moveAccountToLocal(id: string, type: 'plan' | 'folder'): void
 	{
 		const {moved, rest} = this.extractSubtree(this.data(), id, type);
-		if (this.activePlanId() !== null && moved.plans.some(p => p.id === this.activePlanId())) {
-			this.activePlanIdSignal.set(null);
-		}
 		if (this.activeFolderId() !== null && moved.folders.some(f => f.id === this.activeFolderId())) {
 			this.activeFolderIdSignal.set(null);
 		}
@@ -380,7 +412,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	 */
 	public clonePlan(id: string, name: string): Plan | null
 	{
-		if (this.isSharedPlan(id)) return null;
+		if (this.isReadOnlyPlan(id)) return null;
 		const store = this.data();
 		const original = store.plans.find(p => p.id === id);
 		if (!original || original.parentPlanId !== null) {
@@ -556,7 +588,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	{
 		const folder = this.folders().find(f => f.id === folderId);
 		const fixed = this.fixedFolderForFolder(folder?.parentId ?? null);
-		return fixed ? `"${fixed.name}" fixes settings for everything inside it - this folder cannot have its own.` : null;
+		return fixed ? `"${fixed.name}" sets the settings for everything inside it, so this folder cannot have its own.` : null;
 	}
 
 	/**
@@ -731,7 +763,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public updatePlan(updated: Plan): void
 	{
-		if (this.isSharedPlan(updated.id)) return;
+		if (this.isReadOnlyPlan(updated.id)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === updated.id ? updated : p),
@@ -741,7 +773,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Groups fixed by the plan's folder are re-applied, so no plan-side edit (reset, inherit, save import) can drift from the folder. */
 	public setSettings(planId: string, settings: PlanSettings): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		const plan = this.plans().find(p => p.id === planId);
 		const fixed = plan ? this.fixedFolderOf(plan) : null;
 		const effective = fixed?.settings
@@ -776,7 +808,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Routes a settings edit to whatever the calculator is editing (see activeSettings). */
 	public updateActiveSettings(settings: PlanSettings): void
 	{
-		if (this.activePlanShared()) return;
+		if (this.activePlanReadOnly()) return;
 		const plan = this.activePlan();
 		if (plan) {
 			this.setSettings(plan.id, settings);
@@ -836,6 +868,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			defaultClockSpeed: settings.defaultClockSpeed,
 			recipeClockSpeeds: settings.recipeClockSpeeds ? settings.recipeClockSpeeds.map(entry => ({...entry})) : undefined,
 			machineClockSpeeds: settings.machineClockSpeeds ? settings.machineClockSpeeds.map(entry => ({...entry})) : undefined,
+			generatorClockSpeeds: settings.generatorClockSpeeds ? settings.generatorClockSpeeds.map(entry => ({...entry})) : undefined,
 			maxSloops: settings.maxSloops,
 			sloopAccuracy: settings.sloopAccuracy,
 		};
@@ -843,7 +876,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public setRequests(planId: string, requests: ProductionRequest[]): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, requests: [...requests]} : p),
@@ -852,7 +885,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public setInputs(planId: string, inputs: PlanInput[]): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, inputs: [...inputs]} : p),
@@ -862,7 +895,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Omitting graphDirty keeps the plan's current dirty state (e.g. graph revival on load). */
 	public setGraph(planId: string, graph: Graph | null, graphDirty?: boolean): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId
@@ -881,7 +914,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Stores the achieved rates of a maximise solve; undefined clears them (non-maximise solve). */
 	public setAchievedMaximums(planId: string, achievedMaximums: Record<string, number> | undefined): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, metadata: {...p.metadata, achievedMaximums}} : p),
@@ -890,7 +923,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public setGraphDirty(planId: string, graphDirty: boolean): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, metadata: {...p.metadata, graphDirty}} : p),
@@ -904,7 +937,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	 */
 	public touchGraph(planId: string): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p} : p),
@@ -914,7 +947,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Deletes the plan and its subplans; their nodes are scrubbed from every remaining graph. */
 	public deletePlan(id: string): void
 	{
-		if (this.isSharedPlan(id)) return;
+		if (this.isReadOnlyPlan(id)) return;
 		const store = this.data();
 		const deletedIds = new Set([id, ...this.collectDescendantPlanIds(id, store.plans)]);
 		const scrubbed = this.scrubSubplanNodes(store.plans.filter(p => !deletedIds.has(p.id)), deletedIds);
@@ -927,7 +960,7 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	public renamePlan(id: string, name: string): void
 	{
-		if (this.isSharedPlan(id)) return;
+		if (this.isReadOnlyPlan(id)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === id ? {...p, name} : p),
@@ -937,7 +970,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	/** Sets (or clears, with null) a plan's icon override. */
 	public setPlanIcon(id: string, iconClassName: string | null): void
 	{
-		if (this.isSharedPlan(id)) return;
+		if (this.isReadOnlyPlan(id)) return;
 		this.mutate(store => ({
 			...store,
 			plans: store.plans.map(p => p.id === id ? {...p, iconClassName} : p),
@@ -962,7 +995,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	 */
 	public placePlan(planId: string, folderId: string | null, parentPlanId: string | null, index: number | null): void
 	{
-		if (this.isSharedPlan(planId)) return;
+		if (this.isReadOnlyPlan(planId)) return;
 		if (parentPlanId !== null && (parentPlanId === planId || this.collectDescendantPlanIds(planId, this.plans()).includes(parentPlanId))) {
 			return; // would create a cycle
 		}
@@ -1110,7 +1143,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	}
 
 	/** Ordered items first by position, unordered ones after them alphabetically - so untouched trees keep their old order. */
-	private static bySiblingOrder(a: {order?: number; name: string}, b: {order?: number; name: string}): number
+	public static bySiblingOrder(a: {order?: number; name: string}, b: {order?: number; name: string}): number
 	{
 		const orderA = a.order ?? Number.POSITIVE_INFINITY;
 		const orderB = b.order ?? Number.POSITIVE_INFINITY;
@@ -1205,7 +1238,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	 */
 	public reconcileSubplans(parentId: string, target: Plan[]): void
 	{
-		if (this.isSharedPlan(parentId)) return;
+		if (this.isReadOnlyPlan(parentId)) return;
 		const store = this.data();
 		const currentIds = new Set(this.collectDescendantPlanIds(parentId, store.plans));
 		const targetIds = new Set(target.map(p => p.id));

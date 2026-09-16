@@ -6,7 +6,7 @@ import {VisitedShare} from '@src/Model/Shares/VisitedShare';
  */
 export const VISITED_SHARES_CAP = 20;
 
-/** The synced "Shared plans" list, most recently visited first. */
+/** The synced "Shared plans" list, most recently added first (a repeat visit does not move an entry). */
 export interface VisitedShareStore
 {
 	readonly shares: VisitedShare[];

@@ -1,6 +1,6 @@
 import {Component, computed, ChangeDetectionStrategy, Signal} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {faBolt, faIndustry, faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -22,13 +22,18 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FaIconComponent, BsDropdownModule, GameIconComponent],
 	styles: [`
+		/* The bar never spills out of its box: it drops detail in steps as the
+		   centre column narrows (ranges, then label words, then the state text),
+		   and whatever is left is clipped rather than overflowing the canvas. */
 		:host {
 			display: flex;
 			align-items: center;
 			gap: 16px;
 			width: 100%;
 			height: 100%;
+			min-width: 0;
 			padding: 0 16px;
+			overflow: hidden;
 			background: #10141d;
 			border-top: 1px solid #222b3e;
 			font-size: 1rem;
@@ -36,13 +41,12 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 			user-select: none;
 			container-type: inline-size;
 		}
-		.stat { white-space: nowrap; }
+		.stat { white-space: nowrap; flex-shrink: 0; }
 		.stat b { color: #dfe5ec; font-weight: 600; }
+		.stat-icon { display: none; opacity: 0.8; }
+		.stat .abbr { display: none; }
 		/* Variable-draw band beside the figure; the tooltip keeps it when the bar gets tight. */
 		.stat .range { margin-left: 4px; font-size: 0.8em; color: #6f7f99; }
-		@container (max-width: 760px) {
-			.stat .range { display: none; }
-		}
 		.stat b.production { color: #7bc98a; }
 		.stat b.deficit { color: #e0b56a; }
 		.right {
@@ -50,14 +54,39 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 			display: inline-flex;
 			align-items: center;
 			gap: 14px;
+			min-width: 0;
+			flex-shrink: 1;
 		}
+		.state {
+			display: inline-flex;
+			align-items: center;
+			min-width: 0;
+			white-space: nowrap;
+		}
+		.state-text { overflow: hidden; text-overflow: ellipsis; }
 		.state .dot {
 			display: inline-block;
+			flex-shrink: 0;
 			width: 7px;
 			height: 7px;
 			border-radius: 50%;
 			margin-right: 5px;
 			vertical-align: middle;
+		}
+		@container (max-width: 760px) {
+			.stat .range { display: none; }
+		}
+		@container (max-width: 600px) {
+			:host { gap: 12px; padding: 0 12px; }
+			.stat .lbl { display: none; }
+			.stat .abbr { display: inline; }
+			.stat-icon { display: inline-block; margin-right: 4px; }
+		}
+		@container (max-width: 420px) {
+			:host { gap: 10px; }
+			.state-text { display: none; }
+			.state .dot { margin-right: 0; }
+			.stat.zero { display: none; }
 		}
 		.state-solved { color: #7bc98a; }
 		.state-solved .dot { background: #4f9d69; }
@@ -83,6 +112,8 @@ export class PlannerStatusBarComponent
 {
 
 	public readonly faTriangleExclamation = faTriangleExclamation;
+	public readonly faBolt = faBolt;
+	public readonly faIndustry = faIndustry;
 
 	/**
 	 * Plan-wide totals from the same breakdown the Power and Build cost panels
@@ -148,7 +179,7 @@ export class PlannerStatusBarComponent
 	/** Pooled resources the plan mines beyond what the other plans of its folder left. */
 	public readonly poolWarnings = computed(() => {
 		const plan = this.planManager.activePlan();
-		if (!plan || this.planManager.activePlanShared()) {
+		if (!plan || this.planManager.activePlanReadOnly()) {
 			return [];
 		}
 		return this.pool.overUsed(plan).map(status =>

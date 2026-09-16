@@ -6,12 +6,14 @@ import {OAuthCallbackResponse} from '@src/Model/API/Schema/Auth/OAuthCallbackRes
 import {OAuthConnectionsResponse} from '@src/Model/API/Schema/Auth/OAuthConnectionsResponse';
 import {OAuthProvidersResponse} from '@src/Model/API/Schema/Auth/OAuthProvidersResponse';
 import {OAuthStartResponse} from '@src/Model/API/Schema/Auth/OAuthStartResponse';
-import {AuthService} from '@src/Model/Auth/AuthService';
+import {AuthenticatedRequest} from '@src/Model/Auth/AuthenticatedRequest';
 
 /**
- * Third-party sign-in endpoints. The AuthInterceptor deliberately skips
- * /v1/auth/ URLs, so the calls that need the signed-in user (link flow,
- * connections, disconnect) attach the Bearer header themselves.
+ * Third-party sign-in endpoints. The AuthInterceptor skips /v1/auth/ URLs by
+ * default, so the calls that need the signed-in user (link flow, connections,
+ * disconnect) are marked with AuthenticatedRequest - the interceptor then
+ * attaches the Bearer header and refreshes an expired access token for them
+ * exactly as for the rest of the API.
  */
 @Injectable({providedIn: 'root'})
 export class OAuthApiService
@@ -19,10 +21,7 @@ export class OAuthApiService
 
 	private readonly base = `${env.apiUrl}/v1/auth/oauth`;
 
-	public constructor(
-		private readonly http: HttpClient,
-		private readonly authService: AuthService,
-	)
+	public constructor(private readonly http: HttpClient)
 	{
 	}
 
@@ -34,12 +33,13 @@ export class OAuthApiService
 	/**
 	 * Starts a flow; redirect the browser to the returned authorizationUrl.
 	 * Without the Bearer header this is a login/signup; with it (`link`) the
-	 * provider is attached to the signed-in account instead.
+	 * provider is attached to the signed-in account instead - so the request
+	 * is only marked as authenticated when linking.
 	 */
 	public start(provider: string, link: boolean): Observable<OAuthStartResponse>
 	{
 		return this.http.post<OAuthStartResponse>(`${this.base}/${provider}/start`, null, {
-			headers: link ? this.authHeaders() : {},
+			context: link ? AuthenticatedRequest.context() : undefined,
 		});
 	}
 
@@ -51,18 +51,12 @@ export class OAuthApiService
 
 	public getConnections(): Observable<OAuthConnectionsResponse>
 	{
-		return this.http.get<OAuthConnectionsResponse>(`${this.base}/connections`, {headers: this.authHeaders()});
+		return this.http.get<OAuthConnectionsResponse>(`${this.base}/connections`, {context: AuthenticatedRequest.context()});
 	}
 
 	public disconnect(provider: string): Observable<{message: string}>
 	{
-		return this.http.delete<{message: string}>(`${this.base}/${provider}`, {headers: this.authHeaders()});
-	}
-
-	private authHeaders(): Record<string, string>
-	{
-		const token = this.authService.accessToken();
-		return token ? {Authorization: `Bearer ${token}`} : {};
+		return this.http.delete<{message: string}>(`${this.base}/${provider}`, {context: AuthenticatedRequest.context()});
 	}
 
 }
