@@ -79,7 +79,7 @@ export class HotkeyCatalog
 		{action: 'plans.newPlan', group: 'plans', label: 'New plan', default: {key: 'n', ctrl: true}},
 		{action: 'plans.newFolder', group: 'plans', label: 'New folder', default: {key: 'n', ctrl: true, shift: true}},
 		{action: 'plans.renamePlan', group: 'plans', label: 'Rename the open plan', default: {key: 'F2', shift: true}},
-		{action: 'plans.clonePlan', group: 'plans', label: 'Clone the open plan', default: {key: 'c', ctrl: true}},
+		{action: 'plans.clonePlan', group: 'plans', label: 'Clone the open plan', default: {key: 'd', ctrl: true}},
 		{action: 'plans.sharePlan', group: 'plans', label: 'Share the open plan', default: {key: 's', ctrl: true, shift: true}},
 		{action: 'plans.deletePlan', group: 'plans', label: 'Delete the open plan', default: {key: 'Delete', ctrl: true}},
 		{action: 'plans.pickPlanIcon', group: 'plans', label: 'Pick an icon for the open plan', default: null},
