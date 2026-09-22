@@ -7,7 +7,7 @@ import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSection
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faTableColumns} from '@fortawesome/free-solid-svg-icons';
 
-/** "Planner" settings section - unmakeable-items display and the panel-layout reset. */
+/** "Planner" settings section - unmakeable-items display, help buttons and the panel-layout reset. */
 @Component({
 	selector: 'settings-planner',
 	templateUrl: './SettingsPlannerComponent.html',
@@ -80,6 +80,16 @@ export class SettingsPlannerComponent
 	public setTabBadges(value: boolean): void
 	{
 		this.settings.updatePlanner({tabBadges: value});
+	}
+
+	public get helpButtons(): boolean
+	{
+		return this.settings.planner().helpButtons;
+	}
+
+	public setHelpButtons(value: boolean): void
+	{
+		this.settings.updatePlanner({helpButtons: value});
 	}
 
 	public get unmakeableItemsDescription(): string

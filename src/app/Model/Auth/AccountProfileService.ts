@@ -21,6 +21,9 @@ export class AccountProfileService
 	public readonly name: Signal<string | null> = computed(() => this.profile()?.name ?? this.auth.displayName());
 	public readonly avatarUrl: Signal<string | null> = computed(() => this.profile()?.avatarUrl ?? null);
 
+	/** Whether the signed-in user may write help articles; false while the profile loads. */
+	public readonly helpEditor: Signal<boolean> = computed(() => this.profile()?.helpEditor ?? false);
+
 	public constructor(
 		private readonly auth: AuthService,
 		private readonly api: AccountApiService,

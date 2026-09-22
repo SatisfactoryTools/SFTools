@@ -24,9 +24,16 @@ import {PlanInput} from '@src/Model/Planner/PlanInput';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {ProductionRequest} from '@src/Model/Planner/ProductionRequest';
 import {SettingsGroup} from '@src/Model/Planner/SettingsGroup';
+import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 
 const EMPTY_STORE: PlanStore = {folders: [], plans: []};
+
+/** Graph units a node added below an existing graph keeps clear of it. */
+const NEW_NODE_GAP = 200;
+
+/** Graph units a cloned subplan's node sits down and to the right of the original's. */
+const CLONED_NODE_OFFSET = 60;
 
 @Injectable({providedIn: 'root'})
 export class PlanManager extends SyncableService<PlanStore>
@@ -118,6 +125,28 @@ export class PlanManager extends SyncableService<PlanStore>
 	private readonly localPlanBackend: LocalPlanStoreBackend;
 
 	/**
+	 * The version whose plans data() holds; null until a load for one really
+	 * settled. A load made with no active version fetches nothing and leaves
+	 * the empty store in place - see loadedForActiveVersion.
+	 */
+	private readonly loadedVersionIdSignal = signal<string | null>(null);
+
+	/**
+	 * True while data() really is the active version's plans. The base
+	 * loaded() flag only says that some load settled, which is equally true
+	 * of the empty store a version-less load leaves behind (the navbar search
+	 * builds this service on the version-less pages, so the store can be
+	 * "loaded" before a version was ever active) and of the store still
+	 * showing the previous version while the reload is in flight. Callers
+	 * that read "not in the store" as "not the user's own plan" must use this
+	 * one, or the user's own plans look like someone else's.
+	 */
+	public readonly loadedForActiveVersion: Signal<boolean> = computed(() => {
+		const versionId = this.versionManager.activeVersion()?.id ?? null;
+		return versionId !== null && this.loadedVersionIdSignal() === versionId;
+	});
+
+	/**
 	 * Plan ids whose stored graphs just lost subplan nodes because the
 	 * referenced subplan was deleted - the planner re-renders the canvas when
 	 * the active plan is among them.
@@ -140,6 +169,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		private readonly versionManager: VersionManager,
 		notifications: NotificationService,
 		plannerLocation: PlannerLocationService,
+		private readonly settingsManager: SettingsManager,
 	)
 	{
 		// Local plans are version-scoped like the API's - the backend follows
@@ -151,8 +181,15 @@ export class PlanManager extends SyncableService<PlanStore>
 			new PlanApiDataBackend(plansApiService, foldersApiService, versionManager, notifications),
 			new UseLocalConflictResolver<PlanStore>(),
 			EMPTY_STORE,
+			notifications,
+			'plans',
 		);
 		this.localPlanBackend = localBackend;
+		// A load from localStorage settles synchronously, inside the base
+		// constructor above - too early for onLoaded to reach the signal.
+		if (this.loaded()) {
+			this.loadedVersionIdSignal.set(versionManager.activeVersion()?.id ?? null);
+		}
 		if (authService.isAuthenticated()) {
 			this.refreshLocalStore();
 		}
@@ -224,7 +261,9 @@ export class PlanManager extends SyncableService<PlanStore>
 	protected override onLoaded(): void
 	{
 		// The initial load may settle inside the base constructor, before these fields exist.
-		this.storeLoadedSubject?.next(this.versionManager?.activeVersion()?.id ?? null);
+		const versionId = this.versionManager?.activeVersion()?.id ?? null;
+		this.loadedVersionIdSignal?.set(versionId);
+		this.storeLoadedSubject?.next(versionId);
 	}
 
 	/** True when the id belongs to a plan of the currently open share (read-only). */
@@ -269,9 +308,12 @@ export class PlanManager extends SyncableService<PlanStore>
 	{
 		this.mutate(store => {
 			const placed = root === null ? {folders, plans} : this.placeRoot(store, {folders, plans}, root, folderId);
+			// A copied-in plan (a share, someone's plan link, an old-tools import) carries
+			// no link-access flag of its own - like every plan made here, it can be opened
+			// by anyone holding its link.
 			return {
 				folders: [...store.folders, ...placed.folders],
-				plans: [...store.plans, ...placed.plans],
+				plans: [...store.plans, ...placed.plans.map(p => p.linkAccess === undefined ? {...p, linkAccess: true} : p)],
 			};
 		});
 	}
@@ -405,30 +447,47 @@ export class PlanManager extends SyncableService<PlanStore>
 	}
 
 	/**
-	 * Deep-copies a top-level plan with its subplans next to the original as
+	 * Deep-copies a plan with its subplans next to the original as
 	 * "Clone: [name]" (`name` is the shown name - the stored one may be blank).
 	 * Subplan nodes in the copied graphs point at the copied subplans. Every
 	 * copy gets a fresh id and no revision, so the API sees brand-new plans.
+	 *
+	 * A subplan is cloned into the same parent plan, which also gets a node
+	 * for the copy - unconnected, beside the original's node (a subplan
+	 * without a node in its parent's graph would be unreachable).
 	 */
 	public clonePlan(id: string, name: string): Plan | null
 	{
 		if (this.isReadOnlyPlan(id)) return null;
 		const store = this.data();
 		const original = store.plans.find(p => p.id === id);
-		if (!original || original.parentPlanId !== null) {
+		if (!original) {
 			return null;
 		}
 		const {moved} = this.extractSubtree(store, id, 'plan');
 		const copy = this.copyTree([], moved.plans.map(p => p.id === id ? original : p));
+		const parentPlanId = original.parentPlanId;
 		const root: Plan = {
 			...copy.plans.find(p => p.id === copy.idMap.get(id))!,
 			name: `Clone: ${name}`,
-			order: this.nextOrder(this.orderedEntries(store, original.folderId)),
+			folderId: parentPlanId === null ? original.folderId : null,
+			parentPlanId,
+			order: this.nextOrder(parentPlanId === null
+				? this.orderedEntries(store, original.folderId)
+				: this.orderedPlans(store, original.folderId, parentPlanId)),
 		};
-		this.mutate(s => ({
-			...s,
-			plans: [...s.plans, ...copy.plans.map(p => p.id === root.id ? root : p)],
-		}));
+		this.mutate(s => {
+			const next: PlanStore = {
+				...s,
+				plans: [...s.plans, ...copy.plans.map(p => p.id === root.id ? root : p)],
+			};
+			return parentPlanId === null
+				? next
+				: this.withSubplanNode(next, parentPlanId, root.id, root.name, id);
+		});
+		if (parentPlanId !== null) {
+			this.notifyScrubbed([parentPlanId]);
+		}
 		return root;
 	}
 
@@ -589,6 +648,18 @@ export class PlanManager extends SyncableService<PlanStore>
 		const folder = this.folders().find(f => f.id === folderId);
 		const fixed = this.fixedFolderForFolder(folder?.parentId ?? null);
 		return fixed ? `"${fixed.name}" sets the settings for everything inside it, so this folder cannot have its own.` : null;
+	}
+
+	/**
+	 * Gives the folder its own settings, starting from what it inherits
+	 * today, so nothing changes until something is edited. A no-op while an
+	 * ancestor fixes the settings (see customSettingsBlocker).
+	 */
+	public enableFolderSettings(folderId: string): void
+	{
+		if (this.customSettingsBlocker(folderId) === null) {
+			this.setFolderSettings(folderId, this.effectiveFolderSettings(folderId));
+		}
 	}
 
 	/**
@@ -967,6 +1038,22 @@ export class PlanManager extends SyncableService<PlanStore>
 		}));
 	}
 
+	/**
+	 * Turns opening the plan by its URL on or off. Subplans follow the plan they belong
+	 * to: they have URLs of their own, and "not shared" has to mean the whole thing.
+	 */
+	public setPlanLinkAccess(id: string, linkAccess: boolean): void
+	{
+		if (this.isReadOnlyPlan(id)) return;
+		this.mutate(store => {
+			const affected = new Set([id, ...this.collectDescendantPlanIds(id, store.plans)]);
+			return {
+				...store,
+				plans: store.plans.map(p => affected.has(p.id) ? {...p, linkAccess} : p),
+			};
+		});
+	}
+
 	/** Sets (or clears, with null) a plan's icon override. */
 	public setPlanIcon(id: string, iconClassName: string | null): void
 	{
@@ -999,6 +1086,12 @@ export class PlanManager extends SyncableService<PlanStore>
 		if (parentPlanId !== null && (parentPlanId === planId || this.collectDescendantPlanIds(planId, this.plans()).includes(parentPlanId))) {
 			return; // would create a cycle
 		}
+		// A plan changing parents changes the graphs around it too: it leaves
+		// the old parent's graph and joins the new one's as a loose node.
+		const previousParentId = this.data().plans.find(p => p.id === planId)?.parentPlanId ?? null;
+		const touchedParents = previousParentId === parentPlanId
+			? []
+			: [previousParentId, parentPlanId].filter((id): id is string => id !== null);
 		this.mutate(store => {
 			const plan = store.plans.find(p => p.id === planId);
 			if (!plan) {
@@ -1012,12 +1105,21 @@ export class PlanManager extends SyncableService<PlanStore>
 			const placed = index === null
 				? [...siblings, {...moved, order: this.nextOrder(siblings)}]
 				: this.withOrders([...siblings.slice(0, index), moved, ...siblings.slice(index)]);
-			const next = this.withEntries(store, placed);
+			let next = this.withEntries(store, placed);
+			if (previousParentId !== parentPlanId) {
+				if (previousParentId !== null) {
+					next = this.scrubSubplanNodesIn(next, previousParentId, new Set([planId]));
+				}
+				if (parentPlanId !== null) {
+					next = this.withSubplanNode(next, parentPlanId, planId, plan.name, null);
+				}
+			}
 			const fixed = this.fixedFolderForFolderIn(next.folders, parentPlanId === null ? folderId : this.topLevelFolderIdOf(moved, next.plans));
 			return fixed
 				? this.pushFixedSettings(next, fixed, new Set([planId, ...this.collectDescendantPlanIds(planId, next.plans)]))
 				: next;
 		});
+		this.notifyScrubbed(touchedParents);
 	}
 
 	/** Moves the folder last into the new parent; see placeFolder. */
@@ -1230,11 +1332,14 @@ export class PlanManager extends SyncableService<PlanStore>
 	}
 
 	/**
-	 * Restores the descendant-subplan set of `parentId` to `target` (an undo/
+	 * Restores the descendant subplans of `parentId` to `target` (an undo/
 	 * redo snapshot): subplans missing from the store are recreated, ones not
-	 * in the snapshot are deleted, and surviving ones stay untouched so edits
-	 * made outside the snapshotted operation are not reverted. Recreated plans
-	 * are new to the API again, so their revision restarts.
+	 * in the snapshot are deleted, and surviving ones get their graph,
+	 * requests and inputs back - an operation on the parent may have resized
+	 * them (see SubplanScaler), and undo has to take that back too. Their
+	 * name, settings and place in the tree are left alone: those are edited
+	 * from the plans panel, which the graph history has no say over.
+	 * Recreated plans are new to the API again, so their revision restarts.
 	 */
 	public reconcileSubplans(parentId: string, target: Plan[]): void
 	{
@@ -1244,15 +1349,40 @@ export class PlanManager extends SyncableService<PlanStore>
 		const targetIds = new Set(target.map(p => p.id));
 		const missing = target.filter(p => !currentIds.has(p.id)).map(p => ({...p, revision: null}));
 		const extraIds = new Set([...currentIds].filter(id => !targetIds.has(id)));
-		if (missing.length === 0 && extraIds.size === 0) {
+		const snapshots = new Map(target.filter(p => currentIds.has(p.id)).map(p => [p.id, p]));
+		const changed = store.plans.some(plan => {
+			const snapshot = snapshots.get(plan.id);
+			return snapshot !== undefined && this.contentDiffers(plan, snapshot);
+		});
+		if (missing.length === 0 && extraIds.size === 0 && !changed) {
 			return;
 		}
 		const scrubbed = this.scrubSubplanNodes(store.plans.filter(p => !extraIds.has(p.id)), extraIds);
-		this.mutate(s => ({...s, plans: [...scrubbed.plans, ...missing]}));
+		const restored = scrubbed.plans.map(plan => {
+			const snapshot = snapshots.get(plan.id);
+			return snapshot !== undefined && this.contentDiffers(plan, snapshot)
+				? {
+					...plan,
+					graph: snapshot.graph,
+					requests: structuredClone(snapshot.requests),
+					inputs: structuredClone(snapshot.inputs),
+					metadata: structuredClone(snapshot.metadata),
+				}
+				: plan;
+		});
+		this.mutate(s => ({...s, plans: [...restored, ...missing]}));
 		if (this.activePlanIdSignal() !== null && extraIds.has(this.activePlanIdSignal()!)) {
 			this.activePlanIdSignal.set(null);
 		}
 		this.notifyScrubbed(scrubbed.scrubbedIds);
+	}
+
+	/** Whether what an undo/redo snapshot restores - graph, requests, inputs - differs from the stored plan. */
+	private contentDiffers(plan: Plan, snapshot: Plan): boolean
+	{
+		return JSON.stringify(plan.graph) !== JSON.stringify(snapshot.graph)
+			|| JSON.stringify(plan.requests) !== JSON.stringify(snapshot.requests)
+			|| JSON.stringify(plan.inputs) !== JSON.stringify(snapshot.inputs);
 	}
 
 	/**
@@ -1290,6 +1420,80 @@ export class PlanManager extends SyncableService<PlanStore>
 		return {plans: result, scrubbedIds};
 	}
 
+	/**
+	 * Removes the subplan nodes referencing `subplanIds` (and their edges)
+	 * from one plan's stored graph - the store-level half of moving a subplan
+	 * out of its parent.
+	 */
+	private scrubSubplanNodesIn(store: PlanStore, planId: string, subplanIds: Set<string>): PlanStore
+	{
+		const target = store.plans.find(p => p.id === planId);
+		if (!target) {
+			return store;
+		}
+		const scrubbed = this.scrubSubplanNodes([target], subplanIds);
+		return {...store, plans: store.plans.map(p => p.id === planId ? scrubbed.plans[0] : p)};
+	}
+
+	/**
+	 * Gives the parent plan's stored graph a node for the subplan: loose (no
+	 * edges), below everything already there, or just beside the node of
+	 * `besideSubplanId` when one is given (a cloned subplan lands next to its
+	 * original). The node starts with an empty interface - its inputs and
+	 * outputs are filled in from the subplan's own graph the next time the
+	 * parent is rendered (see SubplanIOResolver).
+	 */
+	private withSubplanNode(store: PlanStore, parentPlanId: string, subplanId: string, name: string, besideSubplanId: string | null): PlanStore
+	{
+		const parent = store.plans.find(p => p.id === parentPlanId);
+		if (!parent) {
+			return store;
+		}
+		// Raw JSON throughout: the added node has no class instance behind it,
+		// and a graph half hydrated and half raw cannot be revived.
+		const graph = parent.graph ? JSON.parse(JSON.stringify(parent.graph)) as Graph : {nodes: [], edges: []};
+		const node = {
+			type: 'subplan',
+			id: crypto.randomUUID(),
+			subplanId,
+			name,
+			buildCount: 1,
+			inputs: [],
+			outputs: [],
+			locked: true,
+			...this.freeSubplanNodeSpot(graph, besideSubplanId),
+		} as unknown as Graph['nodes'][number];
+		const updated: Plan = {
+			...parent,
+			graph: {nodes: [...graph.nodes, node], edges: graph.edges},
+			metadata: {...parent.metadata, graphDirty: true},
+		};
+		return {...store, plans: store.plans.map(p => p.id === parentPlanId ? updated : p)};
+	}
+
+	/**
+	 * Where a newly added subplan node goes: beside the node of
+	 * `besideSubplanId`, else below everything in the graph (an empty graph
+	 * starts at the origin). Works on hydrated and raw-JSON graphs alike.
+	 */
+	private freeSubplanNodeSpot(graph: Graph, besideSubplanId: string | null): {x: number; y: number}
+	{
+		const positions = graph.nodes.map(node => node as unknown as {x?: number; y?: number; type?: string; subplanId?: string});
+		if (besideSubplanId !== null) {
+			const original = positions.find(node => node.type === 'subplan' && node.subplanId === besideSubplanId);
+			if (original) {
+				return {x: (original.x ?? 0) + CLONED_NODE_OFFSET, y: (original.y ?? 0) + CLONED_NODE_OFFSET};
+			}
+		}
+		if (positions.length === 0) {
+			return {x: 0, y: 0};
+		}
+		return {
+			x: Math.min(...positions.map(node => node.x ?? 0)),
+			y: Math.max(...positions.map(node => node.y ?? 0)) + NEW_NODE_GAP,
+		};
+	}
+
 	private notifyScrubbed(planIds: string[]): void
 	{
 		if (planIds.length > 0) {
@@ -1322,6 +1526,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			inputs: [],
 			graph: null,
 			metadata: {graphDirty: false},
+			linkAccess: true,
 			order: this.nextOrder(parentPlanId === null ? this.orderedEntries(this.data(), folderId) : this.orderedPlans(this.data(), folderId, parentPlanId)),
 			revision: null,
 			// iconClassName left undefined: "not chosen yet" (see Plan).

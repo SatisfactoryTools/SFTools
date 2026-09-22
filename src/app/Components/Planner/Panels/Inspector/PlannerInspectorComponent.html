@@ -16,7 +16,9 @@
 		<recipe-node-editor [node]="node"></recipe-node-editor>
 	</fieldset>
 } @else if (singleSubplanNode(); as node) {
-	<subplan-node-view [node]="node"></subplan-node-view>
+	<!-- No disabled fieldset around this one: a read-only plan's subplans can
+	     still be opened, so the editor disables just its own fields. -->
+	<subplan-node-editor [node]="node" [readOnly]="readOnly()"></subplan-node-editor>
 } @else if (singleAmountNode(); as node) {
 	<fieldset class="border-0 p-0 m-0" [disabled]="readOnly()">
 		<amount-node-editor [node]="node"></amount-node-editor>

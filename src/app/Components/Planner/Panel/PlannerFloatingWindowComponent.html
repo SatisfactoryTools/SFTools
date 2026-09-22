@@ -39,6 +39,9 @@
 			</div>
 		</div>
 	}
+	@if (activePanel?.helpTopic; as topic) {
+		<help-button class="tab-help" [topic]="topic" placement="bottom"/>
+	}
 	<div class="fw-grab"></div>
 	<!-- Invisible copy of every tab at natural width, used to decide how many fit -->
 	<div class="fw-tabs tab-measure" #measureEl aria-hidden="true">

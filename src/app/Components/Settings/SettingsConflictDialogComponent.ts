@@ -1,6 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faCloud, faCodeCompare, faDesktop} from '@fortawesome/free-solid-svg-icons';
+import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {SettingsDiffRow} from '@src/Components/Settings/SettingsDiffRow';
 import {SettingsFieldLabel} from '@src/Components/Settings/SettingsFieldLabel';
@@ -9,6 +10,9 @@ import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {NodeColors} from '@src/Model/Settings/NodeColors';
 import {NumberSettings} from '@src/Model/Settings/NumberSettings';
 import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
+import {HotkeyCatalog} from '@src/Model/Hotkeys/HotkeyCatalog';
+import {HotkeyFormatter} from '@src/Model/Hotkeys/HotkeyFormatter';
+import {HotkeyOverrides} from '@src/Model/Hotkeys/HotkeyOverrides';
 import {SettingsConflictService} from '@src/Model/Settings/SettingsConflictService';
 
 const YES_NO = (value: unknown): string => value ? 'Yes' : 'No';
@@ -58,6 +62,7 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 		label: 'Production request tab labels',
 		format: CHOICE({auto: 'Fit to width', icons: 'Icons only', labels: 'Always labels'}),
 	},
+	helpButtons: {label: 'Help buttons next to settings and tools', format: YES_NO},
 };
 
 const ACCOUNT_LABELS: Record<keyof AccountSettings, SettingsFieldLabel> = {
@@ -86,7 +91,7 @@ const NODE_COLOR_LABELS: Record<keyof NodeColors, string> = {
 	selector: 'settings-conflict-dialog',
 	templateUrl: './SettingsConflictDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, InfoNoteComponent],
+	imports: [FaIconComponent, InfoNoteComponent, HotkeyBlockDirective],
 	styles: [`
 		.conflict-backdrop {
 			position: fixed;
@@ -159,7 +164,10 @@ export class SettingsConflictDialogComponent
 	public readonly faCloud = faCloud;
 	public readonly faDesktop = faDesktop;
 
-	public constructor(public readonly conflictService: SettingsConflictService)
+	public constructor(
+		public readonly conflictService: SettingsConflictService,
+		private readonly hotkeyFormatter: HotkeyFormatter,
+	)
 	{
 	}
 
@@ -179,6 +187,7 @@ export class SettingsConflictDialogComponent
 			...this.diffColors(remoteColors, localColors),
 			...this.diff('Planner', remote.planner, local.planner, PLANNER_LABELS),
 			...this.diff('Account', remote.account, local.account, ACCOUNT_LABELS),
+			...this.diffHotkeys(remote.hotkeys, local.hotkeys),
 		];
 	}
 
@@ -205,6 +214,31 @@ export class SettingsConflictDialogComponent
 	public acceptLocal(): void
 	{
 		this.conflictService.acceptLocal();
+	}
+
+	/**
+	 * Hotkeys are compared by the key each action ends up with, not by the
+	 * stored overrides: one side leaving an action at its factory key and the
+	 * other setting that same key explicitly is not a difference worth asking
+	 * about.
+	 */
+	private diffHotkeys(remote: HotkeyOverrides, local: HotkeyOverrides): SettingsDiffRow[]
+	{
+		const rows: SettingsDiffRow[] = [];
+		HotkeyCatalog.DEFINITIONS.forEach(definition => {
+			const remoteBinding = definition.action in remote ? remote[definition.action] : definition.default;
+			const localBinding = definition.action in local ? local[definition.action] : definition.default;
+			if (this.hotkeyFormatter.same(remoteBinding, localBinding)) {
+				return;
+			}
+			rows.push({
+				group: 'Hotkeys',
+				label: definition.label,
+				remote: this.hotkeyFormatter.format(remoteBinding) || 'No key',
+				local: this.hotkeyFormatter.format(localBinding) || 'No key',
+			});
+		});
+		return rows;
 	}
 
 	private diff<T extends object>(

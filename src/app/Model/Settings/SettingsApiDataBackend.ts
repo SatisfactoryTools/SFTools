@@ -29,7 +29,7 @@ export class SettingsApiDataBackend implements DataBackend<Settings>
 			concatMap(settings => this.put(settings).pipe(
 				catchError(err => {
 					console.error('Settings API sync failed:', err);
-					this.notifications.show('Could not save the settings to your account. Your changes are saved in this browser.');
+					this.notifications.show('Could not save your settings to your account. They apply here, but they will be lost if you close the page.', 10_000);
 					return of(void 0);
 				}),
 			)),

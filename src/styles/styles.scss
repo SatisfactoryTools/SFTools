@@ -48,6 +48,24 @@ fa-icon {
 	--bs-btn-disabled-border-color: #7e8f9e;
 }
 
+// The theme's $primary is Satisfactory's orange, so a button that has to read
+// as blue (the share button, matching the old tools) needs its own class
+// instead of .btn-primary.
+.btn-blue {
+	--bs-btn-color: #fff;
+	--bs-btn-bg: #{$blue};
+	--bs-btn-border-color: #{$blue};
+	--bs-btn-hover-color: #fff;
+	--bs-btn-hover-bg: #{shade-color($blue, 15%)};
+	--bs-btn-hover-border-color: #{shade-color($blue, 20%)};
+	--bs-btn-active-color: #fff;
+	--bs-btn-active-bg: #{shade-color($blue, 20%)};
+	--bs-btn-active-border-color: #{shade-color($blue, 25%)};
+	--bs-btn-disabled-color: #fff;
+	--bs-btn-disabled-bg: #{$blue};
+	--bs-btn-disabled-border-color: #{$blue};
+}
+
 // Bootstrap's select arrow is a dark-gray SVG baked in for light backgrounds;
 // on our bg-dark selects (e.g. the rate-mode picker in the production request
 // panel) it all but disappears. Swap in the same chevron with a white stroke.
@@ -222,4 +240,30 @@ circle.pg-port-adsorbed {
 }
 .subsection-title:not(:first-child) {
 	margin-top: 1.5rem;
+}
+
+
+// Searchable pickers on a phone: the menu stops being a floating dropdown and
+// becomes a sheet pinned under the navbar. The toggle can sit anywhere on the
+// page and the on-screen keyboard takes most of the screen, so there is rarely
+// room to float anything beside it - and a menu positioned while the keyboard
+// was still down ends up behind it. The top is the one part of the screen the
+// keyboard never covers.
+//
+// The rule has to sit here, and on the container: ngx-bootstrap transforms
+// <bs-dropdown-container>, and a transform makes it the containing block for
+// anything `fixed` inside it, so positioning the menu itself does nothing.
+@media (max-width: 575.98px) {
+	bs-dropdown-container:has(.picker-menu) {
+		position: fixed !important;
+		inset: 8px 8px auto 8px !important;
+		transform: none !important;
+		width: auto !important;
+	}
+
+	bs-dropdown-container:has(.picker-menu) .picker-menu {
+		width: 100%;
+		min-width: 0;
+		max-width: none;
+	}
 }

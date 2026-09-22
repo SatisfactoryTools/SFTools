@@ -6,6 +6,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {BuildCostBreakdown} from '@src/Model/Planner/Breakdown/BuildCostBreakdown';
 import {BuildCostMaterialRow} from '@src/Model/Planner/Breakdown/BuildCostMaterialRow';
 import {BuildCostRow} from '@src/Model/Planner/Breakdown/BuildCostRow';
+import {CountedNode} from '@src/Model/Planner/Breakdown/CountedNode';
 import {ItemFlowRow} from '@src/Model/Planner/Breakdown/ItemFlowRow';
 import {ItemRow} from '@src/Model/Planner/Breakdown/ItemRow';
 import {PowerBreakdown} from '@src/Model/Planner/Breakdown/PowerBreakdown';
@@ -38,7 +39,8 @@ import {RateFormatter} from '@src/Model/RateFormatter';
  * Aggregates a plan's graph into the summary panels' row models: power per
  * building type and recipe, item flows per item, and build cost per building.
  * Each subplan node contributes a single row summing the subplan's own graph
- * recursively - the subplan itself is where its details live.
+ * recursively - the subplan itself is where its details live. A subplan node
+ * built several times counts that many times everywhere.
  */
 @Injectable({providedIn: 'root'})
 export class PlanBreakdownService
@@ -148,12 +150,12 @@ export class PlanBreakdownService
 		this.groupSubplans(subplanNodes).forEach(group => {
 			const nodes = this.collectProductionNodes(group.subplanId, new Set([plan.id]));
 			const subConsumption = this.consumptionOf(nodes.recipes).scale(group.count);
-			const subProduction = nodes.generators.reduce((sum, node) => sum + node.powerProduction(), 0) * group.count;
+			const subProduction = this.productionOf(nodes.generators) * group.count;
 			consumption = consumption.add(subConsumption);
 			production += subProduction;
 			rows.push({
 				key: `subplan:${group.subplanId}`,
-				name: group.name,
+				name: this.subplanRowName(group),
 				icon: null,
 				kind: 'subplan',
 				machines: this.countMachines(nodes.recipes, nodes.generators) * group.count,
@@ -219,14 +221,14 @@ export class PlanBreakdownService
 			return {rows: [], machines: 0, shards: 0, sloops: 0, materials: []};
 		}
 
-		const recipes: RecipeNode[] = [];
-		const generators: GeneratorNode[] = [];
+		const recipes: CountedNode<RecipeNode>[] = [];
+		const generators: CountedNode<GeneratorNode>[] = [];
 		const subplanNodes: SubplanNode[] = [];
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
-				recipes.push(node);
+				recipes.push({node, count: 1});
 			} else if (node instanceof GeneratorNode) {
-				generators.push(node);
+				generators.push({node, count: 1});
 			} else if (node instanceof SubplanNode) {
 				subplanNodes.push(node);
 			}
@@ -239,7 +241,7 @@ export class PlanBreakdownService
 			const subRows = this.machineCostRows(nodes.recipes, nodes.generators);
 			rows.push({
 				key: `subplan:${group.subplanId}`,
-				name: group.name,
+				name: this.subplanRowName(group),
 				icon: null,
 				kind: 'subplan',
 				machines: subRows.reduce((sum, row) => sum + row.machines, 0) * group.count,
@@ -273,8 +275,9 @@ export class PlanBreakdownService
 		}
 
 		const used = new Map<string, number>();
-		this.collectProductionNodes(plan.id, new Set()).mines.forEach(node => {
-			used.set(node.item.className, (used.get(node.item.className) ?? 0) + node.amount);
+		this.collectProductionNodes(plan.id, new Set()).mines.forEach(entry => {
+			const item = entry.node.item.className;
+			used.set(item, (used.get(item) ?? 0) + entry.node.amount * entry.count);
 		});
 		const limits = plan.settings.resourceLimits ?? {};
 		const disabled = new Set(plan.settings.disabledResources ?? []);
@@ -321,9 +324,10 @@ export class PlanBreakdownService
 		}
 
 		const rows = new Map<string, {recipe: Recipe; machines: number}>();
-		this.collectProductionNodes(plan.id, new Set()).recipes.forEach(node => {
-			const row = this.getOrCreate(rows, node.recipe.className, () => ({recipe: node.recipe, machines: 0}));
-			row.machines += node.amount;
+		this.collectProductionNodes(plan.id, new Set()).recipes.forEach(entry => {
+			const row = this.getOrCreate(rows, entry.node.recipe.className,
+				() => ({recipe: entry.node.recipe, machines: 0}));
+			row.machines += entry.node.amount * entry.count;
 		});
 
 		return [...rows.values()].sort((a, b) => a.recipe.name.localeCompare(b.recipe.name));
@@ -339,7 +343,7 @@ export class PlanBreakdownService
 		this.folderPlans(folderId).forEach(plan => {
 			const nodes = this.collectProductionNodes(plan.id, new Set());
 			const planConsumption = this.consumptionOf(nodes.recipes);
-			const planProduction = nodes.generators.reduce((sum, node) => sum + node.powerProduction(), 0);
+			const planProduction = this.productionOf(nodes.generators);
 			consumption = consumption.add(planConsumption);
 			production += planProduction;
 			rows.push({
@@ -444,13 +448,18 @@ export class PlanBreakdownService
 		const nodes = this.collectProductionNodes(subplanId, new Set());
 		return {
 			consumption: this.consumptionOf(nodes.recipes).average,
-			production: nodes.generators.reduce((sum, node) => sum + node.powerProduction(), 0),
+			production: this.productionOf(nodes.generators),
 		};
 	}
 
-	private consumptionOf(recipes: RecipeNode[]): PowerDraw
+	private consumptionOf(recipes: CountedNode<RecipeNode>[]): PowerDraw
 	{
-		return PowerDraw.sum(recipes.map(node => node.powerDraw()));
+		return PowerDraw.sum(recipes.map(entry => entry.node.powerDraw().scale(entry.count)));
+	}
+
+	private productionOf(generators: CountedNode<GeneratorNode>[]): number
+	{
+		return generators.reduce((sum, entry) => sum + entry.node.powerProduction() * entry.count, 0);
 	}
 
 	/** The folder's own plans (subplans belong to their parent plan's rows, not the folder). */
@@ -461,26 +470,26 @@ export class PlanBreakdownService
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	private machineCostRows(recipes: RecipeNode[], generators: GeneratorNode[]): BuildCostRow[]
+	private machineCostRows(recipes: CountedNode<RecipeNode>[], generators: CountedNode<GeneratorNode>[]): BuildCostRow[]
 	{
 		const map = new Map<string, {building: Building; machines: number; shards: number; sloops: number}>();
 
-		recipes.forEach(node => {
-			const row = this.getOrCreate(map, node.machine.className,
-				() => ({building: node.machine, machines: 0, shards: 0, sloops: 0}));
-			node.groups.forEach(group => {
-				row.machines += group.machines;
-				row.shards += group.machines * Formulas.powerShards(group.clockSpeed);
-				row.sloops += group.machines * group.sloops;
+		recipes.forEach(entry => {
+			const row = this.getOrCreate(map, entry.node.machine.className,
+				() => ({building: entry.node.machine, machines: 0, shards: 0, sloops: 0}));
+			entry.node.groups.forEach(group => {
+				row.machines += group.machines * entry.count;
+				row.shards += group.machines * Formulas.powerShards(group.clockSpeed) * entry.count;
+				row.sloops += group.machines * group.sloops * entry.count;
 			});
 		});
 
-		generators.forEach(node => {
-			const row = this.getOrCreate(map, node.generator.className,
-				() => ({building: node.generator, machines: 0, shards: 0, sloops: 0}));
+		generators.forEach(entry => {
+			const row = this.getOrCreate(map, entry.node.generator.className,
+				() => ({building: entry.node.generator, machines: 0, shards: 0, sloops: 0}));
 			// Generator counts are fractional - building them takes whole machines.
-			row.machines += node.wholeGenerators();
-			row.shards += node.powerShards();
+			row.machines += entry.node.wholeGenerators() * entry.count;
+			row.shards += entry.node.powerShards() * entry.count;
 		});
 
 		return this.sortedByBuildingName(map).map(row => ({
@@ -535,37 +544,53 @@ export class PlanBreakdownService
 		const path = new Set([...ancestors, planId]);
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
-				result.recipes.push(node);
+				result.recipes.push({node, count: 1});
 			} else if (node instanceof GeneratorNode) {
-				result.generators.push(node);
+				result.generators.push({node, count: 1});
 			} else if (node instanceof MineNode) {
-				result.mines.push(node);
+				result.mines.push({node, count: 1});
 			} else if (node instanceof SubplanNode) {
+				// A subplan built several times brings everything inside it that many times.
+				const builds = Math.max(1, node.buildCount);
 				const nested = this.collectProductionNodes(node.subplanId, path);
-				result.recipes.push(...nested.recipes);
-				result.generators.push(...nested.generators);
-				result.mines.push(...nested.mines);
+				result.recipes.push(...this.multiplied(nested.recipes, builds));
+				result.generators.push(...this.multiplied(nested.generators, builds));
+				result.mines.push(...this.multiplied(nested.mines, builds));
 			}
 		});
 		return result;
 	}
 
-	private countMachines(recipes: RecipeNode[], generators: GeneratorNode[]): number
+	private multiplied<T extends Node>(nodes: CountedNode<T>[], factor: number): CountedNode<T>[]
 	{
-		return recipes.reduce((sum, node) => sum + node.amount, 0)
-			+ generators.reduce((sum, node) => sum + node.wholeGenerators(), 0);
+		return factor === 1 ? nodes : nodes.map(entry => ({node: entry.node, count: entry.count * factor}));
 	}
 
-	/** Multiple nodes may reference the same subplan - one row each, scaled by occurrence count. */
+	private countMachines(recipes: CountedNode<RecipeNode>[], generators: CountedNode<GeneratorNode>[]): number
+	{
+		return recipes.reduce((sum, entry) => sum + entry.node.amount * entry.count, 0)
+			+ generators.reduce((sum, entry) => sum + entry.node.wholeGenerators() * entry.count, 0);
+	}
+
+	/**
+	 * Multiple nodes may reference the same subplan - one row each, scaled by
+	 * how many times the subplan is built across all of them.
+	 */
 	private groupSubplans(nodes: SubplanNode[]): {subplanId: string; name: string; count: number}[]
 	{
 		const groups = new Map<string, {subplanId: string; name: string; count: number}>();
 		nodes.forEach(node => {
 			const group = this.getOrCreate(groups, node.subplanId,
 				() => ({subplanId: node.subplanId, name: node.name, count: 0}));
-			group.count++;
+			group.count += Math.max(1, node.buildCount);
 		});
 		return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	/** A subplan counted more than once says so in its row: "Blueprint A (built 3×)". */
+	private subplanRowName(group: {name: string; count: number}): string
+	{
+		return group.count > 1 ? `${group.name} (built ${group.count}×)` : group.name;
 	}
 
 	private flowDescriptor(node: Node): {key: string; name: string}
@@ -577,6 +602,8 @@ export class PlanBreakdownService
 			return {key: `generator:${node.generator.className}`, name: node.generator.name};
 		}
 		if (node instanceof SubplanNode) {
+			// Several nodes of one subplan share a row - the amounts already
+			// carry their build counts, so the name stays the plain one.
 			return {key: `subplan:${node.subplanId}`, name: `Subplan: ${node.name}`};
 		}
 		if (node instanceof SinkNode) {

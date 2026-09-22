@@ -9,6 +9,8 @@ export interface PlanSchema
 	readonly data: string;
 	readonly createdAt: string;
 	readonly revision: number;
+	/** Whether anyone holding the plan's URL may open it read-only. */
+	readonly linkAccess: boolean;
 	/** Present in the list (tree) response only; recursive. */
 	readonly subplans?: PlanSchema[];
 }

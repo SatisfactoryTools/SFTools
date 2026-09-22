@@ -1,11 +1,13 @@
 import {Injectable, OnDestroy, Signal, WritableSignal, signal} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Observable, Subscription, forkJoin, of, switchMap} from 'rxjs';
-import {catchError, skip} from 'rxjs/operators';
+import {catchError, map, skip} from 'rxjs/operators';
 import {AuthService} from '@src/Model/Auth/AuthService';
+import {NotificationService} from '@src/Model/NotificationService';
 import {DataBackend} from '@src/Model/Sync/DataBackend';
 import {ConflictResolution} from '@src/Model/Sync/ConflictResolution';
 import {ConflictResolver} from '@src/Model/Sync/ConflictResolver';
+import {LoadResult} from '@src/Model/Sync/LoadResult';
 
 @Injectable()
 export abstract class SyncableService<T> implements OnDestroy
@@ -19,6 +21,18 @@ export abstract class SyncableService<T> implements OnDestroy
 	private readonly loadedSignal: WritableSignal<boolean> = signal(false);
 	public readonly loaded: Signal<boolean> = this.loadedSignal.asReadonly();
 
+	/**
+	 * True when the last load failed outright. What is held then is the
+	 * fallback default, not the user's data - saving it would replace what the
+	 * server still has with it, so remote writes stay blocked until a load
+	 * succeeds. (An empty store loads fine and leaves this false.)
+	 */
+	private readonly loadFailedSignal: WritableSignal<boolean> = signal(false);
+	public readonly loadFailed: Signal<boolean> = this.loadFailedSignal.asReadonly();
+
+	/** The "not being saved" warning is shown once per failed load, not on every edit that follows it. */
+	private unsavedWarned = false;
+
 	private activeBackend: DataBackend<T>;
 	private readonly subscription = new Subscription();
 
@@ -28,6 +42,9 @@ export abstract class SyncableService<T> implements OnDestroy
 		protected readonly remoteBackend: DataBackend<T> | null,
 		private readonly conflictResolver: ConflictResolver<T>,
 		private readonly emptyValue: T,
+		private readonly notifications: NotificationService,
+		/** What this store holds, for the "could not be loaded" message - "plans", "settings"... */
+		private readonly label: string,
 	)
 	{
 		this.dataSignal = signal(emptyValue);
@@ -55,6 +72,13 @@ export abstract class SyncableService<T> implements OnDestroy
 	protected persist(data: T): void
 	{
 		this.dataSignal.set(data);
+		// The edit stays in place for this session either way - it is only the
+		// write to the account that waits, because the baseline it would be
+		// written against was never loaded.
+		if (this.loadFailedSignal() && this.activeBackend === this.remoteBackend) {
+			this.warnUnsaved();
+			return;
+		}
 		this.activeBackend.save(data).subscribe();
 	}
 
@@ -81,20 +105,54 @@ export abstract class SyncableService<T> implements OnDestroy
 
 	protected loadFrom(backend: DataBackend<T>): void
 	{
-		backend.load().pipe(catchError(() => of(null))).subscribe(data => {
-			if (data !== null) this.dataSignal.set(data);
-			this.loadedSignal.set(true);
-			this.onLoaded();
+		backend.load().subscribe({
+			next: data => {
+				if (data !== null) this.dataSignal.set(data);
+				this.settleLoad(false);
+			},
+			// The load still counts as settled: a resolver left pending forever
+			// would leave the page blank. What changes is that the data now on
+			// hand is known to be the default rather than the user's.
+			error: () => this.settleLoad(true),
 		});
 	}
 
+	private settleLoad(failed: boolean): void
+	{
+		this.loadFailedSignal.set(failed);
+		if (!failed) {
+			this.unsavedWarned = false;
+		}
+		this.loadedSignal.set(true);
+		this.onLoaded();
+	}
+
 	/**
-	 * Called after every backend load settles (initial and reload). Beware:
-	 * the initial call can happen inside this base constructor, before a
-	 * subclass's own fields exist.
+	 * Called after every backend load settles (initial and reload, success and
+	 * failure alike). Beware: the initial call can happen inside this base
+	 * constructor, before a subclass's own fields exist.
 	 */
 	protected onLoaded(): void
 	{
+	}
+
+	private warnUnsaved(): void
+	{
+		if (this.unsavedWarned) return;
+		this.unsavedWarned = true;
+		this.notifications.show(
+			`Your ${this.label} could not be loaded from the server, so changes are not being saved. Please reload the page in a moment.`,
+			10_000,
+		);
+	}
+
+	/** A load that keeps a failure distinguishable from an empty store. */
+	private loadOutcome(backend: DataBackend<T>): Observable<LoadResult<T>>
+	{
+		return backend.load().pipe(
+			map((data): LoadResult<T> => ({ok: true, data})),
+			catchError(() => of<LoadResult<T>>({ok: false, data: null})),
+		);
 	}
 
 	protected onLogin(): void
@@ -105,27 +163,47 @@ export abstract class SyncableService<T> implements OnDestroy
 
 		forkJoin({
 			local: this.localBackend.load().pipe(catchError(() => of(null))),
-			remote: remote.load().pipe(catchError(() => of(null))),
+			remote: this.loadOutcome(remote),
 		}).pipe(
-			switchMap(({local, remote: remoteData}): Observable<T> => {
+			switchMap(({local, remote: remoteResult}): Observable<T | null> => {
+				// An unreachable server is not an account with nothing stored.
+				// Merging on that reading would push this device's copy over
+				// whatever the account actually holds, so nothing is written.
+				if (!remoteResult.ok) return of(null);
+
+				const remoteData = remoteResult.data;
 				if (local === null) return of(remoteData ?? this.emptyValue);
 				if (remoteData === null) return of(local);
 				const conflict: ConflictResolution<T> = {local, remote: remoteData};
 				return this.conflictResolver.resolve(conflict);
 			}),
 		).subscribe(resolved => {
+			this.activeBackend = remote;
+			if (resolved === null) {
+				this.loadFailedSignal.set(true);
+				this.warnUnsaved();
+				return;
+			}
 			this.dataSignal.set(resolved);
+			this.loadFailedSignal.set(false);
+			this.unsavedWarned = false;
 			remote.save(resolved).subscribe();
 			this.localBackend.clear().subscribe();
-			this.activeBackend = remote;
 		});
 	}
 
 	protected onLogout(): void
 	{
-		const current = this.dataSignal();
-		this.localBackend.save(current).subscribe();
 		this.activeBackend = this.localBackend;
+		this.unsavedWarned = false;
+		// After a failed load what is held is the default, not the account's
+		// data - carrying it down to this device would replace what is stored
+		// here. Read the device back instead.
+		if (this.loadFailedSignal()) {
+			this.loadFrom(this.localBackend);
+			return;
+		}
+		this.localBackend.save(this.dataSignal()).subscribe();
 	}
 
 }

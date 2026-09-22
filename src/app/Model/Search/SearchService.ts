@@ -1,5 +1,8 @@
 import {Injectable} from '@angular/core';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {HelpArticleSummary} from '@src/Model/API/Schema/Help/HelpArticleSummary';
+import {HelpManager} from '@src/Model/Help/HelpManager';
+import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {SearchFragment} from '@src/Model/Search/SearchFragment';
 import {SearchMatch} from '@src/Model/Search/SearchMatch';
@@ -7,9 +10,8 @@ import {SearchResult} from '@src/Model/Search/SearchResult';
 import {SearchResultGroup} from '@src/Model/Search/SearchResultGroup';
 import {SearchResultType} from '@src/Model/Search/SearchResultType';
 
-const MIN_QUERY_LENGTH = 2;
 const MAX_RESULTS_PER_GROUP = 5;
-const ALL_TYPES: SearchResultType[] = ['item', 'recipe', 'building', 'schematic', 'plan', 'folder'];
+const ALL_TYPES: SearchResultType[] = ['item', 'recipe', 'building', 'schematic', 'plan', 'folder', 'article'];
 // Characters of description context shown before/after a matched part.
 const SNIPPET_CONTEXT = 36;
 
@@ -24,9 +26,10 @@ const SCORE_DESCRIPTION = 30;
 
 /**
  * Searches everything reachable in the current version: the codex (items,
- * recipes, buildings, schematics - by name and description) and the user's
- * plans and folders (by name). Results come back in fixed groups (codex
- * types first, then plans, then folders), each sorted by match quality.
+ * recipes, buildings, schematics - by name and description), the user's plans
+ * and folders (by name) and the help articles (title, summary, keywords and
+ * section headings). Results come back in fixed groups (codex types first,
+ * then plans, folders and help), each sorted by match quality.
  * Callers may narrow the searched types (the codex panel searches only the
  * codex, or only its current section) and lift the per-group cap.
  */
@@ -34,9 +37,13 @@ const SCORE_DESCRIPTION = 30;
 export class SearchService
 {
 
+	/** Shorter than this and a query matches far too much to be worth showing. */
+	public static readonly MIN_QUERY_LENGTH = 2;
+
 	public constructor(
 		private readonly versionManager: VersionManager,
 		private readonly planManager: PlanManager,
+		private readonly help: HelpManager,
 	)
 	{
 	}
@@ -48,7 +55,7 @@ export class SearchService
 	): SearchResultGroup[]
 	{
 		const normalized = query.trim().toLowerCase();
-		if (normalized.length < MIN_QUERY_LENGTH) {
+		if (normalized.length < SearchService.MIN_QUERY_LENGTH) {
 			return [];
 		}
 
@@ -81,6 +88,11 @@ export class SearchService
 				this.result('folder', folder.id, folder.name, [], null, normalized)), limitPerGroup));
 		}
 
+		if (types.includes('article')) {
+			groups.push(this.group('Help', Object.entries(this.help.articles()).map(([slug, article]) =>
+				this.articleResult(slug, article, normalized)), limitPerGroup));
+		}
+
 		return groups.filter(group => group.results.length > 0);
 	}
 
@@ -95,6 +107,45 @@ export class SearchService
 	{
 		const match = this.match(query, name, description);
 		return match !== null ? {type, id, name, icons, ...match} : null;
+	}
+
+	/**
+	 * An article matches on its title and summary like anything else, and
+	 * additionally on the keywords its author gave it and on its section
+	 * headings - "sloops" should find the article whose section explains them,
+	 * even when the title says nothing about it.
+	 */
+	private articleResult(slug: string, article: HelpArticleSummary, query: string): SearchResult | null
+	{
+		const direct = this.result('article', slug, article.title, [], article.summary, query);
+		if (direct !== null) {
+			return direct;
+		}
+
+		const section = article.sections.find(entry => entry.title.toLowerCase().includes(query));
+		if (section !== undefined) {
+			return {
+				type: 'article',
+				id: HelpNavigation.pathFor(slug, section.id),
+				name: article.title,
+				icons: [],
+				score: SCORE_DESCRIPTION,
+				nameFragments: [{text: article.title, match: false}],
+				snippet: this.highlight(section.title, query),
+			};
+		}
+
+		return article.keywords.some(keyword => keyword.toLowerCase().includes(query))
+			? {
+				type: 'article',
+				id: slug,
+				name: article.title,
+				icons: [],
+				score: SCORE_DESCRIPTION,
+				nameFragments: [{text: article.title, match: false}],
+				snippet: null,
+			}
+			: null;
 	}
 
 	private group(label: string, candidates: (SearchResult | null)[], limit: number): SearchResultGroup

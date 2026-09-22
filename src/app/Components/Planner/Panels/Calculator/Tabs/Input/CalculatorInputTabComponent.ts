@@ -7,7 +7,6 @@ import {faXmark} from '@fortawesome/free-solid-svg-icons';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
-import {ItemForm} from '@src/Model/API/Schema/Data/Parts/ItemForm';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {MakeableItemsResolver} from '@src/Model/Planner/MakeableItemsResolver';
 import {Plan} from '@src/Model/Planner/Plan';
@@ -96,7 +95,7 @@ export class CalculatorInputTabComponent implements OnDestroy
 	public defaultWeightFor(itemClassName: string): number
 	{
 		const item = this.versionManager.activeVersionData()?.searchItemByClassName(itemClassName);
-		return item && item.form === ItemForm.Solid && item.sinkPoints > 0 ? item.sinkPoints / 10 : 1;
+		return item?.isSinkable() ? item.sinkPoints / 10 : 1;
 	}
 
 	public removeRow(index: number): void

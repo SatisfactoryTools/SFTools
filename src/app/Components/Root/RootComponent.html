@@ -1,1 +1,13 @@
+<!-- Outside the router outlet on purpose: the boot resolvers wait for the API,
+     so while it is unreachable nothing below the outlet exists yet and the page
+     would otherwise stay blank with no explanation. -->
+@if (serverStatus.retrying()) {
+    <div class="position-fixed top-0 start-50 translate-middle-x" style="margin-top: 60px; z-index: 1056; min-width: 320px; max-width: 600px;">
+        <div class="alert alert-warning mb-0 shadow-sm py-2 px-3 d-flex align-items-center gap-2" role="status">
+            <span class="spinner-border spinner-border-sm flex-shrink-0" aria-hidden="true"></span>
+            <span class="flex-grow-1">The server is not responding. Trying again&hellip;</span>
+        </div>
+    </div>
+}
+
 <router-outlet/>

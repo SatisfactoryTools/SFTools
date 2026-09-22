@@ -5,12 +5,13 @@ import {Router, RouterLink} from '@angular/router';
 import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {Mod} from '@src/Model/API/Schema/Mods/Mod';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
 /** All mods visible to the user - their own (manageable) and public ones - plus the create form. */
 @Component({
 	templateUrl: './ModListComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [DatePipe, FormsModule, RouterLink, BackLinkComponent],
+	imports: [DatePipe, FormsModule, RouterLink, BackLinkComponent, HelpButtonComponent],
 })
 export class ModListComponent
 {

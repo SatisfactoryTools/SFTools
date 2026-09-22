@@ -3,6 +3,9 @@ import {ContentComponent} from '@src/Components/Root/ContentComponent';
 import {HomeComponent} from '@src/Components/Home/HomeComponent';
 import {VersionContextComponent} from '@src/Components/Version/VersionContextComponent';
 import {CodexPageComponent} from '@src/Components/Codex/CodexPageComponent';
+import {HelpPageComponent} from '@src/Components/Help/HelpPageComponent';
+import {HelpArticleEditorComponent} from '@src/Components/HelpEditor/HelpArticleEditorComponent';
+import {HelpEditorComponent} from '@src/Components/HelpEditor/HelpEditorComponent';
 import {AboutComponent} from '@src/Components/About/AboutComponent';
 import {CreateVersionPageComponent} from '@src/Components/Versions/CreateVersionPageComponent';
 import {ModDetailComponent} from '@src/Components/Mods/ModDetailComponent';
@@ -12,6 +15,7 @@ import {PlannerComponent} from '@src/Components/Planner/PlannerComponent';
 import {SettingsComponent} from '@src/Components/Settings/SettingsComponent';
 import {ShareRedirectComponent} from '@src/Components/Shares/ShareRedirectComponent';
 import {AuthGuard} from '@src/Model/Auth/AuthGuard';
+import {HelpEditorGuard} from '@src/Model/Help/HelpEditorGuard';
 import {NotFoundComponent} from '@src/Components/Errors/NotFoundComponent';
 import {VersionsResolver} from '@src/Model/Data/VersionsResolver';
 import {VersionDataResolver} from '@src/Model/Data/VersionDataResolver';
@@ -34,6 +38,19 @@ export class RouteList
 	public static codexMatcher(segments: UrlSegment[]): UrlMatchResult | null
 	{
 		if (segments.length < 1 || segments[0].path !== 'codex') {
+			return null;
+		}
+		return {consumed: segments, posParams: {}};
+	}
+
+	/**
+	 * 'help' plus the article slug after it - one route, so moving between
+	 * articles reuses the component. Help is about the tool rather than a game
+	 * version, so it sits at the top level, outside any version.
+	 */
+	public static helpMatcher(segments: UrlSegment[]): UrlMatchResult | null
+	{
+		if (segments.length < 1 || segments.length > 2 || segments[0].path !== 'help') {
 			return null;
 		}
 		return {consumed: segments, posParams: {}};
@@ -77,8 +94,14 @@ export class RouteList
 					component: HomeComponent,
 				},
 				{
-					// Global settings - not scoped to a game version.
+					// Global settings - not scoped to a game version. The open
+					// section is part of the URL; a bare /settings redirects to
+					// the first one (links made before that still work).
 					path: 'settings',
+					component: SettingsComponent,
+				},
+				{
+					path: 'settings/:section',
 					component: SettingsComponent,
 				},
 				{
@@ -115,6 +138,28 @@ export class RouteList
 					// Standalone mod data scratchpad (produces JSON only).
 					path: 'mod-editor',
 					component: ModEditorComponent,
+				},
+				{
+					// Writing the tutorials - editors only. Must precede the
+					// help matcher, which would otherwise read 'editor' as a slug.
+					path: 'help/editor',
+					canActivate: [HelpEditorGuard],
+					children: [
+						{
+							path: '',
+							component: HelpEditorComponent,
+						},
+						{
+							// ':id' is an article uuid, or 'new'.
+							path: ':id',
+							component: HelpArticleEditorComponent,
+						},
+					],
+				},
+				{
+					// Tutorials. Must precede the ':versionSlug' catch-all.
+					matcher: RouteList.helpMatcher,
+					component: HelpPageComponent,
 				},
 				{
 					path: 'auth',

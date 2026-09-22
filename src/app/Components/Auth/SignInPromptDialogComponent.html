@@ -1,5 +1,5 @@
 @if (signInPrompt.visible()) {
-	<div class="prompt-backdrop" (click)="signInPrompt.continueWithout()">
+	<div class="prompt-backdrop" hotkeyBlock (click)="signInPrompt.continueWithout()">
 		<div class="prompt-dialog card border-secondary" role="dialog" aria-modal="true" aria-labelledby="sign-in-prompt-title" (click)="$event.stopPropagation()">
 			<button type="button" class="btn-close prompt-close" aria-label="Continue without signing in" (click)="signInPrompt.continueWithout()"></button>
 

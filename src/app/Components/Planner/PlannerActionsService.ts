@@ -6,6 +6,9 @@ import {GraphEdgeAmountRequest} from '@src/Components/Planner/GraphEdgeAmountReq
 import {FuelDisableRequest} from '@src/Components/Planner/FuelDisableRequest';
 import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
+import {NodeSplitRequest} from '@src/Components/Planner/NodeSplitRequest';
+import {SubplanBuildCountRequest} from '@src/Components/Planner/SubplanBuildCountRequest';
+import {SubplanScaleRequest} from '@src/Components/Planner/SubplanScaleRequest';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
@@ -60,6 +63,10 @@ export class PlannerActionsService
 	private readonly edgeAmountSubject = new Subject<GraphEdgeAmountRequest>();
 	public readonly edgeAmountRequests: Observable<GraphEdgeAmountRequest> = this.edgeAmountSubject.asObservable();
 
+	/** Split one node into a copy per incoming and/or outgoing connection. */
+	private readonly nodeSplitSubject = new Subject<NodeSplitRequest>();
+	public readonly nodeSplitRequests: Observable<NodeSplitRequest> = this.nodeSplitSubject.asObservable();
+
 	/** Ids of the nodes to remove from the graph (together with their edges). */
 	private readonly nodeDeleteSubject = new Subject<string[]>();
 	public readonly nodeDeleteRequests: Observable<string[]> = this.nodeDeleteSubject.asObservable();
@@ -75,6 +82,14 @@ export class PlannerActionsService
 	/** Id of the subplan (plan) to open as the active plan. */
 	private readonly subplanOpenSubject = new Subject<string>();
 	public readonly subplanOpenRequests: Observable<string> = this.subplanOpenSubject.asObservable();
+
+	/** Resize a whole subplan (its graph, requests and inputs) by a factor. */
+	private readonly subplanScaleSubject = new Subject<SubplanScaleRequest>();
+	public readonly subplanScaleRequests: Observable<SubplanScaleRequest> = this.subplanScaleSubject.asObservable();
+
+	/** Change how many times a subplan node builds its subplan. */
+	private readonly subplanBuildCountSubject = new Subject<SubplanBuildCountRequest>();
+	public readonly subplanBuildCountRequests: Observable<SubplanBuildCountRequest> = this.subplanBuildCountSubject.asObservable();
 
 	// Production-request shortcuts from node context menus: each edits the
 	// plan's solver inputs (settings/requests/inputs); automatic mode then
@@ -190,6 +205,11 @@ export class PlannerActionsService
 		this.edgeAmountSubject.next(request);
 	}
 
+	public requestNodeSplit(request: NodeSplitRequest): void
+	{
+		this.nodeSplitSubject.next(request);
+	}
+
 	public requestNodeDelete(nodeIds: string[]): void
 	{
 		this.nodeDeleteSubject.next(nodeIds);
@@ -208,6 +228,16 @@ export class PlannerActionsService
 	public requestSubplanOpen(subplanId: string): void
 	{
 		this.subplanOpenSubject.next(subplanId);
+	}
+
+	public requestSubplanScale(request: SubplanScaleRequest): void
+	{
+		this.subplanScaleSubject.next(request);
+	}
+
+	public requestSubplanBuildCount(request: SubplanBuildCountRequest): void
+	{
+		this.subplanBuildCountSubject.next(request);
 	}
 
 	public requestRecipeDisable(recipeClassName: string): void

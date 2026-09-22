@@ -28,6 +28,7 @@ import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 import {GraphMetrics} from '@src/Model/Planner/Graph/GraphMetrics';
 import {GraphNodeCapacityWarning} from '@src/Model/Planner/Graph/GraphNodeCapacityWarning';
 import {GraphNodeWarnings} from '@src/Model/Planner/Graph/GraphNodeWarnings';
+import {GraphWarningDetail} from '@src/Model/Planner/Graph/GraphWarningDetail';
 import {GraphWarningEntry} from '@src/Model/Planner/Graph/GraphWarningEntry';
 import {GraphReconciler} from '@src/Model/Planner/Graph/GraphReconciler';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
@@ -102,10 +103,21 @@ const LOCK_ROW2_Y = CORNER_INSET + SLOOP_ICON_SIZE + 3;
 // each a single column capped at SUBPLAN_IO_MAX rows (last row becomes "+N").
 const SUBPLAN_IO_MAX = 5;
 const SUBPLAN_IO_ICON = 20;
+// Room one icon column takes off the node's width (inset + icon + a gap
+// before the label), so a widened node keeps its name clear of the icons.
+const SUBPLAN_IO_COLUMN_WIDTH = 36;
 const SUBPLAN_IO_ROW_H = 20;
 const SUBPLAN_IO_TOP = 40;
 
 const NODE_STROKE_WIDTH = 1.5;
+// Fallback body colours baked into the registered shapes. x6 ships its `rect`
+// shape with a white body fill and black labels (meant for light canvases);
+// every node overrides them in addNode, but the defaults still sit underneath
+// and win the moment a per-node attribute fails to apply - which renders the
+// node as a white box on our dark canvas. Dark defaults make that impossible.
+const NODE_FALLBACK_FILL = '#141c28';
+const NODE_FALLBACK_STROKE = '#5c718a';
+const NODE_FALLBACK_TEXT = '#dde4ef';
 // Base label font sizes of regular nodes (title two sizes above the stat
 // lines) and the ⚠ indicator size; all scale with the node scale setting
 // (see registerPlannerShapes).
@@ -113,6 +125,11 @@ const NODE_FONT_SIZE = 12;
 const NODE_NAME_FONT_SIZE = 14;
 const NODE_NAME_CHAR_WIDTH = 8.75;
 const SUBPLAN_NAME_FONT_SIZE = 18;
+// Estimated character widths of the subplan label fonts (bold 18px name,
+// regular 13px stat line), used to widen the node to fit its plan name.
+const SUBPLAN_NAME_CHAR_WIDTH = 9.8;
+const SUBPLAN_STATS_CHAR_WIDTH = 7.4;
+const SUBPLAN_MAX_WIDTH = 520;
 const WARNING_ICON_SIZE = 14;
 
 // Recipe node label layout: recipe name (larger) pinned near the top, the
@@ -158,9 +175,47 @@ const HOVER_EDGE_STROKE_WIDTH = 2.5;
 const LABEL_BOX_FILL = '#141c28';
 const LABEL_BOX_STROKE = '#2e3d52';
 const LABEL_BOX_STROKE_WIDTH = 1;
+const LABEL_TEXT_FILL = '#dde4ef';
+const LABEL_BOX_RADIUS = 4;
 // A highlighted edge echoes its color on the label box border; the border
 // stays thin so the label reads dimmer than the thick selected-node outline.
 const LABEL_BOX_HIGHLIGHT_STROKE_WIDTH = 1.5;
+/**
+ * Replaces x6's own default edge label - a white box with black text, drawn
+ * for a light canvas - with the same label in our colours. Every label sets
+ * these itself in addEdge, but the default sits underneath and wins the
+ * moment one of those attributes fails to apply, turning the label into a
+ * white box; this way the fallback is a dark one (same reasoning as the
+ * node fallbacks above). Markup and position are x6's, left as they were.
+ */
+const EDGE_DEFAULT_LABEL = {
+	markup: [
+		{tagName: 'rect', selector: 'body'},
+		{tagName: 'text', selector: 'label'},
+	],
+	attrs: {
+		text: {
+			fill: LABEL_TEXT_FILL,
+			fontSize: 14,
+			textAnchor: 'middle',
+			textVerticalAnchor: 'middle',
+			pointerEvents: 'none',
+		},
+		rect: {
+			ref: 'label',
+			fill: LABEL_BOX_FILL,
+			stroke: LABEL_BOX_STROKE,
+			strokeWidth: LABEL_BOX_STROKE_WIDTH,
+			rx: LABEL_BOX_RADIUS,
+			ry: LABEL_BOX_RADIUS,
+			refWidth: 1,
+			refHeight: 1,
+			refX: 0,
+			refY: 0,
+		},
+	},
+	position: {distance: 0.5},
+};
 // Highlighted cells jump above the rest of the graph so dense plans don't
 // bury them behind unrelated nodes and labels. Edges sit above the raised
 // nodes (matching the base nodes-then-edges order) and the in-flight connect
@@ -230,7 +285,14 @@ function registerPlannerShapes(scale: number): void
 			{tagName: 'image', selector: 'capacityWarning', className: 'pn-capacity-warning'},
 		],
 		attrs: {
-			body: {refWidth: '100%', refHeight: '100%'},
+			// `rect` / `text` are x6's own defaults for the inherited rect shape
+			// (a white body and black labels); they are matched by element name,
+			// so they reach our body rect and every label underneath the
+			// selector-specific attrs below. Restated here in our colours so a
+			// node can never fall back to a white box with black text.
+			rect: {fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
+			text: {fill: NODE_FALLBACK_TEXT},
+			body: {refWidth: '100%', refHeight: '100%', fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
 			...statSloopAttrs,
 			machineIcon: {
 				refX: 0,
@@ -340,7 +402,10 @@ function registerPlannerShapes(scale: number): void
 			{tagName: 'image', selector: 'done', className: 'pn-done'},
 		],
 		attrs: {
-			body: {refWidth: '100%', refHeight: '100%'},
+			// Same dark fallbacks as the regular node shape - see the note there.
+			rect: {fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
+			text: {fill: NODE_FALLBACK_TEXT},
+			body: {refWidth: '100%', refHeight: '100%', fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
 			// Name and stats sit vertically centered between the IO icon columns,
 			// sized up to match the node being larger than regular ones.
 			name: {refX: 0.5, refY: 0.5, y: px(-10), textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fontSize: px(SUBPLAN_NAME_FONT_SIZE), fill: '#dde4ef'},
@@ -484,7 +549,12 @@ export class PlannerGraphService implements OnDestroy
 		this.edgeHoverListener = e => this.onEdgeHoverMove(e);
 		this.warningOverListener = e => this.onWarningHover(e);
 		this.warningOutListener = e => this.onWarningOut(e);
-		this.tooltipDismissListener = () => this.hideTooltip();
+		this.tooltipDismissListener = () => {
+			this.hideTooltip();
+			// The pointer left the canvas (or the window lost focus): no
+			// mouseleave arrives for the hovered edge if x6 was mid-press.
+			this.endEdgeHover();
+		};
 		// A gesture is one burst of vertex changes; the same quiet gap that
 		// triggers the debounced save also closes the gesture.
 		this.gestureResetSubscription = this.graphChangedSubject.pipe(debounceTime(500)).subscribe(() => {
@@ -693,14 +763,56 @@ export class PlannerGraphService implements OnDestroy
 			if (!warnings) {
 				return;
 			}
-			const lines = [
-				...warnings.inputs.map(warning => this.inputWarningLine(warning.itemClassName, warning.required, warning.supplied)),
-				...warnings.outputs.map(warning => this.outputWarningLine(warning.itemClassName, warning.produced, warning.consumed)),
-				...(warnings.capacity !== null ? [this.capacityWarningLine(warnings.capacity)] : []),
-			];
-			entries.push({nodeId: node.id, nodeName: node.getDisplayName(), lines});
+			entries.push({
+				nodeId: node.id,
+				nodeName: node.getDisplayName(),
+				nodeIcon: this.warningNodeIcon(node),
+				details: [
+					...warnings.inputs.map(warning => this.inputWarningDetail(warning.itemClassName, warning.required, warning.supplied)),
+					...warnings.outputs.map(warning => this.outputWarningDetail(warning.itemClassName, warning.produced, warning.consumed)),
+					...(warnings.capacity !== null ? [this.capacityWarningDetail(warnings.capacity)] : []),
+				],
+			});
 		});
 		return entries;
+	}
+
+	/**
+	 * Icon shown beside the node in the warnings list: the building for recipe
+	 * and generator nodes, the item for the IO ones. Unlike the on-canvas
+	 * icons this ignores the graph display settings - the list is a reading
+	 * aid, and it needs its pictures whatever the canvas shows.
+	 */
+	private warningNodeIcon(node: Node): string | null
+	{
+		if (node instanceof RecipeNode) {
+			return node.machine.icon;
+		}
+		if (node instanceof GeneratorNode) {
+			return node.generator.icon;
+		}
+		if (node instanceof ItemAmountNode) {
+			return node.item.icon;
+		}
+		return null;
+	}
+
+	/**
+	 * Middle of the canvas area that is actually visible (the panels cover its
+	 * edges), in graph coordinates - where a node added by hotkey rather than
+	 * by right-click lands.
+	 */
+	public canvasCenter(): GraphPoint
+	{
+		if (!this.x6Graph) {
+			return {x: 0, y: 0};
+		}
+		const box = this.x6Graph.container.getBoundingClientRect();
+		const insets = this.panelLayout.canvasInsets();
+		return this.x6Graph.clientToLocal(
+			box.left + (insets.left + box.width - insets.right) / 2,
+			box.top + (insets.top + box.height - insets.bottom) / 2,
+		);
 	}
 
 	public zoomIn(): void
@@ -883,11 +995,13 @@ export class PlannerGraphService implements OnDestroy
 			}
 			this.applyEdgeStyle(edge, true);
 		});
-		x6Graph.on('edge:mouseleave', ({edge}) => {
+		x6Graph.on('edge:mouseleave', ({view, edge}) => {
 			if (this.isTempConnect(edge)) {
 				return;
 			}
-			this.hoveredEdgeView = null;
+			if (this.hoveredEdgeView === view) {
+				this.hoveredEdgeView = null;
+			}
 			edge.removeTools();
 			this.applyEdgeStyle(edge, false);
 			this.hideCornerPreview();
@@ -1521,6 +1635,7 @@ export class PlannerGraphService implements OnDestroy
 					...fade,
 				},
 			},
+			defaultLabel: EDGE_DEFAULT_LABEL,
 			labels: [{
 				markup: [
 					{tagName: 'rect', selector: 'rect'},
@@ -1533,7 +1648,7 @@ export class PlannerGraphService implements OnDestroy
 					// The item name is the label's title - two sizes above the rate.
 					name: {
 						text: label.name,
-						fill: '#dde4ef',
+						fill: LABEL_TEXT_FILL,
 						fontSize: LABEL_NAME_FONT_SIZE * scale,
 						fontWeight: 'bold',
 						textAnchor: 'middle',
@@ -1544,7 +1659,7 @@ export class PlannerGraphService implements OnDestroy
 					},
 					rate: {
 						text: label.rate,
-						fill: '#dde4ef',
+						fill: LABEL_TEXT_FILL,
 						fontSize: LABEL_FONT_SIZE * scale,
 						textAnchor: 'middle',
 						textVerticalAnchor: 'middle',
@@ -1584,8 +1699,8 @@ export class PlannerGraphService implements OnDestroy
 						fill: showBox ? LABEL_BOX_FILL : 'transparent',
 						stroke: showBox ? LABEL_BOX_STROKE : 'none',
 						strokeWidth: showBox ? LABEL_BOX_STROKE_WIDTH : 0,
-						rx: 4,
-						ry: 4,
+						rx: LABEL_BOX_RADIUS,
+						ry: LABEL_BOX_RADIUS,
 						...fade,
 					},
 				},
@@ -1760,12 +1875,43 @@ export class PlannerGraphService implements OnDestroy
 		if (this.tooltipAnchor && !this.tooltipAnchor.contains(e.target as Element | null)) {
 			this.hideTooltip();
 		}
+		if (!this.hoveredEdgeView || !this.x6Graph) {
+			return;
+		}
+		// x6 stops listening on the container for the duration of a press
+		// (it switches to document events), so the mouseleave that ends a
+		// hover can be swallowed - by a corner drag that ends off the edge,
+		// or by a node drag passing over it - and the corner handles would
+		// stay behind. This listener is our own and keeps running, so the
+		// hover is also ended here once the pointer is seen somewhere that
+		// is not the hovered edge (its tools included). Not while a button
+		// is held: that pointer is dragging a handle away from the line.
+		if (e.buttons === 0 && this.x6Graph.findViewByElem(e.target as Element | null) !== this.hoveredEdgeView) {
+			this.endEdgeHover();
+			return;
+		}
 		// Read-only edges have no corner handles, so no ghost corner either.
-		if (this.readOnly || !this.hoveredEdgeView || !this.x6Graph) {
+		if (this.readOnly) {
 			return;
 		}
 		const point = this.x6Graph.clientToLocal(e.clientX, e.clientY);
 		this.moveCornerPreview(this.hoveredEdgeView, point.x, point.y);
+	}
+
+	/** Drops the hover state of the currently hovered edge: corner handles, ghost corner and line style. */
+	private endEdgeHover(): void
+	{
+		const view = this.hoveredEdgeView;
+		this.hoveredEdgeView = null;
+		this.hideCornerPreview();
+		if (view === null) {
+			return;
+		}
+		const edge = view.cell;
+		if (edge.isEdge()) {
+			edge.removeTools();
+			this.applyEdgeStyle(edge, false);
+		}
 	}
 
 	/**
@@ -2219,7 +2365,7 @@ export class PlannerGraphService implements OnDestroy
 	private baseSizeFor(node: Node): {width: number; height: number}
 	{
 		if (node instanceof SubplanNode) {
-			return {width: GraphMetrics.SUBPLAN_NODE_WIDTH, height: GraphMetrics.SUBPLAN_NODE_HEIGHT};
+			return this.subplanSize(node);
 		}
 		if (node instanceof RecipeNode) {
 			const stats = this.recipeStats(node);
@@ -2242,6 +2388,26 @@ export class PlannerGraphService implements OnDestroy
 			return {width, height: NODE_HEIGHT};
 		}
 		return {width: NODE_WIDTH, height: NODE_HEIGHT};
+	}
+
+	/**
+	 * Subplan node box: the standard size, widened when the plan name (or the
+	 * line under it) needs more room than sits between the two IO icon
+	 * columns - like recipe nodes, rather than letting the name run over the
+	 * node's edges.
+	 */
+	private subplanSize(node: SubplanNode): {width: number; height: number}
+	{
+		const textWidth = Math.max(
+			this.subplanDisplayName(node).length * SUBPLAN_NAME_CHAR_WIDTH,
+			this.subplanStats(node).length * SUBPLAN_STATS_CHAR_WIDTH,
+		);
+		const hasIoIcons = this.settings.graph().showSubplanItemIcons && (node.inputs.length > 0 || node.outputs.length > 0);
+		const padding = hasIoIcons ? SUBPLAN_IO_COLUMN_WIDTH * 2 : RECIPE_TEXT_PADDING_X;
+		return {
+			width: Math.min(SUBPLAN_MAX_WIDTH, Math.max(GraphMetrics.SUBPLAN_NODE_WIDTH, Math.ceil(textWidth + padding))),
+			height: GraphMetrics.SUBPLAN_NODE_HEIGHT,
+		};
 	}
 
 	/** Left/right horizontal padding around the label - wider on the left when a left icon must be cleared. */
@@ -2461,6 +2627,9 @@ export class PlannerGraphService implements OnDestroy
 				title: `${node.getDisplayName()} - locked`,
 				lines: [
 					'Subplan nodes are always locked. The calculation connects to their inputs and outputs but never changes what is inside.',
+					...(node.buildCount > 1
+						? [`This subplan is built ${node.buildCount} times here, so it counts ${node.buildCount} times everywhere.`]
+						: []),
 					'Double-click the node to open and edit the subplan.',
 				],
 			};
@@ -2474,28 +2643,70 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	private inputWarningLine(itemClassName: string, required: number, supplied: number): string
+	/**
+	 * The hover tooltips show one warning per line; the warnings list lays the
+	 * same parts out itself, so both come from the detail builders below.
+	 */
+	private warningLine(detail: GraphWarningDetail): string
 	{
-		const item = this.versionManager.activeVersionData()?.searchItemByClassName(itemClassName) ?? null;
-		const name = item?.name ?? itemClassName;
-		return `${name} - needs ${this.rateFormatter.rate(required, item)}, receiving ${this.rateFormatter.rate(supplied, item)}`;
+		return `${detail.title} - ${detail.text}`;
 	}
 
-	/** Clock-precision percentage (4 decimals) - a shortfall of a single 0.0001% clock step must read as more than "100%". */
+	private inputWarningLine(itemClassName: string, required: number, supplied: number): string
+	{
+		return this.warningLine(this.inputWarningDetail(itemClassName, required, supplied));
+	}
+
 	private capacityWarningLine(warning: GraphNodeCapacityWarning): string
 	{
-		return `Not enough machines to reach the target: needs ${this.rateFormatter.clock(warning.target / warning.capacity * 100)}% `
-			+ 'of what the machines can do. Add machines or raise the clock speeds.';
+		return this.warningLine(this.capacityWarningDetail(warning));
 	}
 
 	private outputWarningLine(itemClassName: string, produced: number, consumed: number): string
 	{
-		const item = this.versionManager.activeVersionData()?.searchItemByClassName(itemClassName) ?? null;
-		const name = item?.name ?? itemClassName;
+		return this.warningLine(this.outputWarningDetail(itemClassName, produced, consumed));
+	}
+
+	private inputWarningDetail(itemClassName: string, required: number, supplied: number): GraphWarningDetail
+	{
+		const item = this.warningItem(itemClassName);
+		return {
+			kind: 'input',
+			iconHash: item?.icon ?? null,
+			title: item?.name ?? itemClassName,
+			text: `needs ${this.rateFormatter.rate(required, item)}, receiving ${this.rateFormatter.rate(supplied, item)}`,
+		};
+	}
+
+	/** Clock-precision percentage (4 decimals) - a shortfall of a single 0.0001% clock step must read as more than "100%". */
+	private capacityWarningDetail(warning: GraphNodeCapacityWarning): GraphWarningDetail
+	{
+		return {
+			kind: 'capacity',
+			iconHash: null,
+			title: 'Machines',
+			text: `the target needs ${this.rateFormatter.clock(warning.target / warning.capacity * 100)}% of what the `
+				+ 'machines can do - add machines or raise the clock speeds',
+		};
+	}
+
+	private outputWarningDetail(itemClassName: string, produced: number, consumed: number): GraphWarningDetail
+	{
+		const item = this.warningItem(itemClassName);
+		const shared = {iconHash: item?.icon ?? null, title: item?.name ?? itemClassName};
 		if (produced > consumed) {
-			return `${name} - ${this.rateFormatter.rate(produced - consumed, item)} unconsumed`;
+			return {...shared, kind: 'surplus', text: `${this.rateFormatter.rate(produced - consumed, item)} unconsumed`};
 		}
-		return `${name} - sending ${this.rateFormatter.rate(consumed, item)}, producing only ${this.rateFormatter.rate(produced, item)}`;
+		return {
+			...shared,
+			kind: 'output',
+			text: `sending ${this.rateFormatter.rate(consumed, item)}, producing only ${this.rateFormatter.rate(produced, item)}`,
+		};
+	}
+
+	private warningItem(itemClassName: string): Item | null
+	{
+		return this.versionManager.activeVersionData()?.searchItemByClassName(itemClassName) ?? null;
 	}
 
 	private generatorStats(node: GeneratorNode): string
@@ -2512,10 +2723,12 @@ export class PlannerGraphService implements OnDestroy
 
 	private subplanStats(node: SubplanNode): string
 	{
+		// A subplan built more than once says so - its rates are the total.
+		const built = node.buildCount > 1 ? `built ${node.buildCount}× - ` : '';
 		if (node.inputs.length === 0 && node.outputs.length === 0) {
-			return 'Subplan - empty';
+			return `Subplan - ${built}empty`;
 		}
-		return `Subplan - ${node.inputs.length} in, ${node.outputs.length} out`;
+		return `Subplan - ${built}${node.inputs.length} in, ${node.outputs.length} out`;
 	}
 
 	/**

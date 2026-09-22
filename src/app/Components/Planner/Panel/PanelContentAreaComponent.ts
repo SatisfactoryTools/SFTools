@@ -2,8 +2,9 @@ import {AfterViewChecked, AfterViewInit, Component, ElementRef, Input, OnDestroy
 import {NgComponentOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faAnglesRight, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {PanelSide} from '@src/Components/Planner/Panel/PanelSide';
@@ -14,7 +15,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 @Component({
 	selector: 'panel-content-area',
 	templateUrl: './PanelContentAreaComponent.html',
-	imports: [NgComponentOutlet, FaIconComponent, BsDropdownModule, TooltipDirective],
+	imports: [NgComponentOutlet, FaIconComponent, BsDropdownModule, AppTooltipDirective, HelpButtonComponent],
 	changeDetection: ChangeDetectionStrategy.Eager,
 	styles: [`
 		:host { display: block; width: 100%; height: 100%; position: relative; }
@@ -82,6 +83,12 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 		}
 		.tab:hover .tab-close, .tab.active .tab-close { color: #8899bb; }
 		.tab-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+		.tab-help {
+			display: flex;
+			align-items: center;
+			flex: none;
+			padding: 0 0.4rem;
+		}
 		.tab-overflow { display: flex; flex: none; }
 		.tab-more {
 			width: 30px;

@@ -1,13 +1,11 @@
 import {Injectable, Signal, computed, signal} from '@angular/core';
 import {Router} from '@angular/router';
 import {Observable, of} from 'rxjs';
-import {catchError, filter, map, switchMap, take, tap, timeout} from 'rxjs/operators';
+import {filter, map, switchMap, take, tap, timeout} from 'rxjs/operators';
 import {SharesApiService} from '@src/Model/API/SharesApiService';
-import {VersionsApiService} from '@src/Model/API/VersionsApiService';
 import {SharedFolderNode} from '@src/Model/API/Schema/Shares/SharedFolderNode';
 import {SharedPlanNode} from '@src/Model/API/Schema/Shares/SharedPlanNode';
 import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
-import {AuthService} from '@src/Model/Auth/AuthService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {NotificationService} from '@src/Model/NotificationService';
 import {Plan} from '@src/Model/Planner/Plan';
@@ -17,6 +15,7 @@ import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
 import {ShareHydration} from '@src/Model/Shares/ShareHydration';
 import {ShareImportService} from '@src/Model/Shares/ShareImportService';
 import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
+import {ShareVersionLinker} from '@src/Model/Shares/ShareVersionLinker';
 import {SharePayloadHydrator} from '@src/Model/Shares/SharePayloadHydrator';
 import {VisitedSharesManager} from '@src/Model/Shares/VisitedSharesManager';
 
@@ -63,14 +62,13 @@ export class ActiveShareManager
 
 	public constructor(
 		private readonly sharesApi: SharesApiService,
-		private readonly versionsApi: VersionsApiService,
+		private readonly versionLinker: ShareVersionLinker,
 		private readonly versionManager: VersionManager,
 		private readonly visitedShares: VisitedSharesManager,
 		private readonly hydrator: SharePayloadHydrator,
 		private readonly shareImport: ShareImportService,
 		private readonly shareTrees: ShareTreeCache,
 		private readonly planManager: PlanManager,
-		private readonly authService: AuthService,
 		private readonly notifications: NotificationService,
 		private readonly router: Router,
 	)
@@ -89,7 +87,7 @@ export class ActiveShareManager
 			return of(this.cachedPayload.payload);
 		}
 		return this.sharesApi.getShare(shareId).pipe(
-			switchMap(payload => this.ensureVersion(payload).pipe(map(() => payload))),
+			switchMap(payload => this.versionLinker.ensure(payload.version.id).pipe(map(() => payload))),
 			tap(payload => {
 				this.cachedPayload = {shareId, payload};
 				this.shareTrees.record(payload);
@@ -276,34 +274,6 @@ export class ActiveShareManager
 			error: () => this.notifications.show(`Could not switch to ${version.name}. The shared plan was not added.`),
 		});
 		void this.router.navigate(['/', slug, 'planner']);
-	}
-
-	/**
-	 * Silently adds the share's version to the viewer's list when missing
-	 * (versions are shared, deduplicated objects - this is just a link).
-	 * Authenticated viewers get a server-side link first; either way the
-	 * version becomes usable immediately via registerCreatedVersion.
-	 */
-	private ensureVersion(payload: SharePayload): Observable<void>
-	{
-		if (this.versionManager.versions().some(v => v.id === payload.version.id)) {
-			return of(void 0);
-		}
-		return this.versionsApi.getVersion(payload.version.id).pipe(
-			switchMap(version => {
-				if (!this.authService.isAuthenticated()) {
-					return of(version);
-				}
-				// A failed link is tolerated - the version still works this
-				// session, and reopening the share retries the link.
-				return this.versionsApi.linkVersions([version.id]).pipe(
-					catchError(() => of(null)),
-					map(() => version),
-				);
-			}),
-			tap(version => this.versionManager.registerCreatedVersion(version)),
-			map(() => void 0),
-		);
 	}
 
 }

@@ -2,7 +2,7 @@
 	<back-link link="/" label="Home"></back-link>
 
 	<div class="mt-3 mb-3">
-		<h2 class="mb-1">Create custom version</h2>
+		<h2 class="mb-1 d-inline-flex align-items-center gap-2">Create custom version <help-button topic="versions.custom"/></h2>
 		<p class="text-secondary mb-0">
 			Make your own game version based on a public one. The planner and codex then treat it like any other version.
 		</p>
@@ -109,7 +109,9 @@
 					@if (availableModOptions.length > 0) {
 						<item-picker [options]="availableModOptions" value="" placeholder="+ Add a mod…" (valueChange)="addMod($event)"></item-picker>
 					} @else if (picked.length === 0) {
-						<div class="text-secondary small fst-italic">No mods available.</div>
+						<div class="text-secondary small fst-italic">
+							{{ modsFailed ? 'The mod list could not be loaded. Reload the page to try again.' : 'No mods available.' }}
+						</div>
 					}
 					@if (!auth.isAuthenticated()) {
 						<info-note>

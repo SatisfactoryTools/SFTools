@@ -107,18 +107,20 @@ export class NodeResizer
 	/**
 	 * Replacement at an absolute size - the item rate or the generator
 	 * machine count. A user edit, so it comes back locked. Null for recipes
-	 * (their own editor handles them) and subplans.
+	 * (their own editor handles them) and subplans. Pass `id` to get a
+	 * separate copy instead of a replacement - that is what splitting one
+	 * node into several needs.
 	 */
-	public withSize(node: Node, size: number): Node | null
+	public withSize(node: Node, size: number, id: string = node.id): Node | null
 	{
 		if (size <= 0) {
 			return null;
 		}
 		if (node instanceof GeneratorNode) {
-			return this.placed(node, new GeneratorNode(node.id, size, node.generator, node.fuel, node.clockSpeed), true);
+			return this.placed(node, new GeneratorNode(id, size, node.generator, node.fuel, node.clockSpeed), true);
 		}
 		if (node instanceof ItemAmountNode) {
-			return this.replacedItemNode(node, size, true);
+			return this.replacedItemNode(node, size, true, id);
 		}
 		return null;
 	}
@@ -194,19 +196,19 @@ export class NodeResizer
 			.reduce((sum, io) => sum + io.maxAmount, 0);
 	}
 
-	private replacedItemNode(node: ItemAmountNode, amount: number, locked: boolean): ItemAmountNode
+	private replacedItemNode(node: ItemAmountNode, amount: number, locked: boolean, id: string = node.id): ItemAmountNode
 	{
 		let replacement: ItemAmountNode;
 		if (node instanceof InputNode) {
-			replacement = new InputNode(node.id, amount, node.item);
+			replacement = new InputNode(id, amount, node.item);
 		} else if (node instanceof MineNode) {
-			replacement = new MineNode(node.id, amount, node.item);
+			replacement = new MineNode(id, amount, node.item);
 		} else if (node instanceof ProductNode) {
-			replacement = new ProductNode(node.id, amount, node.item);
+			replacement = new ProductNode(id, amount, node.item);
 		} else if (node instanceof ByproductNode) {
-			replacement = new ByproductNode(node.id, amount, node.item);
+			replacement = new ByproductNode(id, amount, node.item);
 		} else {
-			replacement = new SinkNode(node.id, amount, node.item);
+			replacement = new SinkNode(id, amount, node.item);
 		}
 		return this.placed(node, replacement, locked);
 	}

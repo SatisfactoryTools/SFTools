@@ -1,5 +1,6 @@
-import {Component, EventEmitter, Output, ChangeDetectionStrategy, computed} from '@angular/core';
+import {Component, EventEmitter, Output, ChangeDetectionStrategy, computed, HostListener} from '@angular/core';
 import {FormsModule} from '@angular/forms';
+import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -13,7 +14,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 	selector: 'icon-picker-dialog',
 	templateUrl: './IconPickerDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, GameIconComponent],
+	imports: [FormsModule, GameIconComponent, HotkeyBlockDirective],
 	styles: [`
 		.icon-picker-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 1060; display: flex; align-items: center; justify-content: center; }
 		.icon-picker-dialog { width: min(560px, 92vw); max-height: 80vh; display: flex; flex-direction: column; }
@@ -27,6 +28,14 @@ export class IconPickerDialogComponent
 	@Output() public readonly pick = new EventEmitter<string>();
 	@Output() public readonly none = new EventEmitter<void>();
 	@Output() public readonly close = new EventEmitter<void>();
+
+	/** Escape leaves the dialog, like clicking outside it does. */
+	@HostListener('document:keydown.escape')
+	public onEscape(): void
+	{
+		this.close.emit();
+	}
+
 
 	public search = '';
 

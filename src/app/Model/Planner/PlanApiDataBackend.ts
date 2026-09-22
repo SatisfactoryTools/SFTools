@@ -42,7 +42,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			concatMap(store => this.syncToApi(store).pipe(
 				catchError(err => {
 					console.error('Plan API sync failed:', err);
-					this.notifications.show('Could not save to your account. Your changes are saved in this browser.');
+					this.notifications.show('Could not save your plans to your account. They are still open here, but they will be lost if you close the page.', 10_000);
 					return of(void 0);
 				}),
 			)),
@@ -168,6 +168,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 					versionId, p.id, p.name, p.folderId, p.parentPlanId,
 					serializedData.get(p.id)!,
 					p.description || undefined,
+					p.linkAccess,
 				).pipe(tap(res => this.serverRevisions.set(p.id, res.revision))),
 			));
 
@@ -180,6 +181,8 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 				const needsDataUpdate =
 					oldP.name !== p.name ||
 					oldP.description !== p.description ||
+					// linkAccess is a column of its own, not part of the data JSON.
+					(oldP.linkAccess ?? true) !== (p.linkAccess ?? true) ||
 					serializedData.get(p.id) !== this.lastSyncedData.get(p.id);
 
 				if (needsDataUpdate) {
@@ -188,6 +191,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 						name: p.name,
 						description: p.description || null,
 						data: serializedData.get(p.id)!,
+						linkAccess: p.linkAccess ?? true,
 					}).pipe(tap(res => this.serverRevisions.set(p.id, res.revision))));
 				}
 
@@ -297,6 +301,8 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			},
 			iconClassName: data.iconClassName,
 			order: data.order,
+			// Plans stored before the column existed come back without it - those are open.
+			linkAccess: schema.linkAccess ?? true,
 			revision: schema.revision,
 		};
 	}

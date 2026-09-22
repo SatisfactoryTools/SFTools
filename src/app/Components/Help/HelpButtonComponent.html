@@ -1,0 +1,11 @@
+@if (article(); as target) {
+	<a
+		class="help-button"
+		[attr.href]="href()"
+		[tooltip]="'Help: ' + target.title"
+		[placement]="placement"
+		container="body"
+		[attr.aria-label]="'Help: ' + target.title"
+		(click)="open($event)"
+	><fa-icon [icon]="faCircleQuestion"></fa-icon></a>
+}

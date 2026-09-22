@@ -40,6 +40,36 @@ export class SharePayloadHydrator
 		return {folders, plans, idMap};
 	}
 
+	/**
+	 * A plan opened by its own URL (see ActivePlanLinkManager), hydrated under its
+	 * ORIGINAL ids. Unlike a share this is the one live plan the URL names: keeping the
+	 * ids means the address bar, the active plan and the store all agree, and nothing
+	 * can collide - the viewer either owns the plan (and then never gets here) or does
+	 * not have it at all.
+	 */
+	public hydrateLivePlan(root: SharedPlanNode): ShareHydration
+	{
+		const idMap = new Map<string, string>();
+		this.mapPlanIds(root, idMap, false);
+
+		const plans: Plan[] = [];
+		this.copyPlan(root, null, null, idMap, plans);
+
+		return {folders: [], plans, idMap};
+	}
+
+	/** A plan node copied into plans of the viewer's own, under fresh ids. */
+	public hydratePlanCopy(root: SharedPlanNode): ShareHydration
+	{
+		const idMap = new Map<string, string>();
+		this.mapPlanIds(root, idMap);
+
+		const plans: Plan[] = [];
+		this.copyPlan(root, null, null, idMap, plans);
+
+		return {folders: [], plans, idMap};
+	}
+
 	private mapFolderIds(node: SharedFolderNode, idMap: Map<string, string>): void
 	{
 		idMap.set(node.id, crypto.randomUUID());
@@ -47,10 +77,10 @@ export class SharePayloadHydrator
 		node.plans.forEach(plan => this.mapPlanIds(plan, idMap));
 	}
 
-	private mapPlanIds(node: SharedPlanNode, idMap: Map<string, string>): void
+	private mapPlanIds(node: SharedPlanNode, idMap: Map<string, string>, fresh = true): void
 	{
-		idMap.set(node.id, crypto.randomUUID());
-		node.subplans.forEach(sub => this.mapPlanIds(sub, idMap));
+		idMap.set(node.id, fresh ? crypto.randomUUID() : node.id);
+		node.subplans.forEach(sub => this.mapPlanIds(sub, idMap, fresh));
 	}
 
 	private copyFolder(

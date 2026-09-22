@@ -1,0 +1,176 @@
+<div class="container py-4">
+	<back-link link="/help" label="Back to help"/>
+
+	<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+		<h1 class="h3 mb-0">Help editor</h1>
+		<div class="d-flex gap-2">
+			<button type="button" class="btn btn-outline-secondary btn-sm" (click)="republish()">
+				Rebuild published files
+			</button>
+			<a class="btn btn-primary btn-sm" routerLink="/help/editor/new">New article</a>
+		</div>
+	</div>
+
+	<info-note class="mb-3">
+		Saving an article republishes the files readers load, so a change is live right away.
+		Drafts stay out of those files until you tick “Published”.
+	</info-note>
+
+	<collapsible-card title="Sections" [open]="sectionsOpen" (toggle)="sectionsOpen = !sectionsOpen">
+		@if (sectionsOpen) {
+		<div class="card-body">
+		<table class="table table-dark table-sm align-middle mb-2">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th style="width: 200px;">Id</th>
+					<th style="width: 90px;">Order</th>
+					<th style="width: 90px;">Articles</th>
+					<th style="width: 40px;"></th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (category of categories(); track category.id) {
+					<tr>
+						<td><input class="form-control form-control-sm" [ngModel]="category.name" (ngModelChange)="renameCategory(category, $event)"></td>
+						<td class="text-secondary">{{ category.slug }}</td>
+						<td><input type="number" class="form-control form-control-sm" [ngModel]="category.position" (ngModelChange)="moveCategory(category, $event)"></td>
+						<td class="text-secondary">{{ category.articleCount }}</td>
+						<td>
+							<button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteCategory(category)" tooltip="Delete section">
+								<fa-icon [icon]="faTrash"></fa-icon>
+							</button>
+						</td>
+					</tr>
+				}
+				<tr>
+					<td><input class="form-control form-control-sm" placeholder="New section name" [(ngModel)]="newCategoryName"></td>
+					<td><input class="form-control form-control-sm" placeholder="new-section-id" [(ngModel)]="newCategorySlug"></td>
+					<td colspan="3">
+						<button type="button" class="btn btn-sm btn-outline-primary" (click)="addCategory()">Add section</button>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+		<div class="form-text">
+			Deleting a section keeps its articles; they move to “Other” until you give them another section.
+		</div>
+		</div>
+		}
+	</collapsible-card>
+
+	<collapsible-card title="Help topics" [open]="topicsOpen" (toggle)="topicsOpen = !topicsOpen">
+		@if (topicsOpen) {
+		<div class="card-body">
+			<div class="form-text mb-2">
+				Every id a question-mark button in the app asks for, and the article that answers it.
+				Give an article the id to put help behind that button; a topic nothing claims simply
+				hides its button. One article per topic.
+			</div>
+			<p class="mb-3">
+				<span class="badge text-bg-success">{{ answeredTopics() }} answered</span>
+				<span class="badge text-bg-secondary ms-1">{{ totalTopics() - answeredTopics() }} still open</span>
+			</p>
+
+			@for (group of topicGroups(); track group.label) {
+				<h3 class="h6 mb-1">{{ group.label }}</h3>
+				<div class="form-text mb-2">{{ group.description }}</div>
+				<table class="table table-dark table-sm align-middle mb-4">
+					<thead>
+						<tr>
+							<th style="width: 230px;">Topic id</th>
+							<th>What it answers</th>
+							<th style="width: 260px;">Article</th>
+						</tr>
+					</thead>
+					<tbody>
+						@for (topic of group.topics; track topic.topic) {
+							<tr>
+								<td><code class="text-info">{{ topic.topic }}</code></td>
+								<td>
+									{{ topic.label }}
+									<div class="form-text mb-0">{{ topic.where }}</div>
+								</td>
+								<td>
+									@if (topic.claim; as claim) {
+										<a [routerLink]="['/help/editor', claim.id]">{{ claim.title }}</a>
+										@if (claim.anchor !== '') {
+											<span class="text-secondary small">#{{ claim.anchor }}</span>
+										}
+										@if (!claim.published) {
+											<span class="badge text-bg-secondary ms-1">Draft</span>
+										}
+									} @else {
+										<span class="text-secondary">No article yet</span>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+
+			@if (unknownTopics().length > 0) {
+				<info-note kind="warning" class="mb-2">
+					These ids are claimed by an article but no button asks for them - most likely a typo.
+					Fix the id in the article, or add it to HelpTopicId if a new button needs it.
+				</info-note>
+				<table class="table table-dark table-sm align-middle mb-0">
+					<tbody>
+						@for (topic of unknownTopics(); track topic.topic) {
+							<tr>
+								<td style="width: 230px;"><code class="text-warning">{{ topic.topic }}</code></td>
+								<td>
+									@if (topic.claim; as claim) {
+										<a [routerLink]="['/help/editor', claim.id]">{{ claim.title }}</a>
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+		</div>
+		}
+	</collapsible-card>
+
+	<h2 class="h5 mt-4 mb-2">Articles</h2>
+	@if (articles().length === 0) {
+		<p class="text-secondary">No articles yet.</p>
+	} @else {
+		<table class="table table-dark table-sm align-middle">
+			<thead>
+				<tr>
+					<th>Title</th>
+					<th style="width: 200px;">Slug</th>
+					<th style="width: 160px;">Section</th>
+					<th style="width: 110px;">State</th>
+					<th style="width: 140px;">Updated</th>
+					<th style="width: 90px;"></th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (article of articles(); track article.id) {
+					<tr>
+						<td><a [routerLink]="['/help/editor', article.id]">{{ article.title }}</a></td>
+						<td class="text-secondary">{{ article.slug }}</td>
+						<td class="text-secondary">{{ categoryName(article.category) }}</td>
+						<td>
+							@if (article.published) {
+								<span class="badge text-bg-success">Published</span>
+							} @else {
+								<span class="badge text-bg-secondary">Draft</span>
+							}
+						</td>
+						<td class="text-secondary small">{{ article.updatedAt | date:'short' }}</td>
+						<td>
+							<button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteArticle(article)" tooltip="Delete article">
+								<fa-icon [icon]="faTrash"></fa-icon>
+							</button>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	}
+</div>

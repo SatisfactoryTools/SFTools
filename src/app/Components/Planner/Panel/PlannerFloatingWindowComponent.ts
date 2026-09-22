@@ -2,9 +2,10 @@ import {AfterViewChecked, AfterViewInit, Component, ElementRef, Input, OnDestroy
 import {NgComponentOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faAnglesRight, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {FloatingGroup} from '@src/Components/Planner/Panel/FloatingGroup';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {TabOverflowMeasurer} from '@src/Components/Planner/Panel/TabOverflowMeasurer';
@@ -14,7 +15,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 @Component({
 	selector: 'planner-floating-window',
 	templateUrl: './PlannerFloatingWindowComponent.html',
-	imports: [NgComponentOutlet, FaIconComponent, BsDropdownModule, TooltipDirective],
+	imports: [NgComponentOutlet, FaIconComponent, BsDropdownModule, AppTooltipDirective, HelpButtonComponent],
 	changeDetection: ChangeDetectionStrategy.Eager,
 	styles: [`
 		:host {
@@ -85,6 +86,12 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 		.tab-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
 		.fw-grab { flex: 1; }
 		.fw-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: panel; }
+		.tab-help {
+			display: flex;
+			align-items: center;
+			flex: none;
+			padding: 0 0.4rem;
+		}
 		.tab-overflow { display: flex; flex: none; }
 		.tab-more {
 			width: 30px;

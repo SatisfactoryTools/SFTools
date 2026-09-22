@@ -1,0 +1,86 @@
+<div class="container-fluid py-3">
+	@if (slug() !== '') {
+		<div class="help-shell help-shell-article article-shell">
+			<nav class="article-nav" aria-label="All help articles">
+				<a class="nav-home" [helpLink]="''">
+					<fa-icon [icon]="faChevronLeft"></fa-icon>
+					All articles
+				</a>
+				@for (group of navGroups(); track group.id) {
+					<div class="nav-group">
+						<button
+							type="button"
+							class="nav-group-name"
+							[attr.aria-expanded]="unfoldedCategories().has(group.id)"
+							(click)="toggleCategory(group.id)"
+						>
+							<fa-icon
+								class="nav-group-chevron"
+								[icon]="unfoldedCategories().has(group.id) ? faChevronDown : faChevronRight"
+							></fa-icon>
+							{{ group.name }}
+							<span class="nav-group-count">{{ group.articles.length }}</span>
+						</button>
+						@if (unfoldedCategories().has(group.id)) {
+							<div class="nav-group-articles">
+								@for (entry of group.articles; track entry.slug) {
+									<a class="nav-link" [class.current]="entry.slug === slug()" [helpLink]="entry.slug">{{ entry.title }}</a>
+								}
+							</div>
+						}
+					</div>
+				}
+			</nav>
+
+			<div>
+				<a class="back small" [helpLink]="''">
+					<fa-icon [icon]="faChevronLeft"></fa-icon>
+					All articles
+				</a>
+				<help-article [slug]="slug()"/>
+			</div>
+		</div>
+	} @else {
+		<div class="help-shell">
+			<div class="index-head">
+				<div>
+					<h1 class="h4 mb-1">Help</h1>
+					<p class="text-secondary small mb-0">Short guides to the planner, the codex and the rest of the site.</p>
+				</div>
+				@if (canEdit()) {
+					<a class="btn btn-sm btn-outline-secondary flex-shrink-0" routerLink="/help/editor">Edit help</a>
+				}
+			</div>
+
+			@if (!help.loaded()) {
+				<div class="text-secondary">Loading…</div>
+			} @else if (!help.hasArticles()) {
+				<info-note>There are no help articles yet.</info-note>
+			} @else {
+				<div class="filter position-relative mb-4">
+					<fa-icon class="filter-icon" [icon]="faMagnifyingGlass"></fa-icon>
+					<input
+						type="search"
+						class="form-control form-control-sm"
+						placeholder="Filter articles…"
+						[ngModel]="filter()"
+						(ngModelChange)="filter.set($event)"
+					>
+				</div>
+
+				@for (group of groups(); track group.id) {
+					<section class="category">
+						<h2 class="category-title">{{ group.name }}</h2>
+						<div class="article-grid">
+							@for (entry of group.articles; track entry.slug) {
+								<help-article-card [article]="entry"/>
+							}
+						</div>
+					</section>
+				} @empty {
+					<div class="text-secondary">No article matches.</div>
+				}
+			}
+		</div>
+	}
+</div>

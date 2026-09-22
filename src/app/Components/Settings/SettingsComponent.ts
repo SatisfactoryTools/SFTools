@@ -1,10 +1,13 @@
-import {Component, ChangeDetectionStrategy, signal, Signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, OnDestroy, signal, Signal} from '@angular/core';
+import {ActivatedRoute, Router} from '@angular/router';
+import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faHashtag, faDiagramProject, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
+import {faHashtag, faDiagramProject, faKeyboard, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {SettingsAccountComponent} from '@src/Components/Settings/SettingsAccountComponent';
 import {SettingsGraphComponent} from '@src/Components/Settings/SettingsGraphComponent';
+import {SettingsHotkeysComponent} from '@src/Components/Settings/SettingsHotkeysComponent';
 import {SettingsNumbersComponent} from '@src/Components/Settings/SettingsNumbersComponent';
 import {SettingsPlannerComponent} from '@src/Components/Settings/SettingsPlannerComponent';
 import {SettingsSection} from '@src/Components/Settings/SettingsSection';
@@ -17,7 +20,7 @@ import {AuthService} from '@src/Model/Auth/AuthService';
 @Component({
 	templateUrl: './SettingsComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, BackLinkComponent, InfoNoteComponent, SettingsNumbersComponent, SettingsGraphComponent, SettingsPlannerComponent, SettingsAccountComponent],
+	imports: [FaIconComponent, BackLinkComponent, InfoNoteComponent, SettingsNumbersComponent, SettingsGraphComponent, SettingsPlannerComponent, SettingsAccountComponent, SettingsHotkeysComponent],
 	styles: [`
 		.settings-nav {
 			display: flex;
@@ -70,26 +73,49 @@ import {AuthService} from '@src/Model/Auth/AuthService';
 		}
 	`],
 })
-export class SettingsComponent
+export class SettingsComponent implements OnDestroy
 {
 
 	public readonly sections: SettingsSection[] = [
 		{id: 'numbers', label: 'Numbers', icon: faHashtag},
 		{id: 'graph', label: 'Graph', icon: faDiagramProject},
 		{id: 'planner', label: 'Planner', icon: faTableColumns},
+		{id: 'hotkeys', label: 'Hotkeys', icon: faKeyboard},
 		{id: 'account', label: 'Account', icon: faUser},
 	];
 
-	private readonly activeSectionSignal = signal<string>('numbers');
+	private readonly activeSectionSignal = signal<string>(this.sections[0].id);
 	public readonly activeSection: Signal<string> = this.activeSectionSignal.asReadonly();
 
-	public constructor(protected readonly auth: AuthService)
+	private readonly subscription: Subscription;
+
+	public constructor(
+		protected readonly auth: AuthService,
+		private readonly route: ActivatedRoute,
+		private readonly router: Router,
+	)
 	{
+		// The open section lives in the URL, so a section can be linked to and
+		// survives a reload. A bare /settings (or one naming a section that no
+		// longer exists) rewrites itself to the first one rather than 404ing.
+		this.subscription = route.paramMap.subscribe(params => {
+			const section = params.get('section');
+			if (section !== null && this.sections.some(candidate => candidate.id === section)) {
+				this.activeSectionSignal.set(section);
+				return;
+			}
+			void this.router.navigate(['/settings', this.sections[0].id], {replaceUrl: true});
+		});
+	}
+
+	public ngOnDestroy(): void
+	{
+		this.subscription.unsubscribe();
 	}
 
 	public selectSection(id: string): void
 	{
-		this.activeSectionSignal.set(id);
+		void this.router.navigate(['/settings', id]);
 	}
 
 }

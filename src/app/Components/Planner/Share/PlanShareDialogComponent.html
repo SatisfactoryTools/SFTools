@@ -1,0 +1,115 @@
+<div class="share-backdrop" hotkeyBlock (click)="close()">
+	<div class="share-dialog card" (click)="$event.stopPropagation()">
+		<div class="card-header d-flex align-items-center gap-2">
+			<span class="fw-semibold flex-grow-1 text-truncate">Share &ldquo;{{ target()?.name }}&rdquo;</span>
+			<help-button topic="planner.sharing" placement="left" (opened)="close()"/>
+			<button type="button" class="btn-close btn-close-white" aria-label="Close" (click)="close()"></button>
+		</div>
+		<div class="card-body">
+
+			@if (choice(); as kind) {
+
+				<!-- One kind was picked: only its link is on screen, so there is nothing
+				     to copy by mistake. -->
+				<div class="d-flex align-items-center gap-2 mb-1">
+					<span class="fw-semibold">
+						<fa-icon [icon]="kind === 'snapshot' ? faCamera : faLink" class="me-1 opacity-75"></fa-icon>
+						{{ kind === 'snapshot' ? 'Snapshot link' : 'Link to this plan' }}
+					</span>
+				</div>
+				<div class="text-secondary mb-2">
+					@if (kind === 'snapshot') {
+						A frozen copy. It never changes, even when you keep working on the
+						{{ target()?.type === 'folder' ? 'folder' : 'plan' }}.
+					} @else {
+						The plan as it is now, and as it will be later - the other person always sees your newest work.
+					}
+				</div>
+
+				@if (creating()) {
+					<div class="d-flex align-items-center gap-2 text-secondary">
+						<span class="spinner-border spinner-border-sm" role="status"></span> Making the link…
+					</div>
+				} @else {
+					<div class="d-flex gap-2">
+						<input
+							type="text"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							readonly
+							[value]="link()"
+							(focus)="$any($event.target).select()"
+						/>
+						<button
+							type="button"
+							class="btn btn-sm flex-shrink-0"
+							[class.btn-primary]="!copied"
+							[class.btn-success]="copied"
+							(click)="copyLink()"
+						>
+							<fa-icon [icon]="copied ? faCheck : faCopy"></fa-icon>
+							{{ copied ? 'Copied' : 'Copy' }}
+						</button>
+					</div>
+					<div class="form-text">
+						@if (kind === 'snapshot') {
+							Anyone with the link can look at the copy and add it to their own plans. Share again to send
+							a newer copy.
+						} @else {
+							This is the plan's own address, the one in the address bar. Other people see it read-only
+							and can copy it into their own plans. Subplans follow this plan.
+						}
+					</div>
+				}
+
+				<button type="button" class="btn btn-sm btn-link px-0 mt-2" (click)="clearChoice()">
+					<fa-icon [icon]="faArrowLeft"></fa-icon> Pick the other kind of link
+				</button>
+
+			} @else {
+
+				<!-- Nothing to copy yet: the two kinds are a choice, and the link appears
+				     only once one of them is picked. -->
+				<div class="text-secondary mb-3">How do you want to send this {{ target()?.type === 'folder' ? 'folder' : 'plan' }}?</div>
+
+				@if (error(); as message) {
+					<div class="text-danger small mb-2">{{ message }}</div>
+				}
+
+				<div class="d-flex flex-column gap-2">
+					<button type="button" class="share-option" [disabled]="creating()" (click)="chooseSnapshot()">
+						<div class="d-flex align-items-center gap-2">
+							<fa-icon [icon]="faCamera" class="opacity-75"></fa-icon>
+							<span class="fw-semibold">Send a snapshot</span>
+							<span class="badge text-bg-primary">Recommended</span>
+						</div>
+						<div class="small text-secondary mt-1">
+							A frozen copy of the {{ target()?.type === 'folder' ? 'folder' : 'plan' }} as it is now. It
+							never changes, even when you keep working, and the other person can add it to their own
+							plans. Works without an account.
+						</div>
+					</button>
+
+					<button type="button" class="share-option" [disabled]="!hasOwnLink()" (click)="chooseLive()">
+						<div class="d-flex align-items-center gap-2">
+							<fa-icon [icon]="faLink" class="opacity-75"></fa-icon>
+							<span class="fw-semibold">Send the plan itself</span>
+						</div>
+						<div class="small text-secondary mt-1">
+							@if (hasOwnLink()) {
+								The plan's own address. The other person sees it read-only, and your later changes show
+								up for them too.
+							} @else if (target()?.type === 'folder') {
+								A folder has no address of its own, so only a snapshot can be sent.
+							} @else {
+								This plan is saved only in this browser, so it has no address of its own. Only a
+								snapshot can be sent.
+							}
+						</div>
+					</button>
+				</div>
+
+			}
+
+		</div>
+	</div>
+</div>

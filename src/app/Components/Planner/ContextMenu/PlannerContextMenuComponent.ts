@@ -4,6 +4,7 @@ import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuIt
 import {ContextMenuSize} from '@src/Components/Planner/ContextMenu/ContextMenuSize';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
+import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
 /**
  * The fixed overlay for the graph's context menus. The menu opens at the
@@ -16,6 +17,18 @@ import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/Pla
 	templateUrl: './PlannerContextMenuComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FaIconComponent],
+	styles: [`
+		/* The key sits at the far end of the row, quiet enough not to compete
+		   with the label but readable while the eye runs down the list. */
+		.menu-hotkey {
+			margin-left: auto;
+			padding-left: 1.5rem;
+			font-size: 0.8em;
+			color: #7d8ca5;
+		}
+		.dropdown-item:hover .menu-hotkey { color: #a9b8cd; }
+		.dropdown-item:disabled .menu-hotkey { color: #55617a; }
+	`],
 })
 export class PlannerContextMenuComponent implements AfterViewChecked
 {
@@ -34,6 +47,7 @@ export class PlannerContextMenuComponent implements AfterViewChecked
 
 	public constructor(
 		public readonly contextMenu: PlannerContextMenuService,
+		public readonly hotkeys: HotkeyService,
 		private readonly elementRef: ElementRef<HTMLElement>,
 	)
 	{
@@ -100,8 +114,13 @@ export class PlannerContextMenuComponent implements AfterViewChecked
 		this.contextMenu.close();
 	}
 
-	@HostListener('document:keydown.escape')
-	public onEscape(): void
+	/**
+	 * Any key closes the menu, not just Escape: the hotkeys work on what is
+	 * selected, which need not be what was right-clicked, so leaving the menu
+	 * standing while a key changes something else would only mislead.
+	 */
+	@HostListener('document:keydown')
+	public onKeyDown(): void
 	{
 		this.contextMenu.close();
 	}

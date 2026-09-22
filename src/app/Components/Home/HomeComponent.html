@@ -75,8 +75,8 @@
 					</div>
 				</div>
 				<div class="card-body quick-links">
-					<a routerLink="/mods"><fa-icon [icon]="faPuzzlePiece" [fixedWidth]="true" class="text-info"></fa-icon> Manage mods</a>
 					<a routerLink="/create-version"><fa-icon [icon]="faSliders" [fixedWidth]="true" class="text-info"></fa-icon> Create a custom version</a>
+					<a routerLink="/mods"><fa-icon [icon]="faPuzzlePiece" [fixedWidth]="true" class="text-info"></fa-icon> Manage mods</a>
 					<a routerLink="/account"><fa-icon [icon]="faUser" [fixedWidth]="true" class="text-info"></fa-icon> Account &amp; sign-in methods</a>
 				</div>
 				<div class="card-footer d-flex justify-content-end">
@@ -110,9 +110,17 @@
 	<!-- ── Game versions ───────────────────────────────────────────────── -->
 	<section>
 		<div class="section-head">
-			<h2>Game versions</h2>
+			<h2 class="d-inline-flex align-items-center gap-2">Game versions <help-button topic="versions.game"/></h2>
 			<p>Pick the version you play. Each one has its own codex, recipes and planner.</p>
 		</div>
+		@if (versionsFailed) {
+			<div class="alert alert-danger d-flex flex-wrap align-items-center gap-3" role="alert">
+				<span class="flex-grow-1">The game versions could not be loaded. The server may be updating, which usually takes less than a minute.</span>
+				<button type="button" class="btn btn-outline-light btn-sm flex-shrink-0" (click)="retryVersions()" [disabled]="versionsLoading">
+					{{ versionsLoading ? 'Trying…' : 'Try again' }}
+				</button>
+			</div>
+		}
 		<div class="version-grid">
 			@for (version of publicVersions; track version.id) {
 				<a
@@ -145,7 +153,9 @@
 					<fa-icon [icon]="faArrowRight" class="version-arrow"></fa-icon>
 				</a>
 			} @empty {
-				<p class="text-secondary">No versions available.</p>
+				@if (!versionsFailed) {
+					<p class="text-secondary">No versions available.</p>
+				}
 			}
 		</div>
 	</section>
@@ -153,7 +163,7 @@
 	<!-- ── Custom versions ─────────────────────────────────────────────── -->
 	<section>
 		<div class="section-head">
-			<h2>Your custom versions</h2>
+			<h2 class="d-inline-flex align-items-center gap-2">Your custom versions <help-button topic="versions.custom"/></h2>
 			<p>Based on a public version, with your own cost multipliers, mods or world.</p>
 		</div>
 		@if (customVersions.length === 0) {

@@ -14,7 +14,7 @@ export interface PlanTreeMenuHost
 	cloneFolder(id: string): void;
 	deleteFolder(id: string, name: string): void;
 	startRenamePlan(id: string, currentName: string): void;
-	/** Top-level plans only - a cloned subplan would have no node in any parent graph. */
+	/** A cloned subplan is copied into the same parent plan, node included. */
 	clonePlan(plan: Plan, displayName: string): void;
 	deletePlan(plan: Plan): void;
 	pickPlanIcon(plan: Plan): void;

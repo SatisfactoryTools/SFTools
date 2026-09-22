@@ -1,0 +1,201 @@
+<div class="container-fluid py-4">
+	<back-link link="/help/editor" label="Back to the help editor"/>
+
+	<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+		<h1 class="h4 mb-0">{{ isNew() ? 'New article' : title }}</h1>
+		<div class="d-flex gap-2">
+			@if (!isNew() && published) {
+				<a class="btn btn-sm btn-outline-secondary" [routerLink]="readerLink()" target="_blank">
+					<fa-icon [icon]="faUpRightFromSquare"></fa-icon>
+					Open in reader
+				</a>
+			}
+			@if (!isNew()) {
+				<button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteArticle()">Delete</button>
+			}
+			<button type="button" class="btn btn-sm btn-primary" [disabled]="saving()" (click)="save()">
+				{{ saving() ? 'Saving…' : 'Save' }}
+			</button>
+		</div>
+	</div>
+
+	<!-- Everything that is not the text itself, folded away once it is filled in
+	     so the writing and its preview get the whole screen. -->
+	<collapsible-card title="Article details" [open]="detailsOpen" (toggle)="detailsOpen = !detailsOpen" class="mb-3">
+		<span card-actions class="text-secondary small">
+			@if (!detailsOpen) {
+				{{ slug || 'no slug' }} · {{ categoryName() || 'Other' }} · {{ published ? 'Published' : 'Draft' }} · {{ topics().length }} topic{{ topics().length === 1 ? '' : 's' }}
+			}
+		</span>
+		@if (detailsOpen) {
+		<div class="card-body">
+			<div class="row g-3">
+
+				<div class="col-12 col-lg-6 col-xxl-4">
+					<div class="mb-3">
+						<label class="form-label" for="article-title">Title</label>
+						<input id="article-title" class="form-control" [ngModel]="title" (ngModelChange)="onTitleChange($event)">
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label" for="article-slug">Slug</label>
+						<input id="article-slug" class="form-control" [ngModel]="slug" (ngModelChange)="onSlugChange($event)">
+						<div class="form-text">Lowercase words separated by dashes; it is the article's address: /help/{{ slug || 'slug' }}</div>
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label" for="article-summary">Summary</label>
+						<textarea id="article-summary" class="form-control" rows="2" [(ngModel)]="summary"></textarea>
+						<div class="form-text">One line, shown in the article list and in search results.</div>
+					</div>
+
+					<div class="row g-2 mb-3">
+						<div class="col-8">
+							<label class="form-label" for="article-category">Section</label>
+							<select id="article-category" class="form-select" [(ngModel)]="category">
+								<option [ngValue]="null">Other</option>
+								@for (option of categories(); track option.id) {
+									<option [ngValue]="option.id">{{ option.name }}</option>
+								}
+							</select>
+						</div>
+						<div class="col-4">
+							<label class="form-label" for="article-position">Order</label>
+							<input id="article-position" type="number" class="form-control" [(ngModel)]="position">
+						</div>
+					</div>
+
+					<div class="form-check">
+						<input class="form-check-input" type="checkbox" id="article-published" [(ngModel)]="published">
+						<label class="form-check-label" for="article-published">Published</label>
+						<div class="form-text">Drafts stay out of the files readers load.</div>
+					</div>
+				</div>
+
+				<div class="col-12 col-lg-6 col-xxl-4">
+					<div class="mb-3">
+						<label class="form-label" for="article-keywords">Keywords</label>
+						<input id="article-keywords" class="form-control" [(ngModel)]="keywords" placeholder="sloop, somersloop">
+						<div class="form-text">Comma separated. Extra words the search should find this article by.</div>
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label" for="article-see-also">See also</label>
+						<input id="article-see-also" class="form-control" [(ngModel)]="seeAlso" list="known-slugs" placeholder="overclocking, subplans">
+						<datalist id="known-slugs">
+							@for (option of knownSlugs(); track option) {
+								<option [value]="option"></option>
+							}
+						</datalist>
+						<div class="form-text">Comma separated slugs, listed at the end of the article. Unpublished ones are skipped.</div>
+					</div>
+
+					<div class="mb-3">
+						<label class="form-label" for="article-image">Screenshots</label>
+						<input id="article-image" type="file" class="form-control form-control-sm" accept="image/*" (change)="onFileSelected($event)">
+						<div class="form-text">Uploading inserts the image at the caret. Pasting one into the text does the same.</div>
+						@for (image of images(); track image.id) {
+							<div class="media-item">
+								<img [src]="imageUrl(image)" [alt]="image.fileName">
+								<span class="flex-grow-1 text-truncate small">{{ image.fileName }}</span>
+								<button type="button" class="btn btn-sm btn-outline-secondary" (click)="insertImage(image)">Insert</button>
+								<button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteImage(image)">
+									<fa-icon [icon]="faTrash"></fa-icon>
+								</button>
+							</div>
+						}
+					</div>
+				</div>
+
+				<div class="col-12 col-xxl-4">
+					<div class="d-flex align-items-center justify-content-between">
+						<label class="form-label mb-0">Help topics</label>
+						<button type="button" class="btn btn-sm btn-outline-secondary" (click)="addTopic()">Add topic</button>
+					</div>
+					<div class="form-text mb-2">
+						Ids that question-mark buttons in the app use, each pointing at this article or one of its sections.
+						A topic can only belong to one article - the ones another article already answers are greyed out.
+						The full list with what is still unanswered is on the <a routerLink="/help/editor">editor's home page</a>.
+					</div>
+					@for (entry of topics(); track $index) {
+						<div class="topic-row d-flex gap-2 mb-1">
+							<select
+								class="form-select form-select-sm topic-select"
+								[ngModel]="entry.topic"
+								(ngModelChange)="setTopic($index, $event)"
+							>
+								<option value="">Pick a topic…</option>
+								@if (isUnknownTopic(entry.topic)) {
+									<option [value]="entry.topic">{{ entry.topic }} (no button asks for this)</option>
+								}
+								@for (group of topicGroups(); track group.label) {
+									<optgroup [label]="group.label">
+										@for (status of group.topics; track status.topic) {
+											<option [value]="status.topic" [disabled]="takenElsewhere(status)">
+												{{ status.topic }} - {{ status.label }}@if (takenElsewhere(status)) { (in “{{ status.claim?.title }}”)}
+											</option>
+										}
+									</optgroup>
+								}
+							</select>
+							<select
+								class="form-select form-select-sm anchor-select"
+								[ngModel]="entry.anchor"
+								(ngModelChange)="setTopicAnchor($index, $event)"
+							>
+								<option value="">Top of the article</option>
+								@for (section of sections(); track section.id) {
+									<option [value]="section.id">{{ section.title }}</option>
+								}
+							</select>
+							<button type="button" class="btn btn-sm btn-outline-danger" (click)="removeTopic($index)">
+								<fa-icon [icon]="faTrash"></fa-icon>
+							</button>
+						</div>
+						@if (topicWhere(entry.topic) !== '') {
+							<div class="form-text mb-2">{{ topicWhere(entry.topic) }}</div>
+						}
+					}
+				</div>
+
+			</div>
+		</div>
+		}
+	</collapsible-card>
+
+	<div class="d-flex flex-wrap gap-1 mb-2">
+		<button type="button" class="btn btn-sm btn-outline-secondary" (click)="insertCallout('note')">Note</button>
+		<button type="button" class="btn btn-sm btn-outline-secondary" (click)="insertCallout('warning')">Warning</button>
+		<button type="button" class="btn btn-sm btn-outline-secondary" (click)="insertCallout('tip')">Tip</button>
+		<button type="button" class="btn btn-sm btn-outline-secondary" (click)="insertArticleLink()">Article link</button>
+		<button type="button" class="btn btn-sm btn-outline-secondary" (click)="insertPanelLink()">Panel link</button>
+		<button type="button" class="btn btn-sm btn-outline-secondary" (click)="insertHotkey()">Hotkey</button>
+	</div>
+
+	<div class="row g-3">
+		<div class="col-12 col-lg-6">
+			<textarea
+				#bodyInput
+				class="form-control body"
+				[ngModel]="body()"
+				(ngModelChange)="body.set($event)"
+				(paste)="onPaste($event)"
+				placeholder="Write the article in Markdown…"
+			></textarea>
+		</div>
+		<!-- The reader's own header and body components, so the preview is the
+		     article itself and not an approximation of it. -->
+		<div class="col-12 col-lg-6">
+			<div class="preview">
+				<help-article-header [category]="categoryName()" [title]="title || 'Untitled article'" [summary]="summary"/>
+				<help-content [markdown]="body()"/>
+			</div>
+		</div>
+	</div>
+
+	<info-note class="mt-3">
+		Markdown, with a few extras: <code>:::note</code> boxes, <code>[text](help:slug)</code> for another article,
+		<code>[text](panel:overview)</code> to open a planner panel, and <code>`hotkey:planner.calculate`</code>
+		to print whatever key that action is bound to. Raw HTML is ignored.
+	</info-note>
+</div>

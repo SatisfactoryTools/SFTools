@@ -1,10 +1,10 @@
-import {AfterViewChecked, Component, ElementRef, Signal, ViewChild, ChangeDetectionStrategy, computed, signal} from '@angular/core';
+import {AfterViewChecked, Component, ElementRef, OnDestroy, Signal, ViewChild, ChangeDetectionStrategy, computed, signal} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes} from '@fortawesome/free-solid-svg-icons';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
@@ -18,26 +18,24 @@ import {FolderContextMenu} from '@src/Components/Planner/Panels/Plans/FolderCont
 import {LocalItemContextMenu} from '@src/Components/Planner/Panels/Plans/LocalItemContextMenu';
 import {PlanContextMenu} from '@src/Components/Planner/Panels/Plans/PlanContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
+import {HotkeyItem} from '@src/Model/Hotkeys/HotkeyItem';
+import {HotkeyItemSource} from '@src/Model/Hotkeys/HotkeyItemSource';
+import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
+import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 import {VisitedShareContextMenu} from '@src/Components/Planner/Panels/Plans/VisitedShareContextMenu';
-import {ShareLinkDialogComponent} from '@src/Components/Planner/Panels/Plans/ShareLinkDialogComponent';
-import {SharesApiService} from '@src/Model/API/SharesApiService';
-import {ShareCreateRequest} from '@src/Model/API/Schema/Shares/ShareCreateRequest';
-import {ShareType} from '@src/Model/API/Schema/Shares/ShareType';
-import {AuthService} from '@src/Model/Auth/AuthService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {NotificationService} from '@src/Model/NotificationService';
 import {Folder} from '@src/Model/Planner/Folder';
 import {Plan} from '@src/Model/Planner/Plan';
+import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {PlanIconResolver} from '@src/Model/Planner/PlanIconResolver';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
-import {PlanStore} from '@src/Model/Planner/PlanStore';
 import {PlanTree} from '@src/Model/Planner/PlanTree';
 import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
 import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
 import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
-import {ShareTreeBuilder} from '@src/Model/Shares/ShareTreeBuilder';
 import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
 import {ShareTreeNode} from '@src/Model/Shares/ShareTreeNode';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
@@ -137,9 +135,9 @@ const SHARED_ID = '__shared__';
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPlansComponent.html',
 	styleUrl: './PlannerPlansComponent.scss',
-	imports: [FormsModule, FaIconComponent, TooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, ShareLinkDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective],
+	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective],
 })
-export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
+export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanTreeMenuHost, HotkeyItemSource
 {
 
 	public readonly faCaretDown = faCaretDown;
@@ -445,9 +443,7 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	private readonly iconPickerPlanIdSignal = signal<string | null>(null);
 	public readonly iconPickerOpen: Signal<boolean> = computed(() => this.iconPickerPlanIdSignal() !== null);
 
-	/** The freshly created share link shown in the dialog, or null when closed. */
-	private readonly shareLinkSignal = signal<{link: string; name: string} | null>(null);
-	public readonly shareLink = this.shareLinkSignal.asReadonly();
+	private hotkeyRegistration: HotkeyRegistration | null = null;
 
 	private readonly importDialogOpenSignal = signal(false);
 	public readonly importDialogOpen: Signal<boolean> = this.importDialogOpenSignal.asReadonly();
@@ -457,17 +453,17 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		private readonly contextMenu: PlannerContextMenuService,
 		private readonly planIcons: PlanIconResolver,
 		private readonly planNames: PlanNameResolver,
-		private readonly sharesApi: SharesApiService,
-		private readonly authService: AuthService,
 		private readonly versionManager: VersionManager,
+		private readonly shareDialog: ShareDialogService,
 		private readonly notifications: NotificationService,
 		private readonly visitedShares: VisitedSharesManager,
 		private readonly activeShare: ActiveShareManager,
 		private readonly shareTrees: ShareTreeCache,
-		private readonly shareTreeBuilder: ShareTreeBuilder,
+		public readonly hotkeys: HotkeyService,
 		private readonly router: Router,
 	)
 	{
+		this.hotkeyRegistration = hotkeys.registerSource(this);
 		// A share visited on another device has no local tree snapshot yet - fetch it once.
 		toObservable(visitedShares.visitedShares).subscribe(shares => shares.forEach(share => shareTrees.ensure(share.share)));
 		this.activePlanId = planManager.activePlanId;
@@ -476,82 +472,64 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		this.activeShareId = activeShare.shareId;
 	}
 
+	public ngOnDestroy(): void
+	{
+		this.hotkeyRegistration?.unregister();
+		this.hotkeyRegistration = null;
+	}
+
+	/**
+	 * What the Plans hotkeys run. The tree has no selected row of its own -
+	 * the open plan is the selection - so these are the entries of the menus
+	 * that plan and its folder would show. Creating comes last as a fallback:
+	 * with no folder open a new plan or folder goes to the top level.
+	 */
+	public hotkeyItems(): HotkeyItem[]
+	{
+		// Importing is not about any one plan, so it stands outside the
+		// read-only gate below.
+		const items: HotkeyItem[] = [
+			{hotkey: 'plans.importOldTools', action: () => this.openImportDialog()},
+		];
+		if (this.planManager.activePlanReadOnly()) {
+			return items;
+		}
+		const folder = this.planManager.activeFolder();
+		if (folder) {
+			items.push(...new FolderContextMenu(folder.id, folder.name, this).getItems());
+		}
+		const plan = this.planManager.activePlan();
+		if (plan) {
+			items.push(...new PlanContextMenu(plan, this.planNames.displayName(plan), this).getItems());
+		}
+		items.push(
+			{hotkey: 'plans.newPlan', action: () => this.startCreatePlan(folder?.id ?? null)},
+			{hotkey: 'plans.newFolder', action: () => this.startCreateFolder(folder?.id ?? null)},
+		);
+		return items;
+	}
+
 	// ── Sharing ─────────────────────────────────────────────────────────────
 
+	/**
+	 * Everything that shares opens the same window (see PlanShareDialogComponent): it
+	 * offers the plan's own link and a frozen snapshot link, and knows which of the two
+	 * a given row can have.
+	 */
 	public sharePlan(plan: Plan): void
 	{
-		this.createShare('plan', plan.id, this.planNames.displayName(plan), this.accountStore);
+		this.shareDialog.open({type: 'plan', id: plan.id, name: this.planNames.displayName(plan), device: false});
 	}
 
 	public shareFolder(id: string, name: string): void
 	{
-		this.createShare('folder', id, name, this.accountStore);
+		this.shareDialog.open({type: 'folder', id, name, device: false});
 	}
 
-	/** "On this device" rows: their plans exist nowhere but this browser, so the tree goes with the request. */
+	/** "On this device" rows: their plans exist nowhere but this browser, so only snapshots. */
 	public shareLocalItem(id: string, kind: 'plan' | 'folder', name: string): void
 	{
-		this.createShare(kind, id, name, this.deviceStore, true);
-	}
-
-	/** The tree shown under "Your plans" - the account's while signed in, this browser's while signed out. */
-	private get accountStore(): PlanStore
-	{
-		return {folders: this.planManager.folders(), plans: this.planManager.plans()};
-	}
-
-	/** The tree shown under "On this device" - only ever populated while signed in. */
-	private get deviceStore(): PlanStore
-	{
-		return {folders: this.planManager.localFolders(), plans: this.planManager.localPlans()};
-	}
-
-	/**
-	 * Creates the share link. A plan the server already has is shared by id;
-	 * one that lives only in this browser - everything made while signed out,
-	 * and the "On this device" plans of a signed-in user - is sent along with
-	 * the request instead (see anonymous-shares.md), so sharing never needs an
-	 * account.
-	 */
-	private createShare(type: ShareType, id: string, name: string, store: PlanStore, deviceStore = false): void
-	{
-		const version = this.versionManager.activeVersion();
-		if (!version) {
-			this.notifications.show('Could not create the share link - no game version is open.');
-			return;
-		}
-		const onServer = this.authService.isAuthenticated() && !deviceStore;
-		const request = onServer
-			? {version: version.id, type, id}
-			: this.treeShareRequest(version.id, type, id, store);
-		if (!request) {
-			this.notifications.show('Could not create the share link - this plan could not be read.');
-			return;
-		}
-		this.sharesApi.createShare(request).subscribe({
-			next: response => {
-				this.shareLinkSignal.set({link: `${window.location.origin}/shared/${response.share}`, name});
-			},
-			// The API answers a rejected tree (too big, too deep) with a message meant for the user.
-			error: (err: {error?: {error?: string}}) =>
-				this.notifications.show(err?.error?.error ?? 'Could not create the share link.'),
-		});
-	}
-
-	/** The share request carrying the tree itself; null when the row is not in the store any more. */
-	private treeShareRequest(versionId: string, type: ShareType, id: string, store: PlanStore): ShareCreateRequest | null
-	{
-		if (type === 'plan') {
-			const plan = store.plans.find(candidate => candidate.id === id);
-			return plan ? {version: versionId, type, root: this.shareTreeBuilder.plan(plan, store)} : null;
-		}
-		const folder = store.folders.find(candidate => candidate.id === id);
-		return folder ? {version: versionId, type, root: this.shareTreeBuilder.folder(folder, store)} : null;
-	}
-
-	public closeShareDialog(): void
-	{
-		this.shareLinkSignal.set(null);
+		this.shareDialog.open({type: kind, id, name, device: true});
 	}
 
 	// ── Import from old Satisfactory Tools ──────────────────────────────────
@@ -1029,7 +1007,9 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		event.dataTransfer!.dropEffect = this.dragItem.source === 'shared' ? 'copy' : 'move';
 		this.dropTargetSignal.set({
 			id: targetId,
-			position: this.dragItem.source === 'account' ? this.positionIn(event, kind) : 'inside',
+			position: this.dragItem.source === 'account'
+				? this.positionIn(event, kind, this.insideAllowed(this.dragItem, kind))
+				: 'inside',
 		});
 	}
 
@@ -1085,6 +1065,14 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 			}
 			return;
 		}
+		// Dropped on the middle of a plan row: the dragged plan becomes that
+		// plan's subplan (and gets a node in its graph - see PlanManager).
+		if (target.type === 'plan' && position === 'inside' && item.type === 'plan') {
+			if (this.confirmPlanMove(item.id, null, target.plan.id)) {
+				this.planManager.placePlan(item.id, null, target.plan.id, null);
+			}
+			return;
+		}
 		this.dropBeside(item, target, position === 'after');
 	}
 
@@ -1095,10 +1083,11 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	}
 
 	/**
-	 * A subplan never leaves its parent plan: it can only be reordered among
-	 * its sibling subplans, and nothing else can land between subplans (that
-	 * would turn a top-level plan into a subplan without a node in the parent
-	 * graph). Dropping a row onto itself is a no-op.
+	 * Plans go anywhere: beside or inside a folder, beside or inside another
+	 * plan (which makes them its subplan), and out of a plan again. The one
+	 * thing they cannot do is land inside themselves or one of their own
+	 * subplans. Folders keep out of plans entirely - nothing but a plan can
+	 * sit between subplans. Dropping a row onto itself is a no-op.
 	 */
 	private dropAllowed(item: DragItem, targetId: string, kind: 'root' | 'folder' | 'plan'): boolean
 	{
@@ -1113,23 +1102,46 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 		if (targetId === item.id) {
 			return false;
 		}
-		const plans = this.planManager.plans();
-		const dragged = item.type === 'plan' ? plans.find(p => p.id === item.id) : undefined;
-		const target = kind === 'plan' ? plans.find(p => p.id === targetId) : undefined;
-		if (dragged && dragged.parentPlanId !== null) {
-			return target !== undefined && target.parentPlanId === dragged.parentPlanId;
+		if (kind !== 'plan') {
+			return true;
 		}
-		return target === undefined || target.parentPlanId === null;
+		const target = this.planManager.plans().find(p => p.id === targetId);
+		if (item.type === 'folder') {
+			return target !== undefined && target.parentPlanId === null;
+		}
+		return target !== undefined && !this.isInsidePlan(target.id, item.id);
 	}
 
-	private positionIn(event: DragEvent, kind: 'root' | 'folder' | 'plan'): DropPosition
+	/** Whether the plan is the given one or one of its subplans, at any depth. */
+	private isInsidePlan(planId: string, ancestorId: string): boolean
+	{
+		const plans = this.planManager.plans();
+		const seen = new Set<string>();
+		let current: string | null = planId;
+		while (current !== null && !seen.has(current)) {
+			if (current === ancestorId) {
+				return true;
+			}
+			seen.add(current);
+			current = plans.find(p => p.id === current)?.parentPlanId ?? null;
+		}
+		return false;
+	}
+
+	/** A plan row takes an "inside" drop (= become its subplan) only from another plan. */
+	private insideAllowed(item: DragItem, kind: 'root' | 'folder' | 'plan'): boolean
+	{
+		return kind !== 'plan' || item.type === 'plan';
+	}
+
+	private positionIn(event: DragEvent, kind: 'root' | 'folder' | 'plan', insideAllowed: boolean): DropPosition
 	{
 		if (kind === 'root') {
 			return 'inside';
 		}
 		const row = event.currentTarget as HTMLElement;
 		const fraction = (event.clientY - row.getBoundingClientRect().top) / Math.max(1, row.offsetHeight);
-		if (kind === 'plan') {
+		if (!insideAllowed) {
 			return fraction < 0.5 ? 'before' : 'after';
 		}
 		return fraction < 0.25 ? 'before' : fraction > 0.75 ? 'after' : 'inside';
@@ -1171,7 +1183,8 @@ export class PlannerPlansComponent implements AfterViewChecked, PlanTreeMenuHost
 	 */
 	private dropBeside(item: {type: 'plan' | 'folder'; id: string}, target: FolderItem | PlanItem, after: boolean): void
 	{
-		// Beside a subplan: only plans can land there, among that parent's subplans.
+		// Beside a subplan: only plans can land there, joining that parent's
+		// subplans (a plan dragged in from elsewhere included).
 		if (target.type === 'plan' && target.plan.parentPlanId !== null) {
 			const targetPlan = target.plan;
 			if (item.type !== 'plan') {

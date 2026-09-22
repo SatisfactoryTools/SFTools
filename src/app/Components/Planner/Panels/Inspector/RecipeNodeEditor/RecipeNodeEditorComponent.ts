@@ -3,9 +3,9 @@ import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faLock, faLockOpen, faPlus, faRotateLeft, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {ClockSpeedInputComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Overclocking/ClockSpeedInputComponent';
@@ -21,6 +21,7 @@ import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer'
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
 /** Quiet time after the last edit before the draft is applied to the graph. */
 const APPLY_DEBOUNCE_MS = 400;
@@ -42,7 +43,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'recipe-node-editor',
 	templateUrl: './RecipeNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, BsDropdownModule, TooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent],
+	imports: [FormsModule, FaIconComponent, BsDropdownModule, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent],
 	styles: [`
 		.io-tiles {
 			display: flex;

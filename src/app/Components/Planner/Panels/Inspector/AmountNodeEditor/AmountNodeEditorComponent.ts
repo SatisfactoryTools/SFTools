@@ -2,7 +2,7 @@ import {Component, ChangeDetectionStrategy, Input, OnChanges, OnDestroy} from '@
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faLock, faLockOpen} from '@fortawesome/free-solid-svg-icons';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
@@ -40,7 +40,7 @@ const TYPE_LABELS: Record<string, string> = {
 	selector: 'amount-node-editor',
 	templateUrl: './AmountNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, TooltipDirective, GameIconComponent],
+	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent],
 })
 export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 {

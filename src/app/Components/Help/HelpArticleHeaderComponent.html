@@ -1,0 +1,9 @@
+<header class="article-head">
+	@if (category !== '') {
+		<div class="eyebrow">{{ category }}</div>
+	}
+	<h1 class="h3 mb-1">{{ title }}</h1>
+	@if (summary !== '') {
+		<p class="article-summary">{{ summary }}</p>
+	}
+</header>

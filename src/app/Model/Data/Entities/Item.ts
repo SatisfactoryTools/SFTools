@@ -66,4 +66,14 @@ export class Item
 		this.reloadTime = schema.reloadTime;
 	}
 
+	/**
+	 * Whether the item can go into the AWESOME Sink. Only solids worth points
+	 * qualify - fluids and gases cannot be sinked at all in the game, and
+	 * zero-point solids (nuclear waste) earn nothing.
+	 */
+	public isSinkable(): boolean
+	{
+		return this.form === ItemForm.Solid && this.sinkPoints > 0;
+	}
+
 }

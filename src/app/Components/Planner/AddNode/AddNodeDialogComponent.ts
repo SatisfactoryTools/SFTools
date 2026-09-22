@@ -1,4 +1,4 @@
-import {Component, EventEmitter, Input, OnInit, Output, ChangeDetectionStrategy} from '@angular/core';
+import {Component, EventEmitter, Input, OnInit, Output, ChangeDetectionStrategy, HostListener} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {
 	faBolt,
@@ -10,6 +10,7 @@ import {
 	faTrashCan,
 } from '@fortawesome/free-solid-svg-icons';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
+import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
@@ -51,7 +52,7 @@ import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 	selector: 'add-node-dialog',
 	templateUrl: './AddNodeDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, GameIconComponent, ItemPickerComponent],
+	imports: [FormsModule, FaIconComponent, GameIconComponent, ItemPickerComponent, HotkeyBlockDirective],
 	styles: [`
 		.add-node-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 1060; display: flex; align-items: center; justify-content: center; }
 		.add-node-dialog { width: min(480px, 92vw); max-height: 80vh; display: flex; flex-direction: column; }
@@ -65,6 +66,14 @@ export class AddNodeDialogComponent implements OnInit
 
 	@Output() public readonly add = new EventEmitter<Node>();
 	@Output() public readonly close = new EventEmitter<void>();
+
+	/** Escape leaves the dialog, like clicking outside it does. */
+	@HostListener('document:keydown.escape')
+	public onEscape(): void
+	{
+		this.close.emit();
+	}
+
 
 	private readonly allTypes: AddNodeTypeOption[] = [
 		{type: 'recipe', label: 'Recipe', icon: faIndustry},
@@ -126,7 +135,9 @@ export class AddNodeDialogComponent implements OnInit
 		if (filter.role === 'consumer') {
 			allowed.add('product');
 			allowed.add('byproduct');
-			if ((this.filterItem?.sinkPoints ?? 0) > 0) {
+			// Only solids worth points can go into the sink - a fluid pipe into
+			// a sink is impossible in the game.
+			if (this.filterItem?.isSinkable() ?? false) {
 				allowed.add('sink');
 			}
 		} else {
@@ -230,7 +241,7 @@ export class AddNodeDialogComponent implements OnInit
 		if (this.nodeType === 'mine') {
 			items = data.resources.map(className => data.getItemByClassName(className));
 		} else if (this.nodeType === 'sink') {
-			items = data.items.filter(item => item.sinkPoints > 0);
+			items = data.items.filter(item => item.isSinkable());
 		}
 		return this.makeableItems.applyToActivePlan(items
 			.map(item => ({value: item.className, label: item.name, iconHash: item.icon}))

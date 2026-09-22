@@ -41,10 +41,12 @@ export class SettingsDefaults
 			unmakeableItems: 'show',
 			tabBadges: true,
 			tabLabels: 'auto',
+			helpButtons: true,
 		},
 		account: {
 			signInPrompts: true,
 		},
+		hotkeys: {},
 		panels: null,
 	};
 
@@ -60,6 +62,7 @@ export class SettingsDefaults
 			},
 			planner: {...SettingsDefaults.SETTINGS.planner, ...(data?.planner ?? {})},
 			account: {...SettingsDefaults.SETTINGS.account, ...(data?.account ?? {})},
+			hotkeys: {...(data?.hotkeys ?? {})},
 			panels: data?.panels ?? null,
 		};
 	}

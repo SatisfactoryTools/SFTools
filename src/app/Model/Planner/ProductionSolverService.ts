@@ -351,7 +351,7 @@ export class ProductionSolverService
 	{
 		return (plan.settings.sinkableItems ?? [])
 			.map(className => data.searchItemByClassName(className))
-			.filter((item): item is Item => item !== undefined && item.sinkPoints > 0);
+			.filter((item): item is Item => item !== undefined && item.isSinkable());
 	}
 
 	private allowedRecipes(plan: Plan, data: Data): Recipe[]
@@ -651,8 +651,9 @@ export class ProductionSolverService
 				} else if (node instanceof SubplanNode) {
 					// A subplan brings its own (recursive) power balance; net
 					// draw needs covering, a net surplus feeds the grid as is.
+					// Built several times, it brings that balance that many times.
 					const power = this.breakdown.subplanPower(node.subplanId);
-					const net = power.consumption - power.production;
+					const net = (power.consumption - power.production) * Math.max(1, node.buildCount);
 					if (net > 0) {
 						powerTerms.push('- ' + (net * factoryDrawFactor) + ' ' + varName);
 					} else if (net < 0) {

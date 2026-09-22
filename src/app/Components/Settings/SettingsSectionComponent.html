@@ -2,7 +2,12 @@
 	<div class="card-header d-flex align-items-center gap-2 py-2">
 		<span class="section-icon"><fa-icon [icon]="icon"></fa-icon></span>
 		<div>
-			<div class="fw-semibold">{{ title }}</div>
+			<div class="fw-semibold d-flex align-items-center gap-2">
+				{{ title }}
+				@if (helpTopic !== '') {
+					<help-button [topic]="helpTopic"/>
+				}
+			</div>
 			@if (description !== '') {
 				<div class="small text-secondary">{{ description }}</div>
 			}

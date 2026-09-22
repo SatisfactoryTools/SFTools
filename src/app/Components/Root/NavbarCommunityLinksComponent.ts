@@ -2,7 +2,7 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faArrowUpRightFromSquare, faCaretDown, faCaretUp, faHeart} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {CommunityLinks} from '@src/Model/CommunityLinks';
 
 /**
@@ -16,7 +16,7 @@ import {CommunityLinks} from '@src/Model/CommunityLinks';
 	selector: 'navbar-community-links',
 	templateUrl: './NavbarCommunityLinksComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, BsDropdownModule, TooltipDirective],
+	imports: [FaIconComponent, BsDropdownModule, AppTooltipDirective],
 	styles: [`
 		:host {
 			display: contents;

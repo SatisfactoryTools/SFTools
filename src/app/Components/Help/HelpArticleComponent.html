@@ -1,0 +1,68 @@
+@if (article.isLoading()) {
+	<div class="text-secondary py-3">Loading…</div>
+} @else if (file(); as article) {
+	<div class="article-layout">
+		<article class="article-main">
+			<help-article-header [category]="categoryName()" [title]="article.title" [summary]="article.summary"/>
+
+			<help-content [markdown]="article.body"/>
+
+			@if (relatedArticles().length > 0) {
+				<section class="article-section">
+					<h2 class="section-title">See also</h2>
+					<div class="related-grid">
+						@for (related of relatedArticles(); track related.slug) {
+							<help-article-card [article]="related"/>
+						}
+					</div>
+				</section>
+			}
+
+			@if (previousArticle() !== null || nextArticle() !== null) {
+				<nav class="steps" aria-label="Other articles in this section">
+					@if (previousArticle(); as previous) {
+						<a class="card step" [helpLink]="previous.slug">
+							<fa-icon class="step-icon" [icon]="faChevronLeft"></fa-icon>
+							<span class="step-text">
+								<span class="step-label">Previous</span>
+								<span class="step-title">{{ previous.title }}</span>
+							</span>
+						</a>
+					}
+					@if (nextArticle(); as next) {
+						<a class="card step step-next" [helpLink]="next.slug">
+							<span class="step-text">
+								<span class="step-label">Next</span>
+								<span class="step-title">{{ next.title }}</span>
+							</span>
+							<fa-icon class="step-icon" [icon]="faChevronRight"></fa-icon>
+						</a>
+					}
+				</nav>
+			}
+
+			<p class="text-secondary small updated">Updated {{ updated() }}</p>
+		</article>
+
+		@if (sections().length > 0) {
+			<aside class="toc" aria-label="Contents of this article">
+				<div class="toc-title">On this page</div>
+				<ul class="toc-list">
+					@for (section of sections(); track section.id) {
+						<li [class.toc-sub]="section.level > 2">
+							<a
+								[helpLink]="sectionPath(section.id)"
+								[class.current]="section.id === currentAnchor()"
+							>{{ section.title }}</a>
+						</li>
+					}
+				</ul>
+			</aside>
+		}
+	</div>
+} @else {
+	<div class="py-3">
+		<p>This article does not exist (any more).</p>
+		<a [helpLink]="''">Back to help</a>
+	</div>
+}

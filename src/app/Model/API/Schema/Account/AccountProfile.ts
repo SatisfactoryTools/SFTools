@@ -13,6 +13,8 @@ export interface AccountProfile
 	/** First available provider avatar (provider CDN URL), or null. */
 	readonly avatarUrl: string | null;
 	readonly hasPassword: boolean;
+	/** Whether this account may write help articles (set by hand in the database). */
+	readonly helpEditor: boolean;
 	readonly createdAt: string;
 	/** Oldest connection first. */
 	readonly connections: AccountConnection[];

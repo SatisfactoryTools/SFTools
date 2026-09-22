@@ -15,7 +15,7 @@
 					<span class="shortcut-label">Planner</span>
 				</a>
 			}
-			@if (versionManager.activeVersion() !== null) {
+			@if (searchAvailable()) {
 				<button class="btn btn-sm navbar-shortcut" type="button" aria-label="Search" (click)="openSearch()">
 					<fa-icon [icon]="faMagnifyingGlass"></fa-icon>
 				</button>
@@ -39,7 +39,6 @@
 						</li>
 					}
 				</ul>
-				<navbar-search #search class="my-2 my-lg-0"/>
 			} @else if (backToPlannerLink(); as plannerLink) {
 				<ul class="navbar-nav mb-2 mb-lg-0">
 					<li class="nav-item">
@@ -49,6 +48,11 @@
 						</a>
 					</li>
 				</ul>
+			}
+			<!-- Outside the branches above: help articles are searchable with no
+			     version. Phones get the fullscreen search instead of this box. -->
+			@if (searchAvailable()) {
+				<navbar-search #search class="d-none d-lg-block my-lg-0"/>
 			}
 			<ul class="navbar-nav ms-auto mb-2 mb-lg-0">
 				<navbar-community-links/>
@@ -62,4 +66,7 @@
 			</ul>
 		</div>
 	</div>
+
+	<!-- Opened by the magnifier above and by the search shortcut on a phone. -->
+	<mobile-search #mobileSearch/>
 </nav>

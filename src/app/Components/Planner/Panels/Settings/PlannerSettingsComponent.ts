@@ -5,6 +5,7 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {Folder} from '@src/Model/Planner/Folder';
 import {GraphDirection} from '@src/Model/Planner/GraphDirection';
 import {GraphEdgeShape} from '@src/Model/Planner/GraphEdgeShape';
 import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
@@ -12,6 +13,7 @@ import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
 @Component({
@@ -24,7 +26,24 @@ export class PlannerSettingsComponent
 {
 
 	public readonly activePlan: Signal<Plan | null>;
+
+	/**
+	 * A folder edits the same settings as a plan, and they are the starting
+	 * values for the plans and subfolders made inside it - the folder holds a
+	 * whole PlanSettings, of which these are the keys no settings group owns.
+	 */
+	public readonly activeFolder: Signal<Folder | null>;
+
+	/** What the panel edits: the plan's settings, or the folder's custom ones. Null while a folder inherits. */
+	public readonly editedSettings: Signal<PlanSettings | null>;
+
 	public readonly graphSettings: Signal<GraphLayoutSettings>;
+
+	/** Where a folder without custom settings takes its values from today. */
+	public readonly parentLabel: Signal<string>;
+
+	/** Why the active folder cannot get its own settings (an ancestor fixes them), or null. */
+	public readonly customSettingsBlocker: Signal<string | null>;
 
 	/** A shared plan's settings are shown but locked (the write paths are guarded anyway). */
 	public readonly readOnly: Signal<boolean>;
@@ -35,15 +54,26 @@ export class PlannerSettingsComponent
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
-		private readonly settings: SettingsManager,
+		private readonly appSettings: SettingsManager,
 	)
 	{
 		this.activePlan = planManager.activePlan;
+		this.activeFolder = planManager.activeFolder;
+		this.editedSettings = planManager.activeSettings;
 		this.readOnly = planManager.activePlanReadOnly;
 		this.readOnlyNote = computed(() => planManager.activePlanShared()
 			? 'Shared plan - read-only. You can look at the settings but not change them.'
 			: 'Plan on this device - read-only. Add it to your plans to change the settings.');
-		this.graphSettings = computed(() => GraphLayoutDefaults.resolve(this.activePlan()?.settings.graph));
+		this.graphSettings = computed(() => GraphLayoutDefaults.resolve(this.editedSettings()?.graph));
+		this.parentLabel = computed(() => {
+			const folder = this.activeFolder();
+			const parent = planManager.folders().find(f => f.id === folder?.parentId);
+			return parent ? `folder "${parent.name}"` : 'the defaults';
+		});
+		this.customSettingsBlocker = computed(() => {
+			const folder = this.activeFolder();
+			return folder ? planManager.customSettingsBlocker(folder.id) : null;
+		});
 	}
 
 	/** Machines used by at least one recipe in the active version, sorted by name. */
@@ -71,7 +101,7 @@ export class PlannerSettingsComponent
 
 	public machineColor(machine: Building): string
 	{
-		return this.graphSettings().machineColors[machine.className] ?? this.settings.graph().nodeColors.recipe;
+		return this.graphSettings().machineColors[machine.className] ?? this.appSettings.graph().nodeColors.recipe;
 	}
 
 	/** Adds the machine (seeded with the default recipe colour) or removes its override. */
@@ -79,7 +109,7 @@ export class PlannerSettingsComponent
 	{
 		const machineColors = {...this.graphSettings().machineColors};
 		if (enabled) {
-			machineColors[machine.className] = this.settings.graph().nodeColors.recipe;
+			machineColors[machine.className] = this.appSettings.graph().nodeColors.recipe;
 		} else {
 			delete machineColors[machine.className];
 		}
@@ -107,15 +137,24 @@ export class PlannerSettingsComponent
 
 	public get defaultGroupingMode(): GroupingMode
 	{
-		return this.activePlan()?.settings.defaultGroupingMode ?? 'underclock-last';
+		return this.editedSettings()?.defaultGroupingMode ?? 'underclock-last';
 	}
 
 	/** New nodes (manual or solver-built) start with this machine-group arrangement. */
 	public setDefaultGroupingMode(mode: GroupingMode): void
 	{
-		const plan = this.activePlan();
-		if (plan) {
-			this.planManager.setSettings(plan.id, {...plan.settings, defaultGroupingMode: mode});
+		const settings = this.editedSettings();
+		if (settings) {
+			this.planManager.updateActiveSettings({...settings, defaultGroupingMode: mode});
+		}
+	}
+
+	/** Gives the folder its own settings to edit, copied from what it inherits today. */
+	public enableFolderSettings(): void
+	{
+		const folder = this.activeFolder();
+		if (folder) {
+			this.planManager.enableFolderSettings(folder.id);
 		}
 	}
 
@@ -148,13 +187,13 @@ export class PlannerSettingsComponent
 
 	private patchGraphSettings(changes: Partial<GraphLayoutSettings>): void
 	{
-		const plan = this.activePlan();
-		if (!plan) {
+		const settings = this.editedSettings();
+		if (!settings) {
 			return;
 		}
-		this.planManager.setSettings(plan.id, {
-			...plan.settings,
-			graph: {...GraphLayoutDefaults.resolve(plan.settings.graph), ...changes},
+		this.planManager.updateActiveSettings({
+			...settings,
+			graph: {...GraphLayoutDefaults.resolve(settings.graph), ...changes},
 		});
 	}
 

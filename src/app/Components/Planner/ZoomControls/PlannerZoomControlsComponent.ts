@@ -1,15 +1,16 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faArrowRotateLeft, faArrowRotateRight, faExpand, faMinus, faPlus} from '@fortawesome/free-solid-svg-icons';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GraphHistoryService} from '@src/Components/Planner/GraphHistoryService';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
+import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
 @Component({
 	selector: 'planner-zoom-controls',
 	templateUrl: './PlannerZoomControlsComponent.html',
-	imports: [FaIconComponent, TooltipDirective],
+	imports: [FaIconComponent, AppTooltipDirective],
 	changeDetection: ChangeDetectionStrategy.Eager,
 	styles: [`
 		:host {
@@ -52,6 +53,7 @@ export class PlannerZoomControlsComponent
 		private readonly plannerGraph: PlannerGraphService,
 		private readonly actions: PlannerActionsService,
 		public readonly history: GraphHistoryService,
+		public readonly hotkeys: HotkeyService,
 	)
 	{
 	}

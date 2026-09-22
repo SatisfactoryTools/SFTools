@@ -1,8 +1,8 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faChevronRight, faRecycle} from '@fortawesome/free-solid-svg-icons';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
@@ -35,7 +35,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 			.recipe-columns { grid-template-columns: 1fr; }
 		}
 	`],
-	imports: [FaIconComponent, FormsModule, GameIconComponent, TooltipDirective, InfoNoteComponent, CollapsibleCardComponent],
+	imports: [FaIconComponent, FormsModule, GameIconComponent, AppTooltipDirective, InfoNoteComponent, CollapsibleCardComponent],
 })
 export class CalculatorRecipesTabComponent
 {

@@ -1,0 +1,23 @@
+<div class="link-backdrop" hotkeyBlock (click)="close()">
+	<div class="link-dialog card" (click)="$event.stopPropagation()">
+		<div class="card-header d-flex align-items-center gap-2">
+			<fa-icon [icon]="faLinkSlash" class="opacity-75"></fa-icon>
+			<span class="fw-semibold flex-grow-1">This link does not open a plan</span>
+			<button type="button" class="btn-close btn-close-white" aria-label="Close" (click)="close()"></button>
+		</div>
+		<div class="card-body">
+			<p class="mb-2">The plan this link points to is not available to you. That happens when:</p>
+			<ul class="mb-2">
+				<li>the plan is saved only on their device,</li>
+				<li>its owner closed the plan off to other people, or</li>
+				<li>the plan was deleted.</li>
+			</ul>
+			<p class="mb-0 text-secondary">
+				Ask them to open the plan, press Share and send you the link from there.
+			</p>
+		</div>
+		<div class="card-footer text-end">
+			<button type="button" class="btn btn-sm btn-primary" (click)="close()">Close</button>
+		</div>
+	</div>
+</div>

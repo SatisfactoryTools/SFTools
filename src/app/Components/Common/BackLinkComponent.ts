@@ -1,12 +1,18 @@
-import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
-import {RouterLink} from '@angular/router';
+import {Component, ChangeDetectionStrategy, Input, OnDestroy, OnInit} from '@angular/core';
+import {Router, RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faArrowLeft} from '@fortawesome/free-solid-svg-icons';
+import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
+import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
+import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 
 /**
  * The quiet "← Parent page" link at the top of every non-planner page, so
  * the user can always step back up (home, the mod list, the mod itself…).
  * One look everywhere instead of ad-hoc outline buttons.
+ *
+ * It also owns the "go back" hotkey (Escape) while it is on screen, which is
+ * what gives every one of those pages the same way out from the keyboard.
  */
 @Component({
 	selector: 'back-link',
@@ -45,7 +51,7 @@ import {faArrowLeft} from '@fortawesome/free-solid-svg-icons';
 		}
 	`],
 })
-export class BackLinkComponent
+export class BackLinkComponent implements OnInit, OnDestroy
 {
 
 	public readonly faArrowLeft = faArrowLeft;
@@ -53,5 +59,37 @@ export class BackLinkComponent
 	/** Router commands of the parent page. */
 	@Input({required: true}) public link: string | string[] = '/';
 	@Input({required: true}) public label = '';
+
+	private registration: HotkeyRegistration | null = null;
+
+	public constructor(
+		private readonly hotkeys: HotkeyService,
+		private readonly backToPlanner: BackToPlannerResolver,
+		private readonly router: Router,
+	)
+	{
+	}
+
+	public ngOnInit(): void
+	{
+		this.registration = this.hotkeys.register('app.back', () => this.goBack());
+	}
+
+	public ngOnDestroy(): void
+	{
+		this.registration?.unregister();
+		this.registration = null;
+	}
+
+	/**
+	 * "Back to planner" wins where the navbar offers it: on the settings or
+	 * account page that is where the user came from, and it is the way out
+	 * they are looking at. Otherwise the link this back-link itself shows.
+	 */
+	private goBack(): void
+	{
+		const planner = this.backToPlanner.link();
+		void this.router.navigate(planner ?? (Array.isArray(this.link) ? this.link : [this.link]));
+	}
 
 }

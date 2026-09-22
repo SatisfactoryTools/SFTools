@@ -1,9 +1,10 @@
-import {Component, ChangeDetectionStrategy, EventEmitter, OnDestroy, Output, Signal, computed, signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, EventEmitter, OnDestroy, Output, Signal, computed, signal, HostListener} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {Subscription, firstValueFrom} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
 import {faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
+import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
@@ -37,7 +38,7 @@ interface ImportRow
 	selector: 'import-old-plans-dialog',
 	templateUrl: './ImportOldPlansDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, GameIconComponent, TooltipDirective, InfoNoteComponent],
+	imports: [FaIconComponent, FormsModule, GameIconComponent, AppTooltipDirective, InfoNoteComponent, HotkeyBlockDirective],
 	styles: `
 		.import-backdrop {
 			position: fixed;
@@ -171,6 +172,13 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 	}
 
 	/** Backdrop clicks and Cancel are ignored while plans are being calculated. */
+	/** Escape leaves the dialog, like clicking outside it does. */
+	@HostListener('document:keydown.escape')
+	public onEscape(): void
+	{
+		this.requestClose();
+	}
+
 	public requestClose(): void
 	{
 		if (!this.importing()) {

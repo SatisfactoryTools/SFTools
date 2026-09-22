@@ -1,8 +1,13 @@
 <div class="p-2 d-flex flex-column gap-2">
 
-	@if (activePlan(); as plan) {
+	@if (editedSettings()) {
 
-		@if (readOnly()) {
+		@if (activeFolder(); as folder) {
+			<info-note>
+				Starting values for the folder "{{ folder.name }}": new plans and subfolders made inside it begin with these
+				settings. Plans already in the folder keep their own.
+			</info-note>
+		} @else if (readOnly()) {
 			<info-note>{{ readOnlyNote() }}</info-note>
 		}
 
@@ -66,7 +71,11 @@
 						>
 					</div>
 
-					<info-note>Used the next time the graph is arranged. New subplans copy these settings.</info-note>
+					@if (activeFolder()) {
+						<info-note>New plans made in this folder are arranged this way.</info-note>
+					} @else {
+						<info-note>Used the next time the graph is arranged. New subplans copy these settings.</info-note>
+					}
 
 				</fieldset>
 			}
@@ -141,8 +150,26 @@
 			}
 		</collapsible-card>
 
+	} @else if (activeFolder(); as folder) {
+
+		<!-- The folder has no settings of its own yet - the same step as in the
+		     calculator, offered here so people can start from either panel. -->
+		<info-note>
+			"{{ folder.name }}" uses the settings of {{ parentLabel() }}. Give it its own to set the layout, machine
+			groups and colours that new plans inside start with.
+		</info-note>
+		@if (customSettingsBlocker(); as blocker) {
+			<span class="text-warning">{{ blocker }}</span>
+		} @else {
+			<button
+				class="btn btn-sm btn-primary align-self-start"
+				type="button"
+				(click)="enableFolderSettings()"
+			>Set default settings for folder</button>
+		}
+
 	} @else {
-		<info-note>Select a plan to edit its settings.</info-note>
+		<info-note>Select a plan or a folder to edit its settings.</info-note>
 	}
 
 </div>

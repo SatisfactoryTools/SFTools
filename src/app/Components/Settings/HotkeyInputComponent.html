@@ -1,0 +1,11 @@
+<button
+	type="button"
+	class="key-btn"
+	[class.recording]="recording"
+	[class.empty]="!recording && !binding"
+	[class.conflict]="conflict && !recording"
+	[attr.title]="recording ? 'Press the keys you want, or Escape to leave it as it is' : 'Click, then press the keys you want'"
+	(click)="start()"
+	(blur)="stop()"
+	(keydown)="onKeyDown($event)"
+>{{ text }}</button>

@@ -1,0 +1,9 @@
+<a class="card" [helpLink]="article.slug">
+	<span class="card-title">
+		{{ article.title }}
+		<fa-icon class="card-arrow" [icon]="faArrowRight"></fa-icon>
+	</span>
+	@if (article.summary !== '') {
+		<span class="card-summary">{{ article.summary }}</span>
+	}
+</a>

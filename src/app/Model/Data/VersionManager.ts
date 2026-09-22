@@ -110,7 +110,11 @@ export class VersionManager
 	public get versionDataResource() { return this.api.versionDataResource; }
 
 	public versions = computed(() => {
-		const merged = [...this.api.versionsResource.value() ?? []];
+		// value() throws while the resource is in its error state, and that
+		// exception would abort the template that is trying to explain the
+		// failure. An unreachable server simply means no versions yet.
+		const fetched = this.api.versionsResource.hasValue() ? this.api.versionsResource.value() : null;
+		const merged = [...fetched ?? []];
 		const ids = new Set(merged.map(v => v.id));
 		for (const version of [...this.localVersionsSignal(), ...this.createdVersionsSignal()]) {
 			if (!ids.has(version.id)) {
@@ -137,7 +141,7 @@ export class VersionManager
 		return this.versions().find(v => this.urlSlug(v) === slug) ?? this.activeVersionResolvedSignal();
 	});
 	public activeVersionData = computed<Data | null>(() => {
-		const file = this.api.versionDataResource.value();
+		const file = this.api.versionDataResource.hasValue() ? this.api.versionDataResource.value() : null;
 		return file ? this.transformer.transform(file, this.activeVersion()?.worldData?.limits ?? null) : null;
 	});
 
@@ -197,7 +201,14 @@ export class VersionManager
 		this.localVersionsSignal.update(local => local.filter(v => v.id !== version.id));
 		this.localStore.remove(version.id);
 		if (this.auth.isAuthenticated()) {
-			this.versionsApi.unlinkVersion(version.id).subscribe(() => this.api.versionsResource.reload());
+			this.versionsApi.unlinkVersion(version.id).subscribe({
+				next: () => this.api.versionsResource.reload(),
+				// The version is already gone from the lists here. Refreshing
+				// puts it back if the server never got the call, which is the
+				// honest outcome - no message needed for a link that will be
+				// removed again on the next try.
+				error: () => this.api.versionsResource.reload(),
+			});
 		}
 	}
 

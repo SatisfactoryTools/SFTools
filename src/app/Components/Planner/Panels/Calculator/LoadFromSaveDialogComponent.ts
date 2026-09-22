@@ -1,8 +1,9 @@
-import {Component, ChangeDetectionStrategy, EventEmitter, Input, OnDestroy, Output, Signal, signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, EventEmitter, Input, OnDestroy, Output, Signal, signal, HostListener} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
@@ -22,7 +23,7 @@ type LoadFromSaveState = 'idle' | 'parsing' | 'ready' | 'error';
 	selector: 'load-from-save-dialog',
 	templateUrl: './LoadFromSaveDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, InfoNoteComponent],
+	imports: [FaIconComponent, FormsModule, InfoNoteComponent, HotkeyBlockDirective],
 	styles: `
 		.save-backdrop {
 			position: fixed;
@@ -50,6 +51,14 @@ export class LoadFromSaveDialogComponent implements OnDestroy
 	@Input({required: true}) public baseSettings!: PlanSettings;
 	@Output() public readonly apply = new EventEmitter<PlanSettings>();
 	@Output() public readonly close = new EventEmitter<void>();
+
+	/** Escape leaves the dialog, like clicking outside it does. */
+	@HostListener('document:keydown.escape')
+	public onEscape(): void
+	{
+		this.close.emit();
+	}
+
 
 	public readonly faTriangleExclamation = faTriangleExclamation;
 

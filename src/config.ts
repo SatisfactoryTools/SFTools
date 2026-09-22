@@ -3,6 +3,7 @@ import {HTTP_INTERCEPTORS, provideHttpClient, withFetch, withInterceptorsFromDi}
 import {provideRouter, withComponentInputBinding, withInMemoryScrolling} from '@angular/router';
 import {AppTooltipConfig} from '@src/AppTooltipConfig';
 import {AuthInterceptor} from '@src/Model/Auth/AuthInterceptor';
+import {RetryInterceptor} from '@src/Model/API/RetryInterceptor';
 import {RouteList} from '@src/RouteList';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {CollapseModule} from 'ngx-bootstrap/collapse';
@@ -20,6 +21,9 @@ export const config: ApplicationConfig = {
 			withInMemoryScrolling({scrollPositionRestoration: 'enabled'}),
 		),
 		provideHttpClient(withFetch(), withInterceptorsFromDi()),
+		// Order matters: the retry sits outside the auth handling, so a retried
+		// request re-runs the token logic instead of replaying a stale header.
+		{provide: HTTP_INTERCEPTORS, useClass: RetryInterceptor, multi: true},
 		{provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true},
 		{provide: TooltipConfig, useClass: AppTooltipConfig},
 		importProvidersFrom([

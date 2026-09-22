@@ -2,11 +2,13 @@ import {Component, ElementRef, OnDestroy, Signal, ViewChild, computed, effect, s
 import {DatePipe, NgTemplateOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {CalculatorTabsMode} from '@src/Components/Planner/Panels/Calculator/CalculatorTabsMode';
-import {faBolt, faCopy, faDownload, faFileImport, faGaugeHigh, faIndustry, faListCheck, faLock, faMountain, faPlay, faRecycle, faRightFromBracket, faRightToBracket, faRotateLeft, faScroll, faSitemap, faSliders, faWandMagicSparkles, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faBolt, faCopy, faDownload, faFileImport, faGaugeHigh, faIndustry, faListCheck, faLock, faMountain, faPlay, faRecycle, faRightFromBracket, faRightToBracket, faRotateLeft, faScroll, faShareNodes, faSitemap, faSliders, faWandMagicSparkles, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {CalculationModeOption} from '@src/Components/Planner/Panels/Calculator/CalculationModeOption';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
+import {HelpTopicId} from '@src/Model/Help/HelpTopicId';
 import {CalculatorTab} from '@src/Components/Planner/Panels/Calculator/CalculatorTab';
 import {CalculatorTabBadgeResolver} from '@src/Components/Planner/Panels/Calculator/CalculatorTabBadgeResolver';
 import {CalculatorTabStateService} from '@src/Components/Planner/Panels/Calculator/CalculatorTabStateService';
@@ -26,6 +28,8 @@ import {CalculatorResourcesTabComponent} from '@src/Components/Planner/Panels/Ca
 import {CalculatorSinkTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Sink/CalculatorSinkTabComponent';
 import {CalculatorSloopsTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Sloops/CalculatorSloopsTabComponent';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
+import {CalculatorTabHotkeys} from '@src/Components/Planner/Panels/Calculator/CalculatorTabHotkeys';
+import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 import {NotificationService} from '@src/Model/NotificationService';
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
 import {Folder} from '@src/Model/Planner/Folder';
@@ -38,7 +42,9 @@ import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {SettingsGroup} from '@src/Model/Planner/SettingsGroup';
 import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
+import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
+import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
 
 @Component({
 	selector: 'planner-calculator',
@@ -48,6 +54,7 @@ import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 		BsDropdownModule,
 		DatePipe,
 		NgTemplateOutlet,
+		HelpButtonComponent,
 		CalculatorByproductsTabComponent,
 		CalculatorInputTabComponent,
 		CalculatorMachinesTabComponent,
@@ -62,7 +69,7 @@ import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 		FaIconComponent,
 		InfoNoteComponent,
 		LoadFromSaveDialogComponent,
-		TooltipDirective,
+		AppTooltipDirective,
 	],
 	styles: [`
 		.req-controls {
@@ -184,6 +191,7 @@ export class CalculatorComponent implements OnDestroy
 	public readonly faPlay = faPlay;
 	public readonly faRotateLeft = faRotateLeft;
 	public readonly faSitemap = faSitemap;
+	public readonly faShareNodes = faShareNodes;
 	public readonly faXmark = faXmark;
 
 	public readonly activeTab: Signal<CalculatorTab>;
@@ -263,7 +271,10 @@ export class CalculatorComponent implements OnDestroy
 		public readonly planNames: PlanNameResolver,
 		private readonly notifications: NotificationService,
 		public readonly actions: PlannerActionsService,
+		public readonly hotkeys: HotkeyService,
 		public readonly activeShare: ActiveShareManager,
+		public readonly shareDialog: ShareDialogService,
+		public readonly planLink: ActivePlanLinkManager,
 		private readonly folderRecalculation: FolderRecalculationService,
 		private readonly tabState: CalculatorTabStateService,
 		private readonly badgeResolver: CalculatorTabBadgeResolver,
@@ -345,7 +356,7 @@ export class CalculatorComponent implements OnDestroy
 			}
 			const folderId = plan ? plan.folderId : this.activeFolder()?.parentId ?? null;
 			const folder = this.planManager.folders().find(f => f.id === folderId);
-			return folder ? `"${folder.name}"` : 'parent settings';
+			return folder ? `"${folder.name}"` : 'the defaults';
 		});
 	}
 
@@ -417,6 +428,29 @@ export class CalculatorComponent implements OnDestroy
 			return;
 		}
 		this.tabsModeSignal.set('icons');
+	}
+
+	private static readonly TAB_HELP_TOPICS: Record<CalculatorTab, HelpTopicId> = {
+		request: 'request.production',
+		resources: 'request.resources',
+		recipes: 'request.recipes',
+		machines: 'request.machines',
+		input: 'request.input',
+		byproducts: 'request.byproducts',
+		power: 'request.power',
+		sink: 'request.sink',
+		sloops: 'request.sloops',
+		overclocking: 'request.overclocking',
+		optimisation: 'request.optimisation',
+	};
+
+	/**
+	 * Help topic of the open tab. The ids follow the tab ids, except the first
+	 * tab, whose id is 'request' while the article is about production.
+	 */
+	public activeTabHelpTopic(): HelpTopicId
+	{
+		return CalculatorComponent.TAB_HELP_TOPICS[this.activeTab()];
 	}
 
 	public get activeTabDefinition(): CalculatorTabDefinition
@@ -496,8 +530,8 @@ export class CalculatorComponent implements OnDestroy
 	public enableFolderSettings(): void
 	{
 		const folder = this.activeFolder();
-		if (folder && this.customSettingsBlocker() === null) {
-			this.planManager.setFolderSettings(folder.id, this.planManager.effectiveFolderSettings(folder.id));
+		if (folder) {
+			this.planManager.enableFolderSettings(folder.id);
 		}
 	}
 
@@ -574,12 +608,13 @@ export class CalculatorComponent implements OnDestroy
 	 * One tooltip per tab: the label when only the icon shows, plus the lock
 	 * note for a fixed group (the tab content explains the details).
 	 */
+	/**
+	 * The name is repeated here even when the tab already shows it - that is
+	 * what carries the tab's key, which has nowhere else to be seen.
+	 */
 	public tabTooltip(tab: CalculatorTabDefinition, locks: boolean): string
 	{
-		const parts: string[] = [];
-		if (this.tabsMode() === 'icons' && this.activeTab() !== tab.id) {
-			parts.push(tab.label);
-		}
+		const parts: string[] = [tab.label + this.hotkeys.suffix(CalculatorTabHotkeys.actionFor(tab.id))];
 		if (locks && this.isFixedTab(tab.id)) {
 			parts.push(this.fixedTabTooltip(tab.id));
 		}

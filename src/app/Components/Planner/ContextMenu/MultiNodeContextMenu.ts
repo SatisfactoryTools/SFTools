@@ -27,13 +27,18 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 
 	public getItems(): ContextMenuItem[]
 	{
-		const lockableIds = this.nodes.filter(node => node instanceof RecipeNode).map(node => node.id);
+		const lockable = this.nodes.filter(node => node instanceof RecipeNode);
+		const lockableIds = lockable.map(node => node.id);
 		// A mixed selection is unified to done first; only a fully done one clears.
 		const allDone = this.nodes.every(node => node.done);
+		// Both rows stay, but the lock hotkey toggles: it unlocks a selection
+		// that is already locked throughout and locks anything else.
+		const allLocked = lockable.length > 0 && lockable.every(node => node.locked);
 		return [
 			{
 				label: 'Convert to subplan',
 				icon: faDiagramProject,
+				hotkey: 'graph.convertToSubplan',
 				// A subplan node references a plan whose parent is this plan -
 				// nesting it under a new subplan would break that relationship.
 				disabled: this.nodes.some(node => node instanceof SubplanNode),
@@ -42,23 +47,27 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 			{
 				label: 'Lock all',
 				icon: faLock,
+				hotkey: allLocked ? undefined : 'graph.toggleLock',
 				disabled: lockableIds.length === 0,
 				action: () => this.actions.requestNodeLock({nodeIds: lockableIds, locked: true}),
 			},
 			{
 				label: 'Unlock all',
 				icon: faLockOpen,
+				hotkey: allLocked ? 'graph.toggleLock' : undefined,
 				disabled: lockableIds.length === 0,
 				action: () => this.actions.requestNodeLock({nodeIds: lockableIds, locked: false}),
 			},
 			{
 				label: allDone ? 'Mark all as not done' : 'Mark all as done',
+				hotkey: 'graph.toggleDone',
 				icon: allDone ? faRotateLeft : faCheck,
 				action: () => this.actions.requestNodeDone({nodeIds: this.nodes.map(node => node.id), done: !allDone}),
 			},
 			{
 				label: `Delete ${this.nodes.length} nodes`,
 				icon: faTrashCan,
+				hotkey: 'graph.deleteNode',
 				action: () => this.actions.requestNodeDelete(this.nodes.map(node => node.id)),
 			},
 		];

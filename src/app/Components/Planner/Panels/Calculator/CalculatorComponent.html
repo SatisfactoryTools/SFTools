@@ -21,6 +21,29 @@
 		><fa-icon [icon]="faDownload"></fa-icon> Add to my plans</button>
 	</div>
 
+} @else if (planLink.payload(); as link) {
+
+	<!-- Someone else's plan, opened from its own link: live, read-only, and the
+	     owner can change or close it at any time - so the panel offers a copy. -->
+	<div class="p-3">
+		<div class="d-flex align-items-center gap-2 mb-1">
+			<span class="fw-semibold">{{ planNames.displayNameOf(link.root.name) }}</span>
+			<span class="badge bg-secondary">shared by link</span>
+		</div>
+		@if (activePlan()?.description; as description) {
+			<div class="text-secondary mb-2">{{ description }}</div>
+		}
+		<info-note class="mb-3">
+			This plan belongs to someone else. You are looking at it as it is now - it is read-only, and it changes
+			when they change it. Add it to your plans to get your own copy that you can edit.
+		</info-note>
+		<button
+			class="btn btn-sm btn-primary"
+			type="button"
+			(click)="planLink.addToMyPlans()"
+		><fa-icon [icon]="faDownload"></fa-icon> Add to my plans</button>
+	</div>
+
 } @else if (activePlanLocal() && activePlan(); as plan) {
 
 	<!-- A plan left on this device while signed in: read-only until it is
@@ -77,13 +100,26 @@
 
 		<span class="flex-grow-1"></span>
 
+		<!-- The question mark follows the open tab, so it always explains what is on screen. -->
+		<help-button [topic]="activeTabHelpTopic()"/>
+
 		<button
 			class="btn btn-sm btn-outline-secondary"
 			type="button"
-			tooltip="Rearrange the graph. Nodes and connections are moved, amounts stay the same." placement="bottom"
+			[tooltip]="'Rearrange the graph. Nodes and connections are moved, amounts stay the same.' + hotkeys.suffix('planner.rearrange')" placement="bottom"
 			[disabled]="actions.isCalculating() || !hasGraph()"
 			(click)="relayout()"
 		><fa-icon [icon]="faSitemap"></fa-icon> Rearrange</button>
+
+		<!-- The same window as the rail button and the context menus: people look for
+		     sharing here, next to the plan they are working on. -->
+		<button
+			class="btn btn-sm btn-blue"
+			type="button"
+			[tooltip]="'Send this plan to someone - a snapshot link or the plan\'s own link.' + hotkeys.suffix('plans.sharePlan')" placement="bottom"
+			[disabled]="shareDialog.activeTarget() === null"
+			(click)="shareDialog.openActive()"
+		><fa-icon [icon]="faShareNodes"></fa-icon> Share</button>
 
 		<!-- container="body" so the menu overlays the planner instead of being
 		     clipped (and scrolled) by the panel's overflow container. -->
@@ -91,6 +127,7 @@
 			<button
 				class="btn btn-sm btn-primary"
 				type="button"
+				[tooltip]="buttonLabel() + hotkeys.suffix('planner.calculate')" placement="bottom"
 				[disabled]="actions.isCalculating() || (mode() === 'automatic' && !graphDirty())"
 				(click)="calculate()"
 			>

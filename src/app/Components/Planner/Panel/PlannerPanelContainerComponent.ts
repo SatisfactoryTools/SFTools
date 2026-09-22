@@ -1,10 +1,11 @@
 import {AfterViewInit, Component, computed, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {NgComponentOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faBars, faChevronLeft, faChevronRight, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faBars, faChevronLeft, faChevronRight, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {FloatingGroup} from '@src/Components/Planner/Panel/FloatingGroup';
 import {PanelContentAreaComponent} from '@src/Components/Planner/Panel/PanelContentAreaComponent';
 import {MOBILE_NAV_HEIGHT, PanelLayoutService, RAIL_WIDTH, STATUS_BAR_HEIGHT} from '@src/Components/Planner/Panel/PanelLayoutService';
+import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelSide} from '@src/Components/Planner/Panel/PanelSide';
 import {PlannerFloatingWindowComponent} from '@src/Components/Planner/Panel/PlannerFloatingWindowComponent';
@@ -120,6 +121,19 @@ const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activa
 			pointer-events: auto;
 			z-index: 11;
 		}
+		.mob-share-btn {
+			position: absolute;
+			top: 10px; right: 10px;
+			width: 36px; height: 36px;
+			border: 1px solid #222b3e;
+			border-radius: 6px;
+			background: #10141d;
+			color: #ccd6ee;
+			font-size: 16px;
+			cursor: pointer;
+			pointer-events: auto;
+			z-index: 11;
+		}
 		.mob-zoom {
 			position: absolute;
 			left: 12px;
@@ -189,6 +203,7 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 {
 
 	public readonly faBars = faBars;
+	public readonly faShareNodes = faShareNodes;
 	public readonly faXmark = faXmark;
 	public readonly faChevronLeft = faChevronLeft;
 	public readonly faChevronRight = faChevronRight;
@@ -227,6 +242,7 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 
 	public constructor(
 		public readonly layout: PanelLayoutService,
+		public readonly shareDialog: ShareDialogService,
 		private readonly elementRef: ElementRef<HTMLElement>,
 	)
 	{

@@ -1,4 +1,4 @@
-<settings-section title="Planner" [icon]="sectionIcon" description="How item lists, tabs and panels in the planner behave.">
+<settings-section helpTopic="settings.planner" title="Planner" [icon]="sectionIcon" description="How item lists, tabs and panels in the planner behave.">
 		<div class="subsection-title">Items</div>
 		<div style="max-width: 480px;">
 			<label class="form-label" for="unmakeable-items">Items the plan cannot produce</label>
@@ -46,6 +46,22 @@
 			<div class="form-text">
 				A small number on each tab shows what is set there: how many items are requested, how many recipes are
 				enabled, how many clock speeds are changed, and so on.
+			</div>
+		</div>
+
+		<div class="subsection-title">Help</div>
+		<div class="form-check mb-3">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="help-buttons"
+				[ngModel]="helpButtons"
+				(ngModelChange)="setHelpButtons($event)"
+			/>
+			<label class="form-check-label" for="help-buttons">Show help buttons</label>
+			<div class="form-text">
+				A small question mark next to a setting or a tool opens the help article about it. Turn this off to
+				keep the screen clean; the Help panel and the search still find every article.
 			</div>
 		</div>
 

@@ -1,0 +1,110 @@
+<div class="p-2 d-flex flex-column gap-2">
+
+	<div class="card">
+		<div class="card-header d-flex align-items-center gap-2 py-1 px-2">
+			@if (iconHash; as hash) {
+				<game-icon [hash]="hash" [size]="20" [alt]="displayName"></game-icon>
+			} @else {
+				<span class="text-secondary"><fa-icon [icon]="faDiagramProject"></fa-icon></span>
+			}
+			<span class="fw-semibold flex-grow-1 text-truncate" [title]="displayName">{{ displayName }}</span>
+			<span class="badge text-bg-secondary">Subplan</span>
+			<span
+				class="text-warning"
+				tooltip="Subplans are always kept by the calculation - it builds the rest of the plan around them."
+				container="body"
+				placement="left"
+			><fa-icon [icon]="faLock" [fixedWidth]="true"></fa-icon></span>
+			<button
+				class="btn btn-sm btn-outline-primary py-0 px-1 flex-shrink-0"
+				type="button"
+				[disabled]="!subplanExists"
+				tooltip="Open the subplan to edit what is inside it" container="body" placement="left"
+				(click)="openSubplan()"
+			><fa-icon [icon]="faArrowUpRightFromSquare" [fixedWidth]="true"></fa-icon><span class="visually-hidden">Open the subplan</span></button>
+		</div>
+		<div class="card-body p-2 d-flex flex-column gap-2">
+
+			<div class="d-flex align-items-center flex-wrap gap-2">
+				<label class="text-secondary small mb-0" for="subplan-build-count">Built</label>
+				<div class="input-group input-group-sm build-count flex-nowrap">
+					<input
+						id="subplan-build-count"
+						type="number"
+						class="form-control form-control-sm bg-dark text-light border-secondary"
+						[(ngModel)]="buildCount"
+						(ngModelChange)="onBuildCountChange()"
+						[disabled]="readOnly"
+						min="1"
+						step="1"
+					>
+					<span class="input-group-text bg-dark text-secondary border-secondary">×</span>
+				</div>
+				<span class="text-secondary small">in this plan</span>
+			</div>
+
+			@if (isEmpty) {
+				<div class="fst-italic text-secondary small">This subplan is still empty. Open it to build something first.</div>
+			} @else {
+				<div>
+					<div class="text-secondary small mb-1">Inputs</div>
+					<div class="io-tiles">
+						@for (input of inputRates; track input.item.className; let i = $index) {
+							<div class="io-tile">
+								<game-icon [hash]="input.item.icon" [size]="32" [alt]="input.item.name"></game-icon>
+								<span class="io-name small text-truncate" [title]="input.item.name">{{ input.item.name }}</span>
+								<div class="input-group input-group-sm flex-nowrap">
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[(ngModel)]="input.rate"
+										(ngModelChange)="onInputRateChange(i)"
+										[disabled]="readOnly"
+										min="0"
+										step="any"
+									>
+									<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(input.item) }}</span>
+								</div>
+								@if (buildsMany) {
+									<span class="io-total text-secondary">{{ totalText(input) }} in total</span>
+								}
+							</div>
+						} @empty {
+							<div class="fst-italic text-secondary small">None</div>
+						}
+					</div>
+				</div>
+
+				<div>
+					<div class="text-secondary small mb-1">Outputs</div>
+					<div class="io-tiles">
+						@for (output of outputRates; track output.item.className; let i = $index) {
+							<div class="io-tile">
+								<game-icon [hash]="output.item.icon" [size]="32" [alt]="output.item.name"></game-icon>
+								<span class="io-name small text-truncate" [title]="output.item.name">{{ output.item.name }}</span>
+								<div class="input-group input-group-sm flex-nowrap">
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[(ngModel)]="output.rate"
+										(ngModelChange)="onOutputRateChange(i)"
+										[disabled]="readOnly"
+										min="0"
+										step="any"
+									>
+									<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(output.item) }}</span>
+								</div>
+								@if (buildsMany) {
+									<span class="io-total text-secondary">{{ totalText(output) }} in total</span>
+								}
+							</div>
+						} @empty {
+							<div class="fst-italic text-secondary small">None</div>
+						}
+					</div>
+				</div>
+			}
+
+		</div>
+	</div>
+</div>

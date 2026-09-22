@@ -18,6 +18,7 @@ import {LocalPlanStoreBackend} from '@src/Model/Planner/LocalPlanStoreBackend';
 import {PlanCountsService} from '@src/Model/Planner/PlanCountsService';
 import {RelativeTimeFormatter} from '@src/Model/RelativeTimeFormatter';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
 const WORLD_MODE_LABELS: Record<string, string> = {
 	'none': 'default nodes',
@@ -46,7 +47,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 @Component({
 	templateUrl: './HomeComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [RouterLink, FaIconComponent, OAuthProviderButtonsComponent, InfoNoteComponent],
+	imports: [RouterLink, FaIconComponent, OAuthProviderButtonsComponent, InfoNoteComponent, HelpButtonComponent],
 	styles: [`
 		:host {
 			display: block;
@@ -476,6 +477,26 @@ export class HomeComponent
 	public get customVersions(): Version[]
 	{
 		return this.versionManager.versions().filter(version => version.custom);
+	}
+
+	/**
+	 * True when the version list could not be fetched at all. Without this the
+	 * page would simply render an empty picker, which reads as "there is
+	 * nothing here" rather than "the server did not answer".
+	 */
+	public get versionsFailed(): boolean
+	{
+		return this.versionManager.versionsResource.error() !== undefined;
+	}
+
+	public get versionsLoading(): boolean
+	{
+		return this.versionManager.versionsResource.isLoading();
+	}
+
+	public retryVersions(): void
+	{
+		this.versionManager.versionsResource.reload();
 	}
 
 	/** The release to open by default: the official non-experimental one, else the first public version. */

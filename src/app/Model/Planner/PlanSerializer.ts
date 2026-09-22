@@ -150,6 +150,8 @@ export class PlanSerializer
 					raw['name'] as string,
 					this.deserializeNodeIO(raw['inputs'], data),
 					this.deserializeNodeIO(raw['outputs'], data),
+					// Absent on plans saved before subplans could be built more than once.
+					(raw['buildCount'] as number | undefined) ?? 1,
 				);
 				break;
 			case 'sink': {

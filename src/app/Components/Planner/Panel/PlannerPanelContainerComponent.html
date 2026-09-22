@@ -13,6 +13,9 @@
 		</div>
 	} @else {
 		<button class="mob-menu-btn" type="button" aria-label="Plans" (click)="openDrawer()"><fa-icon [icon]="faBars"></fa-icon></button>
+		@if (shareDialog.activeTarget() !== null) {
+			<button class="mob-share-btn" type="button" aria-label="Share" (click)="shareDialog.openActive()"><fa-icon [icon]="faShareNodes"></fa-icon></button>
+		}
 		<div class="mob-zoom">
 			<planner-zoom-controls></planner-zoom-controls>
 		</div>

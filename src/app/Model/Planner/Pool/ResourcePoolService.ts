@@ -5,6 +5,7 @@ import {Folder} from '@src/Model/Planner/Folder';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PoolResourceStatus} from '@src/Model/Planner/Pool/PoolResourceStatus';
+import {SubplanBuildCounter} from '@src/Model/Planner/SubplanBuildCounter';
 
 /**
  * The shared raw-resource pool of a folder whose Resources group is pooled:
@@ -23,6 +24,7 @@ export class ResourcePoolService
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
+		private readonly subplanBuildCounter: SubplanBuildCounter,
 	)
 	{
 	}
@@ -118,10 +120,12 @@ export class ResourcePoolService
 	/**
 	 * Per-resource extraction of the plan's stored graph. Stored graphs are
 	 * either revived node instances or raw JSON straight from storage - both
-	 * carry the type, and the item is reachable either way.
+	 * carry the type, and the item is reachable either way. A subplan built
+	 * several times by its parent extracts that many times as much.
 	 */
 	private mineUsage(plan: Plan): Map<string, number>
 	{
+		const builds = this.subplanBuildCounter.totalBuildsOf(plan);
 		const usage = new Map<string, number>();
 		(plan.graph?.nodes ?? []).forEach(node => {
 			const raw = node as unknown as {type?: string; amount?: number; itemClassName?: string; item?: {className?: string}};
@@ -132,7 +136,7 @@ export class ResourcePoolService
 			if (className === undefined || typeof raw.amount !== 'number') {
 				return;
 			}
-			usage.set(className, (usage.get(className) ?? 0) + raw.amount);
+			usage.set(className, (usage.get(className) ?? 0) + raw.amount * builds);
 		});
 		return usage;
 	}

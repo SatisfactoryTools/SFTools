@@ -1,55 +1,35 @@
 <div class="position-relative">
+	<fa-icon [icon]="faMagnifyingGlass" class="search-icon"></fa-icon>
 	<input
 		#searchInput
 		class="form-control w-100"
 		type="search"
-		placeholder="Search&hellip;"
+		placeholder="Search items, recipes, plans, help&hellip;"
+		aria-label="Search everything"
 		autocomplete="off"
-		[(ngModel)]="query"
+		[value]="state.query()"
+		(input)="onInput($event)"
 		(focus)="onFocus()"
 		(blur)="onBlur()"
 		(keydown)="onKeydown($event)"
 	/>
 	@if (showResults) {
-		<div class="position-absolute bg-dark border border-secondary rounded shadow mt-1 py-1 w-100" style="z-index: 1060; left: 0; max-height: 70vh; overflow-y: auto;">
-			@if (query.trim().length < 2) {
+		<div
+			class="position-absolute bg-dark border border-secondary rounded shadow mt-1 py-1 w-100"
+			style="z-index: 1060; left: 0;"
+			fitViewport [fitViewportReserve]="120" [fitViewportMax]="520"
+		>
+			@if (state.tooShort()) {
 				<div class="px-3 py-2 text-muted small">Start typing to search&hellip;</div>
-			} @else if (flatResults().length === 0) {
-				<div class="px-3 py-2 text-muted small">No results for &ldquo;{{ query }}&rdquo;</div>
+			} @else if (state.results().length === 0) {
+				<div class="px-3 py-2 text-muted small">No results for &ldquo;{{ state.query() }}&rdquo;</div>
 			} @else {
-				@for (group of groups(); track group.label) {
-					<div class="px-3 pt-2 pb-1 text-muted small text-uppercase">{{ group.label }}</div>
-					@for (result of group.results; track result.type + result.id) {
-						<button
-							type="button"
-							class="search-result d-flex align-items-center gap-2 w-100 border-0 text-start px-3 py-1"
-							[class.active]="flatResults()[activeIndex()] === result"
-							(click)="open(result)"
-						>
-							@switch (result.type) {
-								@case ('plan') {
-									<fa-icon [icon]="faDiagramProject" [fixedWidth]="true" class="text-muted"></fa-icon>
-								}
-								@case ('folder') {
-									<fa-icon [icon]="faFolder" [fixedWidth]="true" class="text-muted"></fa-icon>
-								}
-								@default {
-									<span class="d-inline-flex align-items-center gap-1 flex-shrink-0">
-										@for (icon of result.icons; track $index) {
-											<game-icon [hash]="icon" [size]="20" [alt]="result.name"></game-icon>
-										}
-									</span>
-								}
-							}
-							<span class="d-flex flex-column" style="min-width: 0;">
-								<span class="text-truncate"><search-fragments [fragments]="result.nameFragments"/></span>
-								@if (result.snippet; as snippet) {
-									<span class="small text-muted text-truncate"><search-fragments [fragments]="snippet"/></span>
-								}
-							</span>
-						</button>
-					}
-				}
+				<search-result-list
+					[groups]="state.groups()"
+					[active]="state.activeResult()"
+					(highlight)="state.setActiveResult($event)"
+					(select)="open($event)"
+				/>
 			}
 		</div>
 	}

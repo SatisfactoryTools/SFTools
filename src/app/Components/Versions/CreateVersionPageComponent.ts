@@ -27,6 +27,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {WorldLimitsCalculator} from '@src/Model/Data/WorldLimitsCalculator';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
 /** One editable row of the world resource table. */
 interface WorldResourceRow
@@ -67,7 +68,7 @@ const EMPTY_COUNTS: PurityCounts = {impure: 0, normal: 0, pure: 0};
 @Component({
 	templateUrl: './CreateVersionPageComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, RouterLink, ItemPickerComponent, GameIconComponent, InfoNoteComponent, BackLinkComponent],
+	imports: [FaIconComponent, FormsModule, RouterLink, ItemPickerComponent, GameIconComponent, InfoNoteComponent, BackLinkComponent, HelpButtonComponent],
 	// The theme leaves Bootstrap's table text color dark - force the themed color.
 	styles: `
 		.table {
@@ -157,6 +158,9 @@ export class CreateVersionPageComponent
 
 	/** All mods visible to the user that have at least one version to merge. */
 	public mods: Mod[] = [];
+
+	/** The mod list could not be fetched - told apart from there being no mods. */
+	public modsFailed = false;
 	public picked: PickedMod[] = [];
 
 	// World settings. Changing them does NOT clear the table - the table
@@ -194,8 +198,13 @@ export class CreateVersionPageComponent
 	)
 	{
 		this.baseId = this.baseVersions[0]?.id ?? '';
-		this.modsApi.listMods().subscribe(mods => {
-			this.mods = mods.filter(mod => mod.versions.length > 0);
+		this.modsApi.listMods().subscribe({
+			next: mods => {
+				this.mods = mods.filter(mod => mod.versions.length > 0);
+			},
+			// The mod list is one optional section of the form; the rest of the
+			// page still works, so this stays quiet rather than blocking it.
+			error: () => this.modsFailed = true,
 		});
 	}
 

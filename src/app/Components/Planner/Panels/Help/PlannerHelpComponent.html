@@ -1,0 +1,12 @@
+<!-- Mobile panel views are already fullscreen - nothing to pop out to. -->
+@if (!layout.isMobile()) {
+	<div class="help-toolbar position-sticky top-0 d-flex align-items-center justify-content-end px-2 py-2">
+		<a
+			class="btn btn-sm btn-outline-secondary flex-shrink-0"
+			[routerLink]="popOutLink()" [fragment]="popOutFragment()"
+			tooltip="Open fullscreen" placement="left" container="body"
+			aria-label="Open fullscreen help"
+		><fa-icon [icon]="faUpRightFromSquare"></fa-icon></a>
+	</div>
+}
+<help-browser/>

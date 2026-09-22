@@ -1,7 +1,7 @@
 import {AfterViewInit, Component, computed, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, Router} from '@angular/router';
-import {faBolt, faBook, faChartPie, faCoins, faCrosshairs, faCubes, faFolderTree, faGear, faListCheck} from '@fortawesome/free-solid-svg-icons';
+import {faBolt, faBook, faChartPie, faCircleQuestion, faCoins, faCrosshairs, faCubes, faFolderTree, faGear, faListCheck} from '@fortawesome/free-solid-svg-icons';
 import {combineLatest, debounceTime, distinctUntilChanged, filter, finalize, pairwise, skip, Subscription} from 'rxjs';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {PanelCodexNavigation} from '@src/Components/Codex/PanelCodexNavigation';
@@ -14,9 +14,18 @@ import {EdgeShortageMenu} from '@src/Components/Planner/ContextMenu/EdgeShortage
 import {MultiNodeContextMenu} from '@src/Components/Planner/ContextMenu/MultiNodeContextMenu';
 import {NodeContextMenu} from '@src/Components/Planner/ContextMenu/NodeContextMenu';
 import {NodeResizeOptions} from '@src/Components/Planner/ContextMenu/NodeResizeOptions';
+import {NodeSplitOptions} from '@src/Components/Planner/ContextMenu/NodeSplitOptions';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlannerContextMenuComponent} from '@src/Components/Planner/ContextMenu/PlannerContextMenuComponent';
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
+import {CalculatorTabHotkeys} from '@src/Components/Planner/Panels/Calculator/CalculatorTabHotkeys';
+import {CalculatorTabStateService} from '@src/Components/Planner/Panels/Calculator/CalculatorTabStateService';
+import {HotkeyAction} from '@src/Model/Hotkeys/HotkeyAction';
+import {HotkeyCatalog} from '@src/Model/Hotkeys/HotkeyCatalog';
+import {HotkeyItem} from '@src/Model/Hotkeys/HotkeyItem';
+import {HotkeyItemSource} from '@src/Model/Hotkeys/HotkeyItemSource';
+import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
+import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 import {PlannerNodeTooltipComponent} from '@src/Components/Planner/Tooltip/PlannerNodeTooltipComponent';
 import {PlannerNodeTooltipService} from '@src/Components/Planner/Tooltip/PlannerNodeTooltipService';
 import {FolderRecalculationService} from '@src/Components/Planner/FolderRecalculationService';
@@ -29,12 +38,14 @@ import {GraphHistoryService} from '@src/Components/Planner/GraphHistoryService';
 import {PreparedEdgeAdd} from '@src/Components/Planner/PreparedEdgeAdd';
 import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
+import {NodeSplitRequest} from '@src/Components/Planner/NodeSplitRequest';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {PlannerPanelContainerComponent} from '@src/Components/Planner/Panel/PlannerPanelContainerComponent';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {CalculatorComponent} from '@src/Components/Planner/Panels/Calculator/CalculatorComponent';
 import {PlannerCodexComponent} from '@src/Components/Planner/Panels/Codex/PlannerCodexComponent';
+import {PlannerHelpComponent} from '@src/Components/Planner/Panels/Help/PlannerHelpComponent';
 import {PlannerBuildCostComponent} from '@src/Components/Planner/Panels/BuildCost/PlannerBuildCostComponent';
 import {PlannerInspectorComponent} from '@src/Components/Planner/Panels/Inspector/PlannerInspectorComponent';
 import {PlannerItemsComponent} from '@src/Components/Planner/Panels/Items/PlannerItemsComponent';
@@ -55,23 +66,31 @@ import {GraphSnapshot} from '@src/Model/Planner/Graph/GraphSnapshot';
 import {GraphEdgeBuilder} from '@src/Model/Planner/Graph/GraphEdgeBuilder';
 import {GraphReconciler} from '@src/Model/Planner/Graph/GraphReconciler';
 import {NodeResizer} from '@src/Model/Planner/NodeResizer';
+import {NodeSplitter} from '@src/Model/Planner/NodeSplitter';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
+import {SubplanBuildCountRequest} from '@src/Components/Planner/SubplanBuildCountRequest';
+import {SubplanScaleRequest} from '@src/Components/Planner/SubplanScaleRequest';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
 import {PlanSerializer} from '@src/Model/Planner/PlanSerializer';
 import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
+import {SubplanScaler} from '@src/Model/Planner/SubplanScaler';
 import {NotificationService} from '@src/Model/NotificationService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
+import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
+import {PlanLinkUnavailableDialogComponent} from '@src/Components/Planner/Share/PlanLinkUnavailableDialogComponent';
+import {PlanShareDialogComponent} from '@src/Components/Planner/Share/PlanShareDialogComponent';
+import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 
 // Flows closer than this count as equal when deciding whether a menu action
 // (minimise/maximise, increase-output) has anything to change - matches the
@@ -82,7 +101,7 @@ const RATIO_TOLERANCE = 1e-4;
 
 @Component({
 	templateUrl: './PlannerComponent.html',
-	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent],
+	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent, PlanShareDialogComponent, PlanLinkUnavailableDialogComponent],
 	providers: [
 		FolderRecalculationService,
 		PlannerGraphService,
@@ -96,10 +115,15 @@ const RATIO_TOLERANCE = 1e-4;
 	changeDetection: ChangeDetectionStrategy.Eager,
 	host: {style: 'position: fixed; top: 56px; left: 0; right: 0; bottom: 0; overflow: hidden;'},
 })
-export class PlannerComponent implements AfterViewInit, OnDestroy
+export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSource
 {
 
 	@ViewChild('graphContainer') private graphContainerRef!: ElementRef<HTMLElement>;
+
+	private hotkeyRegistrations: HotkeyRegistration[] = [];
+
+	/** Plan hotkeys waiting for the Plans panel to appear (see openPlansPanelAndRun). */
+	private readonly plansHotkeyRetries = new Set<HotkeyAction>();
 
 	private readonly subscription = new Subscription();
 	private calcSubscription: Subscription | null = null;
@@ -141,20 +165,26 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		private readonly graphComposer: GraphComposer,
 		private readonly graphReconciler: GraphReconciler,
 		private readonly nodeResizer: NodeResizer,
+		private readonly nodeSplitter: NodeSplitter,
 		private readonly edgeBuilder: GraphEdgeBuilder,
 		private readonly plannerGraph: PlannerGraphService,
 		private readonly panelLayout: PanelLayoutService,
 		private readonly actions: PlannerActionsService,
 		private readonly history: GraphHistoryService,
 		private readonly contextMenu: PlannerContextMenuService,
+		private readonly hotkeys: HotkeyService,
+		private readonly calculatorTabs: CalculatorTabStateService,
 		private readonly versionManager: VersionManager,
 		private readonly enabledRecipes: EnabledRecipesResolver,
 		private readonly subplanResolver: SubplanIOResolver,
+		private readonly subplanScaler: SubplanScaler,
 		private readonly notifications: NotificationService,
 		private readonly rateFormatter: RateFormatter,
 		private readonly settings: SettingsManager,
 		private readonly plannerLocation: PlannerLocationService,
 		private readonly activeShare: ActiveShareManager,
+		public readonly planLink: ActivePlanLinkManager,
+		public readonly shareDialog: ShareDialogService,
 		private readonly folderRecalculation: FolderRecalculationService,
 		private readonly signInPrompt: SignInPromptService,
 		private readonly route: ActivatedRoute,
@@ -162,13 +192,20 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 	)
 	{
 		// Nudge signed-out users towards an account - but not when they arrive
-		// through someone's share link, which should just open.
-		if (route.snapshot.paramMap.get('shareId') === null) {
+		// through someone's share link, which should just open. A plan id that
+		// is not (yet) one of their own may be someone else's plan link, which
+		// should just open too; the URL -> state sync below prompts as soon as
+		// the plan turns out to be theirs after all.
+		const planIdParam = route.snapshot.paramMap.get('planId');
+		const ownPlan = planIdParam === null || planManager.plans().some(p => p.id === planIdParam);
+		if (route.snapshot.paramMap.get('shareId') === null && ownPlan) {
 			signInPrompt.maybePrompt();
 		}
 
 		panelLayout.register({
 			id: 'plans',
+			helpTopic: 'panel.plans',
+			hotkey: 'panel.plans',
 			label: 'Plans',
 			icon: faFolderTree,
 			component: PlannerPlansComponent,
@@ -177,6 +214,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'calculator',
+			helpTopic: 'panel.calculator',
+			hotkey: 'panel.calculator',
 			label: 'Production request',
 			icon: faListCheck,
 			component: CalculatorComponent,
@@ -185,6 +224,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'overview',
+			helpTopic: 'panel.overview',
+			hotkey: 'panel.overview',
 			label: 'Overview',
 			icon: faChartPie,
 			component: PlannerOverviewComponent,
@@ -192,6 +233,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'inspector',
+			helpTopic: 'panel.inspector',
+			hotkey: 'panel.inspector',
 			label: 'Inspector',
 			icon: faCrosshairs,
 			component: PlannerInspectorComponent,
@@ -199,6 +242,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'power',
+			helpTopic: 'panel.power',
+			hotkey: 'panel.power',
 			label: 'Power',
 			icon: faBolt,
 			component: PlannerPowerComponent,
@@ -206,6 +251,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'items',
+			helpTopic: 'panel.items',
+			hotkey: 'panel.items',
 			label: 'Items',
 			icon: faCubes,
 			component: PlannerItemsComponent,
@@ -213,6 +260,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'build-cost',
+			helpTopic: 'panel.build-cost',
+			hotkey: 'panel.buildCost',
 			label: 'Build cost',
 			icon: faCoins,
 			component: PlannerBuildCostComponent,
@@ -220,6 +269,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'settings',
+			helpTopic: 'panel.settings',
+			hotkey: 'panel.plannerSettings',
 			label: 'Planner settings',
 			icon: faGear,
 			component: PlannerSettingsComponent,
@@ -227,6 +278,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		});
 		panelLayout.register({
 			id: 'codex',
+			helpTopic: 'panel.codex',
+			hotkey: 'panel.codex',
 			label: 'Codex',
 			icon: faBook,
 			component: PlannerCodexComponent,
@@ -236,13 +289,31 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			defaultFloatHeight: 400,
 		});
 
+		panelLayout.register({
+			id: 'help',
+			helpTopic: 'panel.help',
+			hotkey: 'panel.help',
+			label: 'Help',
+			icon: faCircleQuestion,
+			component: PlannerHelpComponent,
+			defaultSide: 'right',
+			defaultFloating: true,
+			defaultFloatWidth: 500,
+			defaultFloatHeight: 400,
+		});
+
 		// Restore the remembered panel layout now that every panel is registered.
 		panelLayout.applyLayout(this.settings.panels());
 
+		this.registerHotkeys();
+
 		// A refreshed or shared URL with ?codex=… must show the codex even if
-		// the remembered layout has that panel closed.
+		// the remembered layout has that panel closed. Same for ?help=.
 		if (this.route.snapshot.queryParamMap.has('codex')) {
 			panelLayout.focusPanel('codex');
+		}
+		if (this.route.snapshot.queryParamMap.has('help')) {
+			panelLayout.focusPanel('help');
 		}
 
 		this.subscription.add(
@@ -287,6 +358,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 		this.subscription.add(
 			this.actions.edgeAmountRequests.subscribe(request => this.applyEdgeAmount(request)),
+		);
+
+		this.subscription.add(
+			this.actions.nodeSplitRequests.subscribe(request => this.applyNodeSplit(request)),
 		);
 
 		this.subscription.add(
@@ -351,6 +426,14 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 
 		this.subscription.add(
 			this.actions.subplanOpenRequests.subscribe(subplanId => this.openSubplan(subplanId)),
+		);
+
+		this.subscription.add(
+			this.actions.subplanScaleRequests.subscribe(request => this.applySubplanScale(request)),
+		);
+
+		this.subscription.add(
+			this.actions.subplanBuildCountRequests.subscribe(request => this.applySubplanBuildCount(request)),
 		);
 
 		this.subscription.add(
@@ -452,6 +535,20 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 				if (plans.some(p => p.id === planId)) {
 					this.urlAppliedPlanId = planId;
 					this.planManager.setActivePlan(planId);
+					// Their own plan after all - the nudge the constructor held back.
+					this.signInPrompt.maybePrompt();
+					return;
+				}
+				// None of the user's own: once the store really is loaded for this
+				// version, the id can only be someone else's plan, pasted out of their
+				// address bar. Open it read-only if its owner allows that
+				// (ActivePlanLinkManager), and say so plainly when they do not -
+				// silently showing the viewer their own plan instead is what made these
+				// links look broken. The flag must be the version-scoped one: arriving
+				// from a version-less page (help, settings) the store is "loaded" while
+				// still empty, and the user's own plan would open as a stranger's.
+				if (this.planManager.loadedForActiveVersion()) {
+					this.planLink.open(planId);
 				}
 			}),
 		);
@@ -490,19 +587,21 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 				}),
 		);
 
-		// Closing the codex panel drops its query param, so a refresh doesn't
-		// resurrect the panel the user just dismissed.
-		this.subscription.add(
-			toObservable(computed(() => this.panelLayout.isOpen('codex'))).pipe(skip(1)).subscribe(open => {
-				if (!open && this.route.snapshot.queryParamMap.has('codex')) {
-					void this.router.navigate([], {
-						relativeTo: this.route,
-						queryParams: {codex: null},
-						queryParamsHandling: 'merge',
-					});
-				}
-			}),
-		);
+		// Closing the codex or help panel drops its query param, so a refresh
+		// doesn't resurrect the panel the user just dismissed.
+		for (const panel of ['codex', 'help']) {
+			this.subscription.add(
+				toObservable(computed(() => this.panelLayout.isOpen(panel))).pipe(skip(1)).subscribe(open => {
+					if (!open && this.route.snapshot.queryParamMap.has(panel)) {
+						void this.router.navigate([], {
+							relativeTo: this.route,
+							queryParams: {[panel]: null},
+							queryParamsHandling: 'merge',
+						});
+					}
+				}),
+			);
+		}
 
 		// Remember where the planner was left so the navbar can offer a way
 		// back from non-versioned pages (account, settings, …).
@@ -562,6 +661,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 				} else {
 					this.activeShare.close();
 				}
+				// A plan opened by link is addressed by its own id; any other planner
+				// URL (a plan of the viewer's own, the bare planner) leaves that view.
+				const planId = params.get('planId');
+				if (planId === null || this.planManager.plans().some(p => p.id === planId)) {
+					this.planLink.close();
+				}
 			}),
 		);
 	}
@@ -572,13 +677,129 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		if (plan) {
 			this.renderPlan(plan);
 		}
+		this.openRequestedPanel();
+	}
+
+	/**
+	 * `?panel=inspector` - how a panel link in a help article gets back here.
+	 * Handled this late because the panel container decides only in its own
+	 * ngAfterViewInit whether the layout is the mobile one, and showing a
+	 * panel means something different there. The param is an instruction
+	 * rather than state, so it leaves the URL again once carried out.
+	 */
+	private openRequestedPanel(): void
+	{
+		const requested = this.route.snapshot.queryParamMap.get('panel');
+		if (requested === null) {
+			return;
+		}
+		if (this.panelLayout.panelById(requested) !== null) {
+			this.panelLayout.focusPanel(requested);
+		}
+		void this.router.navigate([], {
+			relativeTo: this.route,
+			queryParams: {panel: null},
+			queryParamsHandling: 'merge',
+			replaceUrl: true,
+		});
 	}
 
 	public ngOnDestroy(): void
 	{
 		this.cancelCalculation();
 		this.subscription.unsubscribe();
+		this.hotkeyRegistrations.forEach(registration => registration.unregister());
+		this.hotkeyRegistrations = [];
 		this.activeShare.close();
+		this.planLink.close();
+	}
+
+	/**
+	 * What the canvas hotkeys run: the entries of the context menu the current
+	 * selection would open, plus the blank-canvas ones (which need no
+	 * selection and place their node in the middle of the view). Reading them
+	 * from the menus is what keeps a key and its menu row doing the same
+	 * thing, grayed-out entries included.
+	 */
+	public hotkeyItems(): HotkeyItem[]
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return [];
+		}
+		const items: HotkeyItem[] = [...new BlankContextMenu(this.actions, this.plannerGraph.canvasCenter()).getItems()];
+		const nodes = this.plannerGraph.selectedNodes();
+		if (nodes.length === 1) {
+			items.push(...new NodeContextMenu(nodes[0], this.nodeResizeOptions(nodes[0]), this.nodeSplitOptions(nodes[0]),
+				this.actions, this.panelLayout, this.plannerGraph).getItems());
+		} else if (nodes.length > 1) {
+			items.push(...new MultiNodeContextMenu(nodes, this.actions).getItems());
+		}
+		return items;
+	}
+
+	/**
+	 * Canvas-wide hotkeys - the ones with no menu row of their own. The
+	 * context-menu actions come from hotkeyItems() instead.
+	 */
+	private registerHotkeys(): void
+	{
+		this.hotkeyRegistrations.push(
+			this.hotkeys.registerSource(this),
+			this.hotkeys.register('planner.calculate', () => this.runIfEditable(() => this.actions.requestCalculate())),
+			this.hotkeys.register('planner.rearrange', () => this.runIfEditable(() => this.actions.requestRelayout())),
+			this.hotkeys.register('planner.undo', () => this.runIfEditable(() => this.undo())),
+			this.hotkeys.register('planner.redo', () => this.runIfEditable(() => this.redo())),
+			this.hotkeys.register('planner.zoomIn', () => this.plannerGraph.zoomIn()),
+			this.hotkeys.register('planner.zoomOut', () => this.plannerGraph.zoomOut()),
+			this.hotkeys.register('planner.zoomFit', () => this.plannerGraph.zoomFit()),
+		);
+		// The production request tabs. Its panel need not be open - the tab
+		// state lives outside it, so the key shows the panel and lands on the
+		// tab in one go.
+		CalculatorTabHotkeys.ENTRIES.forEach(entry => {
+			this.hotkeyRegistrations.push(this.hotkeys.register(entry.action, () => {
+				this.panelLayout.focusPanel('calculator');
+				this.calculatorTabs.setActiveTab(entry.tab);
+			}));
+		});
+		this.panelLayout.registered().forEach(panel => {
+			if (panel.hotkey) {
+				const id = panel.id;
+				this.hotkeyRegistrations.push(this.hotkeys.register(panel.hotkey, () => this.panelLayout.toggleFromRail(id)));
+			}
+		});
+		// The Plans tree only exists while its panel is the visible one, and
+		// the tree is what runs the plan actions. With the panel away these
+		// stand in: show it, then let the tree take the key on the next tick.
+		HotkeyCatalog.definitionsOf('plans').forEach(definition => {
+			this.hotkeyRegistrations.push(this.hotkeys.register(definition.action, () => this.openPlansPanelAndRun(definition.action)));
+		});
+	}
+
+	/**
+	 * Only ever one retry: the panel is already open on the second pass, so if
+	 * the tree still does not answer (no plan open, say) the key does nothing
+	 * rather than bouncing between here and the hotkey service.
+	 */
+	private openPlansPanelAndRun(action: HotkeyAction): void
+	{
+		if (this.plansHotkeyRetries.has(action)) {
+			return;
+		}
+		this.plansHotkeyRetries.add(action);
+		this.panelLayout.focusPanel('plans');
+		setTimeout(() => {
+			this.hotkeys.run(action);
+			this.plansHotkeyRetries.delete(action);
+		});
+	}
+
+	/** Every edit is inert on a read-only plan, exactly as the menus are. */
+	private runIfEditable(action: () => void): void
+	{
+		if (!this.planManager.activePlanReadOnly()) {
+			action();
+		}
 	}
 
 	private openContextMenu(request: GraphContextMenuRequest): void
@@ -595,7 +816,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		} else if (request.nodes.length === 0) {
 			menu = new BlankContextMenu(this.actions, request.local);
 		} else if (request.nodes.length === 1) {
-			menu = new NodeContextMenu(request.nodes[0], this.nodeResizeOptions(request.nodes[0]), this.actions, this.panelLayout, this.plannerGraph);
+			menu = new NodeContextMenu(request.nodes[0], this.nodeResizeOptions(request.nodes[0]), this.nodeSplitOptions(request.nodes[0]),
+				this.actions, this.panelLayout, this.plannerGraph);
 		} else {
 			menu = new MultiNodeContextMenu(request.nodes, this.actions);
 		}
@@ -680,6 +902,83 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			minimise: minRatio < 1 - RATIO_TOLERANCE ? this.nodeResizer.scaled(node, minRatio) : null,
 			maximise: maxRatio > 1 + RATIO_TOLERANCE ? this.nodeResizer.scaled(node, maxRatio) : null,
 		};
+	}
+
+	/**
+	 * How many nodes each of the menu's three splits would produce - the menu
+	 * grays an entry that would leave the node as it is. All ones when the
+	 * node cannot be split at all (a subplan, or no graph to read).
+	 */
+	private nodeSplitOptions(node: Node): NodeSplitOptions
+	{
+		const none: NodeSplitOptions = {inputs: 1, outputs: 1, both: 1};
+		if (!this.nodeSplitter.isSplittable(node)) {
+			return none;
+		}
+		const graph = this.reviveActiveGraph();
+		if (!graph) {
+			return none;
+		}
+		return {
+			inputs: this.nodeSplitter.pieceCount(graph, node.id, 'inputs'),
+			outputs: this.nodeSplitter.pieceCount(graph, node.id, 'outputs'),
+			both: this.nodeSplitter.pieceCount(graph, node.id, 'both'),
+		};
+	}
+
+	/**
+	 * Replaces a node with one copy per connection (see NodeSplitter). The
+	 * copies are stacked across the graph's flow direction where the node
+	 * stood, and take its place in the selection. Flows are preserved exactly,
+	 * so nothing needs reconciling afterwards.
+	 */
+	private applyNodeSplit(request: NodeSplitRequest): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not split the node: ' + String(err));
+			return;
+		}
+
+		const node = graph.nodes.find(candidate => candidate.id === request.nodeId);
+		if (!node) {
+			return;
+		}
+
+		// The copies go side by side across the flow, one node box plus the
+		// layout's own node spacing apart.
+		const size = this.plannerGraph.nodeSize(node);
+		const layout = GraphLayoutDefaults.resolve(plan.settings.graph);
+		const offset: GraphPoint = layout.direction === 'down'
+			? {x: size.width + layout.nodeSpacing, y: 0}
+			: {x: 0, y: size.height + layout.nodeSpacing};
+
+		const updated = this.nodeSplitter.split(graph, request.nodeId, request.mode, plan.settings, offset);
+		if (!updated) {
+			return;
+		}
+
+		this.history.push(this.snapshotOf(plan));
+
+		// The copies are the nodes the split added, plus the one that kept the
+		// original's id - select them all, so the split is visible at a glance.
+		const before = new Set(graph.nodes.map(candidate => candidate.id));
+		const pieceIds = updated.nodes
+			.filter(candidate => candidate.id === request.nodeId || !before.has(candidate.id))
+			.map(candidate => candidate.id);
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.selectNodesById(pieceIds);
+		this.planManager.setGraph(plan.id, updated, true);
 	}
 
 	/**
@@ -1038,49 +1337,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		this.addNodePositionSignal.set(request.position);
 	}
 
-	@HostListener('document:keydown', ['$event'])
-	public onDocumentKeyDown(event: KeyboardEvent): void
-	{
-		// Undo, delete and done-toggle are all edits - inert on a read-only plan.
-		if (this.planManager.activePlanReadOnly()) {
-			return;
-		}
-		// Form fields keep their native editing keys (text undo, delete).
-		const active = document.activeElement;
-		if (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement
-			|| active instanceof HTMLSelectElement || (active instanceof HTMLElement && active.isContentEditable)) {
-			return;
-		}
-		if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
-			event.preventDefault();
-			if (event.shiftKey) {
-				this.redo();
-			} else {
-				this.undo();
-			}
-			return;
-		}
-		if (event.key === 'Delete') {
-			const nodeIds = this.plannerGraph.selectedNodes().map(node => node.id);
-			if (nodeIds.length > 0) {
-				event.preventDefault();
-				this.applyNodeDelete(nodeIds);
-			}
-		}
-		// Enter toggles the built ("done") marker: a mixed selection is
-		// unified to done first, a fully done one is cleared.
-		if (event.key === 'Enter') {
-			const selected = this.plannerGraph.selectedNodes();
-			if (selected.length > 0) {
-				event.preventDefault();
-				this.applyDoneChange({
-					nodeIds: selected.map(node => node.id),
-					done: !selected.every(node => node.done),
-				});
-			}
-		}
-	}
-
 	private snapshotOf(plan: Plan): GraphSnapshot
 	{
 		return {
@@ -1360,6 +1616,107 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		this.planManager.setGraph(plan.id, graph);
 	}
 
+	/**
+	 * Resizes a subplan from its node's inspector: the subplan itself is
+	 * multiplied (graph, requests and inputs, nested subplans included), then
+	 * the node re-reads its interface and its edges are reconciled to the new
+	 * rates. One undo step covers both sides - the snapshot carries the
+	 * parent's graph and its subplans.
+	 */
+	private applySubplanScale(request: SubplanScaleRequest): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not resize the subplan: ' + String(err));
+			return;
+		}
+
+		// The edit is debounced - the node may be gone by the time it lands.
+		const node = graph.nodes.find(candidate => candidate.id === request.nodeId);
+		if (!(node instanceof SubplanNode)) {
+			return;
+		}
+
+		const snapshot = this.snapshotOf(plan);
+		try {
+			this.subplanScaler.scale(request.subplanId, request.factor);
+		} catch (err) {
+			this.notifications.show('Could not resize the subplan: ' + String(err));
+			return;
+		}
+		this.history.push(snapshot);
+
+		// Every node pointing at the resized subplan re-reads it, not just the
+		// inspected one - a plan may place the same subplan more than once.
+		const refreshed = this.refreshSubplanNodes(graph);
+		const resizedIds = refreshed.nodes
+			.filter((candidate): candidate is SubplanNode => candidate instanceof SubplanNode && candidate.subplanId === request.subplanId)
+			.map(candidate => candidate.id);
+		const reconciled = resizedIds.reduce((current, id) => this.graphReconciler.reconcile(current, id), refreshed);
+
+		const selectedIds = this.plannerGraph.selectedNodes().map(selected => selected.id);
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
+		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [node.id]);
+		this.planManager.setGraph(plan.id, reconciled, true);
+	}
+
+	/**
+	 * Sets how many times a subplan node builds its subplan - a blueprint
+	 * placed several times. Nothing inside the subplan changes; the node's
+	 * rates are multiplied by the new count and its edges are reconciled to
+	 * them, so every panel counts the subplan that many times.
+	 */
+	private applySubplanBuildCount(request: SubplanBuildCountRequest): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not change the subplan: ' + String(err));
+			return;
+		}
+
+		const node = graph.nodes.find(candidate => candidate.id === request.nodeId);
+		if (!(node instanceof SubplanNode)) {
+			return;
+		}
+		const updated = this.subplanResolver.withBuildCount(node, request.buildCount);
+		if (updated === node) {
+			return;
+		}
+
+		this.history.push(this.snapshotOf(plan));
+
+		const withNode: Graph = {
+			nodes: graph.nodes.map(candidate => candidate === node ? updated : candidate),
+			edges: graph.edges,
+		};
+		const reconciled = this.graphReconciler.reconcile(withNode, updated.id);
+
+		const selectedIds = this.plannerGraph.selectedNodes().map(selected => selected.id);
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
+		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [updated.id]);
+		this.planManager.setGraph(plan.id, reconciled, true);
+	}
+
 	private openSubplan(subplanId: string): void
 	{
 		// Shared graphs reference shared subplans (hydrated alongside them),
@@ -1496,16 +1853,21 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			return;
 		}
 		const plan = this.planManager.activePlan();
-		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+		if (!plan || plan.id !== this.renderedPlanId) {
 			return;
 		}
 
+		// A still-uncalculated plan starts from an empty graph (manual mode).
 		let graph: Graph;
-		try {
-			graph = this.planSerializer.reviveGraph(plan.graph);
-		} catch (err) {
-			this.notifications.show('Could not create subplan: ' + String(err));
-			return;
+		if (plan.graph) {
+			try {
+				graph = this.planSerializer.reviveGraph(plan.graph);
+			} catch (err) {
+				this.notifications.show('Could not create subplan: ' + String(err));
+				return;
+			}
+		} else {
+			graph = {nodes: [], edges: []};
 		}
 
 		this.history.push(this.snapshotOf(plan));
@@ -1703,7 +2065,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 		return changed ? {nodes, edges: graph.edges} : graph;
 	}
 
-	/** Re-renders the canvas after a stored-graph scrub hit the rendered plan. */
+	/**
+	 * Re-renders the canvas after the stored graph of the rendered plan
+	 * changed elsewhere - a deleted subplan scrubbed out of it, a folder-wide
+	 * recalculation, or a subplan moved in or out of it from the plans tree.
+	 * A node that just arrived has no interface yet, so the subplan refresh
+	 * runs here too.
+	 */
 	private refreshScrubbedGraph(planIds: string[]): void
 	{
 		const plan = this.planManager.activePlan();
@@ -1715,6 +2083,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy
 			graph = this.planSerializer.reviveGraph(plan.graph);
 		} catch {
 			return;
+		}
+		if (!this.planManager.isReadOnlyPlan(plan.id)) {
+			const refreshed = this.refreshSubplanNodes(graph);
+			if (refreshed !== graph) {
+				graph = refreshed;
+				this.planManager.setGraph(plan.id, graph);
+			}
 		}
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
 	}

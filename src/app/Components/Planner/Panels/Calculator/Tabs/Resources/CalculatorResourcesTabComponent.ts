@@ -2,7 +2,7 @@ import {Component, OnDestroy, ChangeDetectionStrategy, Signal, computed} from '@
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Subscription} from 'rxjs';
 import {FormsModule} from '@angular/forms';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemRateComponent} from '@src/Components/Common/ItemRateComponent';
@@ -33,7 +33,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'calculator-resources-tab',
 	templateUrl: './CalculatorResourcesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, GameIconComponent, ItemRateComponent, TooltipDirective, InfoNoteComponent],
+	imports: [FormsModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
 	styles: [`
 		/* The whole row toggles the resource (inputs and buttons excepted, see onRowClick). */
 		tr.resource-row { cursor: pointer; }

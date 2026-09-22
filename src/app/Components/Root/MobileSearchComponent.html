@@ -1,0 +1,44 @@
+@if (visible) {
+	<div class="search-screen" hotkeyBlock>
+		<div class="search-bar d-flex align-items-center gap-2">
+			<div class="position-relative flex-grow-1">
+				<input
+					#searchInput
+					class="form-control"
+					type="search"
+					placeholder="Search items, recipes, plans, help&hellip;"
+					aria-label="Search everything"
+					autocomplete="off"
+					[value]="state.query()"
+					(input)="onInput($event)"
+					(keydown)="onKeydown($event)"
+				/>
+			</div>
+			<button type="button" class="btn btn-sm text-white flex-shrink-0" aria-label="Close search" (click)="hide()">
+				<fa-icon [icon]="faXmark" size="lg"></fa-icon>
+			</button>
+		</div>
+		<!-- fitViewport, not just "the rest of the screen": with the on-screen
+		     keyboard up the window keeps its height and the list would run on
+		     underneath it. -->
+		<div class="search-results" fitViewport [fitViewportReserve]="60" [fitViewportMin]="200" [fitViewportMax]="4000">
+			@if (state.tooShort()) {
+				<div class="text-center text-muted py-5 px-3">
+					<fa-icon [icon]="faMagnifyingGlass" size="2x" class="d-block mb-3 opacity-50"></fa-icon>
+					Search items, recipes, buildings, your plans and the help articles.
+				</div>
+			} @else if (state.results().length === 0) {
+				<div class="text-center text-muted py-5 px-3">No results for &ldquo;{{ state.query() }}&rdquo;</div>
+			} @else {
+				<search-result-list
+					class="py-1"
+					[groups]="state.groups()"
+					[active]="state.activeResult()"
+					[large]="true"
+					(highlight)="state.setActiveResult($event)"
+					(select)="open($event)"
+				/>
+			}
+		</div>
+	</div>
+}

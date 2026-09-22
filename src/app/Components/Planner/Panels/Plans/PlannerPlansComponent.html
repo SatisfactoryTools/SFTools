@@ -19,7 +19,7 @@
 		<span class="tree-section-actions" (click)="$event.stopPropagation()">
 			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreateFolder(null)" tooltip="New folder" placement="top"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
 			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreatePlan(null)" tooltip="New plan" placement="top"><fa-icon [icon]="faPlus"></fa-icon></button>
-			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="openImportDialog()" tooltip="Import from old Satisfactory Tools" placement="top"><fa-icon [icon]="faFileImport"></fa-icon></button>
+			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="openImportDialog()" [tooltip]="'Import from old Satisfactory Tools' + hotkeys.suffix('plans.importOldTools')" placement="top"><fa-icon [icon]="faFileImport"></fa-icon></button>
 		</span>
 	</div>
 
@@ -333,10 +333,6 @@
 
 @if (iconPickerOpen()) {
 	<icon-picker-dialog (pick)="onIconPicked($event)" (none)="onIconNone()" (close)="closeIconPicker()"></icon-picker-dialog>
-}
-
-@if (shareLink(); as share) {
-	<share-link-dialog [link]="share.link" [subjectName]="share.name" (close)="closeShareDialog()"></share-link-dialog>
 }
 
 @if (importDialogOpen()) {

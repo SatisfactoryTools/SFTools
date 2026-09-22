@@ -14,7 +14,7 @@
 		}
 	</button>
 
-	<div *dropdownMenu class="dropdown-menu p-0" style="min-width: 320px;">
+	<div *dropdownMenu class="dropdown-menu picker-menu p-0">
 		<div class="p-2">
 			<input
 				#searchInput
@@ -22,15 +22,22 @@
 				type="search"
 				class="form-control form-control-sm bg-dark text-light border-secondary"
 				placeholder="Search…"
-				[(ngModel)]="search"
+				autocomplete="off"
+				[ngModel]="search"
+				(ngModelChange)="onSearchChange($event)"
+				(keydown)="onSearchKeyDown($event, dropdown)"
 			/>
 		</div>
-		<div style="max-height: 320px; overflow-y: auto;">
-			@for (option of filtered; track option.value) {
+		<!-- fitViewport, not a fixed height: with a phone keyboard up there is
+		     far less room than the window claims. -->
+		<div fitViewport [fitViewportReserve]="180" [fitViewportMax]="320">
+			@for (option of filtered; track option.value; let index = $index) {
 				<button
 					type="button"
-					class="dropdown-item d-flex align-items-center gap-2"
+					class="dropdown-item picker-option d-flex align-items-center gap-2"
 					[class.active]="option.value === value"
+					[class.highlighted]="index === highlighted"
+					(mouseenter)="highlighted = index"
 					(click)="select(option, dropdown)"
 				>
 					<game-icon [hash]="option.iconHash" [size]="20" [alt]="option.label"></game-icon>

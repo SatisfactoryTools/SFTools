@@ -3,7 +3,7 @@ import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {AmountNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/AmountNodeEditor/AmountNodeEditorComponent';
 import {RecipeNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/RecipeNodeEditorComponent';
-import {SubplanNodeViewComponent} from '@src/Components/Planner/Panels/Inspector/SubplanNodeView/SubplanNodeViewComponent';
+import {SubplanNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/SubplanNodeEditor/SubplanNodeEditorComponent';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
@@ -15,7 +15,7 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 	selector: 'planner-inspector',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerInspectorComponent.html',
-	imports: [AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeViewComponent, InfoNoteComponent],
+	imports: [AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeEditorComponent, InfoNoteComponent],
 })
 export class PlannerInspectorComponent
 {

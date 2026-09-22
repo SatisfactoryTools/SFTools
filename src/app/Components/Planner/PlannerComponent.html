@@ -20,3 +20,11 @@
 		(close)="closeAddNode()"
 	></add-node-dialog>
 }
+
+@if (shareDialog.target(); as target) {
+	<plan-share-dialog [shareTarget]="target"></plan-share-dialog>
+}
+
+@if (planLink.unavailable()) {
+	<plan-link-unavailable-dialog></plan-link-unavailable-dialog>
+}

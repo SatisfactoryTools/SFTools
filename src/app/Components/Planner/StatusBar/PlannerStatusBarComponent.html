@@ -3,6 +3,9 @@
 	<span class="stat" title="Power production"><span class="lbl">Production </span><span class="abbr">Prod. </span><b class="production">{{ productionText() }}</b></span>
 	<span class="stat" [title]="'Production minus consumption' + (netRangeText() ? ' - varies ' + netRangeText() : '')">Net <b [class.production]="netIsSurplus()" [class.deficit]="!netIsSurplus()">{{ netText() }}</b>@if (netRangeText()) {<small class="range">{{ netRangeText() }}</small>}</span>
 }
+@if (subplanBuilds() > 1) {
+	<span class="stat" [title]="subplanBuildsText()"><fa-icon class="stat-icon" [icon]="faLayerGroup"></fa-icon><span class="lbl">Built </span><b>{{ subplanBuilds() }}×</b></span>
+}
 <span class="stat" title="Buildings"><fa-icon class="stat-icon" [icon]="faIndustry"></fa-icon><span class="lbl">Buildings </span><b>{{ rateFormatter.amount(buildings()) }}</b></span>
 <span class="stat" [class.zero]="sloops() === 0" title="Somersloops"><game-icon [hash]="sloopIcon()" [size]="16" alt="Sloops"></game-icon> <b>{{ sloops() }}</b></span>
 <span class="stat" [class.zero]="shards() === 0" title="Power shards"><game-icon [hash]="shardIcon()" [size]="16" alt="Shards"></game-icon> <b>{{ shards() }}</b></span>
@@ -10,37 +13,84 @@
 <span class="right">
 	@if (warningCount() > 0) {
 		<!-- container="body" so the dropup overlays the canvas instead of being
-		     clipped by the status bar's own box. -->
-		<span dropdown container="body" placement="top right" [dropup]="true">
+		     clipped by the status bar's own box. insideClick keeps it open while
+		     the kind chips are used; the node buttons close it themselves once
+		     they have focused their node. -->
+		<span dropdown container="body" placement="top right" [dropup]="true" [insideClick]="true" #warnings="bs-dropdown">
 			<button
 				class="warnings-toggle"
 				type="button"
 				dropdownToggle
 				title="Plan warnings"
 			><fa-icon [icon]="faTriangleExclamation"></fa-icon> {{ warningCount() }}</button>
-			<div *dropdownMenu class="dropdown-menu dropdown-menu-end" style="min-width: 320px; max-width: 460px;">
-				<h6 class="dropdown-header">Plan warnings</h6>
-				@if (poolWarnings().length > 0) {
-					<div class="dropdown-item-text">
-						<span class="fw-semibold">Shared resource pool</span>
-						@for (line of poolWarnings(); track $index) {
-							<span class="d-block text-wrap opacity-75">{{ line }}</span>
+			<div *dropdownMenu class="dropdown-menu dropdown-menu-end warnings-menu">
+				<div class="warnings-head">
+					<fa-icon [icon]="faTriangleExclamation"></fa-icon>
+					<span class="warnings-title">Plan warnings</span>
+					<span class="warnings-total">{{ warningCount() }}</span>
+				</div>
+				@if (warningFilters().length > 1) {
+					<div class="warnings-kinds">
+						<button type="button" class="kind-chip" [class.active]="warningFilter() === null" (click)="clearWarningFilter()">All <b>{{ warningCount() }}</b></button>
+						@for (chip of warningFilters(); track chip.kind) {
+							<button
+								type="button"
+								class="kind-chip"
+								[class]="'kind-' + chip.kind"
+								[class.active]="warningFilter() === chip.kind"
+								(click)="selectWarningFilter(chip.kind)"
+							>{{ chip.label }} <b>{{ chip.count }}</b></button>
 						}
-						<span class="d-block text-wrap opacity-75">Recalculate the plan (or the whole folder) so it fits into the shared pool again.</span>
 					</div>
 				}
-				@for (entry of warningEntries(); track entry.nodeId) {
-					<button
-						class="dropdown-item"
-						type="button"
-						(click)="focusWarning(entry)"
-					>
-						{{ entry.nodeName }}
-						@for (line of entry.lines; track $index) {
-							<span class="d-block text-wrap opacity-75">{{ line }}</span>
-						}
-					</button>
-				}
+				<div class="warnings-list">
+					@for (status of visiblePoolWarnings(); track status.item.className) {
+						<div class="warning-group">
+							<div class="group-head">
+								<fa-icon class="group-icon" [icon]="faLayerGroup"></fa-icon>
+								<span class="group-name">Shared resource pool</span>
+							</div>
+							<div class="warning-row kind-pool">
+								<game-icon class="row-icon" [hash]="status.item.icon" [size]="24" [alt]="status.item.name"></game-icon>
+								<span class="row-body">
+									<span class="row-title">{{ status.item.name }}</span>
+									<span class="row-text">{{ poolWarningText(status) }}</span>
+								</span>
+								<span class="row-kind">{{ kindLabel('pool') }}</span>
+							</div>
+						</div>
+					}
+					@if (visiblePoolWarnings().length > 0) {
+						<div class="warnings-hint">Recalculate the plan (or the whole folder) so it fits into the shared pool again.</div>
+					}
+					@for (entry of visibleEntries(); track entry.nodeId) {
+						<button class="warning-group group-button" type="button" (click)="focusWarning(entry); warnings.hide()" title="Show this node on the canvas">
+							<span class="group-head">
+								@if (entry.nodeIcon) {
+									<game-icon [hash]="entry.nodeIcon" [size]="20" [alt]="entry.nodeName"></game-icon>
+								} @else {
+									<fa-icon class="group-icon" [icon]="faDiagramProject"></fa-icon>
+								}
+								<span class="group-name">{{ entry.nodeName }}</span>
+								<span class="group-count">{{ entry.details.length }}</span>
+							</span>
+							@for (detail of entry.details; track $index) {
+								<span class="warning-row" [class]="'kind-' + detail.kind">
+									@if (detail.iconHash) {
+										<game-icon class="row-icon" [hash]="detail.iconHash" [size]="24" [alt]="detail.title"></game-icon>
+									} @else {
+										<fa-icon class="row-icon row-icon-fa" [icon]="faIndustry"></fa-icon>
+									}
+									<span class="row-body">
+										<span class="row-title">{{ detail.title }}</span>
+										<span class="row-text">{{ detail.text }}</span>
+									</span>
+									<span class="row-kind">{{ kindLabel(detail.kind) }}</span>
+								</span>
+							}
+						</button>
+					}
+				</div>
 			</div>
 		</span>
 	}

@@ -2,6 +2,7 @@ import {Injectable} from '@angular/core';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 
 /**
@@ -22,7 +23,15 @@ export class ClockSpeedResolver
 	/** Recipe override, else machine override, else the plan's default; 100% with no plan open. */
 	public forRecipe(recipe: Recipe, machine: Building): number
 	{
-		const settings = this.planManager.activeSettings();
+		return this.forRecipeIn(this.planManager.activeSettings(), recipe, machine);
+	}
+
+	/**
+	 * The same precedence against given settings - for machines built for a
+	 * plan that is not the open one (a subplan aggregated into its parent).
+	 */
+	public forRecipeIn(settings: PlanSettings | null, recipe: Recipe, machine: Building): number
+	{
 		if (!settings) {
 			return 100;
 		}

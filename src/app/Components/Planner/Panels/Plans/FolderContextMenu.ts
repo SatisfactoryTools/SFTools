@@ -29,21 +29,25 @@ export class FolderContextMenu extends PlannerContextMenu
 			{
 				label: 'Rename…',
 				icon: faPen,
+				hotkey: 'plans.renameFolder',
 				action: () => this.host.startRenameFolder(this.folderId, this.folderName),
 			},
 			{
 				label: 'New subfolder…',
 				icon: faFolderPlus,
+				hotkey: 'plans.newFolder',
 				action: () => this.host.startCreateFolder(this.folderId),
 			},
 			{
 				label: 'New plan…',
 				icon: faPlus,
+				hotkey: 'plans.newPlan',
 				action: () => this.host.startCreatePlan(this.folderId),
 			},
 			{
 				label: 'Clone folder',
 				icon: faClone,
+				hotkey: 'plans.cloneFolder',
 				action: () => this.host.cloneFolder(this.folderId),
 			},
 		];
@@ -53,12 +57,14 @@ export class FolderContextMenu extends PlannerContextMenu
 		items.push({
 			label: 'Share…',
 			icon: faShareNodes,
+			hotkey: 'plans.shareFolder',
 			action: () => this.host.shareFolder(this.folderId, this.folderName),
 		});
 
 		items.push({
 			label: 'Delete folder',
 			icon: faXmark,
+			hotkey: 'plans.deleteFolder',
 			action: () => this.host.deleteFolder(this.folderId, this.folderName),
 		});
 

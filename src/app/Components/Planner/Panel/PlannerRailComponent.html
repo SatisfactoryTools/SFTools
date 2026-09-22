@@ -3,8 +3,22 @@
 		class="rail-btn"
 		[class.active]="layout.isOpen(panel.id)"
 		type="button"
-		[tooltip]="panel.label"
+		[tooltip]="panel.label + hotkeys.suffix(panel.hotkey)"
 		placement="right"
 		(click)="layout.toggleFromRail(panel.id)"
 	><fa-icon [icon]="panel.icon"></fa-icon></button>
 }
+
+<!-- Actions, below the panel buttons: Share is the one thing people used to have to
+     dig out of the plan's context menu, which is why they sent the address bar link
+     instead. A wrapper span carries the tooltip - a disabled button has no pointer
+     events of its own. -->
+<div class="rail-sep"></div>
+<span [tooltip]="shareTooltip()" placement="right">
+	<button
+		class="rail-btn rail-btn-accent"
+		type="button"
+		[disabled]="shareDialog.activeTarget() === null"
+		(click)="shareDialog.openActive()"
+	><fa-icon [icon]="faShareNodes"></fa-icon></button>
+</span>

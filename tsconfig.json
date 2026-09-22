@@ -17,8 +17,12 @@
 		"target": "es2022",
 		"module": "es2022",
 		"paths": {
-			"@src/*": ["./src/app/*"],
-			"@env/*": ["./src/env/*"]
+			"@src/*": [
+				"./src/app/*"
+			],
+			"@env/*": [
+				"./src/env/*"
+			]
 		}
 	},
 	"angularCompilerOptions": {

@@ -1,75 +1,60 @@
-import {Component, ChangeDetectionStrategy, computed, signal, ElementRef, ViewChild} from '@angular/core';
-import {FormsModule} from '@angular/forms';
-import {Router} from '@angular/router';
+import {Component, ChangeDetectionStrategy, ElementRef, ViewChild} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faDiagramProject, faFolder} from '@fortawesome/free-solid-svg-icons';
-import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
-import {SearchFragmentsComponent} from '@src/Components/Common/SearchFragmentsComponent';
-import {VersionManager} from '@src/Model/Data/VersionManager';
-import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {faMagnifyingGlass} from '@fortawesome/free-solid-svg-icons';
+import {FitViewportDirective} from '@src/Components/Common/FitViewportDirective';
+import {SearchResultListComponent} from '@src/Components/Common/SearchResultListComponent';
+import {SearchBoxState} from '@src/Model/Search/SearchBoxState';
 import {SearchResult} from '@src/Model/Search/SearchResult';
-import {SearchResultType} from '@src/Model/Search/SearchResultType';
-import {SearchService} from '@src/Model/Search/SearchService';
 
+/**
+ * The navbar's search box: everything the app knows about is in it - the
+ * codex, the user's plans and folders, and the help articles. The arrow keys
+ * walk the results and Enter opens the one under the cursor, the same way the
+ * searchable pickers work.
+ */
 @Component({
 	selector: 'navbar-search',
 	templateUrl: './NavbarSearchComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, GameIconComponent, SearchFragmentsComponent],
+	imports: [FaIconComponent, SearchResultListComponent, FitViewportDirective],
+	providers: [SearchBoxState],
 	styles: `
-		/* Fills the room the navbar gives it: the 360px flex slot on desktop, the full menu width on phones. */
+		/* Fills the room the navbar gives it (see NavbarComponent's styles). */
 		:host { display: block; }
-		.search-result {
-			background: transparent;
-			color: var(--bs-body-color);
+		.search-icon {
+			position: absolute;
+			left: 0.7rem;
+			top: 50%;
+			transform: translateY(-50%);
+			pointer-events: none;
+			color: #9fb0c0;
 		}
-		.search-result:hover,
-		.search-result.active {
-			background: rgba(255, 255, 255, 0.1);
+		input {
+			padding-left: 2.1rem;
 		}
 	`,
 })
 export class NavbarSearchComponent
 {
 
-	public readonly faDiagramProject = faDiagramProject;
-	public readonly faFolder = faFolder;
-
-	private readonly querySignal = signal('');
-	private readonly activeIndexSignal = signal(0);
-	public readonly activeIndex = this.activeIndexSignal.asReadonly();
+	public readonly faMagnifyingGlass = faMagnifyingGlass;
 
 	public showResults = false;
 
 	@ViewChild('searchInput') private searchInput: ElementRef<HTMLInputElement> | undefined;
 
-	public readonly groups = computed(() => this.searchService.search(this.querySignal()));
-	public readonly flatResults = computed(() => this.groups().flatMap(group => group.results));
-
-	public get query(): string
-	{
-		return this.querySignal();
-	}
-
-	public set query(value: string)
-	{
-		this.querySignal.set(value);
-		this.activeIndexSignal.set(0);
-	}
-
 	public constructor(
-		private readonly searchService: SearchService,
-		private readonly versionManager: VersionManager,
-		private readonly planManager: PlanManager,
-		private readonly router: Router,
+		public readonly state: SearchBoxState,
+		private readonly elementRef: ElementRef<HTMLElement>,
 	)
 	{
 	}
 
-	/** Puts the caret into the search box (the navbar's search shortcut on phones). */
+	/** Puts the caret into the search box (the app's search shortcut). */
 	public focus(): void
 	{
 		this.searchInput?.nativeElement.focus();
+		this.searchInput?.nativeElement.select();
 	}
 
 	protected onFocus(): void
@@ -83,22 +68,30 @@ export class NavbarSearchComponent
 		setTimeout(() => { this.showResults = false; }, 200);
 	}
 
+	protected onInput(event: Event): void
+	{
+		this.state.setQuery((event.target as HTMLInputElement).value);
+		this.showResults = true;
+	}
+
 	protected onKeydown(event: KeyboardEvent): void
 	{
-		const results = this.flatResults();
 		switch (event.key) {
 			case 'ArrowDown':
 				event.preventDefault();
-				this.activeIndexSignal.update(index => Math.min(index + 1, results.length - 1));
+				this.state.moveActive(1);
+				this.scrollActiveIntoView();
 				break;
 			case 'ArrowUp':
 				event.preventDefault();
-				this.activeIndexSignal.update(index => Math.max(index - 1, 0));
+				this.state.moveActive(-1);
+				this.scrollActiveIntoView();
 				break;
 			case 'Enter':
 				event.preventDefault();
-				if (results[this.activeIndexSignal()]) {
-					this.open(results[this.activeIndexSignal()]);
+				if (this.state.openActive()) {
+					this.showResults = false;
+					this.searchInput?.nativeElement.blur();
 				}
 				break;
 			case 'Escape':
@@ -107,39 +100,18 @@ export class NavbarSearchComponent
 		}
 	}
 
-	public open(result: SearchResult): void
+	protected open(result: SearchResult): void
 	{
-		const version = this.versionManager.activeVersion();
-		if (version === null) {
-			return;
-		}
-		const slug = this.versionManager.urlSlug(version);
-		this.query = '';
 		this.showResults = false;
-
-		switch (result.type) {
-			case 'plan':
-				void this.router.navigate(['/', slug, 'planner', result.id]);
-				return;
-			case 'folder':
-				// Folder selection has no URL state (yet) - navigate to the
-				// planner, then select the folder in the store.
-				void this.router.navigate(['/', slug, 'planner'])
-					.then(() => this.planManager.setActiveFolder(result.id));
-				return;
-			default:
-				void this.router.navigate(['/', slug, 'codex', this.codexSection(result.type), result.id]);
-		}
+		this.state.open(result);
 	}
 
-	private codexSection(type: SearchResultType): string
+	/** Keeps the highlighted result inside the scrolling list as the arrows walk past its edge. */
+	private scrollActiveIntoView(): void
 	{
-		switch (type) {
-			case 'item': return 'items';
-			case 'recipe': return 'recipes';
-			case 'building': return 'buildings';
-			default: return 'schematics';
-		}
+		setTimeout(() => this.elementRef.nativeElement
+			.querySelectorAll('.search-result')[this.state.activeIndex()]
+			?.scrollIntoView({block: 'nearest'}));
 	}
 
 }

@@ -46,6 +46,8 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 			new VisitedSharesApiDataBackend(sharesApi, notifications),
 			new MergeVisitedSharesConflictResolver(),
 			{shares: []},
+			notifications,
+			'shared plans',
 		);
 		// Opening a share link is often this service's very first use, so the
 		// visit can arrive while the initial load is still in flight - and the

@@ -1,6 +1,5 @@
 import {Injectable} from '@angular/core';
 import {CalculatorTab} from '@src/Components/Planner/Panels/Calculator/CalculatorTab';
-import {ItemForm} from '@src/Model/API/Schema/Data/Parts/ItemForm';
 import {Data} from '@src/Model/Data/Data';
 import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver';
 import {Plan} from '@src/Model/Planner/Plan';
@@ -73,7 +72,7 @@ export class CalculatorTabBadgeResolver
 			}
 			case 'sink': {
 				if (!data) return null;
-				const sinkable = data.items.filter(item => item.form === ItemForm.Solid && item.sinkPoints > 0);
+				const sinkable = data.items.filter(item => item.isSinkable());
 				return this.ratio(settings.sinkableItems?.length ?? 0, sinkable.length);
 			}
 			case 'sloops':

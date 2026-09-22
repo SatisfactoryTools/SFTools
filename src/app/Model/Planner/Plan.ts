@@ -32,4 +32,12 @@ export interface Plan
 	/** Manual position among siblings; absent = alphabetical after the ordered ones (see PlanManager.buildTree). */
 	readonly order?: number;
 
+	/**
+	 * Whether anyone holding the plan's URL may open it read-only (people paste that
+	 * link far more often than a share link). Undefined means the server default, which
+	 * is "yes" - the flag is younger than the plans that predate it. Meaningless for
+	 * plans that live only in a browser: they have no URL anyone else can open.
+	 */
+	readonly linkAccess?: boolean;
+
 }

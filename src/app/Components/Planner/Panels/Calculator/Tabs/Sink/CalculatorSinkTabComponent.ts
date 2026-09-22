@@ -2,7 +2,6 @@ import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
-import {ItemForm} from '@src/Model/API/Schema/Data/Parts/ItemForm';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
@@ -73,7 +72,7 @@ export class CalculatorSinkTabComponent
 	private sinkableItems(): Item[]
 	{
 		return (this.versionManager.activeVersionData()?.items ?? [])
-			.filter(item => item.form === ItemForm.Solid && item.sinkPoints > 0);
+			.filter(item => item.isSinkable());
 	}
 
 	private enabledSet(): Set<string>

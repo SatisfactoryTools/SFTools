@@ -13,4 +13,7 @@ export interface PlannerSettings
 	/** Label display of the production request tabs. */
 	readonly tabLabels: TabLabelsMode;
 
+	/** Question-mark buttons that open the help article about the thing next to them. */
+	readonly helpButtons: boolean;
+
 }

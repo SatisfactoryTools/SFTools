@@ -11,6 +11,7 @@ import {ModEntryDescriptor} from '@src/Model/ModEditor/ModEntryDescriptor';
 import {ModImageStore} from '@src/Model/ModEditor/ModImageStore';
 import {ModSchemaDescriptors} from '@src/Model/ModEditor/ModSchemaDescriptors';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
 /**
  * Editor for one mod version's data: builds a JSON document in the Data
@@ -25,7 +26,7 @@ import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 @Component({
 	templateUrl: './ModEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, ModEntryFormComponent, BackLinkComponent],
+	imports: [FormsModule, ModEntryFormComponent, BackLinkComponent, HelpButtonComponent],
 	host: {class: 'container-fluid d-block my-4', style: 'max-width: 1100px;'},
 })
 export class ModEditorComponent

@@ -2,7 +2,7 @@ import {Component, ChangeDetectionStrategy, computed} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faUpRightFromSquare} from '@fortawesome/free-solid-svg-icons';
-import {TooltipDirective} from 'ngx-bootstrap/tooltip';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {CodexBrowserComponent} from '@src/Components/Codex/CodexBrowserComponent';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {CodexSearchBoxComponent} from '@src/Components/Codex/CodexSearchBoxComponent';
@@ -25,7 +25,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 	imports: [
 		RouterLink,
 		FaIconComponent,
-		TooltipDirective,
+		AppTooltipDirective,
 		CodexBrowserComponent,
 		CodexSearchBoxComponent,
 		CodexSearchResultsComponent,

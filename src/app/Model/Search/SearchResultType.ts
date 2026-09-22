@@ -1,1 +1,1 @@
-export type SearchResultType = 'item' | 'recipe' | 'building' | 'schematic' | 'plan' | 'folder';
+export type SearchResultType = 'item' | 'recipe' | 'building' | 'schematic' | 'plan' | 'folder' | 'article';

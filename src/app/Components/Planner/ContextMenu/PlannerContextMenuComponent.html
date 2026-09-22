@@ -12,17 +12,24 @@
 			<h6 class="dropdown-header">{{ title }}</h6>
 		}
 		@for (item of menu.getItems(); track item.label) {
-			<button
-				type="button"
-				class="dropdown-item d-flex align-items-center gap-2"
-				[disabled]="item.disabled"
-				(click)="run(item)"
-			>
-				@if (item.icon) {
-					<fa-icon [icon]="item.icon" [fixedWidth]="true"></fa-icon>
-				}
-				{{ item.label }}
-			</button>
+			<!-- The hint sits on the wrapper: a disabled .dropdown-item takes no
+			     pointer events, so its own title would never show. -->
+			<span class="d-block" [attr.title]="item.hint ?? null">
+				<button
+					type="button"
+					class="dropdown-item d-flex align-items-center gap-2"
+					[disabled]="item.disabled"
+					(click)="run(item)"
+				>
+					@if (item.icon) {
+						<fa-icon [icon]="item.icon" [fixedWidth]="true"></fa-icon>
+					}
+					<span>{{ item.label }}</span>
+					@if (hotkeys.label(item.hotkey); as key) {
+						<span class="menu-hotkey">{{ key }}</span>
+					}
+				</button>
+			</span>
 		}
 	</div>
 }

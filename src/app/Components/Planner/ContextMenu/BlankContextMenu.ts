@@ -24,11 +24,13 @@ export class BlankContextMenu extends PlannerContextMenu
 			{
 				label: 'Add node…',
 				icon: faPlus,
+				hotkey: 'graph.addNode',
 				action: () => this.actions.requestNodeAdd(this.position),
 			},
 			{
 				label: 'Create subplan',
 				icon: faDiagramProject,
+				hotkey: 'graph.createSubplan',
 				action: () => this.actions.requestSubplanCreate(this.position),
 			},
 		];

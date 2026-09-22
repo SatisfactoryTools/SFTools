@@ -1,0 +1,39 @@
+@for (group of groups; track group.label) {
+	<div class="px-3 pt-2 pb-1 text-muted small text-uppercase">{{ group.label }}</div>
+	@for (result of group.results; track result.type + result.id) {
+		<button
+			type="button"
+			class="search-result d-flex align-items-center gap-2 w-100 border-0 text-start px-3"
+			[class.py-1]="!large"
+			[class.py-2]="large"
+			[class.highlighted]="active === result"
+			(mouseenter)="highlight.emit(result)"
+			(click)="select.emit(result)"
+		>
+			@switch (result.type) {
+				@case ('plan') {
+					<fa-icon [icon]="faDiagramProject" [fixedWidth]="true" class="text-muted"></fa-icon>
+				}
+				@case ('folder') {
+					<fa-icon [icon]="faFolder" [fixedWidth]="true" class="text-muted"></fa-icon>
+				}
+				@case ('article') {
+					<fa-icon [icon]="faCircleQuestion" [fixedWidth]="true" class="text-muted"></fa-icon>
+				}
+				@default {
+					<span class="d-inline-flex align-items-center gap-1 flex-shrink-0">
+						@for (icon of result.icons; track $index) {
+							<game-icon [hash]="icon" [size]="large ? 26 : 20" [alt]="result.name"></game-icon>
+						}
+					</span>
+				}
+			}
+			<span class="d-flex flex-column" style="min-width: 0;">
+				<span class="text-truncate"><search-fragments [fragments]="result.nameFragments"/></span>
+				@if (result.snippet; as snippet) {
+					<span class="small text-muted text-truncate"><search-fragments [fragments]="snippet"/></span>
+				}
+			</span>
+		</button>
+	}
+}

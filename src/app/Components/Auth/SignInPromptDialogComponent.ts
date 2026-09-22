@@ -2,6 +2,7 @@ import {Component, ChangeDetectionStrategy, HostListener} from '@angular/core';
 import {Router, RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faCloudArrowUp, faPuzzlePiece, faShareNodes} from '@fortawesome/free-solid-svg-icons';
+import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
 import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 
@@ -15,7 +16,7 @@ import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 	selector: 'sign-in-prompt-dialog',
 	templateUrl: './SignInPromptDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, RouterLink, OAuthProviderButtonsComponent],
+	imports: [FaIconComponent, RouterLink, OAuthProviderButtonsComponent, HotkeyBlockDirective],
 	styles: [`
 		.prompt-backdrop {
 			position: fixed;
