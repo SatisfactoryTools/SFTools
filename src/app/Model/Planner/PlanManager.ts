@@ -230,14 +230,19 @@ export class PlanManager extends SyncableService<PlanStore>
 		this.refreshLocalStore();
 	}
 
-	/** On logout the local plans become the active store again, untouched. */
+	/**
+	 * On logout this device's plans become the active store again, untouched -
+	 * and the account's, which were only ever held here, are dropped: nothing
+	 * of them may be readable in the signed-out session.
+	 */
 	protected override onLogout(): void
 	{
 		this.activePlanIdSignal.set(null);
 		this.activeFolderIdSignal.set(null);
 		this.setActiveBackend(this.localBackend);
-		this.loadFrom(this.localBackend);
+		this.setData(EMPTY_STORE);
 		this.localStoreSignal.set(EMPTY_STORE);
+		this.loadFrom(this.localBackend);
 	}
 
 	private refreshLocalStore(): void

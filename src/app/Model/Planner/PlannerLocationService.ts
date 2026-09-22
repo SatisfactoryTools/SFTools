@@ -1,4 +1,7 @@
 import {Injectable, Signal, signal} from '@angular/core';
+import {toObservable} from '@angular/core/rxjs-interop';
+import {skip} from 'rxjs/operators';
+import {AuthService} from '@src/Model/Auth/AuthService';
 import {PlannerLocation} from '@src/Model/Planner/PlannerLocation';
 
 const STORAGE_KEY = 'sftools.lastPlanner';
@@ -15,9 +18,29 @@ export class PlannerLocationService
 	private readonly locationSignal = signal<PlannerLocation | null>(null);
 	public readonly location: Signal<PlannerLocation | null> = this.locationSignal.asReadonly();
 
-	public constructor()
+	public constructor(authService: AuthService)
 	{
 		this.locationSignal.set(this.load());
+
+		// The plan is the account's, and "Back to planner" would open it again
+		// (by link, read-only) in the signed-out session. The version stays -
+		// it is public, and it is what the way back needs. (Root singleton -
+		// no teardown needed.)
+		toObservable(authService.isAuthenticated).pipe(skip(1)).subscribe(isAuthenticated => {
+			if (!isAuthenticated) {
+				this.forgetPlan();
+			}
+		});
+	}
+
+	/** Keeps the remembered version, drops the plan that was open in it. */
+	public forgetPlan(): void
+	{
+		const location = this.locationSignal();
+		if (location === null || location.planId === null) {
+			return;
+		}
+		this.remember(location.versionSlug, null);
 	}
 
 	public remember(versionSlug: string, planId: string | null): void

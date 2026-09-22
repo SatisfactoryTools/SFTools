@@ -106,8 +106,12 @@ export abstract class SyncableService<T> implements OnDestroy
 	protected loadFrom(backend: DataBackend<T>): void
 	{
 		backend.load().subscribe({
+			// A null load means the backend holds nothing (an empty account,
+			// an untouched device, a scope with no store yet), so what is on
+			// hand goes with it - keeping it would leave one scope's data, or
+			// a signed-out session, showing what the previous one loaded.
 			next: data => {
-				if (data !== null) this.dataSignal.set(data);
+				this.dataSignal.set(data ?? this.emptyValue);
 				this.settleLoad(false);
 			},
 			// The load still counts as settled: a resolver left pending forever
@@ -192,18 +196,20 @@ export abstract class SyncableService<T> implements OnDestroy
 		});
 	}
 
+	/**
+	 * Signing out ends the account's session here and then: what was loaded
+	 * from it is dropped and this device's own store is read back, so nothing
+	 * of the signed-in user survives into the signed-out one. Deliberately
+	 * nothing of it is written down to the device either - that would leave
+	 * the account's data on a shared computer.
+	 */
 	protected onLogout(): void
 	{
 		this.activeBackend = this.localBackend;
 		this.unsavedWarned = false;
-		// After a failed load what is held is the default, not the account's
-		// data - carrying it down to this device would replace what is stored
-		// here. Read the device back instead.
-		if (this.loadFailedSignal()) {
-			this.loadFrom(this.localBackend);
-			return;
-		}
-		this.localBackend.save(this.dataSignal()).subscribe();
+		this.loadFailedSignal.set(false);
+		this.dataSignal.set(this.emptyValue);
+		this.loadFrom(this.localBackend);
 	}
 
 }

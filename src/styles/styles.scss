@@ -160,6 +160,30 @@ input[type="number"].form-control {
 .pg-connecting .pg-node-dim {
 	opacity: 0.35;
 }
+// The outline of the node under the pointer. This is CSS rather than an attr
+// on the cell because x6 re-applies a node's whole attrs object whenever one
+// of them changes: a hover would rewrite the `xlink:href` of every icon in the
+// node and the browser would re-request each one. Selected nodes keep their
+// own thicker orange outline, so they are left out - a CSS rule beats the
+// presentation attribute that draws it.
+.x6-node:not(.x6-node-selected):hover rect.pn-body {
+	stroke-width: 2.5px;
+}
+
+// The line and label box of the edge under the pointer, CSS for the same
+// reason as .pn-body above. The class is put on by the hover handler rather
+// than by `:hover`, because the corner-handle tool covers a hovered edge with
+// a path of its own outside the edge element. An edge next to a selected node
+// wears the orange highlight instead, and opts out through its own class.
+.x6-edge.pg-edge-hovered path.pg-edge-line:not(.pg-edge-highlighted) {
+	stroke: #8ea9c9;
+	stroke-width: 2.5px;
+}
+.x6-edge.pg-edge-hovered rect.pg-label-box:not(.pg-label-box-highlighted) {
+	stroke: #8ea9c9;
+	stroke-width: 1.5px;
+}
+
 // Snap feedback while connecting, applied by x6's magnetAdsorbed highlighter.
 circle.pg-port-adsorbed {
 	stroke: #f0ad4e;

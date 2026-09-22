@@ -169,9 +169,15 @@ const PARALLEL_EDGE_GAP = 40;
 const SELECTED_STROKE = '#f0ad4e';
 const SELECTED_STROKE_WIDTH = 3;
 const SELECTED_EDGE_STROKE_WIDTH = 2.5;
-const HOVER_NODE_STROKE_WIDTH = 2.5;
-const HOVER_EDGE_STROKE = '#8ea9c9';
-const HOVER_EDGE_STROKE_WIDTH = 2.5;
+// The hovered node's outline lives in styles.scss (.pn-body), not here.
+// The hovered edge's line and label box live in styles.scss; these are the
+// class names those rules key off. An edge next to a selected node carries the
+// highlight class as well, which opts it out of the hover look.
+const EDGE_LINE_CLASS = 'pg-edge-line';
+const EDGE_HOVER_CLASS = 'pg-edge-hovered';
+const EDGE_HIGHLIGHT_CLASS = 'pg-edge-highlighted';
+const LABEL_BOX_CLASS = 'pg-label-box';
+const LABEL_BOX_HIGHLIGHT_CLASS = 'pg-label-box-highlighted';
 const LABEL_BOX_FILL = '#141c28';
 const LABEL_BOX_STROKE = '#2e3d52';
 const LABEL_BOX_STROKE_WIDTH = 1;
@@ -271,7 +277,7 @@ function registerPlannerShapes(scale: number): void
 	X6Graph.registerNode('planner-node', {
 		inherit: 'rect',
 		markup: [
-			{tagName: 'rect', selector: 'body'},
+			{tagName: 'rect', selector: 'body', className: 'pn-body'},
 			{tagName: 'text', selector: 'name'},
 			{tagName: 'text', selector: 'machines'},
 			{tagName: 'text', selector: 'stats'},
@@ -392,7 +398,7 @@ function registerPlannerShapes(scale: number): void
 	X6Graph.registerNode('planner-subplan-node', {
 		inherit: 'rect',
 		markup: [
-			{tagName: 'rect', selector: 'body'},
+			{tagName: 'rect', selector: 'body', className: 'pn-body'},
 			{tagName: 'text', selector: 'name'},
 			{tagName: 'text', selector: 'stats'},
 			...subplanIoMarkup,
@@ -993,7 +999,7 @@ export class PlannerGraphService implements OnDestroy
 			if (!this.readOnly) {
 				edge.addTools([this.verticesTool()]);
 			}
-			this.applyEdgeStyle(edge, true);
+			this.applyEdgeHover(view, edge, true);
 		});
 		x6Graph.on('edge:mouseleave', ({view, edge}) => {
 			if (this.isTempConnect(edge)) {
@@ -1003,7 +1009,7 @@ export class PlannerGraphService implements OnDestroy
 				this.hoveredEdgeView = null;
 			}
 			edge.removeTools();
-			this.applyEdgeStyle(edge, false);
+			this.applyEdgeHover(view, edge, false);
 			this.hideCornerPreview();
 		});
 		this.hoverMoveTarget?.removeEventListener('mousemove', this.edgeHoverListener);
@@ -1630,6 +1636,7 @@ export class PlannerGraphService implements OnDestroy
 			target: anchor ? {cell: edge.targetId, anchor} : edge.targetId,
 			attrs: {
 				line: {
+					class: EDGE_LINE_CLASS,
 					stroke: EDGE_STROKE,
 					strokeWidth: EDGE_STROKE_WIDTH,
 					...fade,
@@ -1687,6 +1694,7 @@ export class PlannerGraphService implements OnDestroy
 					// box hidden it stays transparent (not removed) so the
 					// label keeps its hover/right-click hit area.
 					rect: {
+						class: showBox ? LABEL_BOX_CLASS : '',
 						ref: null,
 						refX: null,
 						refY: null,
@@ -1757,7 +1765,7 @@ export class PlannerGraphService implements OnDestroy
 			}
 		});
 
-		x6Graph.getEdges().forEach(edge => this.applyEdgeStyle(edge, false));
+		x6Graph.getEdges().forEach(edge => this.applyEdgeStyle(edge));
 
 		this.vertexDragAnchorId = selected.find(cell => cell.isNode())?.id ?? null;
 
@@ -1910,7 +1918,7 @@ export class PlannerGraphService implements OnDestroy
 		const edge = view.cell;
 		if (edge.isEdge()) {
 			edge.removeTools();
-			this.applyEdgeStyle(edge, false);
+			this.applyEdgeHover(view, edge, false);
 		}
 	}
 
@@ -1965,39 +1973,64 @@ export class PlannerGraphService implements OnDestroy
 		return circle;
 	}
 
-	/** Applies the edge line style by priority: selection > hover > base. */
-	private applyEdgeStyle(edge: X6Edge, hovered: boolean): void
+	/** True while either end of the edge is selected - what the highlight shows. */
+	private isEdgeHighlighted(edge: X6Edge): boolean
 	{
 		const selection = this.selection;
-		const highlighted = selection !== null
+		return selection !== null
 			&& (selection.isSelected(edge.getSourceCellId()) || selection.isSelected(edge.getTargetCellId()));
+	}
 
-		if (highlighted) {
-			edge.attr('line/stroke', SELECTED_STROKE);
-			edge.attr('line/strokeWidth', SELECTED_EDGE_STROKE_WIDTH);
-		} else if (hovered) {
-			edge.attr('line/stroke', HOVER_EDGE_STROKE);
-			edge.attr('line/strokeWidth', HOVER_EDGE_STROKE_WIDTH);
+	/**
+	 * The highlight an edge wears while one of its nodes is selected. Only the
+	 * selection changes this, so the attr writes here are rare - the hover look
+	 * is CSS for the reason given in applyEdgeHover.
+	 */
+	private applyEdgeStyle(edge: X6Edge): void
+	{
+		const highlighted = this.isEdgeHighlighted(edge);
+
+		edge.attr('line/stroke', highlighted ? SELECTED_STROKE : EDGE_STROKE);
+		edge.attr('line/strokeWidth', highlighted ? SELECTED_EDGE_STROKE_WIDTH : EDGE_STROKE_WIDTH);
+		edge.attr('line/class', highlighted ? `${EDGE_LINE_CLASS} ${EDGE_HIGHLIGHT_CLASS}` : EDGE_LINE_CLASS);
+
+		this.applyLabelBoxStyle(edge, highlighted);
+		this.scheduleZChange(edge, highlighted ? EDGE_HIGHLIGHT_Z : null);
+	}
+
+	/**
+	 * Hovering an edge raises it above the rest and hands its lighter line and
+	 * label box outline to CSS (see .pg-edge-hovered in styles.scss). The class
+	 * goes straight on the rendered element rather than through the cell,
+	 * because every attr write makes x6 re-apply the edge's whole attrs object,
+	 * which rewrites the `xlink:href` of its label icon and has the browser
+	 * fetch that icon again on every enter and leave. The plain `:hover`
+	 * selector cannot do this job: the corner-handle tool covers the hovered
+	 * edge with a path of its own, in x6's tool layer rather than inside the
+	 * edge, so the edge element stops being the one under the pointer.
+	 */
+	private applyEdgeHover(view: EdgeView, edge: X6Edge, hovered: boolean): void
+	{
+		if (hovered) {
+			view.addClass(EDGE_HOVER_CLASS);
 		} else {
-			edge.attr('line/stroke', EDGE_STROKE);
-			edge.attr('line/strokeWidth', EDGE_STROKE_WIDTH);
+			view.removeClass(EDGE_HOVER_CLASS);
 		}
-
-		this.applyLabelBoxStyle(edge, highlighted ? SELECTED_STROKE : (hovered ? HOVER_EDGE_STROKE : null));
-		this.scheduleZChange(edge, highlighted || hovered ? EDGE_HIGHLIGHT_Z : null);
+		this.scheduleZChange(edge, hovered || this.isEdgeHighlighted(edge) ? EDGE_HIGHLIGHT_Z : null);
 	}
 
 	/**
 	 * Echoes the edge highlight on its label box border. With the box setting
 	 * off the label has no visible box, so there is nothing to highlight.
 	 */
-	private applyLabelBoxStyle(edge: X6Edge, highlightStroke: string | null): void
+	private applyLabelBoxStyle(edge: X6Edge, highlighted: boolean): void
 	{
 		if (!this.settings.graph().showEdgeLabelBox || !edge.getLabelAt(0)) {
 			return;
 		}
-		edge.prop('labels/0/attrs/rect/stroke', highlightStroke ?? LABEL_BOX_STROKE);
-		edge.prop('labels/0/attrs/rect/strokeWidth', highlightStroke ? LABEL_BOX_HIGHLIGHT_STROKE_WIDTH : LABEL_BOX_STROKE_WIDTH);
+		edge.prop('labels/0/attrs/rect/stroke', highlighted ? SELECTED_STROKE : LABEL_BOX_STROKE);
+		edge.prop('labels/0/attrs/rect/strokeWidth', highlighted ? LABEL_BOX_HIGHLIGHT_STROKE_WIDTH : LABEL_BOX_STROKE_WIDTH);
+		edge.prop('labels/0/attrs/rect/class', highlighted ? `${LABEL_BOX_CLASS} ${LABEL_BOX_HIGHLIGHT_CLASS}` : LABEL_BOX_CLASS);
 	}
 
 	/**
@@ -2052,7 +2085,10 @@ export class PlannerGraphService implements OnDestroy
 		if (this.selection?.isSelected(cell)) {
 			return;
 		}
-		cell.attr('body/strokeWidth', hovered ? HOVER_NODE_STROKE_WIDTH : NODE_STROKE_WIDTH);
+		// The thicker outline is a CSS rule on .pn-body (see styles.scss), not an
+		// attr: every attr write makes x6 re-apply the node's whole attrs object,
+		// which rewrites the `xlink:href` of all its icons and has the browser
+		// fetch each one again - a dozen requests per node the pointer crosses.
 		this.scheduleZChange(cell, hovered ? NODE_HIGHLIGHT_Z : null);
 	}
 
