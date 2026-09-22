@@ -2,6 +2,8 @@ import {Component, OnDestroy, ChangeDetectionStrategy, Signal, computed} from '@
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Subscription} from 'rxjs';
 import {FormsModule} from '@angular/forms';
+import {FaIconComponent} from '@fortawesome/angular-fontawesome';
+import {faMap} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
@@ -17,6 +19,7 @@ import {PoolResourceStatus} from '@src/Model/Planner/Pool/PoolResourceStatus';
 import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {ResourceWeightMode} from '@src/Model/Planner/ResourceWeightMode';
 import {ResourceWeightResolver} from '@src/Model/Planner/ResourceWeightResolver';
+import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
 /**
@@ -33,7 +36,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'calculator-resources-tab',
 	templateUrl: './CalculatorResourcesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
+	imports: [FaIconComponent, FormsModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
 	styles: [`
 		/* The whole row toggles the resource (inputs and buttons excepted, see onRowClick). */
 		tr.resource-row { cursor: pointer; }
@@ -61,6 +64,8 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 })
 export class CalculatorResourcesTabComponent implements OnDestroy
 {
+
+	public readonly faMap = faMap;
 
 	public rows: ResourceLimitRow[] = [];
 
@@ -198,6 +203,38 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		if (!settings || !data || mode === this.weightMode()) return;
 		const resourceWeights = mode === 'manual' ? this.rounded(this.weights()) : undefined;
 		this.planManager.updateActiveSettings({...settings, resourceWeightMode: mode, resourceWeights});
+	}
+
+	/** Per-minute caps the version's map can supply; null for versions imported without world data. */
+	public get mapLimits(): Record<string, number> | null
+	{
+		return this.versionManager.activeVersionData()?.worldLimits ?? null;
+	}
+
+	/** Switches every raw resource on or off at once; the limits stay as they are. */
+	public setAllEnabled(enabled: boolean): void
+	{
+		this.rows.forEach(row => row.enabled = enabled);
+		this.sync();
+	}
+
+	/**
+	 * Caps every resource at what the version's map can supply - the limits a
+	 * new plan of this version starts with. Water and anything the map does
+	 * not cap become unlimited; a resource the map has none of ends up at 0.
+	 */
+	public setFromMapLimits(): void
+	{
+		const limits = this.mapLimits;
+		if (!limits) return;
+		this.rows.forEach(row => {
+			const limit = row.className === SpecialClasses.WaterItem ? undefined : limits[row.className];
+			row.infinite = limit === undefined;
+			if (limit !== undefined) {
+				row.limit = limit;
+			}
+		});
+		this.sync();
 	}
 
 	public toggleInfinite(row: ResourceLimitRow): void

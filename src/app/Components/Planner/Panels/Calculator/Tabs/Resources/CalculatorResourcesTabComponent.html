@@ -79,6 +79,35 @@
 			<span><span class="pool-legend pool-free"></span> free</span>
 		</div>
 	} @else {
+		<div class="d-flex align-items-center gap-2 flex-wrap">
+			<span class="text-secondary">Raw resources</span>
+			<button
+				type="button"
+				class="btn btn-sm btn-outline-secondary py-0"
+				tooltip="Allow mining every raw resource"
+				container="body"
+				placement="top"
+				(click)="setAllEnabled(true)"
+			>All</button>
+			<button
+				type="button"
+				class="btn btn-sm btn-outline-secondary py-0"
+				tooltip="Forbid mining any raw resource"
+				container="body"
+				placement="top"
+				(click)="setAllEnabled(false)"
+			>None</button>
+			@if (mapLimits) {
+				<button
+					type="button"
+					class="btn btn-sm btn-outline-info py-0 text-nowrap ms-auto"
+					tooltip="Cap every resource at what this version's map can supply - the limits a new plan starts with. Water stays unlimited."
+					container="body"
+					placement="top"
+					(click)="setFromMapLimits()"
+				><fa-icon [icon]="faMap"></fa-icon> Set from map limits</button>
+			}
+		</div>
 		<table class="table table-dark table-sm align-middle mb-0 table-stack">
 			<thead>
 				<tr>
