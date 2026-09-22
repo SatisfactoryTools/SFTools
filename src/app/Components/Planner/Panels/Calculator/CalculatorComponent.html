@@ -174,7 +174,7 @@
 	@if (actions.solveError()) {
 		<div class="alert alert-danger d-flex align-items-start gap-2 py-2 px-3 mx-2 mt-2 mb-0">
 			<span class="flex-grow-1">{{ actions.solveErrorDetail() ?? 'No solution was found.' }}</span>
-			<button type="button" class="btn-close btn-close-white flex-shrink-0" aria-label="Dismiss" (click)="actions.setSolveError(null)"></button>
+			<button type="button" class="btn-close flex-shrink-0" aria-label="Dismiss" (click)="actions.setSolveError(null)"></button>
 		</div>
 	}
 

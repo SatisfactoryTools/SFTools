@@ -6,12 +6,17 @@ import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutServi
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {HelpLinkResolver} from '@src/Model/Help/HelpLinkResolver';
 import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
+import {HelpImageViewerService} from '@src/Model/Help/HelpImageViewerService';
 import {HelpMarkdownRenderer} from '@src/Model/Help/HelpMarkdownRenderer';
+
+/** An alternative text that is only the uploaded file's name tells a reader nothing. */
+const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 
 /**
  * Renders an article's Markdown and keeps its links inside the app: article
  * and route links go through the router, `panel:` links bring up the planner
- * panel they name, and everything external opens in a new tab.
+ * panel they name, and everything external opens in a new tab. Pictures open
+ * at full size in the app's own viewer.
  *
  * The rendered HTML is built by HelpMarkdownRenderer, which drops raw HTML and
  * only ever emits the markup and attributes below - hence the bypass, without
@@ -66,7 +71,10 @@ import {HelpMarkdownRenderer} from '@src/Model/Help/HelpMarkdownRenderer';
 		/* The section the current address names, for a reader who followed a
 		   link to one part of a long article. */
 		:host ::ng-deep .help-content .help-current-section {
-			padding-left: 0.55rem;
+			/* The tinted box needs room above the text as well, or the heading
+			   looks stuck to its top edge; headings carry no top padding of
+			   their own and h3 carries none at the bottom either. */
+			padding: 0.3rem 0 0.3rem 0.55rem;
 			border-left: 3px solid var(--bs-primary);
 			background: linear-gradient(90deg, color-mix(in srgb, var(--bs-primary) 16%, transparent), transparent 70%);
 		}
@@ -166,11 +174,17 @@ import {HelpMarkdownRenderer} from '@src/Model/Help/HelpMarkdownRenderer';
 		:host ::ng-deep .help-figure {
 			margin: 1.25rem 0;
 		}
+		/* Clicking a screenshot opens it at full size, hence the lens cursor. */
 		:host ::ng-deep .help-figure img {
 			max-width: 100%;
 			border: 1px solid #2b3444;
 			border-radius: 4px;
 			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+			cursor: zoom-in;
+		}
+		:host ::ng-deep .help-figure img:focus-visible {
+			outline: 2px solid var(--bs-primary);
+			outline-offset: 2px;
 		}
 		:host ::ng-deep .help-figure figcaption {
 			margin-top: 0.25rem;
@@ -202,6 +216,7 @@ export class HelpContentComponent implements HelpLinkResolver
 		private readonly router: Router,
 		private readonly versionManager: VersionManager,
 		private readonly backToPlanner: BackToPlannerResolver,
+		private readonly imageViewer: HelpImageViewerService,
 		@Optional() private readonly panelLayout: PanelLayoutService | null,
 	)
 	{
@@ -271,7 +286,15 @@ export class HelpContentComponent implements HelpLinkResolver
 			return true;
 		}
 
-		const anchor = (event.target as HTMLElement | null)?.closest('a');
+		const target = event.target as HTMLElement | null;
+		// A picture that is not itself a link opens at full size instead.
+		if (target instanceof HTMLImageElement && target.closest('a') === null) {
+			event.preventDefault();
+			this.openImage(target);
+			return false;
+		}
+
+		const anchor = target?.closest('a');
 		if (anchor === null || anchor === undefined) {
 			return true;
 		}
@@ -315,6 +338,34 @@ export class HelpContentComponent implements HelpLinkResolver
 		}
 
 		return true;
+	}
+
+	/** Pictures are focusable, so the keyboard opens them the way a click does. */
+	@HostListener('keydown', ['$event'])
+	protected onKeyDown(event: KeyboardEvent): void
+	{
+		const target = event.target as HTMLElement | null;
+		if ((event.key !== 'Enter' && event.key !== ' ') || !(target instanceof HTMLImageElement)) {
+			return;
+		}
+		event.preventDefault();
+		this.openImage(target);
+	}
+
+	/**
+	 * Shows a picture at full size. Its caption is the description to show with
+	 * it; without one the alternative text does the job, unless that is just
+	 * the name of the uploaded file.
+	 */
+	private openImage(image: HTMLImageElement): void
+	{
+		const alt = image.alt.trim();
+		const caption = image.closest('figure')?.querySelector('figcaption')?.textContent?.trim() ?? '';
+		this.imageViewer.open({
+			src: image.currentSrc === '' ? image.src : image.currentSrc,
+			alt,
+			caption: caption !== '' ? caption : (FILE_NAME.test(alt) ? '' : alt),
+		});
 	}
 
 }

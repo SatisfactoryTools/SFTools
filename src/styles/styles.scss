@@ -33,6 +33,15 @@ fa-icon {
 	color: #9fb0c0 !important;
 }
 
+// The theme already draws the close icon white ($btn-close-color), and
+// Bootstrap's .btn-close-white does nothing but invert the icon - which turned
+// every close button in the app black. Every surface here is dark, so the
+// filter is dropped for both, with or without that class.
+.btn-close,
+.btn-close-white {
+	--bs-btn-close-filter: none;
+}
+
 // The same collision hits outline-secondary buttons (e.g. Cancel buttons in
 // dialogs): their border and label are $secondary and vanish on the card
 // background. Lift them to the readable muted tones.

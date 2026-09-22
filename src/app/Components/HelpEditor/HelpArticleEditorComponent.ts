@@ -282,22 +282,22 @@ export class HelpArticleEditorComponent
 
 	public insertCallout(kind: string): void
 	{
-		this.insert(`\n:::${kind}\n\n:::\n`);
+		this.insert(`\n:::${kind}\n`, '\n:::\n');
 	}
 
 	public insertArticleLink(): void
 	{
-		this.insert('[text](help:some-article)');
+		this.insert('[', '](help:some-article)', 'text');
 	}
 
 	public insertPanelLink(): void
 	{
-		this.insert('[the Overview panel](panel:overview)');
+		this.insert('[', '](panel:overview)', 'the Overview panel');
 	}
 
 	public insertHotkey(): void
 	{
-		this.insert('`hotkey:planner.calculate`');
+		this.insert('`hotkey:', '`', 'planner.calculate');
 	}
 
 	/** The uploaded file itself, for the media list's thumbnails. */
@@ -306,23 +306,33 @@ export class HelpArticleEditorComponent
 		return this.files.assetUrl(image.path);
 	}
 
-	/** Inserts a snippet at the caret - the toolbar's one job. */
-	public insert(snippet: string): void
+	/**
+	 * Inserts a snippet at the caret - the toolbar's one job. Whatever is
+	 * selected is kept and ends up between `before` and `after`, so a button
+	 * wraps the highlighted text instead of throwing it away; with nothing
+	 * selected the placeholder goes in and stays selected, ready to type over.
+	 */
+	public insert(before: string, after: string = '', placeholder: string = ''): void
 	{
 		const input = this.bodyInput?.nativeElement;
+		const body = this.body();
+		const start = input === undefined ? body.length : input.selectionStart;
+		const end = input === undefined ? body.length : input.selectionEnd;
+		const selected = body.slice(start, end);
+		const inner = selected === '' ? placeholder : selected;
+
+		this.body.set(body.slice(0, start) + before + inner + after + body.slice(end));
 		if (input === undefined) {
-			this.body.update(body => body + snippet);
 			return;
 		}
 
-		const start = input.selectionStart;
-		const end = input.selectionEnd;
-		const body = this.body();
-		this.body.set(body.slice(0, start) + snippet + body.slice(end));
-		// Put the caret after what was inserted, once Angular has written the value back.
+		// Once Angular has written the value back: the caret goes behind text
+		// that was already there, and a placeholder is left selected.
+		const caret = start + before.length + inner.length;
+		const from = selected === '' ? start + before.length : caret;
 		requestAnimationFrame(() => {
 			input.focus();
-			input.setSelectionRange(start + snippet.length, start + snippet.length);
+			input.setSelectionRange(from, caret);
 		});
 	}
 
@@ -349,7 +359,7 @@ export class HelpArticleEditorComponent
 
 	public insertImage(image: HelpEditorImage): void
 	{
-		this.insert(`![${image.fileName}](${image.path} "")`);
+		this.insert('![', `](${image.path} "")`, image.fileName);
 	}
 
 	public deleteImage(image: HelpEditorImage): void

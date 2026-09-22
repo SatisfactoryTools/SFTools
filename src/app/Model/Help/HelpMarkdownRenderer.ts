@@ -216,8 +216,10 @@ export class HelpMarkdownRenderer
 		const caption = title !== null && title !== ''
 			? `<figcaption>${this.escape(title)}</figcaption>`
 			: '';
+		// Focusable: the reader opens a picture at full size when it is clicked,
+		// and a keyboard should be able to do the same.
 		return `<figure class="help-figure">`
-			+ `<img src="${this.escape(source)}" alt="${this.escape(alt)}" loading="lazy">${caption}</figure>`;
+			+ `<img src="${this.escape(source)}" alt="${this.escape(alt)}" loading="lazy" tabindex="0">${caption}</figure>`;
 	}
 
 	/** `hotkey:some.action` becomes the key the user has bound right now. */

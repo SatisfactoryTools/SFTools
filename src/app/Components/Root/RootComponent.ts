@@ -1,5 +1,6 @@
 import {Component, ChangeDetectionStrategy, HostListener} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
+import {HelpImageViewerComponent} from '@src/Components/Help/HelpImageViewerComponent';
 import {ServerStatusService} from '@src/Model/API/ServerStatusService';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
@@ -8,7 +9,8 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
     templateUrl: './RootComponent.html',
     changeDetection: ChangeDetectionStrategy.Eager,
     imports: [
-        RouterOutlet
+        RouterOutlet,
+        HelpImageViewerComponent
     ]
 })
 export class RootComponent

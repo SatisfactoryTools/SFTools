@@ -1,0 +1,49 @@
+@if (viewer.image(); as picture) {
+	<div class="viewer" hotkeyBlock role="dialog" aria-modal="true" aria-label="Full size picture" (wheel)="onWheel($event)">
+		<div class="viewer-tools">
+			<button
+				type="button"
+				class="btn btn-sm btn-outline-light border-0"
+				aria-label="Zoom out"
+				[disabled]="!canZoomOut()"
+				(click)="zoomOut()"
+			>
+				<fa-icon [icon]="faZoomOut"></fa-icon>
+			</button>
+			<span class="viewer-zoom">{{ percentage() }}%</span>
+			<button
+				type="button"
+				class="btn btn-sm btn-outline-light border-0"
+				aria-label="Zoom in"
+				[disabled]="!canZoomIn()"
+				(click)="zoomIn()"
+			>
+				<fa-icon [icon]="faZoomIn"></fa-icon>
+			</button>
+			<button type="button" class="btn-close ms-2" aria-label="Close" (click)="close()"></button>
+		</div>
+
+		<div
+			#stage
+			class="viewer-stage"
+			[class.zoomed]="zoomed()"
+			(pointerdown)="onPointerDown($event)"
+			(pointermove)="onPointerMove($event)"
+			(pointerup)="onPointerUp($event)"
+			(pointercancel)="onPointerUp($event)"
+		>
+			<img
+				#image
+				class="viewer-image"
+				[src]="picture.src"
+				[alt]="picture.alt"
+				[style.transform]="transform()"
+				draggable="false"
+			>
+		</div>
+
+		@if (picture.caption !== '') {
+			<div class="viewer-caption">{{ picture.caption }}</div>
+		}
+	</div>
+}
