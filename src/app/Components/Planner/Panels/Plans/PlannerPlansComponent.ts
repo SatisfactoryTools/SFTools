@@ -3,10 +3,13 @@ import {toObservable} from '@angular/core/rxjs-interop';
 import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes} from '@fortawesome/free-solid-svg-icons';
+import {faAnglesDown, faAnglesUp, faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
+import {LongPressDragDirective} from '@src/Components/Common/LongPressDragDirective';
+import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
+import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {IconPickerDialogComponent} from '@src/Components/Common/IconPickerDialogComponent';
 import {TruncateTitleDirective} from '@src/Components/Common/TruncateTitleDirective';
@@ -130,17 +133,24 @@ const ROOT_ID = '__root__';
 const LOCAL_ID = '__local__';
 const SHARED_ID = '__shared__';
 
+/** How close to the edge of the list a touch drag starts scrolling it, and how fast. */
+const AUTO_SCROLL_EDGE = 48; // px
+const AUTO_SCROLL_STEP = 8; // px per step
+const AUTO_SCROLL_INTERVAL_MS = 16;
+
 @Component({
 	selector: 'planner-plans',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPlansComponent.html',
 	styleUrl: './PlannerPlansComponent.scss',
-	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective],
+	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective, LongPressDragDirective],
 })
 export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanTreeMenuHost, HotkeyItemSource
 {
 
 	public readonly faCaretDown = faCaretDown;
+	public readonly faAnglesDown = faAnglesDown;
+	public readonly faAnglesUp = faAnglesUp;
 	public readonly faCaretRight = faCaretRight;
 	public readonly faDiagramProject = faDiagramProject;
 	public readonly faEllipsisVertical = faEllipsisVertical;
@@ -158,7 +168,12 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	public readonly activePlanId: Signal<string | null>;
 	public readonly activeFolderId: Signal<string | null>;
 
-	private readonly collapsedSignal = signal(new Set<string>());
+	/**
+	 * Which sections, folders, plans and subplans are folded. Shared and
+	 * keyed by id, so the tree looks the same after closing and reopening
+	 * the panel; a share's nodes are keyed `{share}:{node}`.
+	 */
+	public readonly foldState: CollapsibleSections;
 	private readonly editStateSignal = signal<EditState | null>(null);
 	public readonly editState: Signal<EditState | null> = this.editStateSignal.asReadonly();
 	public editValue: string = '';
@@ -166,20 +181,28 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	private needsFocus = false;
 	private dragItem: DragItem | null = null;
 
+	/** Where the dragging finger last was, kept so auto-scrolling can re-check the row under it. */
+	private touchPoint: {x: number; y: number} | null = null;
+	private autoScrollTimer: ReturnType<typeof setInterval> | null = null;
+	private autoScrollSpeed = 0;
+
 	private readonly dropTargetSignal = signal<DropTarget | null>(null);
 	public readonly dropTarget: Signal<DropTarget | null> = this.dropTargetSignal.asReadonly();
+
+	/** The row a finger is holding, dimmed while it travels (a mouse drag has the browser's own ghost instead). */
+	private readonly touchDragIdSignal = signal<string | null>(null);
+	public readonly touchDragId: Signal<string | null> = this.touchDragIdSignal.asReadonly();
 
 	@ViewChild('editInput') private editInputRef?: ElementRef<HTMLInputElement>;
 
 	public readonly treeItems: Signal<TreeItem[]> = computed(() => {
 		const tree = this.planManager.planTree();
-		const collapsed = this.collapsedSignal();
-		if (collapsed.has(ROOT_ID)) return [];
-		return this.flattenTree(tree.entries, collapsed, this.editStateSignal());
+		if (!this.foldState.isOpen(ROOT_ID)) return [];
+		return this.flattenTree(tree.entries, this.editStateSignal());
 	});
 
 	/** Flattens a (sub)tree into rows, honouring collapsed nodes and (for the user's own tree) the inline edit row. */
-	private flattenTree(entries: (PlanTreeFolder | PlanTreePlan)[], collapsed: ReadonlySet<string>, editing: EditState | null): TreeItem[]
+	private flattenTree(entries: (PlanTreeFolder | PlanTreePlan)[], editing: EditState | null): TreeItem[]
 	{
 		const items: TreeItem[] = [];
 
@@ -193,7 +216,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		}
 
 		const addPlan = (node: PlanTreePlan, depth: number): void => {
-			const isOpen = !collapsed.has(node.plan.id);
+			const isOpen = this.foldState.isOpen(node.plan.id);
 			items.push({
 				type: 'plan',
 				depth,
@@ -209,7 +232,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		};
 
 		const addFolder = (node: PlanTreeFolder, depth: number): void => {
-			const isOpen = !collapsed.has(node.folder.id);
+			const isOpen = this.foldState.isOpen(node.folder.id);
 			items.push({
 				type: 'folder',
 				depth,
@@ -241,7 +264,69 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return items;
 	}
 
-	public readonly rootOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(ROOT_ID));
+	public readonly rootOpen: Signal<boolean> = computed(() => this.foldState.isOpen(ROOT_ID));
+
+	/**
+	 * Everything inside "Your plans" that can fold: its folders and the plans
+	 * that have subplans. The section's own band is not one of them - folding
+	 * everything inside it should not also close the section.
+	 */
+	public readonly rootFoldableIds: Signal<string[]> = computed(() =>
+		this.foldableIdsOf(this.planManager.planTree().entries));
+
+	/** Same for this device's own plans. */
+	public readonly localFoldableIds: Signal<string[]> = computed(() =>
+		this.foldableIdsOf(this.planManager.localPlanTree().entries));
+
+	/** Same for the visited shares: each share's row, plus the foldable nodes of its frozen tree. */
+	public readonly sharedFoldableIds: Signal<string[]> = computed(() => {
+		const trees = this.shareTrees.trees();
+		const ids: string[] = [];
+		this.sharedList().forEach(share => {
+			const root = trees.get(share.share);
+			if (!root || root.children.length === 0) {
+				return;
+			}
+			ids.push(share.share);
+			const add = (node: ShareTreeNode): void => {
+				if (node.children.length === 0) {
+					return;
+				}
+				ids.push(share.share + ':' + node.id);
+				node.children.forEach(add);
+			};
+			root.children.forEach(add);
+		});
+		return ids;
+	});
+
+	private foldableIdsOf(entries: (PlanTreeFolder | PlanTreePlan)[]): string[]
+	{
+		const ids: string[] = [];
+		const addPlan = (node: PlanTreePlan): void => {
+			if (node.subplans.length === 0) {
+				return;
+			}
+			ids.push(node.plan.id);
+			node.subplans.forEach(addPlan);
+		};
+		const addEntry = (entry: PlanTreeFolder | PlanTreePlan): void => {
+			if ('folder' in entry) {
+				ids.push(entry.folder.id);
+				entry.entries.forEach(addEntry);
+			} else {
+				addPlan(entry);
+			}
+		};
+		entries.forEach(addEntry);
+		return ids;
+	}
+
+	/** The "expand all" / "collapse all" buttons of one section. */
+	public setAllFolds(ids: readonly string[], open: boolean): void
+	{
+		this.foldState.setMany(ids, open);
+	}
 
 	/** Plans (subplans excluded) in the user's own tree - the section header shows the count. */
 	public readonly planCount: Signal<number> = computed(() => this.countPlans(this.planManager.planTree().entries));
@@ -256,8 +341,8 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	{
 		return entries.reduce((sum, entry) => sum + ('folder' in entry ? this.countPlans(entry.entries) : 1), 0);
 	}
-	public readonly localOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(LOCAL_ID));
-	public readonly sharedOpen: Signal<boolean> = computed(() => !this.collapsedSignal().has(SHARED_ID));
+	public readonly localOpen: Signal<boolean> = computed(() => this.foldState.isOpen(LOCAL_ID));
+	public readonly sharedOpen: Signal<boolean> = computed(() => this.foldState.isOpen(SHARED_ID));
 
 	/** Every share link the user has opened, most recently added first, across all versions. */
 	private readonly allShares: Signal<VisitedShare[]>;
@@ -294,7 +379,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	 */
 	public readonly sharedTreeItemsByShare: Signal<Map<string, SharedTreeItem[]>> = computed(() => {
 		const trees = this.shareTrees.trees();
-		const collapsed = this.collapsedSignal();
 		const data = this.versionManager.activeVersionData();
 		const result = new Map<string, SharedTreeItem[]>();
 		this.sharedList().forEach(share => {
@@ -305,7 +389,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			const items: SharedTreeItem[] = [];
 			const add = (node: ShareTreeNode, depth: number, isSubplan: boolean): void => {
 				const key = share.share + ':' + node.id;
-				const isOpen = !collapsed.has(key);
+				const isOpen = this.foldState.isOpen(key);
 				items.push({
 					kind: node.kind,
 					depth,
@@ -369,10 +453,9 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	/** Flattened rows of this device's local plans; folders and plans with subplans fold by id, like the account tree. */
 	public readonly localTreeItems: Signal<LocalItem[]> = computed(() => {
 		const tree = this.planManager.localPlanTree();
-		const collapsed = this.collapsedSignal();
 		const items: LocalItem[] = [];
 		const addPlan = (node: PlanTreePlan, depth: number): void => {
-			const isOpen = !collapsed.has(node.plan.id);
+			const isOpen = this.foldState.isOpen(node.plan.id);
 			items.push({
 				kind: 'plan',
 				depth,
@@ -388,7 +471,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			}
 		};
 		const addFolder = (node: PlanTreeFolder, depth: number): void => {
-			const isOpen = !collapsed.has(node.folder.id);
+			const isOpen = this.foldState.isOpen(node.folder.id);
 			items.push({
 				kind: 'folder',
 				depth,
@@ -461,8 +544,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		private readonly shareTrees: ShareTreeCache,
 		public readonly hotkeys: HotkeyService,
 		private readonly router: Router,
+		private readonly elementRef: ElementRef<HTMLElement>,
+		collapsedSections: CollapsedSectionsService,
 	)
 	{
+		this.foldState = new CollapsibleSections(collapsedSections, 'plans');
 		this.hotkeyRegistration = hotkeys.registerSource(this);
 		// A share visited on another device has no local tree snapshot yet - fetch it once.
 		toObservable(visitedShares.visitedShares).subscribe(shares => shares.forEach(share => shareTrees.ensure(share.share)));
@@ -476,6 +562,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	{
 		this.hotkeyRegistration?.unregister();
 		this.hotkeyRegistration = null;
+		this.stopAutoScroll();
 	}
 
 	/**
@@ -503,8 +590,8 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			items.push(...new PlanContextMenu(plan, this.planNames.displayName(plan), this).getItems());
 		}
 		items.push(
-			{hotkey: 'plans.newPlan', action: () => this.startCreatePlan(folder?.id ?? null)},
-			{hotkey: 'plans.newFolder', action: () => this.startCreateFolder(folder?.id ?? null)},
+			{hotkey: 'plans.newPlan', action: () => this.startCreatePlan(this.currentFolderId())},
+			{hotkey: 'plans.newFolder', action: () => this.startCreateFolder(this.currentFolderId())},
 		);
 		return items;
 	}
@@ -642,11 +729,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	public toggleCollapse(id: string): void
 	{
-		this.collapsedSignal.update(set => {
-			const next = new Set(set);
-			next.has(id) ? next.delete(id) : next.add(id);
-			return next;
-		});
+		this.foldState.toggle(id);
 	}
 
 	public toggleRoot(): void
@@ -756,7 +839,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	/** Whether the open share's list row is expanded to show its tree (collapse keyed by share id, like any node). */
 	public isShareExpanded(shareId: string): boolean
 	{
-		return !this.collapsedSignal().has(shareId);
+		return this.foldState.isOpen(shareId);
 	}
 
 	public onVisitedShareContextMenu(event: MouseEvent, share: VisitedShare): void
@@ -835,6 +918,42 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.planManager.setActiveFolder(id);
 	}
 
+	/**
+	 * Where a new plan or folder lands: the selected folder, or the folder
+	 * holding the selected plan - a subplan hands over its root plan's. Null
+	 * (the top of the tree) when nothing is selected, or when what is
+	 * selected is read-only and so lives outside the user's own tree.
+	 */
+	public currentFolderId(): string | null
+	{
+		const folder = this.planManager.activeFolder();
+		if (folder !== null) {
+			return folder.id;
+		}
+		const plan = this.planManager.activePlan();
+		if (plan === null || this.planManager.activePlanReadOnly()) {
+			return null;
+		}
+		return this.rootPlanOf(plan).folderId;
+	}
+
+	/** A subplan sits under its parent plan, so the folder it counts as being in is the root plan's. */
+	private rootPlanOf(plan: Plan): Plan
+	{
+		let current = plan;
+		const seen = new Set<string>([current.id]);
+		while (current.parentPlanId !== null) {
+			const parent = this.planManager.findPlan(current.parentPlanId);
+			// A dangling or looping parent id would otherwise spin forever.
+			if (parent === null || seen.has(parent.id)) {
+				break;
+			}
+			seen.add(parent.id);
+			current = parent;
+		}
+		return current;
+	}
+
 	public startCreateFolder(parentId: string | null): void
 	{
 		this.expandFolder(parentId);
@@ -860,11 +979,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		if (folderId === null) {
 			return;
 		}
-		this.collapsedSignal.update(set => {
-			const next = new Set(set);
-			next.delete(folderId);
-			return next;
-		});
+		this.foldState.set(folderId, true);
 	}
 
 	/** The clone lands next to the original and becomes active, ready to work in. */
@@ -1008,7 +1123,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.dropTargetSignal.set({
 			id: targetId,
 			position: this.dragItem.source === 'account'
-				? this.positionIn(event, kind, this.insideAllowed(this.dragItem, kind))
+				? this.positionAt(event.currentTarget as HTMLElement, event.clientY, kind, this.insideAllowed(this.dragItem, kind))
 				: 'inside',
 		});
 	}
@@ -1030,6 +1145,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	public onDrop(event: DragEvent, target: TreeItem | null): void
 	{
 		event.preventDefault();
+		this.performDrop(target);
+	}
+
+	private performDrop(target: TreeItem | null): void
+	{
 		const drop = this.dropTarget();
 		this.dropTargetSignal.set(null);
 		const item = this.dragItem;
@@ -1080,6 +1200,157 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	{
 		this.dragItem = null;
 		this.dropTargetSignal.set(null);
+		this.touchDragIdSignal.set(null);
+		this.stopAutoScroll();
+	}
+
+	// Touch drag-and-drop: the same moves, held with a finger
+
+	/**
+	 * A finger picked up an account row. The row is only marked here - the
+	 * drag itself starts with the first move, which is also what tells the
+	 * context menu opened by the same long press to get out of the way.
+	 */
+	public onTouchDragPick(type: 'plan' | 'folder', id: string): void
+	{
+		this.dragItem = {type, id, source: 'account'};
+		this.touchDragIdSignal.set(id);
+	}
+
+	public onLocalTouchDragPick(item: LocalItem): void
+	{
+		this.dragItem = {type: item.kind, id: item.id, source: 'local'};
+		this.touchDragIdSignal.set(item.id);
+	}
+
+	public onSharedTouchDragPick(share: VisitedShare): void
+	{
+		this.dragItem = {type: share.type, id: share.share, source: 'shared', versionId: share.version.id};
+		this.touchDragIdSignal.set(share.share);
+	}
+
+	/** Follows the finger: marks the row under it and scrolls the list at its edges. */
+	public onTouchDragMove(touch: Touch): void
+	{
+		if (!this.dragItem) {
+			return;
+		}
+		this.contextMenu.close();
+		this.touchPoint = {x: touch.clientX, y: touch.clientY};
+		this.updateTouchDropTarget();
+		this.updateAutoScroll(touch.clientY);
+	}
+
+	public onTouchDragDrop(touch: Touch): void
+	{
+		this.stopAutoScroll();
+		const hit = this.rowUnder(touch.clientX, touch.clientY);
+		const item = this.dragItem;
+		this.touchDragIdSignal.set(null);
+		if (!item || !hit) {
+			this.onDragEnd();
+			return;
+		}
+		if (hit.kind === 'root') {
+			this.performDrop(null);
+			return;
+		}
+		const target = this.treeItems().find(row => row.type !== 'input' && (row.type === 'plan' ? row.plan.id : row.id) === hit.id);
+		if (!target) {
+			this.onDragEnd();
+			return;
+		}
+		this.performDrop(target);
+	}
+
+	public onTouchDragCancel(): void
+	{
+		this.onDragEnd();
+	}
+
+	/** Marks the row under the finger, the way dragover does for a mouse drag. */
+	private updateTouchDropTarget(): void
+	{
+		const item = this.dragItem;
+		const point = this.touchPoint;
+		if (!item || !point) {
+			return;
+		}
+		const hit = this.rowUnder(point.x, point.y);
+		if (!hit || !this.dropAllowed(item, hit.id, hit.kind)) {
+			this.dropTargetSignal.set(null);
+			return;
+		}
+		this.dropTargetSignal.set({
+			id: hit.id,
+			position: item.source === 'account'
+				? this.positionAt(hit.element, point.y, hit.kind, this.insideAllowed(item, hit.kind))
+				: 'inside',
+		});
+	}
+
+	/** The drop row under a point, found the way the browser finds a dragover target. */
+	private rowUnder(x: number, y: number): {id: string; kind: 'root' | 'folder' | 'plan'; element: HTMLElement} | null
+	{
+		const element = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-id]') ?? null;
+		const id = element?.dataset['dropId'];
+		const kind = element?.dataset['dropKind'];
+		if (!element || !id || !kind) {
+			return null;
+		}
+		return {id, kind: kind as 'root' | 'folder' | 'plan', element};
+	}
+
+	/**
+	 * A finger cannot reach a row that is off screen, so the list scrolls
+	 * itself while the drag sits near its top or bottom edge. The row under
+	 * the finger is re-checked on every step - the list moves, the finger
+	 * does not.
+	 */
+	private updateAutoScroll(clientY: number): void
+	{
+		const container = this.scrollContainer();
+		if (!container) {
+			return;
+		}
+		const rect = container.getBoundingClientRect();
+		const speed = clientY - rect.top < AUTO_SCROLL_EDGE
+			? -AUTO_SCROLL_STEP
+			: rect.bottom - clientY < AUTO_SCROLL_EDGE ? AUTO_SCROLL_STEP : 0;
+		if (speed === 0) {
+			this.stopAutoScroll();
+			return;
+		}
+		this.autoScrollSpeed = speed;
+		if (this.autoScrollTimer === null) {
+			this.autoScrollTimer = setInterval(() => {
+				container.scrollTop += this.autoScrollSpeed;
+				this.updateTouchDropTarget();
+			}, AUTO_SCROLL_INTERVAL_MS);
+		}
+	}
+
+	private stopAutoScroll(): void
+	{
+		if (this.autoScrollTimer !== null) {
+			clearInterval(this.autoScrollTimer);
+			this.autoScrollTimer = null;
+		}
+		this.touchPoint = null;
+	}
+
+	/** The panel area the tree scrolls in - a docked panel, a floating window or the mobile view. */
+	private scrollContainer(): HTMLElement | null
+	{
+		let element: HTMLElement | null = this.elementRef.nativeElement.parentElement;
+		while (element) {
+			const overflow = getComputedStyle(element).overflowY;
+			if (overflow === 'auto' || overflow === 'scroll') {
+				return element;
+			}
+			element = element.parentElement;
+		}
+		return null;
 	}
 
 	/**
@@ -1134,13 +1405,12 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return kind !== 'plan' || item.type === 'plan';
 	}
 
-	private positionIn(event: DragEvent, kind: 'root' | 'folder' | 'plan', insideAllowed: boolean): DropPosition
+	private positionAt(row: HTMLElement, clientY: number, kind: 'root' | 'folder' | 'plan', insideAllowed: boolean): DropPosition
 	{
 		if (kind === 'root') {
 			return 'inside';
 		}
-		const row = event.currentTarget as HTMLElement;
-		const fraction = (event.clientY - row.getBoundingClientRect().top) / Math.max(1, row.offsetHeight);
+		const fraction = (clientY - row.getBoundingClientRect().top) / Math.max(1, row.offsetHeight);
 		if (!insideAllowed) {
 			return fraction < 0.5 ? 'before' : 'after';
 		}

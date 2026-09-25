@@ -3,6 +3,7 @@ import {HotkeyOverrides} from '@src/Model/Hotkeys/HotkeyOverrides';
 import {AccountSettings} from '@src/Model/Settings/AccountSettings';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {NumberSettings} from '@src/Model/Settings/NumberSettings';
+import {PlanDefaultsSettings} from '@src/Model/Settings/PlanDefaultsSettings';
 import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
 
 /** Global, user-scoped application settings (not tied to a game version). */
@@ -14,6 +15,8 @@ export interface Settings
 	readonly graph: GraphSettings;
 
 	readonly planner: PlannerSettings;
+
+	readonly planDefaults: PlanDefaultsSettings;
 
 	readonly account: AccountSettings;
 

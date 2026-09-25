@@ -1,3 +1,4 @@
+import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
 import {Settings} from '@src/Model/Settings/Settings';
 
 /** Factory defaults and normalisation for the global settings object. */
@@ -29,6 +30,7 @@ export class SettingsDefaults
 			nodeColors: {
 				recipe: '#4a90d9',
 				generator: '#e0c341',
+				augmenter: '#8e6fd8',
 				sink: '#e05c8a',
 				mine: '#4caf50',
 				input: '#26a69a',
@@ -42,6 +44,15 @@ export class SettingsDefaults
 			tabBadges: true,
 			tabLabels: 'auto',
 			helpButtons: true,
+		},
+		planDefaults: {
+			alternateRecipes: false,
+			conversionRecipes: false,
+			graphDirection: GraphLayoutDefaults.SETTINGS.direction,
+			graphEdgeShape: GraphLayoutDefaults.SETTINGS.edgeShape,
+			graphNodeSpacing: GraphLayoutDefaults.SETTINGS.nodeSpacing,
+			graphLayerSpacing: GraphLayoutDefaults.SETTINGS.layerSpacing,
+			groupingMode: 'underclock-last',
 		},
 		account: {
 			signInPrompts: true,
@@ -61,6 +72,7 @@ export class SettingsDefaults
 				nodeColors: {...SettingsDefaults.SETTINGS.graph.nodeColors, ...(data?.graph?.nodeColors ?? {})},
 			},
 			planner: {...SettingsDefaults.SETTINGS.planner, ...(data?.planner ?? {})},
+			planDefaults: {...SettingsDefaults.SETTINGS.planDefaults, ...(data?.planDefaults ?? {})},
 			account: {...SettingsDefaults.SETTINGS.account, ...(data?.account ?? {})},
 			hotkeys: {...(data?.hotkeys ?? {})},
 			panels: data?.panels ?? null,

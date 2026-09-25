@@ -3,6 +3,8 @@ import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronRight, faRecycle} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
+import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
+import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
@@ -44,8 +46,8 @@ export class CalculatorRecipesTabComponent
 	public readonly faRecycle = faRecycle;
 
 	public filter = '';
-	public alternateOpen = true;
-	public standardOpen = true;
+	/** Which cards are folded; shared, so a fold survives leaving the tab. */
+	public readonly foldState: CollapsibleSections;
 
 	public constructor(
 		private readonly planManager: PlanManager,
@@ -53,8 +55,10 @@ export class CalculatorRecipesTabComponent
 		private readonly resolver: EnabledRecipesResolver,
 		private readonly conversions: ResourceConversionRecipeResolver,
 		public readonly rateFormatter: RateFormatter,
+		collapsedSections: CollapsedSectionsService,
 	)
 	{
+		this.foldState = new CollapsibleSections(collapsedSections, 'recipes');
 	}
 
 	public get alternateRecipes(): Recipe[]

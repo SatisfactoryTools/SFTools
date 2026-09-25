@@ -24,6 +24,18 @@ export class RootComponent
     }
 
     /**
+     * Marks the page as soon as it is touched. A desktop with a touch screen
+     * reports `hover: hover` like any other desktop, so the media query alone
+     * would keep hover-only controls (a row's three-dot menu, say) out of a
+     * finger's reach - the class is what the stylesheets key those off.
+     */
+    @HostListener('document:touchstart')
+    public onTouchStart(): void
+    {
+        document.body.classList.add('touch-input');
+    }
+
+    /**
      * The app's single hotkey listener. The browser keeps the key whenever no
      * action claimed it, so nothing we do not use is swallowed.
      */

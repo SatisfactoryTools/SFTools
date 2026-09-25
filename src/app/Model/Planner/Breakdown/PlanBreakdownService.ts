@@ -6,22 +6,28 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {BuildCostBreakdown} from '@src/Model/Planner/Breakdown/BuildCostBreakdown';
 import {BuildCostMaterialRow} from '@src/Model/Planner/Breakdown/BuildCostMaterialRow';
 import {BuildCostRow} from '@src/Model/Planner/Breakdown/BuildCostRow';
+import {CountedExtraPower} from '@src/Model/Planner/Breakdown/CountedExtraPower';
 import {CountedNode} from '@src/Model/Planner/Breakdown/CountedNode';
 import {ItemFlowRow} from '@src/Model/Planner/Breakdown/ItemFlowRow';
 import {ItemRow} from '@src/Model/Planner/Breakdown/ItemRow';
 import {PowerBreakdown} from '@src/Model/Planner/Breakdown/PowerBreakdown';
+import {PowerEntryRow} from '@src/Model/Planner/Breakdown/PowerEntryRow';
 import {PowerRow} from '@src/Model/Planner/Breakdown/PowerRow';
 import {ProductionNodes} from '@src/Model/Planner/Breakdown/ProductionNodes';
 import {ProductionRow} from '@src/Model/Planner/Breakdown/ProductionRow';
 import {RecipeUsageRow} from '@src/Model/Planner/Breakdown/RecipeUsageRow';
 import {ResourceUsageRow} from '@src/Model/Planner/Breakdown/ResourceUsageRow';
+import {ExtraPower} from '@src/Model/Planner/ExtraPower';
+import {ExtraPowerResolver} from '@src/Model/Planner/ExtraPowerResolver';
 import {Formulas} from '@src/Model/Planner/Formulas';
+import {GeothermalGenerators} from '@src/Model/Planner/GeothermalGenerators';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {PlanSerializer} from '@src/Model/Planner/PlanSerializer';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
+import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
@@ -53,6 +59,7 @@ export class PlanBreakdownService
 		private readonly versionManager: VersionManager,
 		private readonly planNames: PlanNameResolver,
 		private readonly rateFormatter: RateFormatter,
+		private readonly extraPower: ExtraPowerResolver,
 	)
 	{
 	}
@@ -78,7 +85,7 @@ export class PlanBreakdownService
 		}>();
 		const subplanNodes: SubplanNode[] = [];
 		let consumption = PowerDraw.ZERO;
-		let production = 0;
+		let production = PowerDraw.ZERO;
 
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
@@ -95,7 +102,7 @@ export class PlanBreakdownService
 				entry.groups.push(...node.groups);
 			} else if (node instanceof GeneratorNode) {
 				const megawatts = node.powerProduction();
-				production += megawatts;
+				production = production.add(PowerDraw.fixed(megawatts));
 				const row = this.getOrCreate(generators, node.generator.className,
 					() => ({building: node.generator, machines: 0, power: PowerDraw.ZERO, entries: new Map()}));
 				row.machines += node.amount;
@@ -147,24 +154,31 @@ export class PlanBreakdownService
 				})),
 		}));
 
+		// Geothermal generators and alien power augmenters are settings rather
+		// than graph nodes; the augmenters' percentage applies to what this
+		// plan's own generators make, so the rows come after them.
+		const extraRows = this.extraPowerRows(plan, production.average);
+		rows.push(...extraRows.rows);
+		production = production.add(extraRows.production);
+
 		this.groupSubplans(subplanNodes).forEach(group => {
 			const nodes = this.collectProductionNodes(group.subplanId, new Set([plan.id]));
 			const subConsumption = this.consumptionOf(nodes.recipes).scale(group.count);
-			const subProduction = this.productionOf(nodes.generators) * group.count;
+			const subProduction = this.productionOf(nodes).scale(group.count);
 			consumption = consumption.add(subConsumption);
-			production += subProduction;
+			production = production.add(subProduction);
 			rows.push({
 				key: `subplan:${group.subplanId}`,
 				name: this.subplanRowName(group),
 				icon: null,
 				kind: 'subplan',
-				machines: this.countMachines(nodes.recipes, nodes.generators) * group.count,
-				power: subConsumption.subtract(PowerDraw.fixed(subProduction)),
+				machines: this.countMachines(nodes) * group.count,
+				power: subConsumption.subtract(subProduction),
 				entries: [],
 			});
 		});
 
-		return {rows, consumption, production, net: PowerDraw.fixed(production).subtract(consumption)};
+		return {rows, consumption, production: production.average, net: production.subtract(consumption)};
 	}
 
 	public items(plan: Plan | null): ItemRow[]
@@ -221,24 +235,25 @@ export class PlanBreakdownService
 			return {rows: [], machines: 0, shards: 0, sloops: 0, materials: []};
 		}
 
-		const recipes: CountedNode<RecipeNode>[] = [];
-		const generators: CountedNode<GeneratorNode>[] = [];
+		// Build cost only counts buildings, so what the generators make (the
+		// augmenters' percentage base) does not matter here.
+		const own: ProductionNodes = {recipes: [], generators: [], mines: [], extraPower: this.extraPowerEntries(plan, 0)};
 		const subplanNodes: SubplanNode[] = [];
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
-				recipes.push({node, count: 1});
+				own.recipes.push({node, count: 1});
 			} else if (node instanceof GeneratorNode) {
-				generators.push({node, count: 1});
+				own.generators.push({node, count: 1});
 			} else if (node instanceof SubplanNode) {
 				subplanNodes.push(node);
 			}
 		});
 
-		const rows: BuildCostRow[] = this.machineCostRows(recipes, generators);
+		const rows: BuildCostRow[] = this.machineCostRows(own);
 
 		this.groupSubplans(subplanNodes).forEach(group => {
 			const nodes = this.collectProductionNodes(group.subplanId, new Set([plan.id]));
-			const subRows = this.machineCostRows(nodes.recipes, nodes.generators);
+			const subRows = this.machineCostRows(nodes);
 			rows.push({
 				key: `subplan:${group.subplanId}`,
 				name: this.subplanRowName(group),
@@ -338,26 +353,26 @@ export class PlanBreakdownService
 	{
 		const rows: PowerRow[] = [];
 		let consumption = PowerDraw.ZERO;
-		let production = 0;
+		let production = PowerDraw.ZERO;
 
 		this.folderPlans(folderId).forEach(plan => {
 			const nodes = this.collectProductionNodes(plan.id, new Set());
 			const planConsumption = this.consumptionOf(nodes.recipes);
-			const planProduction = this.productionOf(nodes.generators);
+			const planProduction = this.productionOf(nodes);
 			consumption = consumption.add(planConsumption);
-			production += planProduction;
+			production = production.add(planProduction);
 			rows.push({
 				key: plan.id,
 				name: this.planNames.displayName(plan),
 				icon: null,
 				kind: 'plan',
-				machines: this.countMachines(nodes.recipes, nodes.generators),
-				power: planConsumption.subtract(PowerDraw.fixed(planProduction)),
+				machines: this.countMachines(nodes),
+				power: planConsumption.subtract(planProduction),
 				entries: [],
 			});
 		});
 
-		return {rows, consumption, production, net: PowerDraw.fixed(production).subtract(consumption)};
+		return {rows, consumption, production: production.average, net: production.subtract(consumption)};
 	}
 
 	/** Folder overview: each plan's outside interface (inputs needed, products/byproducts provided). */
@@ -409,7 +424,7 @@ export class PlanBreakdownService
 	{
 		const rows: BuildCostRow[] = this.folderPlans(folderId).map(plan => {
 			const nodes = this.collectProductionNodes(plan.id, new Set());
-			const planRows = this.machineCostRows(nodes.recipes, nodes.generators);
+			const planRows = this.machineCostRows(nodes);
 			return {
 				key: plan.id,
 				name: this.planNames.displayName(plan),
@@ -439,7 +454,7 @@ export class PlanBreakdownService
 	public buildingsRecursive(plan: Plan): BuildCostRow[]
 	{
 		const nodes = this.collectProductionNodes(plan.id, new Set());
-		return this.machineCostRows(nodes.recipes, nodes.generators);
+		return this.machineCostRows(nodes);
 	}
 
 	/** Recursive power totals of a subplan, e.g. for the solver's factory-power balance. */
@@ -448,7 +463,7 @@ export class PlanBreakdownService
 		const nodes = this.collectProductionNodes(subplanId, new Set());
 		return {
 			consumption: this.consumptionOf(nodes.recipes).average,
-			production: this.productionOf(nodes.generators),
+			production: this.productionOf(nodes).average,
 		};
 	}
 
@@ -457,9 +472,15 @@ export class PlanBreakdownService
 		return PowerDraw.sum(recipes.map(entry => entry.node.powerDraw().scale(entry.count)));
 	}
 
-	private productionOf(generators: CountedNode<GeneratorNode>[]): number
+	/**
+	 * Everything a collection generates: its generator nodes plus, per plan
+	 * on the way down, that plan's geothermal power and augmenter bonus.
+	 */
+	private productionOf(nodes: ProductionNodes): PowerDraw
 	{
-		return generators.reduce((sum, entry) => sum + entry.node.powerProduction() * entry.count, 0);
+		const generators = nodes.generators.reduce((sum, entry) => sum + entry.node.powerProduction() * entry.count, 0);
+		const extra = nodes.extraPower.map(entry => entry.extraPower.bonus(entry.generated).scale(entry.count));
+		return PowerDraw.sum([PowerDraw.fixed(generators), ...extra]);
 	}
 
 	/** The folder's own plans (subplans belong to their parent plan's rows, not the folder). */
@@ -470,9 +491,10 @@ export class PlanBreakdownService
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	private machineCostRows(recipes: CountedNode<RecipeNode>[], generators: CountedNode<GeneratorNode>[]): BuildCostRow[]
+	private machineCostRows(nodes: ProductionNodes): BuildCostRow[]
 	{
 		const map = new Map<string, {building: Building; machines: number; shards: number; sloops: number}>();
+		const {recipes, generators} = nodes;
 
 		recipes.forEach(entry => {
 			const row = this.getOrCreate(map, entry.node.machine.className,
@@ -492,6 +514,16 @@ export class PlanBreakdownService
 			row.shards += entry.node.powerShards() * entry.count;
 		});
 
+		// Geothermal generators and augmenters cost buildings like any other.
+		// The augmenters' somersloops join the plan's somersloop total as
+		// well as their build materials - the plan really does need that many.
+		nodes.extraPower.forEach(entry => {
+			this.addExtraBuilding(map, SpecialClasses.GeothermalGeneratorBuilding,
+				entry.extraPower.geothermalCount * entry.count, 0);
+			this.addExtraBuilding(map, SpecialClasses.AlienPowerAugmenterBuilding,
+				entry.extraPower.augmenters.count * entry.count, entry.extraPower.sloopCost * entry.count);
+		});
+
 		return this.sortedByBuildingName(map).map(row => ({
 			key: row.building.className,
 			name: row.building.name,
@@ -502,6 +534,120 @@ export class PlanBreakdownService
 			sloops: row.sloops,
 			materials: this.buildingMaterials(row.building, row.machines),
 		}));
+	}
+
+	/**
+	 * Power panel rows for the buildings that are settings rather than nodes:
+	 * one for the geothermal generators, one for the augmenters. `generated`
+	 * is what the plan's own generators make - the augmenters raise it.
+	 */
+	private extraPowerRows(plan: Plan, generated: number): {rows: PowerRow[]; production: PowerDraw}
+	{
+		const extra = this.extraPower.resolve(plan.settings);
+		if (!extra.isActive) {
+			return {rows: [], production: PowerDraw.ZERO};
+		}
+
+		const data = this.versionManager.activeVersionData();
+		const rows: PowerRow[] = [];
+		const geothermal = extra.geothermalPower;
+		const augmenters = extra.augmenterBonus(generated);
+
+		if (extra.geothermalCount > 0) {
+			const building = data?.searchBuildingByClassName(SpecialClasses.GeothermalGeneratorBuilding);
+			rows.push({
+				key: SpecialClasses.GeothermalGeneratorBuilding,
+				name: building?.name ?? 'Geothermal Generator',
+				icon: building?.icon ?? null,
+				kind: 'generator',
+				machines: extra.geothermalCount,
+				power: geothermal.negate(),
+				entries: this.geothermalEntries(extra),
+			});
+		}
+
+		if (extra.augmenters.count > 0) {
+			const building = data?.searchBuildingByClassName(SpecialClasses.AlienPowerAugmenterBuilding);
+			rows.push({
+				key: SpecialClasses.AlienPowerAugmenterBuilding,
+				name: building?.name ?? 'Alien Power Augmenter',
+				icon: building?.icon ?? null,
+				kind: 'generator',
+				machines: extra.augmenters.count,
+				power: augmenters.negate(),
+				entries: this.augmenterEntries(extra, geothermal.add(PowerDraw.fixed(generated))),
+			});
+		}
+
+		return {rows, production: geothermal.add(augmenters)};
+	}
+
+	/**
+	 * One row per augmenter mode. Each augmenter brings its own fixed MW
+	 * (raised by the shared percentage) plus its own share of that percentage
+	 * on `base` - everything the plan generates before the augmenters.
+	 */
+	private augmenterEntries(extra: ExtraPower, base: PowerDraw): PowerEntryRow[]
+	{
+		const plain = ExtraPower.forAugmenters(1, 0);
+		const boosted = ExtraPower.forAugmenters(1, 1);
+		const modes = [
+			{key: 'normal', label: 'Normal', count: extra.augmenters.count - extra.augmenters.boosted, one: plain},
+			{key: 'boosted', label: 'Boosted', count: extra.augmenters.boosted, one: boosted},
+		];
+		return modes
+			.filter(mode => mode.count > 0)
+			.map(mode => {
+				const share = mode.one.multiplier - 1;
+				const power = PowerDraw.fixed(mode.count * mode.one.flatBonus * extra.multiplier)
+					.add(base.scale(mode.count * share));
+				return {
+					key: mode.key,
+					name: `${mode.label} (+${this.rateFormatter.percent(share)} each)`,
+					machines: mode.count,
+					detail: '',
+					power: power.negate(),
+				};
+			});
+	}
+
+	/** One row per geyser purity the plan uses, each with what those generators make. */
+	private geothermalEntries(extra: ExtraPower): PowerEntryRow[]
+	{
+		const purities: {key: keyof GeothermalGenerators; name: string}[] = [
+			{key: 'impure', name: 'Impure geysers'},
+			{key: 'normal', name: 'Normal geysers'},
+			{key: 'pure', name: 'Pure geysers'},
+		];
+		return purities
+			.filter(purity => extra.geysers[purity.key] > 0)
+			.map(purity => {
+				const count = extra.geysers[purity.key];
+				const only = ExtraPower.forGeysers({...ExtraPower.NO_GEYSERS, [purity.key]: count});
+				return {
+					key: purity.key,
+					name: purity.name,
+					machines: count,
+					detail: '',
+					power: only.geothermalPower.negate(),
+				};
+			});
+	}
+
+	private addExtraBuilding(
+		map: Map<string, {building: Building; machines: number; shards: number; sloops: number}>,
+		className: string,
+		count: number,
+		sloops: number,
+	): void
+	{
+		const building = this.versionManager.activeVersionData()?.searchBuildingByClassName(className);
+		if (!building || count <= 0) {
+			return;
+		}
+		const row = this.getOrCreate(map, className, () => ({building, machines: 0, shards: 0, sloops: 0}));
+		row.machines += count;
+		row.sloops += sloops;
 	}
 
 	private buildingMaterials(building: Building, count: number): BuildCostMaterialRow[]
@@ -531,7 +677,7 @@ export class PlanBreakdownService
 	 */
 	private collectProductionNodes(planId: string, ancestors: ReadonlySet<string>): ProductionNodes
 	{
-		const result: ProductionNodes = {recipes: [], generators: [], mines: []};
+		const result: ProductionNodes = {recipes: [], generators: [], mines: [], extraPower: []};
 		if (ancestors.has(planId)) {
 			return result;
 		}
@@ -541,11 +687,15 @@ export class PlanBreakdownService
 			return result;
 		}
 
+		// The augmenters' percentage applies to what this plan's own
+		// generators make - a subplan brings its own entry for its own.
+		let generated = 0;
 		const path = new Set([...ancestors, planId]);
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
 				result.recipes.push({node, count: 1});
 			} else if (node instanceof GeneratorNode) {
+				generated += node.powerProduction();
 				result.generators.push({node, count: 1});
 			} else if (node instanceof MineNode) {
 				result.mines.push({node, count: 1});
@@ -556,9 +706,18 @@ export class PlanBreakdownService
 				result.recipes.push(...this.multiplied(nested.recipes, builds));
 				result.generators.push(...this.multiplied(nested.generators, builds));
 				result.mines.push(...this.multiplied(nested.mines, builds));
+				result.extraPower.push(...nested.extraPower.map(entry => ({...entry, count: entry.count * builds})));
 			}
 		});
+		result.extraPower.unshift(...this.extraPowerEntries(plan, generated));
 		return result;
+	}
+
+	/** The plan's own geothermal and augmenter setup, or nothing when it has none. */
+	private extraPowerEntries(plan: Plan | null | undefined, generated: number): CountedExtraPower[]
+	{
+		const extraPower = this.extraPower.resolve(plan?.settings);
+		return extraPower.isActive ? [{extraPower, generated, count: 1}] : [];
 	}
 
 	private multiplied<T extends Node>(nodes: CountedNode<T>[], factor: number): CountedNode<T>[]
@@ -566,10 +725,12 @@ export class PlanBreakdownService
 		return factor === 1 ? nodes : nodes.map(entry => ({node: entry.node, count: entry.count * factor}));
 	}
 
-	private countMachines(recipes: CountedNode<RecipeNode>[], generators: CountedNode<GeneratorNode>[]): number
+	private countMachines(nodes: ProductionNodes): number
 	{
-		return recipes.reduce((sum, entry) => sum + entry.node.amount * entry.count, 0)
-			+ generators.reduce((sum, entry) => sum + entry.node.wholeGenerators() * entry.count, 0);
+		return nodes.recipes.reduce((sum, entry) => sum + entry.node.amount * entry.count, 0)
+			+ nodes.generators.reduce((sum, entry) => sum + entry.node.wholeGenerators() * entry.count, 0)
+			+ nodes.extraPower.reduce((sum, entry) =>
+				sum + (entry.extraPower.geothermalCount + entry.extraPower.augmenters.count) * entry.count, 0);
 	}
 
 	/**

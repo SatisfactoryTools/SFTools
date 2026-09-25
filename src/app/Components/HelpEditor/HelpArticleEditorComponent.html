@@ -21,7 +21,7 @@
 
 	<!-- Everything that is not the text itself, folded away once it is filled in
 	     so the writing and its preview get the whole screen. -->
-	<collapsible-card title="Article details" [open]="detailsOpen" (toggle)="detailsOpen = !detailsOpen" class="mb-3">
+	<collapsible-card title="Article details" [open]="detailsOpen" (toggle)="toggleDetails()" class="mb-3">
 		<span card-actions class="text-secondary small">
 			@if (!detailsOpen) {
 				{{ slug || 'no slug' }} · {{ categoryName() || 'Other' }} · {{ published ? 'Published' : 'Draft' }} · {{ topics().length }} topic{{ topics().length === 1 ? '' : 's' }}

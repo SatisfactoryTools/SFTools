@@ -149,12 +149,6 @@ export class PlannerActionsService
 		this.calculateSubject.next();
 	}
 
-	/** Recalculating a manually modified graph rebuilds its unlocked parts - always ask first. */
-	public confirmGraphOverwrite(): boolean
-	{
-		return confirm('Recalculate the plan? Locked nodes are kept. The rest of the graph is built again.');
-	}
-
 	public requestCancel(): void
 	{
 		this.cancelSubject.next();

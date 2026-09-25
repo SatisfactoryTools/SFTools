@@ -5,10 +5,52 @@
 		are typing in a text box.
 	</info-note>
 
-	@for (group of groups; track group.group) {
+	<div class="hotkey-search">
+		<span class="text-search">
+			<fa-icon [icon]="searchIcon" class="search-icon"></fa-icon>
+			<input
+				type="search"
+				class="form-control form-control-sm bg-dark text-light border-secondary"
+				placeholder="Search actions…"
+				autocomplete="off"
+				aria-label="Search actions by name"
+				[value]="query()"
+				(input)="onQueryInput($event)"
+			/>
+		</span>
+		<span class="search-by-key">
+			or by key:
+			<hotkey-input
+				[binding]="keyQuery()"
+				emptyLabel="Press a key"
+				(changed)="setKeyQuery($event)"
+			></hotkey-input>
+			@if (keyQuery()) {
+				<button type="button" class="clear-btn" aria-label="Clear the key search" (click)="clearKeyQuery()">
+					<fa-icon [icon]="clearIcon"></fa-icon>
+				</button>
+			}
+		</span>
+	</div>
+
+	@if (searching()) {
+		<div class="small text-secondary mb-2">
+			@if (matchCount() === 0) {
+				Nothing matches.
+				@if (keyQuery() && query().trim() === '') {
+					That key is free.
+				}
+			} @else {
+				{{ matchCount() }} of {{ totalCount }} shown.
+			}
+			<button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="clearSearch()">Show everything</button>
+		</div>
+	}
+
+	@for (group of groups(); track group.group) {
 		<div class="subsection-title">{{ group.label }}</div>
 		<div class="small text-secondary mb-2">{{ group.description }}</div>
-		@for (definition of definitionsOf(group.group); track definition.action) {
+		@for (definition of group.definitions; track definition.action) {
 			<div class="hotkey-row">
 				<span class="hotkey-label">
 					{{ definition.label }}

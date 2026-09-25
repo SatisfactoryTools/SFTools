@@ -2,13 +2,14 @@ import {Component, ChangeDetectionStrategy, OnDestroy, signal, Signal} from '@an
 import {ActivatedRoute, Router} from '@angular/router';
 import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faHashtag, faDiagramProject, faKeyboard, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
+import {faHashtag, faDiagramProject, faFileCirclePlus, faKeyboard, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {SettingsAccountComponent} from '@src/Components/Settings/SettingsAccountComponent';
 import {SettingsGraphComponent} from '@src/Components/Settings/SettingsGraphComponent';
 import {SettingsHotkeysComponent} from '@src/Components/Settings/SettingsHotkeysComponent';
 import {SettingsNumbersComponent} from '@src/Components/Settings/SettingsNumbersComponent';
+import {SettingsPlanDefaultsComponent} from '@src/Components/Settings/SettingsPlanDefaultsComponent';
 import {SettingsPlannerComponent} from '@src/Components/Settings/SettingsPlannerComponent';
 import {SettingsSection} from '@src/Components/Settings/SettingsSection';
 import {AuthService} from '@src/Model/Auth/AuthService';
@@ -20,7 +21,7 @@ import {AuthService} from '@src/Model/Auth/AuthService';
 @Component({
 	templateUrl: './SettingsComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, BackLinkComponent, InfoNoteComponent, SettingsNumbersComponent, SettingsGraphComponent, SettingsPlannerComponent, SettingsAccountComponent, SettingsHotkeysComponent],
+	imports: [FaIconComponent, BackLinkComponent, InfoNoteComponent, SettingsNumbersComponent, SettingsGraphComponent, SettingsPlannerComponent, SettingsPlanDefaultsComponent, SettingsAccountComponent, SettingsHotkeysComponent],
 	styles: [`
 		.settings-nav {
 			display: flex;
@@ -80,6 +81,7 @@ export class SettingsComponent implements OnDestroy
 		{id: 'numbers', label: 'Numbers', icon: faHashtag},
 		{id: 'graph', label: 'Graph', icon: faDiagramProject},
 		{id: 'planner', label: 'Planner', icon: faTableColumns},
+		{id: 'plan-defaults', label: 'Plan defaults', icon: faFileCirclePlus},
 		{id: 'hotkeys', label: 'Hotkeys', icon: faKeyboard},
 		{id: 'account', label: 'Account', icon: faUser},
 	];

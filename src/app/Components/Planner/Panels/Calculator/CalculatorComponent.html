@@ -88,12 +88,15 @@
 						<fa-icon [icon]="faCopy" [fixedWidth]="true"></fa-icon> Inherit from {{ parentLabel() }}
 						<span class="d-block text-wrap opacity-75 small">Copy all settings from the parent plan or folder{{ fixedGroups().length > 0 ? '. Groups fixed by the folder are kept' : '' }}.</span>
 					</button>
-					<button class="dropdown-item" type="button" (click)="openLoadFromSave()">
-						<fa-icon [icon]="faFileImport" [fixedWidth]="true"></fa-icon> Load from save…
-						<span class="d-block text-wrap opacity-75 small">Enable only the machines, recipes and generator fuels you have unlocked in a game save.</span>
-					</button>
 				</div>
 			</div>
+			<button
+				class="btn btn-sm btn-outline-secondary load-save-btn"
+				aria-label="Load from save"
+				type="button"
+				tooltip="Enable only the machines, recipes and generator fuels you have unlocked in a game save" placement="bottom"
+				(click)="openLoadFromSave()"
+			><fa-icon [icon]="faFileImport"></fa-icon> <span class="load-save-label">Load from save…</span></button>
 		} @else if (fixedFolder(); as folder) {
 			<span class="text-secondary"><span tooltip="All settings come from the folder and cannot be changed here" container="body" placement="bottom"><fa-icon [icon]="faLock"></fa-icon></span> All settings are fixed by folder "{{ folder.name }}".</span>
 		}
@@ -127,7 +130,7 @@
 			<button
 				class="btn btn-sm btn-primary"
 				type="button"
-				[tooltip]="buttonLabel() + hotkeys.suffix('planner.calculate')" placement="bottom"
+				[tooltip]="calculateHint() + hotkeys.suffix('planner.calculate')" placement="bottom"
 				[disabled]="actions.isCalculating() || (mode() === 'automatic' && !graphDirty())"
 				(click)="calculate()"
 			>
@@ -175,6 +178,28 @@
 		<div class="alert alert-danger d-flex align-items-start gap-2 py-2 px-3 mx-2 mt-2 mb-0">
 			<span class="flex-grow-1">{{ actions.solveErrorDetail() ?? 'No solution was found.' }}</span>
 			<button type="button" class="btn-close flex-shrink-0" aria-label="Dismiss" (click)="actions.setSolveError(null)"></button>
+		</div>
+	}
+
+	<!-- Automatic mode stops on its own once the graph is edited by hand: settings
+	     changed here are saved but not applied until the user asks for a rebuild. -->
+	@if (automaticPaused() && hasGraph()) {
+		<div class="px-2 pt-2">
+			<info-note kind="warning">
+				<div class="d-flex align-items-center flex-wrap gap-2">
+					<span class="flex-grow-1">
+						You edited the graph by hand, so it is not built again on its own. Changes you make here are
+						saved and used the next time you calculate. Locked nodes are kept, everything else you changed
+						by hand is lost.
+					</span>
+					<button
+						class="btn btn-sm btn-primary flex-shrink-0"
+						type="button"
+						[disabled]="actions.isCalculating()"
+						(click)="calculate()"
+					><fa-icon [icon]="faPlay"></fa-icon> Calculate now</button>
+				</div>
+			</info-note>
 		</div>
 	}
 
@@ -229,10 +254,6 @@
 						<fa-icon [icon]="faCopy" [fixedWidth]="true"></fa-icon> Inherit from {{ parentLabel() }}
 						<span class="d-block text-wrap opacity-75 small">Copy all settings from the parent folder.</span>
 					</button>
-					<button class="dropdown-item" type="button" (click)="openLoadFromSave()">
-						<fa-icon [icon]="faFileImport" [fixedWidth]="true"></fa-icon> Load from save…
-						<span class="d-block text-wrap opacity-75 small">Enable only the machines, recipes and generator fuels you have unlocked in a game save.</span>
-					</button>
 					<div class="dropdown-divider"></div>
 					<button class="dropdown-item" type="button" (click)="disableFolderSettings()">
 						<fa-icon [icon]="faXmark" [fixedWidth]="true"></fa-icon> Remove custom settings
@@ -240,6 +261,14 @@
 					</button>
 				</div>
 			</div>
+
+			<button
+				class="btn btn-sm btn-outline-secondary load-save-btn"
+				aria-label="Load from save"
+				type="button"
+				tooltip="Enable only the machines, recipes and generator fuels you have unlocked in a game save" placement="bottom"
+				(click)="openLoadFromSave()"
+			><fa-icon [icon]="faFileImport"></fa-icon> <span class="load-save-label">Load from save…</span></button>
 
 			<div class="btn-group" dropdown container="body" placement="bottom left">
 				<button
@@ -318,11 +347,12 @@
 				<span class="text-warning">{{ blocker }}</span>
 			} @else {
 				<button
-					class="btn btn-sm btn-outline-secondary"
+					class="btn btn-sm btn-outline-secondary load-save-btn"
+					aria-label="Load from save"
 					type="button"
 					tooltip="Give this folder its own settings, with only the machines, recipes and generator fuels unlocked in a game save" placement="bottom"
 					(click)="openLoadFromSave()"
-				><fa-icon [icon]="faFileImport"></fa-icon> Load from save…</button>
+				><fa-icon [icon]="faFileImport"></fa-icon> <span class="load-save-label">Load from save…</span></button>
 				<button
 					class="btn btn-sm btn-primary"
 					type="button"

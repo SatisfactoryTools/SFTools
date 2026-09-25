@@ -39,6 +39,8 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			border-bottom: 1px solid #222b3e;
 			user-select: none;
 			cursor: move;
+			/* Drag handle - the browser must not take the touch for a pan. */
+			touch-action: none;
 		}
 		.fw-tabs {
 			display: flex;
@@ -57,6 +59,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			font-size: 1rem;
 			cursor: grab;
 			white-space: nowrap;
+			touch-action: none;
 		}
 		.tab:active { cursor: grabbing; }
 		.tab:hover { background: rgba(255,255,255,0.05); color: #ccd6ee; }
@@ -123,6 +126,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			width: 6px;
 			cursor: ew-resize;
 			z-index: 2;
+			touch-action: none;
 		}
 		.fw-resize-s {
 			position: absolute;
@@ -130,6 +134,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			height: 6px;
 			cursor: ns-resize;
 			z-index: 2;
+			touch-action: none;
 		}
 		.fw-resize-se {
 			position: absolute;
@@ -137,6 +142,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			width: 14px; height: 14px;
 			cursor: nwse-resize;
 			z-index: 2;
+			touch-action: none;
 		}
 	`],
 })
@@ -229,6 +235,7 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 	public onWindowDragStart(event: PointerEvent): void
 	{
 		event.preventDefault();
+		const pointerId = event.pointerId;
 		const startClientX = event.clientX;
 		const startClientY = event.clientY;
 		const startX = this.group.x;
@@ -236,25 +243,30 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		const groupId = this.group.id;
 
 		const onMove = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			this.layout.moveGroup(groupId, startX + (e.clientX - startClientX), startY + (e.clientY - startClientY));
 			const point = this.layout.pointerToContent(e.clientX, e.clientY);
 			this.layout.updateDragPreview(point.x, point.y, groupId);
 		};
 
-		const onUp = (): void => {
+		const onUp = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			document.removeEventListener('pointermove', onMove);
 			document.removeEventListener('pointerup', onUp);
+			document.removeEventListener('pointercancel', onUp);
 			this.layout.completeGroupDrag(groupId);
 		};
 
 		document.addEventListener('pointermove', onMove);
 		document.addEventListener('pointerup', onUp);
+		document.addEventListener('pointercancel', onUp);
 	}
 
 	/** Dragging an edge or the corner resizes the window in place. */
 	public onResizeStart(event: PointerEvent, horizontal: boolean, vertical: boolean): void
 	{
 		event.preventDefault();
+		const pointerId = event.pointerId;
 		const startClientX = event.clientX;
 		const startClientY = event.clientY;
 		const startWidth = this.group.width;
@@ -262,6 +274,7 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		const groupId = this.group.id;
 
 		const onMove = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			this.layout.resizeGroup(
 				groupId,
 				horizontal ? startWidth + (e.clientX - startClientX) : startWidth,
@@ -269,13 +282,16 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 			);
 		};
 
-		const onUp = (): void => {
+		const onUp = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			document.removeEventListener('pointermove', onMove);
 			document.removeEventListener('pointerup', onUp);
+			document.removeEventListener('pointercancel', onUp);
 		};
 
 		document.addEventListener('pointermove', onMove);
 		document.addEventListener('pointerup', onUp);
+		document.addEventListener('pointercancel', onUp);
 	}
 
 	/**
@@ -288,12 +304,14 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		event.preventDefault();
 		event.stopPropagation();
 
+		const pointerId = event.pointerId;
 		const startClientX = event.clientX;
 		const startClientY = event.clientY;
 		const groupId = this.group.id;
 		let detached = false;
 
 		const onMove = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			if (!detached) {
 				if (Math.abs(e.clientX - startClientX) + Math.abs(e.clientY - startClientY) < 8) return;
 				detached = true;
@@ -304,18 +322,21 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 			this.layout.updateDragPreview(point.x, point.y, this.layout.groupIdOf(panelId));
 		};
 
-		const onUp = (): void => {
+		const onUp = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			document.removeEventListener('pointermove', onMove);
 			document.removeEventListener('pointerup', onUp);
+			document.removeEventListener('pointercancel', onUp);
 			if (detached) {
 				this.layout.completeFloatDrag(panelId);
-			} else {
+			} else if (e.type !== 'pointercancel') {
 				this.layout.selectFloatingTab(groupId, panelId);
 			}
 		};
 
 		document.addEventListener('pointermove', onMove);
 		document.addEventListener('pointerup', onUp);
+		document.addEventListener('pointercancel', onUp);
 	}
 
 }

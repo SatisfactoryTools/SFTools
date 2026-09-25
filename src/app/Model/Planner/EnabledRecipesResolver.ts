@@ -2,15 +2,25 @@ import {Injectable} from '@angular/core';
 import {Data} from '@src/Model/Data/Data';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
+import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConversionRecipeResolver';
+import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
 /**
  * Resolves which recipes a plan's solver may use. Plans without an explicit
- * selection get the default: every non-alternate machine recipe enabled,
- * alternates disabled.
+ * selection get the default selection, which the user's plan defaults decide:
+ * every standard machine recipe, plus alternate and resource conversion
+ * recipes when those are switched on there.
  */
 @Injectable({providedIn: 'root'})
 export class EnabledRecipesResolver
 {
+
+	public constructor(
+		private readonly settings: SettingsManager,
+		private readonly conversions: ResourceConversionRecipeResolver,
+	)
+	{
+	}
 
 	public resolve(settings: PlanSettings, data: Data): Set<string>
 	{
@@ -37,9 +47,14 @@ export class EnabledRecipesResolver
 
 	public defaultSelection(data: Data): Set<string>
 	{
-		return new Set(data.getRecipesForMachines()
-			.filter(recipe => !recipe.alternate)
+		const defaults = this.settings.planDefaults();
+		const selection = new Set(data.getRecipesForMachines()
+			.filter(recipe => defaults.alternateRecipes || !recipe.alternate)
 			.map(recipe => recipe.className));
+		if (!defaults.conversionRecipes) {
+			this.conversions.resolve(data).forEach(recipe => selection.delete(recipe.className));
+		}
+		return selection;
 	}
 
 }

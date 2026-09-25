@@ -11,10 +11,10 @@
 	/>
 
 	<div class="recipe-columns">
-		<collapsible-card title="Alternate recipes" [open]="alternateOpen" (toggle)="alternateOpen = !alternateOpen">
+		<collapsible-card title="Alternate recipes" [open]="foldState.isOpen('alternate')" (toggle)="foldState.toggle('alternate')">
 			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, true)">All</button>
 			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(alternateRecipes, false)">None</button>
-			@if (alternateOpen) {
+			@if (foldState.isOpen('alternate')) {
 			<div class="card-body p-2">
 				@for (recipe of alternateRecipes; track recipe.className) {
 					<div class="form-check">
@@ -54,7 +54,7 @@
 			}
 		</collapsible-card>
 
-		<collapsible-card title="Standard recipes" [open]="standardOpen" (toggle)="standardOpen = !standardOpen">
+		<collapsible-card title="Standard recipes" [open]="foldState.isOpen('standard')" (toggle)="foldState.toggle('standard')">
 			@if (conversionRecipes.length > 0) {
 				<button
 					card-actions
@@ -68,7 +68,7 @@
 			}
 			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, true)">All</button>
 			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(standardRecipes, false)">None</button>
-			@if (standardOpen) {
+			@if (foldState.isOpen('standard')) {
 			<div class="card-body p-2">
 				@for (recipe of standardRecipes; track recipe.className) {
 					<div class="form-check">

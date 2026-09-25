@@ -4,6 +4,8 @@ import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faTrash, faUpRightFromSquare} from '@fortawesome/free-solid-svg-icons';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
+import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {HelpArticleHeaderComponent} from '@src/Components/Help/HelpArticleHeaderComponent';
@@ -122,8 +124,11 @@ export class HelpArticleEditorComponent
 	public readonly images = signal<HelpEditorImage[]>([]);
 	public readonly saving = signal(false);
 
-	/** Open while writing a new article; an existing one starts folded away. */
-	public detailsOpen = true;
+	/**
+	 * Fold state of the details card, reached through `detailsOpen` below
+	 * because the default depends on whether the article is new.
+	 */
+	private readonly foldState: CollapsibleSections;
 
 	/** Whether the slug still follows the title, as it does until it is edited by hand. */
 	private slugTouched = false;
@@ -153,8 +158,10 @@ export class HelpArticleEditorComponent
 		private readonly notifications: NotificationService,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
+		collapsedSections: CollapsedSectionsService,
 	)
 	{
+		this.foldState = new CollapsibleSections(collapsedSections, 'help-article');
 		this.api.listCategories().subscribe({
 			next: categories => this.categories.set(categories),
 			error: () => undefined,
@@ -168,14 +175,25 @@ export class HelpArticleEditorComponent
 		const id = this.route.snapshot.paramMap.get('id');
 		if (id !== null && id !== 'new') {
 			this.api.getArticle(id).subscribe({
-				next: article => {
-					this.fill(article);
-					// It is written already - the text is what the writer came for.
-					this.detailsOpen = false;
-				},
+				next: article => this.fill(article),
 				error: () => this.notifications.show('That article could not be loaded.'),
 			});
 		}
+	}
+
+	/**
+	 * A new article opens with its details showing; an existing one starts
+	 * folded away, because the text is what the writer came for. Either way
+	 * the writer's own choice wins once they make one.
+	 */
+	public get detailsOpen(): boolean
+	{
+		return this.foldState.isOpen('details', this.isNew());
+	}
+
+	public toggleDetails(): void
+	{
+		this.foldState.toggle('details', this.isNew());
 	}
 
 	/** Section name for the preview's header and the folded card's summary. */

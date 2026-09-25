@@ -143,6 +143,16 @@ input[type="number"].form-control {
 	pointer-events: auto;
 	cursor: crosshair;
 }
+// A finger cannot hover, so on a touch screen (the class goes on the canvas
+// with the first touch - see PlannerGraphService.markTouchUsed) the selected
+// node shows its ports instead: tap a node, then drag one of its ports. The
+// rules stay above the connecting ones so those still win while a drag is on.
+.pg-touch .x6-node-selected .pg-port {
+	opacity: 1;
+}
+.pg-touch .x6-node-selected circle.pg-port {
+	pointer-events: auto;
+}
 .pg-connecting .x6-node .pg-port {
 	opacity: 0;
 }

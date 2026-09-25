@@ -16,4 +16,9 @@ export const SpecialClasses = {
 	PowerShardItem: 'Desc_CrystalShard_C',
 	SomersloopItem: 'Desc_WAT1_C',
 	SinkCouponItem: 'Desc_ResourceSinkCoupon_C',
+	/** Power buildings that sit outside the production graph - see ExtraPower. */
+	GeothermalGeneratorBuilding: 'Desc_GeneratorGeoThermal_C',
+	AlienPowerAugmenterBuilding: 'Desc_AlienPowerBuilding_C',
+	/** What a boosted Alien Power Augmenter burns. */
+	AlienPowerMatrixItem: 'Desc_AlienPowerFuel_C',
 }

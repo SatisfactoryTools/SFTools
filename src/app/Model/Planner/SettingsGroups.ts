@@ -21,7 +21,7 @@ export class SettingsGroups
 		machines: ['disabledMachines'],
 		byproducts: ['disabledByproducts'],
 		resources: ['resourceLimits', 'disabledResources', 'resourceWeightMode', 'resourceWeights'],
-		power: ['enabledFuels', 'producePowerForFactory', 'excessPowerPercent'],
+		power: ['enabledFuels', 'producePowerForFactory', 'excessPowerPercent', 'geothermalGenerators', 'alienPowerAugmenters'],
 		sink: ['sinkableItems'],
 		sloops: ['maxSloops', 'sloopAccuracy'],
 		overclocking: ['defaultClockSpeed', 'recipeClockSpeeds', 'machineClockSpeeds', 'generatorClockSpeeds'],

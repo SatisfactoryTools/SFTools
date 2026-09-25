@@ -45,6 +45,9 @@ export class HotkeyInputComponent implements OnDestroy
 	/** Marks the field red - another action already uses this combination. */
 	@Input() public conflict = false;
 
+	/** What the field says while it holds no combination. */
+	@Input() public emptyLabel = 'No key';
+
 	@Output() public readonly changed = new EventEmitter<HotkeyBinding>();
 
 	public recording = false;
@@ -68,7 +71,7 @@ export class HotkeyInputComponent implements OnDestroy
 		if (this.recording) {
 			return 'Press a key…';
 		}
-		return this.formatter.format(this.binding) || 'No key';
+		return this.formatter.format(this.binding) || this.emptyLabel;
 	}
 
 	public start(): void

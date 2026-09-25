@@ -16,8 +16,8 @@
 		Drafts stay out of those files until you tick “Published”.
 	</info-note>
 
-	<collapsible-card title="Sections" [open]="sectionsOpen" (toggle)="sectionsOpen = !sectionsOpen">
-		@if (sectionsOpen) {
+	<collapsible-card title="Sections" [open]="foldState.isOpen('sections')" (toggle)="foldState.toggle('sections')">
+		@if (foldState.isOpen('sections')) {
 		<div class="card-body">
 		<table class="table table-dark table-sm align-middle mb-2">
 			<thead>
@@ -59,8 +59,8 @@
 		}
 	</collapsible-card>
 
-	<collapsible-card title="Help topics" [open]="topicsOpen" (toggle)="topicsOpen = !topicsOpen">
-		@if (topicsOpen) {
+	<collapsible-card title="Help topics" [open]="foldState.isOpen('topics')" (toggle)="foldState.toggle('topics')">
+		@if (foldState.isOpen('topics')) {
 		<div class="card-body">
 			<div class="form-text mb-2">
 				Every id a question-mark button in the app asks for, and the article that answers it.

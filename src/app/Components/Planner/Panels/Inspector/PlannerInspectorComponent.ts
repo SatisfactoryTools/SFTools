@@ -4,6 +4,7 @@ import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {AmountNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/AmountNodeEditor/AmountNodeEditorComponent';
 import {RecipeNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/RecipeNodeEditorComponent';
 import {SubplanNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/SubplanNodeEditor/SubplanNodeEditorComponent';
+import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
@@ -27,6 +28,7 @@ export class PlannerInspectorComponent
 	public readonly singleAmountNode: Signal<Node | null>;
 
 	/** A read-only plan (shared, or on this device while signed in) is inspected, never edited - the editors render disabled. */
+	public readonly isAugmenterNode: Signal<boolean>;
 	public readonly readOnly: Signal<boolean>;
 	public readonly readOnlyNote: Signal<string>;
 
@@ -47,6 +49,12 @@ export class PlannerInspectorComponent
 		this.singleSubplanNode = computed(() => {
 			const nodes = this.selectedNodes();
 			return nodes.length === 1 && nodes[0] instanceof SubplanNode ? nodes[0] : null;
+		});
+		// Augmenters are a Power tab setting the solver restates as a node, so
+		// there is nothing to edit here - the inspector says where to go.
+		this.isAugmenterNode = computed(() => {
+			const nodes = this.selectedNodes();
+			return nodes.length === 1 && nodes[0] instanceof AugmenterNode;
 		});
 		this.singleAmountNode = computed(() => {
 			const nodes = this.selectedNodes();

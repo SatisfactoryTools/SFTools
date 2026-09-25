@@ -83,6 +83,13 @@ import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager'
 		.req-controls .btn {
 			white-space: nowrap;
 		}
+		/* Narrow panels (a phone above all): the longest label in the row goes,
+		   leaving the icon - the tooltip and the dialog still name the thing. */
+		@container panel (max-width: 560px) {
+			.load-save-label {
+				display: none;
+			}
+		}
 		.calc-tabs-wrap {
 			padding: 8px 10px 0;
 		}
@@ -227,6 +234,9 @@ export class CalculatorComponent implements OnDestroy
 	public readonly mode: Signal<CalculationMode>;
 	public readonly graphDirty: Signal<boolean>;
 	public readonly buttonLabel: Signal<string>;
+	/** Automatic mode holding still because the graph was edited by hand. */
+	public readonly automaticPaused: Signal<boolean>;
+	public readonly calculateHint: Signal<string>;
 	public readonly hasGraph: Signal<boolean>;
 
 	/** Custom settings enabled on the active folder - its tabs are editable. */
@@ -345,6 +355,10 @@ export class CalculatorComponent implements OnDestroy
 			}
 		});
 		this.hasGraph = computed(() => (this.activePlan()?.graph?.nodes.length ?? 0) > 0);
+		this.automaticPaused = computed(() => this.mode() === 'automatic' && this.graphDirty());
+		this.calculateHint = computed(() => this.graphDirty()
+			? 'Build the graph again. Locked nodes are kept, everything else you changed by hand is lost.'
+			: this.modeOptions.find(option => option.mode === this.mode())?.description ?? '');
 		this.folderHasCustomSettings = computed(() => (this.activeFolder()?.settings ?? null) !== null);
 		this.parentLabel = computed(() => {
 			const plan = this.activePlan();
@@ -496,12 +510,10 @@ export class CalculatorComponent implements OnDestroy
 	{
 		const plan = this.activePlan();
 		if (!plan) return;
-		// The dirty flag is cleared by the solve completing, not here - a
-		// failed or cancelled solve keeps the plan paused, and undo snapshots
-		// taken before the solve keep the correct dirty state.
-		if (this.graphDirty() && !this.actions.confirmGraphOverwrite()) {
-			return;
-		}
+		// Pressing the button is the confirmation - the note above it and the
+		// button's own tooltip say what a rebuild does to hand edits, and undo
+		// puts the old graph back. The dirty flag is cleared by the solve
+		// completing, not here: a failed or cancelled solve stays paused.
 		this.actions.requestCalculate();
 	}
 

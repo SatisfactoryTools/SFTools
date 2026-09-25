@@ -47,6 +47,7 @@ export type HelpTopicId =
 	| 'settings.numbers'
 	| 'settings.graph'
 	| 'settings.planner'
+	| 'settings.plan-defaults'
 	| 'settings.hotkeys'
 	| 'settings.account'
 	// Versions, mods and the account outside the planner.

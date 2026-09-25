@@ -9,6 +9,8 @@ import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanInput} from '@src/Model/Planner/PlanInput';
 import {PlanMetadata} from '@src/Model/Planner/PlanMetadata';
+import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
+import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
@@ -143,6 +145,15 @@ export class PlanSerializer
 				node = new GeneratorNode(id, amount, generator, fuel, (raw['clockSpeed'] as number | undefined) ?? 100);
 				break;
 			}
+			case 'augmenter':
+				node = new AugmenterNode(
+					id,
+					amount,
+					(raw['boosted'] as number | undefined) ?? 0,
+					data.getBuildingByClassName(raw['buildingClassName'] as string),
+					data.searchItemByClassName(SpecialClasses.AlienPowerMatrixItem) ?? null,
+				);
+				break;
 			case 'subplan':
 				node = new SubplanNode(
 					id,
@@ -171,7 +182,10 @@ export class PlanSerializer
 		node.x = x;
 		node.y = y;
 		// Subplan nodes are user-owned by definition and stay locked forever.
-		node.locked = raw['locked'] === true || node instanceof SubplanNode;
+		// Augmenter nodes are the opposite: the solver restates them from the
+		// plan's settings every time, so a lock would only ever duplicate them.
+		node.locked = !(node instanceof AugmenterNode)
+			&& (raw['locked'] === true || node instanceof SubplanNode);
 		node.done = raw['done'] === true;
 		return node;
 	}

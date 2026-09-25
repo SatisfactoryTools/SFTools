@@ -3,6 +3,8 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight, faRecycle} from '@fortawesome/free-solid-svg-icons';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {PowerDrawComponent} from '@src/Components/Common/PowerDrawComponent';
+import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
+import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {OverviewCard} from '@src/Components/Planner/Panels/Overview/OverviewCard';
@@ -99,7 +101,8 @@ export class PlannerOverviewComponent
 		{id: 'recipes', title: 'Recipes'},
 	];
 
-	private readonly collapsedSignal = signal<ReadonlySet<OverviewCard>>(new Set());
+	/** Which cards are folded; shared, so a fold survives closing the panel. */
+	public readonly foldState: CollapsibleSections;
 
 	private readonly showAllRecipesSignal = signal(false);
 	public readonly showAllRecipes = this.showAllRecipesSignal.asReadonly();
@@ -137,6 +140,17 @@ export class PlannerOverviewComponent
 
 	public readonly production: Signal<ProductionRow[]> = computed(() =>
 		this.breakdownService.production(this.planManager.activePlan()));
+
+	/**
+	 * Whether there is a calculated graph to read at all - an empty
+	 * production list means "not calculated yet" before there is one and
+	 * "makes no items" after it (a power-only plan makes none).
+	 */
+	public readonly hasGraph = computed(() => (this.planManager.activePlan()?.graph?.nodes.length ?? 0) > 0);
+
+	/** Same for a folder: any of its plans calculated. */
+	public readonly hasFolderGraphs = computed(() =>
+		this.folderOverview()?.plans.some(plan => plan.buildings > 0 || plan.production > 0) ?? false);
 
 	public readonly buildCost: Signal<BuildCostBreakdown> = computed(() =>
 		this.breakdownService.buildCost(this.planManager.activePlan()));
@@ -183,10 +197,12 @@ export class PlannerOverviewComponent
 		private readonly versionManager: VersionManager,
 		private readonly pool: ResourcePoolService,
 		private readonly folderOverviewService: FolderOverviewService,
+		collapsedSections: CollapsedSectionsService,
 		private readonly conversions: ResourceConversionRecipeResolver,
 		public readonly rateFormatter: RateFormatter,
 	)
 	{
+		this.foldState = new CollapsibleSections(collapsedSections, 'overview');
 	}
 
 	public isRowExpanded(key: string): boolean
@@ -243,18 +259,6 @@ export class PlannerOverviewComponent
 			return null;
 		}
 		return status.available > 0 ? Math.min(1, status.usedByPlan / status.available) : (status.usedByPlan > 0 ? 1 : 0);
-	}
-
-	public isCollapsed(card: OverviewCard): boolean
-	{
-		return this.collapsedSignal().has(card);
-	}
-
-	public toggleCard(card: OverviewCard): void
-	{
-		const cards = new Set(this.collapsedSignal());
-		cards.has(card) ? cards.delete(card) : cards.add(card);
-		this.collapsedSignal.set(cards);
 	}
 
 	public setShowAllRecipes(showAll: boolean): void

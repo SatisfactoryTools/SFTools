@@ -1,5 +1,7 @@
-import {Component, ChangeDetectionStrategy, Signal, computed, signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, Signal, computed} from '@angular/core';
 import {FormsModule} from '@angular/forms';
+import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
+import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
@@ -9,8 +11,10 @@ import {Folder} from '@src/Model/Planner/Folder';
 import {GraphDirection} from '@src/Model/Planner/GraphDirection';
 import {GraphEdgeShape} from '@src/Model/Planner/GraphEdgeShape';
 import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
+import {GraphLayoutResolver} from '@src/Model/Planner/GraphLayoutResolver';
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
+import {GroupingModeResolver} from '@src/Model/Planner/GroupingModeResolver';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
@@ -49,14 +53,19 @@ export class PlannerSettingsComponent
 	public readonly readOnly: Signal<boolean>;
 	public readonly readOnlyNote: Signal<string>;
 
-	private readonly collapsedSignal = signal(new Set<string>());
+	/** Which cards are folded; shared, so a fold survives closing the panel. */
+	public readonly foldState: CollapsibleSections;
 
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
 		private readonly appSettings: SettingsManager,
+		private readonly graphLayout: GraphLayoutResolver,
+		private readonly groupingModes: GroupingModeResolver,
+		collapsedSections: CollapsedSectionsService,
 	)
 	{
+		this.foldState = new CollapsibleSections(collapsedSections, 'planner-settings');
 		this.activePlan = planManager.activePlan;
 		this.activeFolder = planManager.activeFolder;
 		this.editedSettings = planManager.activeSettings;
@@ -64,7 +73,7 @@ export class PlannerSettingsComponent
 		this.readOnlyNote = computed(() => planManager.activePlanShared()
 			? 'Shared plan - read-only. You can look at the settings but not change them.'
 			: 'Plan on this device - read-only. Add it to your plans to change the settings.');
-		this.graphSettings = computed(() => GraphLayoutDefaults.resolve(this.editedSettings()?.graph));
+		this.graphSettings = computed(() => graphLayout.resolve(this.editedSettings()?.graph));
 		this.parentLabel = computed(() => {
 			const folder = this.activeFolder();
 			const parent = planManager.folders().find(f => f.id === folder?.parentId);
@@ -121,23 +130,9 @@ export class PlannerSettingsComponent
 		this.patchGraphSettings({machineColors: {...this.graphSettings().machineColors, [machine.className]: color}});
 	}
 
-	public isOpen(section: string): boolean
-	{
-		return !this.collapsedSignal().has(section);
-	}
-
-	public toggleSection(section: string): void
-	{
-		this.collapsedSignal.update(set => {
-			const next = new Set(set);
-			next.has(section) ? next.delete(section) : next.add(section);
-			return next;
-		});
-	}
-
 	public get defaultGroupingMode(): GroupingMode
 	{
-		return this.editedSettings()?.defaultGroupingMode ?? 'underclock-last';
+		return this.groupingModes.resolve(this.editedSettings());
 	}
 
 	/** New nodes (manual or solver-built) start with this machine-group arrangement. */
@@ -193,7 +188,7 @@ export class PlannerSettingsComponent
 		}
 		this.planManager.updateActiveSettings({
 			...settings,
-			graph: {...GraphLayoutDefaults.resolve(settings.graph), ...changes},
+			graph: {...this.graphLayout.resolve(settings.graph), ...changes},
 		});
 	}
 

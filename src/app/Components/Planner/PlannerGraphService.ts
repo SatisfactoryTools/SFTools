@@ -23,7 +23,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphEdgeBuilder} from '@src/Model/Planner/Graph/GraphEdgeBuilder';
-import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
+import {GraphLayoutResolver} from '@src/Model/Planner/GraphLayoutResolver';
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 import {GraphMetrics} from '@src/Model/Planner/Graph/GraphMetrics';
 import {GraphNodeCapacityWarning} from '@src/Model/Planner/Graph/GraphNodeCapacityWarning';
@@ -35,6 +35,7 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
+import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
@@ -230,6 +231,12 @@ const EDGE_DEFAULT_LABEL = {
 const NODE_HIGHLIGHT_Z = 100000;
 const EDGE_HIGHLIGHT_Z = 100001;
 const CONNECT_PREVIEW_Z = 100002;
+/**
+ * A selected node on a touch screen, above the edges highlighted with it: its
+ * ports are the only way a finger can start a connection, and an edge's hit
+ * area is wide enough to cover the very port it ends at.
+ */
+const SELECTED_TOUCH_Z = 100003;
 
 // Connection ports: one grip per distinct IO item - inputs along one node
 // edge, outputs along the opposite one (which pair depends on the layout
@@ -455,11 +462,15 @@ export class PlannerGraphService implements OnDestroy
 
 	private x6Graph: X6Graph | null = null;
 	private touchGestures: GraphTouchGestures | null = null;
+	/** The canvas has been touched - hover affordances are replaced by touch ones. */
+	private touchUsed = false;
 	/** Set when our long-press gesture opened a menu; a native contextmenu arriving right after is the same press. */
 	private suppressNativeContextMenuUntil = 0;
 	private selection: Selection | null = null;
 	private cornerPreview: SVGCircleElement | null = null;
 	private hoveredEdgeView: EdgeView | null = null;
+	/** The edge a finger tapped: its corner handles stay out until the next tap elsewhere. */
+	private touchedEdgeId: string | null = null;
 	private hoverMoveTarget: HTMLElement | null = null;
 	private readonly edgeHoverListener: (e: MouseEvent) => void;
 	private readonly warningOverListener: (e: MouseEvent) => void;
@@ -550,6 +561,7 @@ export class PlannerGraphService implements OnDestroy
 		private readonly planManager: PlanManager,
 		private readonly planNames: PlanNameResolver,
 		private readonly settings: SettingsManager,
+		private readonly graphLayout: GraphLayoutResolver,
 	)
 	{
 		this.edgeHoverListener = e => this.onEdgeHoverMove(e);
@@ -559,7 +571,12 @@ export class PlannerGraphService implements OnDestroy
 			this.hideTooltip();
 			// The pointer left the canvas (or the window lost focus): no
 			// mouseleave arrives for the hovered edge if x6 was mid-press.
-			this.endEdgeHover();
+			// A tap is the exception - the browser ends its made-up pointer
+			// on the canvas the moment the finger lifts, and the handles the
+			// tap just brought out would go with it.
+			if (this.touchedEdgeId === null) {
+				this.endEdgeHover();
+			}
 		};
 		// A gesture is one burst of vertex changes; the same quiet gap that
 		// triggers the debounced save also closes the gesture.
@@ -594,7 +611,7 @@ export class PlannerGraphService implements OnDestroy
 		if (nodes.length === 0) {
 			return;
 		}
-		const settings = GraphLayoutDefaults.resolve(layoutSettings);
+		const settings = this.graphLayout.resolve(layoutSettings);
 
 		const nodeIds = new Set(nodes.map(node => node.id));
 		const layoutEdges = edges.filter(e => nodeIds.has(e.sourceId) && nodeIds.has(e.targetId));
@@ -697,6 +714,7 @@ export class PlannerGraphService implements OnDestroy
 		this.clearVertexSelection();
 		this.vertexDragAnchorId = null;
 		this.hoveredEdgeView = null;
+		this.touchedEdgeId = null;
 		this.connectGesture = null;
 		this.markedPorts = [];
 		this.dimmedNodeIds = [];
@@ -797,6 +815,9 @@ export class PlannerGraphService implements OnDestroy
 		if (node instanceof GeneratorNode) {
 			return node.generator.icon;
 		}
+		if (node instanceof AugmenterNode) {
+			return node.building.icon;
+		}
 		if (node instanceof ItemAmountNode) {
 			return node.item.icon;
 		}
@@ -877,6 +898,7 @@ export class PlannerGraphService implements OnDestroy
 		this.clearVertexSelection();
 		this.vertexDragAnchorId = null;
 		this.hoveredEdgeView = null;
+		this.touchedEdgeId = null;
 		this.touchGestures?.detach();
 		this.touchGestures = null;
 		this.x6Graph?.dispose();
@@ -953,6 +975,7 @@ export class PlannerGraphService implements OnDestroy
 
 		this.touchGestures = new GraphTouchGestures(container, {
 			isCellElement: target => x6Graph.findViewByElem(target) !== null,
+			onTouchUsed: () => this.markTouchUsed(x6Graph),
 			onPan: (dx, dy) => x6Graph.translateBy(dx, dy),
 			onPinch: (factor, clientX, clientY) => {
 				const center = x6Graph.clientToGraph(clientX, clientY);
@@ -990,28 +1013,26 @@ export class PlannerGraphService implements OnDestroy
 		// ghost circle previews where a pressed corner would be created - x6
 		// only emits cell mousemove during a press-drag, so the ghost is
 		// driven by a native mousemove listener on the container instead.
-		x6Graph.on('edge:mouseenter', ({view, edge}) => {
-			// The in-flight connect preview is not editable - no corner tools.
-			if (this.isTempConnect(edge)) {
-				return;
-			}
-			this.hoveredEdgeView = view;
-			if (!this.readOnly) {
-				edge.addTools([this.verticesTool()]);
-			}
-			this.applyEdgeHover(view, edge, true);
-		});
+		x6Graph.on('edge:mouseenter', ({view, edge}) => this.showEdgeTools(view, edge));
 		x6Graph.on('edge:mouseleave', ({view, edge}) => {
-			if (this.isTempConnect(edge)) {
-				return;
+			// The pointer never "leaves" an edge a finger tapped - the browser
+			// sends this the moment the tap ends, and the handles must stay.
+			if (this.touchedEdgeId !== edge.id) {
+				this.hideEdgeTools(view, edge);
 			}
-			if (this.hoveredEdgeView === view) {
-				this.hoveredEdgeView = null;
-			}
-			edge.removeTools();
-			this.applyEdgeHover(view, edge, false);
-			this.hideCornerPreview();
 		});
+
+		// A finger cannot hover, so on a touch screen tapping an edge is what
+		// brings its corner handles out; they stay until something else is
+		// tapped. The handles themselves drag under a finger by themselves.
+		x6Graph.on('edge:click', ({view, edge}) => {
+			if (this.touchUsed) {
+				this.showEdgeTools(view, edge);
+				this.touchedEdgeId = edge.id;
+			}
+		});
+		x6Graph.on('node:click', () => this.releaseTouchedEdge());
+		x6Graph.on('blank:click', () => this.releaseTouchedEdge());
 		this.hoverMoveTarget?.removeEventListener('mousemove', this.edgeHoverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseover', this.warningOverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseout', this.warningOutListener);
@@ -1263,7 +1284,7 @@ export class PlannerGraphService implements OnDestroy
 		if (this.readOnly) {
 			return {};
 		}
-		const vertical = GraphLayoutDefaults.resolve(this.planManager.activePlan()?.settings.graph).direction === 'down';
+		const vertical = this.graphLayout.resolve(this.planManager.activePlan()?.settings.graph).direction === 'down';
 		const markup = [
 			{tagName: 'circle', selector: 'portBody'},
 			{tagName: 'image', selector: 'portIcon'},
@@ -1439,16 +1460,32 @@ export class PlannerGraphService implements OnDestroy
 	/**
 	 * x6 has no single "gesture over" event covering connected, dangling and
 	 * cancelled drops alike, so the gesture settles on the next macrotask
-	 * after mouseup - by then x6 has finished connecting or reverting.
+	 * after the press ends - by then x6 has finished connecting or reverting.
+	 * A touch drag ends in touchend and never in a mouseup (the browser only
+	 * synthesizes mouse events for taps), so both endings are watched.
 	 */
 	private watchConnectDrop(x6Graph: X6Graph): void
 	{
-		const onUp = (event: MouseEvent): void => {
-			document.removeEventListener('mouseup', onUp, true);
+		const stop = (): void => {
+			document.removeEventListener('mouseup', onMouseUp, true);
+			document.removeEventListener('touchend', onTouchEnd, true);
+			document.removeEventListener('touchcancel', onTouchEnd, true);
+		};
+		const onMouseUp = (event: MouseEvent): void => {
+			stop();
 			const client = {x: event.clientX, y: event.clientY};
 			setTimeout(() => this.settleConnectDrop(x6Graph, client));
 		};
-		document.addEventListener('mouseup', onUp, true);
+		const onTouchEnd = (event: TouchEvent): void => {
+			stop();
+			// touchend carries the lifted finger in changedTouches, not touches.
+			const touch = event.changedTouches[0];
+			const client = {x: touch?.clientX ?? 0, y: touch?.clientY ?? 0};
+			setTimeout(() => this.settleConnectDrop(x6Graph, client));
+		};
+		document.addEventListener('mouseup', onMouseUp, true);
+		document.addEventListener('touchend', onTouchEnd, true);
+		document.addEventListener('touchcancel', onTouchEnd, true);
 	}
 
 	/**
@@ -1757,7 +1794,7 @@ export class PlannerGraphService implements OnDestroy
 			if (selectedIds.has(cell.id)) {
 				cell.attr('body/stroke', SELECTED_STROKE);
 				cell.attr('body/strokeWidth', SELECTED_STROKE_WIDTH);
-				this.scheduleZChange(cell, NODE_HIGHLIGHT_Z);
+				this.scheduleZChange(cell, this.touchUsed ? SELECTED_TOUCH_Z : NODE_HIGHLIGHT_Z);
 			} else if (modelNode) {
 				cell.attr('body/stroke', this.styleFor(modelNode).bodyStroke);
 				cell.attr('body/strokeWidth', NODE_STROKE_WIDTH);
@@ -1894,7 +1931,14 @@ export class PlannerGraphService implements OnDestroy
 		// hover is also ended here once the pointer is seen somewhere that
 		// is not the hovered edge (its tools included). Not while a button
 		// is held: that pointer is dragging a handle away from the line.
-		if (e.buttons === 0 && this.x6Graph.findViewByElem(e.target as Element | null) !== this.hoveredEdgeView) {
+		// Compared by cell id, not by view: raising the edge re-renders it,
+		// and the view the hover started on is a different object by now. An
+		// edge whose handles a tap brought out is left alone altogether - the
+		// mouse events the browser makes up around a tap must not take them
+		// away again.
+		const hoveredId = this.hoveredEdgeView.cell.id;
+		const under = this.x6Graph.findViewByElem(e.target as Element | null);
+		if (e.buttons === 0 && under?.cell.id !== hoveredId && this.touchedEdgeId !== hoveredId) {
 			this.endEdgeHover();
 			return;
 		}
@@ -1911,6 +1955,7 @@ export class PlannerGraphService implements OnDestroy
 	{
 		const view = this.hoveredEdgeView;
 		this.hoveredEdgeView = null;
+		this.touchedEdgeId = null;
 		this.hideCornerPreview();
 		if (view === null) {
 			return;
@@ -2076,6 +2121,75 @@ export class PlannerGraphService implements OnDestroy
 		if (base !== undefined) {
 			this.baseZIndexById.delete(cell.id);
 			cell.setZIndex(base);
+		}
+	}
+
+	/**
+	 * The canvas was touched. A finger cannot hover, so from here on the
+	 * selected node stands in for the hovered one: the class shows its ports
+	 * (see styles.scss) and the node is lifted clear of the edges that are
+	 * highlighted along with it, which would otherwise take the touch meant
+	 * for a port they end at.
+	 */
+	private markTouchUsed(x6Graph: X6Graph): void
+	{
+		if (this.touchUsed) {
+			return;
+		}
+		this.touchUsed = true;
+		x6Graph.container.classList.add('pg-touch');
+		const selected = this.selection?.cells ?? [];
+		if (selected.length > 0) {
+			this.onSelectionChanged(x6Graph, selected);
+		}
+	}
+
+	/** Corner handles out, edge highlighted - from a hover or, on a touch screen, from a tap. */
+	private showEdgeTools(view: EdgeView, edge: X6Edge): void
+	{
+		// The in-flight connect preview is not editable - no corner tools.
+		if (this.isTempConnect(edge)) {
+			return;
+		}
+		if (this.touchedEdgeId !== null && this.touchedEdgeId !== edge.id) {
+			this.releaseTouchedEdge();
+		}
+		this.hoveredEdgeView = view;
+		// A tap arrives as both a click and a made-up mouseenter - the handles
+		// are added once, not once per event.
+		if (!this.readOnly && !edge.hasTools()) {
+			edge.addTools([this.verticesTool()]);
+		}
+		this.applyEdgeHover(view, edge, true);
+	}
+
+	private hideEdgeTools(view: EdgeView, edge: X6Edge): void
+	{
+		if (this.isTempConnect(edge)) {
+			return;
+		}
+		if (this.hoveredEdgeView?.cell.id === edge.id) {
+			this.hoveredEdgeView = null;
+		}
+		edge.removeTools();
+		this.applyEdgeHover(view, edge, false);
+		this.hideCornerPreview();
+	}
+
+	/**
+	 * Puts away the handles a tap brought out, once the tap moves on to
+	 * something else. The edge is looked up again rather than kept as a view:
+	 * raising it re-renders the edge, and the view from the tap is gone by
+	 * then.
+	 */
+	private releaseTouchedEdge(): void
+	{
+		const id = this.touchedEdgeId;
+		this.touchedEdgeId = null;
+		const cell = id === null ? null : this.x6Graph?.getCellById(id);
+		const view = cell && cell.isEdge() ? this.x6Graph?.findViewByCell(cell) : null;
+		if (cell && cell.isEdge() && view instanceof EdgeView) {
+			this.hideEdgeTools(view, cell);
 		}
 	}
 
@@ -2283,6 +2397,8 @@ export class PlannerGraphService implements OnDestroy
 			hash = graph.showNodeBuildingIcons ? node.machine.icon : null;
 		} else if (node instanceof GeneratorNode) {
 			hash = graph.showNodeBuildingIcons ? node.generator.icon : null;
+		} else if (node instanceof AugmenterNode) {
+			hash = graph.showNodeBuildingIcons ? node.building.icon : null;
 		} else if (node instanceof SinkNode) {
 			// Sink nodes render recipe-style (name + points + item line), no left icon.
 			hash = null;
@@ -2487,6 +2603,9 @@ export class PlannerGraphService implements OnDestroy
 		if (node instanceof GeneratorNode) {
 			return {...colors, name: node.getDisplayName(), stats: this.generatorStats(node), machines: '', ...icons};
 		}
+		if (node instanceof AugmenterNode) {
+			return {...colors, name: node.getDisplayName(), stats: this.augmenterStats(node), machines: '', ...icons};
+		}
 		if (node instanceof SinkNode) {
 			return {...colors, name: node.getDisplayName(), machines: this.sinkPointsLine(node), stats: this.sinkStats(node), ...icons};
 		}
@@ -2520,6 +2639,7 @@ export class PlannerGraphService implements OnDestroy
 			return custom ?? colors.recipe;
 		}
 		if (node instanceof GeneratorNode) return colors.generator;
+		if (node instanceof AugmenterNode) return colors.augmenter;
 		if (node instanceof SinkNode) return colors.sink;
 		if (node instanceof MineNode) return colors.mine;
 		if (node instanceof InputNode) return colors.input;
@@ -2749,6 +2869,19 @@ export class PlannerGraphService implements OnDestroy
 	{
 		const clock = node.clockSpeed === 100 ? '' : ` @ ${this.rateFormatter.clock(node.clockSpeed)}%`;
 		return `${this.rateFormatter.amount(node.amount)}×${clock} (${node.fuel.item.name}) - ${this.rateFormatter.power(node.powerProduction())}`;
+	}
+
+	/**
+	 * Augmenter stat line: how many are built, how many of those run boosted,
+	 * and what they add. The percentage applies to everything the plan
+	 * generates, so the MW it comes to lives in the Power panel, not here.
+	 */
+	private augmenterStats(node: AugmenterNode): string
+	{
+		const extra = node.extraPower();
+		const boosted = node.boosted > 0 ? ` (${this.rateFormatter.amount(node.boosted)} boosted)` : '';
+		return `${this.rateFormatter.amount(node.amount)}×${boosted} - `
+			+ `+${this.rateFormatter.power(extra.flatBonus)} and +${this.rateFormatter.percent(extra.multiplier - 1)}`;
 	}
 
 	/** IO node stat line: the node's role (Product, Byproduct, …) and its rate. */

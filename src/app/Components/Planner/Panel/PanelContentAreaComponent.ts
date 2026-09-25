@@ -56,6 +56,9 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			font-size: 1rem;
 			cursor: grab;
 			white-space: nowrap;
+			/* The tab is a drag handle: the browser must not take the gesture
+			   for a pan/zoom on a touch screen, or the drag never happens. */
+			touch-action: none;
 		}
 		.tab:active { cursor: grabbing; }
 		.tab:hover { background: rgba(255,255,255,0.05); color: #ccd6ee; }
@@ -258,11 +261,13 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 	{
 		event.preventDefault();
 
+		const pointerId = event.pointerId;
 		const startClientX = event.clientX;
 		const startClientY = event.clientY;
 		let unpinned = false;
 
 		const onMove = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			if (!unpinned) {
 				if (Math.abs(e.clientX - startClientX) + Math.abs(e.clientY - startClientY) < 8) return;
 				unpinned = true;
@@ -273,30 +278,38 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 			this.layout.updateDragPreview(point.x, point.y, this.layout.groupIdOf(panelId));
 		};
 
-		const onUp = (): void => {
+		// A cancelled pointer (the browser claimed the touch for a gesture of
+		// its own) ends the drag where it stands instead of leaving the
+		// listeners - and the panel - hanging.
+		const onUp = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			document.removeEventListener('pointermove', onMove);
 			document.removeEventListener('pointerup', onUp);
+			document.removeEventListener('pointercancel', onUp);
 			if (unpinned) {
 				this.layout.completeFloatDrag(panelId);
-			} else {
+			} else if (e.type !== 'pointercancel') {
 				this.layout.selectTab(this.side, panelId);
 			}
 		};
 
 		document.addEventListener('pointermove', onMove);
 		document.addEventListener('pointerup', onUp);
+		document.addEventListener('pointercancel', onUp);
 	}
 
 	public onResizeStart(event: PointerEvent): void
 	{
 		event.preventDefault();
 		(event.target as HTMLElement).setPointerCapture(event.pointerId);
+		const pointerId = event.pointerId;
 		const startX = event.clientX;
 		const startY = event.clientY;
 		const startSize = this.layout.sizes()[this.side];
 		this.isResizing = true;
 
 		const onMove = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			let newSize: number;
 			if (this.side === 'left') {
 				newSize = startSize + (e.clientX - startX);
@@ -308,14 +321,17 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 			this.layout.setSize(this.side, newSize);
 		};
 
-		const onUp = (): void => {
+		const onUp = (e: PointerEvent): void => {
+			if (e.pointerId !== pointerId) return;
 			this.isResizing = false;
 			document.removeEventListener('pointermove', onMove);
 			document.removeEventListener('pointerup', onUp);
+			document.removeEventListener('pointercancel', onUp);
 		};
 
 		document.addEventListener('pointermove', onMove);
 		document.addEventListener('pointerup', onUp);
+		document.addEventListener('pointercancel', onUp);
 	}
 
 }

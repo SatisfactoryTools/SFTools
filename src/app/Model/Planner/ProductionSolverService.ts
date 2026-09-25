@@ -4,6 +4,8 @@ import {Data} from '@src/Model/Data/Data';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver';
+import {ExtraPowerResolver} from '@src/Model/Planner/ExtraPowerResolver';
+import {GroupingModeResolver} from '@src/Model/Planner/GroupingModeResolver';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GeneratorFuelOption} from '@src/Model/Planner/Solver/Request/GeneratorFuelOption';
 import {OptimisationDefaults} from '@src/Model/Planner/OptimisationDefaults';
@@ -31,6 +33,7 @@ import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse'
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
+import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
 import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
@@ -52,10 +55,12 @@ export class ProductionSolverService
 		private readonly versionManager: VersionManager,
 		private readonly normalizer: MachineGroupNormalizer,
 		private readonly enabledRecipes: EnabledRecipesResolver,
+		private readonly groupingModes: GroupingModeResolver,
 		private readonly breakdown: PlanBreakdownService,
 		private readonly sloopBudget: SloopBudgetService,
 		private readonly pool: ResourcePoolService,
 		private readonly resourceWeights: ResourceWeightResolver,
+		private readonly extraPower: ExtraPowerResolver,
 	)
 	{
 	}
@@ -79,6 +84,16 @@ export class ProductionSolverService
 			return of({status: 'Empty' as SolverWorkerResponseType, nodes: []});
 		}
 
+		// The augmenters are built before any machine gets a somersloop, so an
+		// over-spent budget is a settings mistake rather than a hard solve.
+		const extra = this.extraPower.resolve(plan.settings);
+		const sloopBudget = this.sloopBudgetOf(plan);
+		if (extra.sloopCost > sloopBudget) {
+			throw new Error(`The ${extra.augmenters.count} alien power augmenters cost ${extra.sloopCost} somersloops, `
+				+ `but the plan only has ${sloopBudget}. `
+				+ 'Raise the budget in the Sloops tab or build fewer augmenters in the Power tab.');
+		}
+
 		const optimisation = this.optimisationTarget(plan, data);
 		const request = this.buildRequest(plan, data, optimisation);
 		// Weighted inputs are a goal of their own: with every other goal off the
@@ -95,7 +110,10 @@ export class ProductionSolverService
 		const lp = this.buildLp(request, data, lockedNodes);
 		//console.log(lp);
 		return this.solver.solve(lp, this.solveOptions(request, plan)).pipe(
-			map(solution => this.parseSolution(solution, data, plan.settings.defaultGroupingMode ?? 'underclock-last')),
+			map(solution => {
+				const response = this.parseSolution(solution, data, this.groupingModes.resolve(plan.settings));
+				return {...response, nodes: [...response.nodes, ...this.augmenterNodes(plan, data)]};
+			}),
 		);
 	}
 
@@ -120,7 +138,7 @@ export class ProductionSolverService
 				}),
 			// Locked recipe nodes already commit somersloops; the solver only gets the rest to place.
 			inputs: this.inputSources(plan, data),
-			maxSloops: this.sloopBudget.remaining(Math.max(0, Math.round(plan.settings.maxSloops ?? 0)), plan.graph),
+			maxSloops: this.machineSloops(plan),
 			defaultClockSpeed: Formulas.clampClock(plan.settings.defaultClockSpeed ?? 100),
 			recipeClockSpeeds: this.recipeClockSpeeds(plan),
 			machineClockSpeeds: this.machineClockSpeeds(plan),
@@ -128,6 +146,7 @@ export class ProductionSolverService
 			// Pooled folders hand the plan only what the sibling plans left.
 			resourceLimits: this.pool.effectiveLimits(plan),
 			generators: this.enabledGenerators(plan, data),
+			extraPower: this.extraPower.resolve(plan.settings),
 			powerDemand: this.powerDemand(plan),
 			producePowerForFactory: plan.settings.producePowerForFactory ?? false,
 			excessPowerFraction: (plan.settings.excessPowerPercent ?? 10) / 100,
@@ -208,9 +227,20 @@ export class ProductionSolverService
 			return of(`No solution: ${unproducible.join(', ')} cannot be made with the enabled recipes and the available raw resources. Check the Recipes, Machines and Resources tabs.`);
 		}
 
+		const extra = this.extraPower.resolve(plan.settings);
 		if ((this.powerDemand(plan) > 0 || (plan.settings.producePowerForFactory ?? false))
 			&& this.enabledGenerators(plan, data).length === 0) {
-			return of('No solution: power is needed (as a target or to run the factory) but no generator fuel is enabled. Enable some in the Power tab.');
+			return of('No solution: power is needed (as a target or to run the factory) but no generator fuel is enabled'
+				+ (extra.isActive ? ', and the geothermal generators and augmenters do not make enough' : '')
+				+ '. Enable some fuels in the Power tab.');
+		}
+
+		if (extra.matrixDemand > 0
+			&& !this.producibleItems(plan, data, lockedNodes).has(SpecialClasses.AlienPowerMatrixItem)) {
+			const matrix = data.searchItemByClassName(SpecialClasses.AlienPowerMatrixItem)?.name ?? 'Alien Power Matrix';
+			return of(`No solution: the boosted alien power augmenters need ${extra.matrixDemand}/min of ${matrix}, `
+				+ 'which cannot be made with the enabled recipes and the available raw resources. '
+				+ 'Check the Recipes, Machines and Resources tabs, or switch the augmenters back to the normal mode in the Power tab.');
 		}
 
 		if (this.sinkPointsDemand(plan) > 0 && this.sinkableItems(plan, data).length === 0) {
@@ -239,18 +269,36 @@ export class ProductionSolverService
 		return of(generic);
 	}
 
-	/**
-	 * Requested items outside the closure of what the enabled recipes can make
-	 * from the available raw resources (and locked nodes' outputs) - those
-	 * make the LP infeasible no matter the amounts.
-	 */
 	private planFolderName(plan: Plan): string
 	{
 		const folder = this.pool.poolFolderName(plan);
 		return folder === null ? 'the folder' : `"${folder}"`;
 	}
 
+	/**
+	 * Requested items outside the closure of what the enabled recipes can make
+	 * from the available raw resources (and locked nodes' outputs) - those
+	 * make the LP infeasible no matter the amounts.
+	 */
 	private findUnproducibleRequests(plan: Plan, data: Data, lockedNodes: Node[]): string[]
+	{
+		const producible = this.producibleItems(plan, data, lockedNodes);
+
+		return plan.requests
+			.filter(request => request.itemClassName !== ''
+				&& request.itemClassName !== SpecialClasses.PowerTarget
+				&& request.itemClassName !== SpecialClasses.SinkPointsTarget)
+			.filter(request => !producible.has(request.itemClassName))
+			.map(request => data.searchItemByClassName(request.itemClassName)?.name ?? request.itemClassName);
+	}
+
+	/**
+	 * Everything the plan can reach: the available raw resources, the user's
+	 * inputs and the locked nodes' outputs, closed over the enabled recipes
+	 * and generator fuels. An item outside it makes the LP infeasible no
+	 * matter the amounts.
+	 */
+	private producibleItems(plan: Plan, data: Data, lockedNodes: Node[]): Set<string>
 	{
 		const recipes = this.allowedRecipes(plan, data);
 		const limits = this.pool.effectiveLimits(plan);
@@ -297,12 +345,7 @@ export class ProductionSolverService
 			}
 		}
 
-		return plan.requests
-			.filter(request => request.itemClassName !== ''
-				&& request.itemClassName !== SpecialClasses.PowerTarget
-				&& request.itemClassName !== SpecialClasses.SinkPointsTarget)
-			.filter(request => !producible.has(request.itemClassName))
-			.map(request => data.searchItemByClassName(request.itemClassName)?.name ?? request.itemClassName);
+		return producible;
 	}
 
 	/**
@@ -329,6 +372,45 @@ export class ProductionSolverService
 			machines: machinesEnabled ? settings?.machinesWeight ?? OptimisationDefaults.machinesWeight : 0,
 			inputs: settings?.inputs ?? true,
 		};
+	}
+
+	/**
+	 * The plan's alien power augmenters as a graph node, so the matrix feeding
+	 * the boosted ones can be wired up. They are not an LP column - their
+	 * power and their matrix demand are already in the balance as constants -
+	 * so the node is simply restated from the settings after every solve.
+	 */
+	private augmenterNodes(plan: Plan, data: Data): Node[]
+	{
+		const augmenters = this.extraPower.resolve(plan.settings).augmenters;
+		const building = this.extraPower.augmenterBuilding(data);
+		if (augmenters.count === 0 || building === null) {
+			return [];
+		}
+		return [new AugmenterNode(
+			crypto.randomUUID(),
+			augmenters.count,
+			augmenters.boosted,
+			building,
+			data.searchItemByClassName(SpecialClasses.AlienPowerMatrixItem) ?? null,
+		)];
+	}
+
+	/** The plan's declared somersloop budget, cleaned up to a whole count. */
+	private sloopBudgetOf(plan: Plan): number
+	{
+		return Math.max(0, Math.round(plan.settings.maxSloops ?? 0));
+	}
+
+	/**
+	 * Somersloops left for the solver to slot into machines: the plan's
+	 * budget minus what locked nodes already hold and what the alien power
+	 * augmenters cost to build.
+	 */
+	private machineSloops(plan: Plan): number
+	{
+		const budget = this.sloopBudget.remaining(this.sloopBudgetOf(plan), plan.graph);
+		return Math.max(0, budget - this.extraPower.resolve(plan.settings).sloopCost);
 	}
 
 	/** Total requested power in MW across the plan's fixed-rate requests. */
@@ -525,7 +607,11 @@ export class ProductionSolverService
 		};
 
 		const sloopedRecipes: Map<string, number> = new Map();
-		const powerTerms: string[] = [];
+		// The power balance keeps generation apart from draw: alien power
+		// augmenters raise everything the plan generates by a percentage, and
+		// that percentage only belongs on the generation side.
+		const generationTerms: {coefficient: number; variable: string}[] = [];
+		const drawTerms: string[] = [];
 		// Factory power: every machine's draw (variable-draw recipes at their
 		// oscillation average) joins the power balance, scaled by the excess
 		// margin. The generators' own fuel chain consumes power too, so more
@@ -554,7 +640,7 @@ export class ProductionSolverService
 					if (factoryDrawFactor > 0) {
 						const power = Formulas.machinePowerUsage(recipe, machine, clockSpeed, sloops);
 						if (power > 0) {
-							powerTerms.push('- ' + (power * factoryDrawFactor) + ' ' + recipeClass);
+							drawTerms.push('- ' + (power * factoryDrawFactor) + ' ' + recipeClass);
 						}
 					}
 
@@ -583,7 +669,7 @@ export class ProductionSolverService
 			if (fuel.byproduct !== null) {
 				add(fuel.byproduct.className, '+ ' + (burnRate * fuel.byproductAmount) + ' ' + varName);
 			}
-			powerTerms.push('+ ' + Formulas.generatorPowerProduction(generator, 1, clockSpeed) + ' ' + varName);
+			generationTerms.push({coefficient: Formulas.generatorPowerProduction(generator, 1, clockSpeed), variable: varName});
 		});
 
 		// Mines exist for every raw resource regardless of the optimisation
@@ -642,12 +728,12 @@ export class ProductionSolverService
 			// A locked generator feeds the power balance like an enabled one; its
 			// fuel and byproduct already flow through the inputs/outputs above.
 			if (node instanceof GeneratorNode) {
-				powerTerms.push('+ ' + node.powerProduction() + ' ' + varName);
+				generationTerms.push({coefficient: node.powerProduction(), variable: varName});
 			}
 
 			if (factoryDrawFactor > 0) {
 				if (node instanceof RecipeNode && node.averagePowerUsage() > 0) {
-					powerTerms.push('- ' + (node.averagePowerUsage() * factoryDrawFactor) + ' ' + varName);
+					drawTerms.push('- ' + (node.averagePowerUsage() * factoryDrawFactor) + ' ' + varName);
 				} else if (node instanceof SubplanNode) {
 					// A subplan brings its own (recursive) power balance; net
 					// draw needs covering, a net surplus feeds the grid as is.
@@ -655,13 +741,27 @@ export class ProductionSolverService
 					const power = this.breakdown.subplanPower(node.subplanId);
 					const net = (power.consumption - power.production) * Math.max(1, node.buildCount);
 					if (net > 0) {
-						powerTerms.push('- ' + (net * factoryDrawFactor) + ' ' + varName);
+						drawTerms.push('- ' + (net * factoryDrawFactor) + ' ' + varName);
 					} else if (net < 0) {
-						powerTerms.push('+ ' + (-net) + ' ' + varName);
+						// A subplan's own augmenters already boosted this - the
+						// parent's percentage does not apply a second time.
+						drawTerms.push('+ ' + (-net) + ' ' + varName);
 					}
 				}
 			}
 		});
+
+		// A boosted alien power augmenter burns Alien Power Matrix: a fixed
+		// demand the plan has to cover, exactly like a requested item. The row
+		// is created even when nothing makes the matrix, so the LP is then
+		// correctly infeasible instead of conjuring it.
+		const constantDemands = new Map<string, number>();
+		if (request.extraPower.matrixDemand > 0) {
+			constantDemands.set(SpecialClasses.AlienPowerMatrixItem, request.extraPower.matrixDemand);
+			if (!items.has(SpecialClasses.AlienPowerMatrixItem)) {
+				items.set(SpecialClasses.AlienPowerMatrixItem, []);
+			}
+		}
 
 		const byproducts: string[] = [];
 		const disabledByproducts = new Set(request.disabledByproducts);
@@ -687,7 +787,7 @@ export class ProductionSolverService
 				lines.push('- 1 ' + itemClass + '@Maximise');
 			}
 
-			lines.push(' = 0');
+			lines.push(' = ' + (constantDemands.get(itemClass) ?? 0));
 		});
 
 		// Equal-amounts coupling: every maximised item is produced at the one
@@ -700,16 +800,25 @@ export class ProductionSolverService
 		// Power balance in MW: generation minus discarded surplus must equal
 		// the requested power (plus MaxRate when power is being maximised).
 		// Emitted whenever there is demand, so an uncoverable request (no
-		// generators) is correctly infeasible.
+		// generators) is correctly infeasible. The augmenters' percentage
+		// scales every generation coefficient; the geothermal generators and
+		// the augmenters' own flat MW are constants and move to the right
+		// side, where they cover demand without any generator being built.
+		const extra = request.extraPower;
 		const maximisePower = request.maximise?.category === 'power';
-		if (powerTerms.length > 0 || request.powerDemand > 0 || maximisePower) {
+		const powerBalance = generationTerms.length > 0 || drawTerms.length > 0
+			|| request.powerDemand > 0 || maximisePower || extra.isActive;
+		if (powerBalance) {
 			lines.push('\\\\ Power');
-			lines.push(...powerTerms);
+			generationTerms.forEach(term =>
+				lines.push('+ ' + (term.coefficient * extra.multiplier) + ' ' + term.variable));
+			lines.push(...drawTerms);
 			lines.push('- 1 PowerSurplus');
 			if (maximisePower) {
 				lines.push('- 1 MaxRate');
 			}
-			lines.push(' = ' + request.powerDemand);
+			const free = (extra.geothermalPower.average + extra.flatBonus) * extra.multiplier;
+			lines.push(' = ' + (request.powerDemand - free));
 		}
 
 		// Sink-point balance: points earned minus discarded surplus must equal
@@ -747,7 +856,7 @@ export class ProductionSolverService
 		byproducts.forEach(byproduct => {
 			lines.push(byproduct + '@Byproduct >= 0');
 		});
-		if (powerTerms.length > 0 || request.powerDemand > 0 || maximisePower) {
+		if (powerBalance) {
 			lines.push('PowerSurplus >= 0');
 		}
 		if (sinkTerms.length > 0 || request.sinkPointsDemand > 0 || maximiseSinkPoints) {
@@ -943,6 +1052,10 @@ export class ProductionSolverService
 			const roundBase: SolverRequest = {
 				...base,
 				productions: first ? base.productions : [],
+				// The geysers, the augmenters' flat MW and their matrix fuel are
+				// built in the first round; their percentage keeps applying to
+				// whatever the later rounds generate.
+				extraPower: first ? base.extraPower : base.extraPower.percentageOnly(),
 				powerDemand: first ? base.powerDemand : 0,
 				sinkPointsDemand: first ? base.sinkPointsDemand : 0,
 				resourceLimits: limits,
@@ -1002,6 +1115,7 @@ export class ProductionSolverService
 				const probeBase: SolverRequest = {
 					...base,
 					productions: [],
+					extraPower: base.extraPower.percentageOnly(),
 					powerDemand: 0,
 					sinkPointsDemand: 0,
 					resourceLimits: limits,
@@ -1021,7 +1135,10 @@ export class ProductionSolverService
 		this.netCarries(merged);
 		return {
 			status: 'Optimal',
-			nodes: this.nodesFromColumns(merged, data, plan.settings.defaultGroupingMode ?? 'underclock-last'),
+			nodes: [
+				...this.nodesFromColumns(merged, data, this.groupingModes.resolve(plan.settings)),
+				...this.augmenterNodes(plan, data),
+			],
 			achievedMaximums: achieved,
 		};
 	}

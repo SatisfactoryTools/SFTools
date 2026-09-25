@@ -36,6 +36,8 @@ export class GraphTouchGestures
 	 */
 	private pinchSettling = false;
 	private lastTap: {x: number; y: number; time: number} | null = null;
+	/** The graph is told once that it is being touched, not on every finger. */
+	private touchReported = false;
 
 	private readonly touchStartListener = (event: TouchEvent) => this.onTouchStart(event);
 	private readonly touchMoveListener = (event: TouchEvent) => this.onTouchMove(event);
@@ -72,6 +74,11 @@ export class GraphTouchGestures
 
 	private onTouchStart(event: TouchEvent): void
 	{
+		if (!this.touchReported) {
+			this.touchReported = true;
+			this.handlers.onTouchUsed();
+		}
+
 		if (event.touches.length === 1) {
 			const touch = event.touches[0];
 			const target = event.target instanceof Element ? event.target : this.container;

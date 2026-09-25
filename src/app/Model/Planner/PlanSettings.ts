@@ -1,7 +1,9 @@
+import {AlienPowerAugmenters} from '@src/Model/Planner/AlienPowerAugmenters';
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {GeneratorClockSpeed} from '@src/Model/Planner/GeneratorClockSpeed';
+import {GeothermalGenerators} from '@src/Model/Planner/GeothermalGenerators';
 import {MachineClockSpeed} from '@src/Model/Planner/MachineClockSpeed';
 import {OptimisationSettings} from '@src/Model/Planner/OptimisationSettings';
 import {RecipeClockSpeed} from '@src/Model/Planner/RecipeClockSpeed';
@@ -52,6 +54,16 @@ export interface PlanSettings
 	 * the enabled fuel item classes as values. Absent = no generators.
 	 */
 	readonly enabledFuels?: Record<string, string[]>;
+	/**
+	 * Geysers the plan builds a Geothermal Generator on, by purity. They make
+	 * power for free - no fuel, no clock. Absent = none.
+	 */
+	readonly geothermalGenerators?: GeothermalGenerators;
+	/**
+	 * Alien Power Augmenters the plan builds, and how many of them run
+	 * boosted on Alien Power Matrix. Absent = none.
+	 */
+	readonly alienPowerAugmenters?: AlienPowerAugmenters;
 	/**
 	 * Item class names the solver may not overproduce as byproducts. Absent =
 	 * every item may become a byproduct.

@@ -8,6 +8,11 @@ import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
  * projected as `[card-actions]` (clicks there do not toggle); the body is
  * whatever the caller projects, so the caller decides when to render it -
  * typically `@if (open) { <div class="card-body">…</div> }`.
+ *
+ * A plain `title` covers most sections. A header that needs more than text -
+ * an icon, a second muted line - projects `[card-title]` instead and leaves
+ * `title` unset; the two are alternatives, because a text title truncates
+ * with an ellipsis and a projected one lays its parts out in a row.
  */
 @Component({
 	selector: 'collapsible-card',
@@ -30,7 +35,8 @@ export class CollapsibleCardComponent
 	public readonly faChevronDown = faChevronDown;
 	public readonly faChevronRight = faChevronRight;
 
-	@Input({required: true}) public title = '';
+	/** Leave unset when projecting `[card-title]` instead. */
+	@Input() public title = '';
 	@Input() public open = true;
 
 	@Output() public readonly toggle = new EventEmitter<void>();

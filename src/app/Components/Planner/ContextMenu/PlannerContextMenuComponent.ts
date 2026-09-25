@@ -102,8 +102,14 @@ export class PlannerContextMenuComponent implements AfterViewChecked
 		item.action();
 	}
 
+	/**
+	 * A touch never reaches the mousedown above while the finger is still
+	 * down (and a finger that scrolls the page away from the menu produces no
+	 * mouse event at all), so a touch anywhere outside closes the menu too.
+	 */
 	@HostListener('document:mousedown', ['$event'])
-	public onDocumentMouseDown(event: MouseEvent): void
+	@HostListener('document:touchstart', ['$event'])
+	public onDocumentMouseDown(event: MouseEvent | TouchEvent): void
 	{
 		if (!this.contextMenu.menu()) {
 			return;

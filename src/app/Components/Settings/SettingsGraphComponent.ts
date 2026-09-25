@@ -47,6 +47,7 @@ export class SettingsGraphComponent
 	public readonly nodeTypes: {key: keyof NodeColors; label: string}[] = [
 		{key: 'recipe', label: 'Recipe'},
 		{key: 'generator', label: 'Generator'},
+		{key: 'augmenter', label: 'Alien power augmenter'},
 		{key: 'sink', label: 'Sink'},
 		{key: 'mine', label: 'Mine'},
 		{key: 'input', label: 'Input'},

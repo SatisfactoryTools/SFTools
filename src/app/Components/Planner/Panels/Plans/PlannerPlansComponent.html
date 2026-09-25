@@ -7,6 +7,8 @@
 		[class.open]="rootOpen()"
 		[class.tree-drag-over]="dropPositionOf('__root__') !== null"
 		role="button"
+		data-drop-id="__root__"
+		data-drop-kind="root"
 		(click)="toggleRoot()"
 		(dragover)="onDragOver($event, '__root__', 'root')"
 		(dragleave)="onDragLeave($event, '__root__')"
@@ -17,8 +19,12 @@
 		<span class="tree-section-label">Your plans</span>
 		<span class="tree-section-count">{{ planCount() }}</span>
 		<span class="tree-section-actions" (click)="$event.stopPropagation()">
-			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreateFolder(null)" tooltip="New folder" placement="top"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
-			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreatePlan(null)" tooltip="New plan" placement="top"><fa-icon [icon]="faPlus"></fa-icon></button>
+			@if (rootFoldableIds().length > 0) {
+				<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(rootFoldableIds(), true)" tooltip="Expand all" placement="top"><fa-icon [icon]="faAnglesDown"></fa-icon></button>
+				<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(rootFoldableIds(), false)" tooltip="Collapse all" placement="top"><fa-icon [icon]="faAnglesUp"></fa-icon></button>
+			}
+			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreateFolder(currentFolderId())" tooltip="New folder" placement="top"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
+			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreatePlan(currentFolderId())" tooltip="New plan" placement="top"><fa-icon [icon]="faPlus"></fa-icon></button>
 			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="openImportDialog()" [tooltip]="'Import from old Satisfactory Tools' + hotkeys.suffix('plans.importOldTools')" placement="top"><fa-icon [icon]="faFileImport"></fa-icon></button>
 		</span>
 	</div>
@@ -48,10 +54,14 @@
 				[class.tree-drop-after]="dropPositionOf(item.id) === 'after'"
 				[class.tree-plan-active]="item.id === activeFolderId()"
 				[class.tree-ancestor]="activeAncestorIds().has(item.id)"
+				[class.tree-dragging]="touchDragId() === item.id"
 				[style.padding-left.rem]="item.depth * 1 + 0.25"
 				role="button"
 				longPressContextMenu
+				longPressDrag
 				draggable="true"
+				[attr.data-drop-id]="item.id"
+				data-drop-kind="folder"
 				(click)="selectFolder(item.id)"
 				(contextmenu)="onFolderContextMenu($event, item.id, item.name)"
 				(dragstart)="onDragStart($event, 'folder', item.id)"
@@ -59,6 +69,10 @@
 				(dragleave)="onDragLeave($event, item.id)"
 				(drop)="onDrop($event, item)"
 				(dragend)="onDragEnd()"
+				(dragPick)="onTouchDragPick('folder', item.id)"
+				(dragMove)="onTouchDragMove($event)"
+				(dragDrop)="onTouchDragDrop($event)"
+				(dragCancel)="onTouchDragCancel()"
 			>
 				<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.id); $event.stopPropagation()">
 					<fa-icon [icon]="item.isOpen ? faCaretDown : faCaretRight"></fa-icon>
@@ -93,10 +107,14 @@
 				[class.tree-plan-active]="item.plan.id === activePlanId()"
 				[class.tree-ancestor]="activeAncestorIds().has(item.plan.id)"
 				[class.tree-subplan]="item.isSubplan"
+				[class.tree-dragging]="touchDragId() === item.plan.id"
 				[style.padding-left.rem]="item.depth * 1 + 0.25"
 				role="button"
 				longPressContextMenu
+				longPressDrag
 				draggable="true"
+				[attr.data-drop-id]="item.plan.id"
+				data-drop-kind="plan"
 				(click)="selectPlan(item.plan)"
 				(contextmenu)="onPlanContextMenu($event, item.plan)"
 				(dragstart)="onDragStart($event, 'plan', item.plan.id)"
@@ -104,6 +122,10 @@
 				(dragleave)="onDragLeave($event, item.plan.id)"
 				(drop)="onDrop($event, item)"
 				(dragend)="onDragEnd()"
+				(dragPick)="onTouchDragPick('plan', item.plan.id)"
+				(dragMove)="onTouchDragMove($event)"
+				(dragDrop)="onTouchDragDrop($event)"
+				(dragCancel)="onTouchDragCancel()"
 			>
 				@if (item.hasSubplans) {
 					<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.plan.id); $event.stopPropagation()">
@@ -157,6 +179,12 @@
 			<fa-icon class="tree-section-icon" [icon]="faLaptop"></fa-icon>
 			<span class="tree-section-label">On this device</span>
 			<span class="tree-section-count">{{ localPlanCount() }}</span>
+			@if (localFoldableIds().length > 0) {
+				<span class="tree-section-actions" (click)="$event.stopPropagation()">
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(localFoldableIds(), true)" tooltip="Expand all" placement="top"><fa-icon [icon]="faAnglesDown"></fa-icon></button>
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(localFoldableIds(), false)" tooltip="Collapse all" placement="top"><fa-icon [icon]="faAnglesUp"></fa-icon></button>
+				</span>
+			}
 		</div>
 
 		@if (localOpen()) {
@@ -168,14 +196,20 @@
 					[class.tree-plan-active]="item.kind === 'plan' && item.id === activePlanId()"
 					[class.tree-ancestor]="activeAncestorIds().has(item.id)"
 					[class.tree-subplan]="item.isSubplan"
+					[class.tree-dragging]="touchDragId() === item.id"
 					[style.padding-left.rem]="item.depth * 1 + 0.25"
 					[attr.draggable]="item.isSubplan ? null : 'true'"
 					[attr.role]="item.kind === 'plan' ? 'button' : null"
 					longPressContextMenu
+					[longPressDrag]="!item.isSubplan"
 					(click)="selectLocalItem(item)"
 					(contextmenu)="!item.isSubplan && onLocalContextMenu($event, item)"
 					(dragstart)="onLocalDragStart($event, item)"
 					(dragend)="onDragEnd()"
+					(dragPick)="onLocalTouchDragPick(item)"
+					(dragMove)="onTouchDragMove($event)"
+					(dragDrop)="onTouchDragDrop($event)"
+					(dragCancel)="onTouchDragCancel()"
 				>
 					@if (item.hasChildren) {
 						<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(item.id); $event.stopPropagation()">
@@ -213,6 +247,12 @@
 			<fa-icon class="tree-section-icon" [icon]="faShareNodes"></fa-icon>
 			<span class="tree-section-label">Shared with you</span>
 			<span class="tree-section-count">{{ sharedList().length }}</span>
+			@if (sharedFoldableIds().length > 0) {
+				<span class="tree-section-actions" (click)="$event.stopPropagation()">
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(sharedFoldableIds(), true)" tooltip="Expand all" placement="top"><fa-icon [icon]="faAnglesDown"></fa-icon></button>
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(sharedFoldableIds(), false)" tooltip="Collapse all" placement="top"><fa-icon [icon]="faAnglesUp"></fa-icon></button>
+				</span>
+			}
 		</div>
 
 		@if (sharedOpen()) {
@@ -231,14 +271,20 @@
 					class="d-flex align-items-center gap-1 tree-row"
 					[class.tree-plan-active]="share.share === activeShareId() && activeShareRootActive()"
 					[class.tree-ancestor]="share.share === activeShareId() && !activeShareRootActive()"
+					[class.tree-dragging]="touchDragId() === share.share"
 					style="padding-left: 0.25rem"
 					role="button"
 					longPressContextMenu
+					longPressDrag
 					draggable="true"
 					(click)="openVisitedShare(share)"
 					(contextmenu)="onVisitedShareContextMenu($event, share)"
 					(dragstart)="onSharedDragStart($event, share)"
 					(dragend)="onDragEnd()"
+					(dragPick)="onSharedTouchDragPick(share)"
+					(dragMove)="onTouchDragMove($event)"
+					(dragDrop)="onTouchDragDrop($event)"
+					(dragCancel)="onTouchDragCancel()"
 				>
 					@if (shareHasChildren(share.share)) {
 						<button class="btn btn-link btn-sm p-0 text-body tree-toggle" type="button" (click)="toggleCollapse(share.share); $event.stopPropagation()">

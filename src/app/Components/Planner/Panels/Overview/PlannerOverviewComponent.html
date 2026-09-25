@@ -16,8 +16,8 @@
 			<div class="row g-2">
 				@for (card of cards; track card.id) {
 					<div class="overview-col">
-						<collapsible-card class="h-100" [title]="card.title" [open]="!isCollapsed(card.id)" (toggle)="toggleCard(card.id)">
-							@if (card.id === 'recipes' && !isCollapsed('recipes')) {
+						<collapsible-card class="h-100" [title]="card.title" [open]="foldState.isOpen(card.id)" (toggle)="foldState.toggle(card.id)">
+							@if (card.id === 'recipes' && foldState.isOpen('recipes')) {
 								<div card-actions class="btn-group btn-group-sm" role="group">
 									<button
 										type="button"
@@ -36,7 +36,7 @@
 								</div>
 							}
 
-							@if (!isCollapsed(card.id)) {
+							@if (foldState.isOpen(card.id)) {
 								<div class="card-body p-0">
 									@switch (card.id) {
 
@@ -226,7 +226,13 @@
 																}
 															}
 														} @empty {
-															<tr><td class="text-secondary fst-italic">Calculate the plans to see their production.</td></tr>
+															<tr><td class="text-secondary fst-italic">
+																@if (hasFolderGraphs()) {
+																	These plans make no items - see the Power card for what they generate.
+																} @else {
+																	Calculate the plans to see their production.
+																}
+															</td></tr>
 														}
 													} @else {
 														@for (row of production(); track row.kind + row.item.className) {
@@ -243,7 +249,13 @@
 																<td class="text-end text-nowrap" [class.text-success]="row.kind === 'product'">{{ rateFormatter.rate(row.amount, row.item) }}</td>
 															</tr>
 														} @empty {
-															<tr><td class="text-secondary fst-italic">Calculate the plan to see its production.</td></tr>
+															<tr><td class="text-secondary fst-italic">
+																@if (hasGraph()) {
+																	This plan makes no items - see the Power card for what it generates.
+																} @else {
+																	Calculate the plan to see its production.
+																}
+															</td></tr>
 														}
 													}
 												</tbody>

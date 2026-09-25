@@ -95,19 +95,24 @@
 		</span>
 	}
 
+	<!-- The state text is dropped first when the bar narrows, so its tooltip is
+	     often the only explanation left - container="body" keeps it out of the
+	     bar's own overflow: hidden box. -->
 	@if (actions.isCalculating()) {
-		<span class="state state-busy" title="calculating…"><span class="dot"></span><span class="state-text">calculating…</span></span>
+		<span class="state state-busy" tooltip="calculating…" container="body" placement="top"><span class="dot"></span><span class="state-text">calculating…</span></span>
 	} @else if (actions.solveError(); as error) {
-		<span class="state state-error" [title]="error"><span class="dot"></span><span class="state-text">{{ error }}</span></span>
+		<span class="state state-error" [tooltip]="error" container="body" placement="top"><span class="dot"></span><span class="state-text">{{ error }}</span></span>
+	} @else if (hasGraph() && automaticPaused()) {
+		<span class="state state-modified" tooltip="You edited the graph by hand, so it is not built again on its own. Press Calculate to build it again - locked nodes are kept." container="body" placement="top"><span class="dot"></span><span class="state-text">edited by hand · calculation paused</span></span>
 	} @else if (hasGraph() && graphDirty()) {
-		<span class="state state-modified" title="calculated · edited by hand"><span class="dot"></span><span class="state-text">calculated · edited by hand</span></span>
+		<span class="state state-modified" tooltip="calculated · edited by hand" container="body" placement="top"><span class="dot"></span><span class="state-text">calculated · edited by hand</span></span>
 	} @else if (hasGraph() && recalculationNeeded()) {
-		<span class="state state-modified" title="The folder changed the settings of this plan - recalculate"><span class="dot"></span><span class="state-text">settings changed · recalculate</span></span>
+		<span class="state state-modified" tooltip="The folder changed the settings of this plan - recalculate" container="body" placement="top"><span class="dot"></span><span class="state-text">settings changed · recalculate</span></span>
 	} @else if (hasGraph() && poolWarnings().length > 0) {
-		<span class="state state-error" title="Other plans in the folder took some of the raw resources this plan uses - recalculate"><span class="dot"></span><span class="state-text">over the shared limit · recalculate</span></span>
+		<span class="state state-error" tooltip="Other plans in the folder took some of the raw resources this plan uses - recalculate" container="body" placement="top"><span class="dot"></span><span class="state-text">over the shared limit · recalculate</span></span>
 	} @else if (hasGraph()) {
-		<span class="state state-solved" title="calculated · up to date"><span class="dot"></span><span class="state-text">calculated · up to date</span></span>
+		<span class="state state-solved" tooltip="calculated · up to date" container="body" placement="top"><span class="dot"></span><span class="state-text">calculated · up to date</span></span>
 	} @else {
-		<span class="state state-idle" title="nothing calculated yet"><span class="dot"></span><span class="state-text">nothing calculated yet</span></span>
+		<span class="state state-idle" tooltip="nothing calculated yet" container="body" placement="top"><span class="dot"></span><span class="state-text">nothing calculated yet</span></span>
 	}
 </span>

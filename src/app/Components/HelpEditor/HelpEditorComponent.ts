@@ -6,6 +6,8 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faTrash} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
+import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {HelpEditorApiService} from '@src/Model/API/HelpEditorApiService';
@@ -39,8 +41,8 @@ export class HelpEditorComponent
 
 	public readonly faTrash = faTrash;
 
-	public sectionsOpen = false;
-	public topicsOpen = false;
+	/** Which cards are folded; both start folded, the article list is what the page is for. */
+	public readonly foldState: CollapsibleSections;
 	public newCategoryName = '';
 	public newCategorySlug = '';
 
@@ -65,8 +67,10 @@ export class HelpEditorComponent
 		private readonly coverage: HelpTopicCoverage,
 		private readonly help: HelpManager,
 		private readonly notifications: NotificationService,
+		collapsedSections: CollapsedSectionsService,
 	)
 	{
+		this.foldState = new CollapsibleSections(collapsedSections, 'help-editor', false);
 		this.load();
 	}
 

@@ -1,0 +1,118 @@
+<settings-section helpTopic="settings.plan-defaults" title="Plan defaults" [icon]="sectionIcon" description="What a new plan starts with, and what every plan uses until you change it there.">
+		<info-note class="mb-3">
+			A plan keeps its own recipe selection, graph layout and machine grouping only once you change them in its
+			Settings panel. Until then it follows the values below, so changing one here moves every plan that never
+			touched it.
+		</info-note>
+
+		<div class="subsection-title">Recipes</div>
+		<div class="form-check">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="default-alternate-recipes"
+				[ngModel]="alternateRecipes"
+				(ngModelChange)="setAlternateRecipes($event)"
+			/>
+			<label class="form-check-label" for="default-alternate-recipes">Alternate recipes are on</label>
+			<div class="form-text">
+				Alternate recipes are the ones you unlock from hard drives. With this off, a plan starts with the
+				standard recipes only and you pick the alternates you have in its Recipes tab.
+			</div>
+		</div>
+		<div class="form-check mb-3">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="default-conversion-recipes"
+				[ngModel]="conversionRecipes"
+				(ngModelChange)="setConversionRecipes($event)"
+			/>
+			<label class="form-check-label" for="default-conversion-recipes">Resource conversion recipes are on</label>
+			<div class="form-text">
+				The Converter recipes that turn one raw resource plus Reanimated SAM into another one. With this on, a
+				plan may make scarce ores out of common ones.
+			</div>
+		</div>
+
+		<div class="subsection-title">Graph layout</div>
+		<div class="mb-3" style="max-width: 480px;">
+			<label class="form-label" for="default-graph-direction">Direction</label>
+			<select
+				id="default-graph-direction"
+				class="form-select"
+				[ngModel]="graphDirection"
+				(ngModelChange)="setGraphDirection($event)"
+			>
+				<option value="left">Left to right</option>
+				<option value="down">Top to bottom</option>
+			</select>
+			<div class="form-text">Which way the graph flows when it is arranged.</div>
+		</div>
+		<div class="mb-3" style="max-width: 480px;">
+			<label class="form-label" for="default-graph-edge-shape">Connection shape</label>
+			<select
+				id="default-graph-edge-shape"
+				class="form-select"
+				[ngModel]="graphEdgeShape"
+				(ngModelChange)="setGraphEdgeShape($event)"
+			>
+				<option value="multisegment">With corners</option>
+				<option value="straight">Straight</option>
+			</select>
+			<div class="form-text">Connections keep the corners they are routed around nodes with, or go straight.</div>
+		</div>
+		<div class="mb-3" style="max-width: 480px;">
+			<label class="form-label d-flex justify-content-between" for="default-graph-node-spacing">
+				<span>Node spacing</span>
+				<span>{{ graphNodeSpacing }}</span>
+			</label>
+			<input
+				id="default-graph-node-spacing"
+				type="range"
+				class="form-range"
+				min="0"
+				max="100"
+				step="5"
+				[ngModel]="graphNodeSpacing"
+				(ngModelChange)="setGraphNodeSpacing($event)"
+			/>
+			<div class="form-text">The gap between nodes standing side by side.</div>
+		</div>
+		<div class="mb-3" style="max-width: 480px;">
+			<label class="form-label d-flex justify-content-between" for="default-graph-layer-spacing">
+				<span>Layer spacing</span>
+				<span>{{ graphLayerSpacing }}</span>
+			</label>
+			<input
+				id="default-graph-layer-spacing"
+				type="range"
+				class="form-range"
+				min="0"
+				max="200"
+				step="5"
+				[ngModel]="graphLayerSpacing"
+				(ngModelChange)="setGraphLayerSpacing($event)"
+			/>
+			<div class="form-text">The gap between one step of the production chain and the next.</div>
+		</div>
+
+		<div class="subsection-title">Machine groups</div>
+		<div style="max-width: 480px;">
+			<label class="form-label" for="default-grouping-mode">Machine grouping for new nodes</label>
+			<select
+				id="default-grouping-mode"
+				class="form-select"
+				[ngModel]="groupingMode"
+				(ngModelChange)="setGroupingMode($event)"
+			>
+				<option value="underclock-last">Underclock the last machine</option>
+				<option value="clock-equally">Same clock for all</option>
+				<option value="no-clocking">Whole machines only</option>
+			</select>
+			<div class="form-text">
+				How the machines of a new node are split into groups and clocked. You can change this for each node in
+				the Inspector.
+			</div>
+		</div>
+</settings-section>

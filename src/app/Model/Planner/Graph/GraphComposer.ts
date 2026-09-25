@@ -3,6 +3,7 @@ import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphEdgeBuilder} from '@src/Model/Planner/Graph/GraphEdgeBuilder';
 import {GraphMergeResult} from '@src/Model/Planner/Graph/GraphMergeResult';
+import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
@@ -156,6 +157,11 @@ export class GraphComposer
 		if (node instanceof MineNode || node instanceof ProductNode || node instanceof ByproductNode || node instanceof InputNode) {
 			return `${node.type}:${node.item.className}`;
 		}
+		// One augmenter node per plan, whatever the counts - a fresh solve
+		// takes over the existing node's place instead of adding a second one.
+		if (node instanceof AugmenterNode) {
+			return 'augmenter';
+		}
 		return `id:${node.id}`;
 	}
 
@@ -183,6 +189,10 @@ export class GraphComposer
 			node = new ByproductNode(existing.id, amount, existing.item);
 		} else if (existing instanceof InputNode) {
 			node = new InputNode(existing.id, amount, existing.item);
+		} else if (existing instanceof AugmenterNode && incoming instanceof AugmenterNode) {
+			// Both sides restate the same plan setting, so there is nothing to
+			// sum - the incoming counts simply win.
+			node = new AugmenterNode(existing.id, incoming.amount, incoming.boosted, incoming.building, incoming.matrixItem);
 		} else if (existing instanceof GeneratorNode && incoming instanceof GeneratorNode) {
 			// Generators are linear in their clock, so the incoming count is
 			// restated at the existing node's clock - same power, same fuel.
@@ -214,6 +224,8 @@ export class GraphComposer
 			node = new ByproductNode(match.id, incoming.amount, incoming.item);
 		} else if (incoming instanceof InputNode) {
 			node = new InputNode(match.id, incoming.amount, incoming.item);
+		} else if (incoming instanceof AugmenterNode) {
+			node = new AugmenterNode(match.id, incoming.amount, incoming.boosted, incoming.building, incoming.matrixItem);
 		} else if (incoming instanceof GeneratorNode) {
 			node = new GeneratorNode(match.id, incoming.amount, incoming.generator, incoming.fuel, incoming.clockSpeed);
 		} else {

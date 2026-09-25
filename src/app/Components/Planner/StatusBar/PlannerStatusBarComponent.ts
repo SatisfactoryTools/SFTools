@@ -2,6 +2,7 @@ import {Component, computed, signal, ChangeDetectionStrategy, Signal} from '@ang
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faBolt, faDiagramProject, faIndustry, faLayerGroup, faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
@@ -24,7 +25,7 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 	selector: 'planner-status-bar',
 	templateUrl: './PlannerStatusBarComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, BsDropdownModule, GameIconComponent],
+	imports: [FaIconComponent, BsDropdownModule, GameIconComponent, AppTooltipDirective],
 	styles: [`
 		/* The bar never spills out of its box: it drops detail in steps as the
 		   centre column narrows (ranges, then label words, then the state text),
@@ -402,6 +403,11 @@ export class PlannerStatusBarComponent
 		this.planManager.activePlan()?.metadata?.recalculationNeeded ?? false);
 
 	public readonly graphDirty: Signal<boolean>;
+
+	/** Automatic mode holding still because the graph was edited by hand. */
+	public readonly automaticPaused = computed(() =>
+		(this.planManager.activeSettings()?.calculationMode ?? 'automatic') === 'automatic'
+		&& this.planManager.activePlanGraphDirty());
 
 	private readonly graphNodes = computed(() => this.planManager.activePlan()?.graph?.nodes ?? []);
 

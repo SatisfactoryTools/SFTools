@@ -9,6 +9,7 @@ import {AccountSettings} from '@src/Model/Settings/AccountSettings';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {NodeColors} from '@src/Model/Settings/NodeColors';
 import {NumberSettings} from '@src/Model/Settings/NumberSettings';
+import {PlanDefaultsSettings} from '@src/Model/Settings/PlanDefaultsSettings';
 import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
 import {HotkeyCatalog} from '@src/Model/Hotkeys/HotkeyCatalog';
 import {HotkeyFormatter} from '@src/Model/Hotkeys/HotkeyFormatter';
@@ -65,6 +66,23 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 	helpButtons: {label: 'Help buttons next to settings and tools', format: YES_NO},
 };
 
+const PLAN_DEFAULTS_LABELS: Record<keyof PlanDefaultsSettings, SettingsFieldLabel> = {
+	alternateRecipes: {label: 'Alternate recipes on by default', format: YES_NO},
+	conversionRecipes: {label: 'Resource conversion recipes on by default', format: YES_NO},
+	graphDirection: {label: 'Default graph direction', format: CHOICE({left: 'Left to right', down: 'Top to bottom'})},
+	graphEdgeShape: {label: 'Default connection shape', format: CHOICE({multisegment: 'With corners', straight: 'Straight'})},
+	graphNodeSpacing: {label: 'Default node spacing'},
+	graphLayerSpacing: {label: 'Default layer spacing'},
+	groupingMode: {
+		label: 'Default machine grouping',
+		format: CHOICE({
+			'underclock-last': 'Underclock the last machine',
+			'clock-equally': 'Same clock for all',
+			'no-clocking': 'Whole machines only',
+		}),
+	},
+};
+
 const ACCOUNT_LABELS: Record<keyof AccountSettings, SettingsFieldLabel> = {
 	signInPrompts: {label: 'Sign-in reminders', format: YES_NO},
 };
@@ -72,6 +90,7 @@ const ACCOUNT_LABELS: Record<keyof AccountSettings, SettingsFieldLabel> = {
 const NODE_COLOR_LABELS: Record<keyof NodeColors, string> = {
 	recipe: 'Recipe colour',
 	generator: 'Generator colour',
+	augmenter: 'Alien power augmenter colour',
 	sink: 'Sink colour',
 	mine: 'Mine colour',
 	input: 'Input colour',
@@ -186,6 +205,7 @@ export class SettingsConflictDialogComponent
 			...this.diff('Graph', remoteGraph, localGraph, GRAPH_LABELS),
 			...this.diffColors(remoteColors, localColors),
 			...this.diff('Planner', remote.planner, local.planner, PLANNER_LABELS),
+			...this.diff('Plan defaults', remote.planDefaults, local.planDefaults, PLAN_DEFAULTS_LABELS),
 			...this.diff('Account', remote.account, local.account, ACCOUNT_LABELS),
 			...this.diffHotkeys(remote.hotkeys, local.hotkeys),
 		];

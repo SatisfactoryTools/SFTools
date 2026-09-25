@@ -26,6 +26,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
+import {GroupingModeResolver} from '@src/Model/Planner/GroupingModeResolver';
 import {MakeableItemsResolver} from '@src/Model/Planner/MakeableItemsResolver';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
@@ -98,6 +99,7 @@ export class AddNodeDialogComponent implements OnInit
 		private readonly planManager: PlanManager,
 		private readonly normalizer: MachineGroupNormalizer,
 		private readonly clocks: ClockSpeedResolver,
+		private readonly groupingModes: GroupingModeResolver,
 		private readonly makeableItems: MakeableItemsResolver,
 	)
 	{
@@ -377,7 +379,7 @@ export class AddNodeDialogComponent implements OnInit
 				const recipe = data.getRecipeByClassName(this.recipeClassName);
 				const machine = recipe.producedIn[0];
 				const target = this.recipeTargetFor(recipe, machine);
-				const groupingMode = this.planManager.activeSettings()?.defaultGroupingMode ?? 'underclock-last';
+				const groupingMode = this.groupingModes.resolve(this.planManager.activeSettings());
 				const recipeNode = new RecipeNode(
 					id,
 					target,

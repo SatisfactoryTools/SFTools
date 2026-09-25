@@ -1,6 +1,6 @@
 <div class="p-2 d-flex flex-column gap-2">
-	<div class="card">
-		<div class="card-header py-1 px-2 fw-semibold">Factory power</div>
+	<collapsible-card title="Factory power" [open]="foldState.isOpen('factory')" (toggle)="foldState.toggle('factory')">
+		@if (foldState.isOpen('factory')) {
 		<div class="card-body p-2 d-flex flex-column gap-2">
 			<div class="form-check mb-0">
 				<input
@@ -40,21 +40,154 @@
 				</info-note>
 			}
 		</div>
-	</div>
+		}
+	</collapsible-card>
+
+	@if (geothermalBuilding; as geothermal) {
+		<collapsible-card [open]="foldState.isOpen('geothermal')" (toggle)="foldState.toggle('geothermal')">
+			<ng-container card-title>
+				<game-icon [hash]="geothermal.icon" [size]="20" [alt]="geothermal.name"></game-icon>
+				<span class="text-truncate">{{ geothermal.name }}</span>
+				@if (!foldState.isOpen('geothermal') && geothermalPower.average > 0) {
+					<span class="text-secondary fw-normal">{{ rateFormatter.power(geothermalPower.average) }}</span>
+				}
+			</ng-container>
+			@if (hasGeyserCaps) {
+				<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="useAllGeysers()">All</button>
+			}
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="clearGeysers()">None</button>
+			@if (foldState.isOpen('geothermal')) {
+			<div class="card-body p-2 d-flex flex-column gap-2">
+				<info-note>
+					These need no fuel and cannot be overclocked, so their power costs the plan nothing.
+					Each one makes more or less power all the time; the plan counts the average.
+				</info-note>
+				@for (row of geyserRows; track row.key) {
+					<div class="d-flex align-items-center gap-2">
+						<label class="flex-grow-1 mb-0" [for]="'geyser-' + row.key">
+							{{ row.label }}
+							<span class="text-secondary">{{ rateFormatter.power(row.power.average) }} each</span>
+						</label>
+						<input
+							type="number"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							style="width: 90px; flex: none;"
+							[id]="'geyser-' + row.key"
+							min="0"
+							step="1"
+							[attr.max]="row.available"
+							[value]="row.count"
+							(change)="setGeyserCount(row.key, +$any($event.target).value)"
+						/>
+						@if (row.available !== null) {
+							<span class="text-secondary" style="width: 60px;">of {{ row.available }}</span>
+						}
+					</div>
+				}
+				@if (geothermalPower.average > 0) {
+					<div class="d-flex align-items-center gap-2">
+						<span class="text-secondary flex-grow-1">Free power</span>
+						<power-draw class="text-success text-end" [draw]="geothermalPower"></power-draw>
+					</div>
+				}
+				@if (!hasGeyserCaps) {
+					<info-note>
+						This version has no map data, so the number of geysers is not known.
+						Enter what your own map has.
+					</info-note>
+				}
+			</div>
+			}
+		</collapsible-card>
+	}
+
+	@if (augmenterBuilding; as augmenter) {
+		<collapsible-card [open]="foldState.isOpen('augmenters')" (toggle)="foldState.toggle('augmenters')">
+			<ng-container card-title>
+				<game-icon [hash]="augmenter.icon" [size]="20" [alt]="augmenter.name"></game-icon>
+				<span class="text-truncate">{{ augmenter.name }}</span>
+				@if (!foldState.isOpen('augmenters') && augmenterCount > 0) {
+					<span class="text-secondary fw-normal">{{ augmenterCount }}×</span>
+				}
+			</ng-container>
+			@if (foldState.isOpen('augmenters')) {
+			<div class="card-body p-2 d-flex flex-column gap-2">
+				<info-note>
+					Each one adds {{ flatPerAugmenterText }} and then raises all the power the plan makes
+					by {{ sharePerAugmenterText }}. A boosted one raises it by {{ sharePerBoostedText }} instead,
+					but burns {{ matrixPerBoostedText }} of {{ matrixName }}, which the plan has to make.
+					Building one costs {{ sloopsPerAugmenter }} somersloops.
+				</info-note>
+				<div class="d-flex align-items-center gap-2">
+					<label class="flex-grow-1 mb-0" for="augmenter-count">How many to build</label>
+					<input
+						type="number"
+						class="form-control form-control-sm bg-dark text-light border-secondary"
+						style="width: 90px; flex: none;"
+						id="augmenter-count"
+						min="0"
+						step="1"
+						[value]="augmenterCount"
+						(change)="setAugmenterCount(+$any($event.target).value)"
+					/>
+				</div>
+				<div class="d-flex align-items-center gap-2" [class.opacity-50]="augmenterCount === 0">
+					<label class="flex-grow-1 mb-0" for="augmenter-boosted">Of those, boosted</label>
+					<input
+						type="number"
+						class="form-control form-control-sm bg-dark text-light border-secondary"
+						style="width: 90px; flex: none;"
+						id="augmenter-boosted"
+						min="0"
+						step="1"
+						[attr.max]="augmenterCount"
+						[disabled]="augmenterCount === 0"
+						[value]="boostedCount"
+						(change)="setBoostedCount(+$any($event.target).value)"
+					/>
+				</div>
+				@if (augmenterCount > 0) {
+					<div class="text-secondary">
+						Adds <span class="text-success">{{ totalFlatText }}</span>,
+						then raises everything the plan makes by <span class="text-success">{{ totalShareText }}</span>.
+						Costs <span class="text-light">{{ sloopCost }}</span> somersloops to build.
+					</div>
+					@if (boostedCount > 0) {
+						<div class="text-secondary d-flex align-items-center gap-1">
+							The boosted ones need
+							@if (matrixItem; as matrix) {
+								<game-icon [hash]="matrix.icon" [size]="18" [alt]="matrix.name"></game-icon>
+							}
+							<span class="text-light">{{ matrixDemandText }}</span> of {{ matrixName }}, which the plan makes itself.
+						</div>
+					}
+					@if (sloopsOverBudget) {
+						<info-note kind="warning">
+							The plan only has {{ maxSloops }} somersloops, but these augmenters cost {{ sloopCost }}.
+							Raise the number in the Sloops tab or build fewer augmenters.
+						</info-note>
+					}
+				}
+			</div>
+			}
+		</collapsible-card>
+	}
 
 	<info-note>Generators and fuels the plan may use. Enabling a fuel also enables its generator.</info-note>
 
 	@for (generator of generators; track generator.className) {
-		<div class="card">
-			<div class="card-header d-flex align-items-center gap-1 py-1 px-2">
-				<span class="fw-semibold flex-grow-1 text-truncate d-inline-flex align-items-center gap-1">
-					<game-icon [hash]="generator.icon" [size]="20" [alt]="generator.name"></game-icon>
-					{{ generator.name }}
-					<span class="text-secondary fw-normal">{{ powerText(generator) }}</span>
-				</span>
-				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, true)">All</button>
-				<button class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, false)">None</button>
-			</div>
+		<collapsible-card [open]="foldState.isOpen(sectionOf(generator))" (toggle)="foldState.toggle(sectionOf(generator))">
+			<ng-container card-title>
+				<game-icon [hash]="generator.icon" [size]="20" [alt]="generator.name"></game-icon>
+				<span class="text-truncate">{{ generator.name }}</span>
+				<span class="text-secondary fw-normal text-nowrap">{{ powerText(generator) }}</span>
+				@if (!foldState.isOpen(sectionOf(generator))) {
+					<span class="text-secondary fw-normal text-nowrap">· {{ enabledFuelCount(generator) }}/{{ generator.fuel.length }} fuels</span>
+				}
+			</ng-container>
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, true)">All</button>
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, false)">None</button>
+			@if (foldState.isOpen(sectionOf(generator))) {
 			<div class="card-body p-2">
 				@for (fuel of generator.fuel; track fuel.item.className) {
 					<div class="form-check">
@@ -75,6 +208,7 @@
 					</div>
 				}
 			</div>
-		</div>
+			}
+		</collapsible-card>
 	}
 </div>

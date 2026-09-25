@@ -40,6 +40,18 @@
 	}
 }
 
+// A desktop with a touch screen hovers as far as the media query is concerned,
+// so the button would stay hidden from a finger - see RootComponent.
+:host-context(body.touch-input) .tree-menu {
+	visibility: visible;
+}
+
+// A row held by a finger: the browser draws no drag ghost for a touch drag,
+// so the row itself shows what is being carried.
+.tree-dragging {
+	opacity: 0.5;
+}
+
 // The inline rename input mirrors the row text exactly - same font size and
 // the same 1.5rem line box the row text occupies - so switching to edit mode
 // changes neither the row height nor the apparent text size.

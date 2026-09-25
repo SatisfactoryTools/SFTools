@@ -1,3 +1,4 @@
+import {ExtraPower} from '@src/Model/Planner/ExtraPower';
 import {GeneratorFuelOption} from '@src/Model/Planner/Solver/Request/GeneratorFuelOption';
 import {InputSource} from '@src/Model/Planner/Solver/Request/InputSource';
 import {Item} from '@src/Model/Data/Entities/Item';
@@ -35,6 +36,12 @@ export interface SolverRequest
 	resourceLimits: Record<string, number>;
 	/** Generator + fuel combinations the solver may burn for power. */
 	generators: GeneratorFuelOption[];
+	/**
+	 * Power from buildings the solver does not place: the plan's geothermal
+	 * generators and alien power augmenters. Its flat part covers demand for
+	 * free, its percentage raises every generator's output.
+	 */
+	extraPower: ExtraPower;
 	/** Requested power in MW the enabled generators must cover. */
 	powerDemand: number;
 	/** Also generate the power the factory's own machines draw (fuel chain included). */

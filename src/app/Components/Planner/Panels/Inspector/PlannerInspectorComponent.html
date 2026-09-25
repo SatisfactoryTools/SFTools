@@ -23,6 +23,13 @@
 	<fieldset class="border-0 p-0 m-0" [disabled]="readOnly()">
 		<amount-node-editor [node]="node"></amount-node-editor>
 	</fieldset>
+} @else if (isAugmenterNode()) {
+	<div class="p-2">
+		<info-note>
+			Alien power augmenters come from the Power tab. Change how many you build
+			(and how many are boosted) there, and the plan is calculated again.
+		</info-note>
+	</div>
 } @else {
 	<div class="p-2">
 		<info-note>This kind of node cannot be edited yet.</info-note>

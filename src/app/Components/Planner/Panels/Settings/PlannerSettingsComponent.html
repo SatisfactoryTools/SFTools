@@ -11,8 +11,8 @@
 			<info-note>{{ readOnlyNote() }}</info-note>
 		}
 
-		<collapsible-card title="Graph layout" [open]="isOpen('graph')" (toggle)="toggleSection('graph')">
-			@if (isOpen('graph')) {
+		<collapsible-card title="Graph layout" [open]="foldState.isOpen('graph')" (toggle)="foldState.toggle('graph')">
+			@if (foldState.isOpen('graph')) {
 				<fieldset class="card-body p-2 d-flex flex-column gap-2" [disabled]="readOnly()">
 
 					<div>
@@ -81,8 +81,8 @@
 			}
 		</collapsible-card>
 
-		<collapsible-card title="Machine groups" [open]="isOpen('machine-groups')" (toggle)="toggleSection('machine-groups')">
-			@if (isOpen('machine-groups')) {
+		<collapsible-card title="Machine groups" [open]="foldState.isOpen('machine-groups')" (toggle)="foldState.toggle('machine-groups')">
+			@if (foldState.isOpen('machine-groups')) {
 				<fieldset class="card-body p-2 d-flex flex-column gap-2" [disabled]="readOnly()">
 
 					<div>
@@ -104,8 +104,8 @@
 			}
 		</collapsible-card>
 
-		<collapsible-card title="Colour by machine" [open]="isOpen('colors')" (toggle)="toggleSection('colors')">
-			@if (isOpen('colors')) {
+		<collapsible-card title="Colour by machine" [open]="foldState.isOpen('colors')" (toggle)="foldState.toggle('colors')">
+			@if (foldState.isOpen('colors')) {
 				<fieldset class="p-0" [disabled]="readOnly()">
 					<div class="card-body p-2 pb-0">
 						<info-note>Nodes of a checked machine use its colour instead of the default recipe colour.</info-note>

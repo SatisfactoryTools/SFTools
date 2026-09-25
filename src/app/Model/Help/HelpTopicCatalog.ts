@@ -58,6 +58,7 @@ export class HelpTopicCatalog
 		{topic: 'settings.numbers', group: 'settings', label: 'Number settings', where: 'Settings page, Numbers section.'},
 		{topic: 'settings.graph', group: 'settings', label: 'Graph settings', where: 'Settings page, Graph section.'},
 		{topic: 'settings.planner', group: 'settings', label: 'Planner settings', where: 'Settings page, Planner section.'},
+		{topic: 'settings.plan-defaults', group: 'settings', label: 'Plan defaults', where: 'Settings page, Plan defaults section.'},
 		{topic: 'settings.hotkeys', group: 'settings', label: 'Hotkey settings', where: 'Settings page, Hotkeys section.'},
 		{topic: 'settings.account', group: 'settings', label: 'Account settings', where: 'Settings page, Account section.'},
 

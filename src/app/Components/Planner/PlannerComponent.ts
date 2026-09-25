@@ -59,7 +59,8 @@ import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver'
 import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {GraphComposer} from '@src/Model/Planner/Graph/GraphComposer';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
-import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
+import {GraphLayoutResolver} from '@src/Model/Planner/GraphLayoutResolver';
+import {GroupingModeResolver} from '@src/Model/Planner/GroupingModeResolver';
 import {GraphMetrics} from '@src/Model/Planner/Graph/GraphMetrics';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {GraphSnapshot} from '@src/Model/Planner/Graph/GraphSnapshot';
@@ -176,6 +177,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly calculatorTabs: CalculatorTabStateService,
 		private readonly versionManager: VersionManager,
 		private readonly enabledRecipes: EnabledRecipesResolver,
+		private readonly graphLayout: GraphLayoutResolver,
+		private readonly groupingModes: GroupingModeResolver,
 		private readonly subplanResolver: SubplanIOResolver,
 		private readonly subplanScaler: SubplanScaler,
 		private readonly notifications: NotificationService,
@@ -451,6 +454,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.subscription.add(
 			toObservable(computed(() => {
 				const plan = this.planManager.activePlan();
+				const defaults = this.settings.planDefaults();
 				return plan === null ? null : {
 					id: plan.id,
 					mode: this.modeOf(plan),
@@ -458,17 +462,22 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 						// powerUnit is a display-only input scale - switching it must not re-solve.
 						requests: plan.requests.map(r => ({itemClassName: r.itemClassName, ratePerMinute: r.ratePerMinute, mode: r.mode})),
 						inputs: plan.inputs,
-						recipes: plan.settings.enabledRecipes,
+						// Without an explicit selection the plan follows the user's
+						// plan defaults - so those belong in the key instead.
+						recipes: plan.settings.enabledRecipes ?? [defaults.alternateRecipes, defaults.conversionRecipes],
 						machines: plan.settings.disabledMachines,
 						limits: [plan.settings.resourceLimits, plan.settings.disabledResources, plan.settings.resourceWeightMode, plan.settings.resourceWeights],
 						fuels: plan.settings.enabledFuels,
 						byproducts: plan.settings.disabledByproducts,
 						sinkable: plan.settings.sinkableItems,
 						factoryPower: [plan.settings.producePowerForFactory, plan.settings.excessPowerPercent],
+						// Geysers and augmenters change the power balance, and the
+						// boosted ones also change how much matrix the plan must make.
+						extraPower: [plan.settings.geothermalGenerators, plan.settings.alienPowerAugmenters],
 						optimisation: plan.settings.optimisation,
 						sloops: [plan.settings.maxSloops, plan.settings.sloopAccuracy],
 						clocks: [plan.settings.defaultClockSpeed, plan.settings.recipeClockSpeeds, plan.settings.machineClockSpeeds, plan.settings.generatorClockSpeeds],
-						grouping: plan.settings.defaultGroupingMode,
+						grouping: this.groupingModes.resolve(plan.settings),
 					}),
 				};
 			})).pipe(
@@ -482,10 +491,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			).subscribe(() => {
 				const plan = this.planManager.activePlan();
 				if (!plan) return;
-				// A manually modified graph pauses automatic recalculation; a
-				// declined confirm keeps the request edit but stays paused.
-				// Dirty clears when the solve completes, not on confirm.
-				if ((plan.metadata?.graphDirty ?? false) && !this.actions.confirmGraphOverwrite()) {
+				// A manually modified graph pauses automatic recalculation - silently.
+				// Asking here meant a blocking dialog on every keystroke, and declining
+				// changed nothing, so the next edit asked again. The calculator panel and
+				// the status bar say the plan is paused, and the Calculate button resumes
+				// it. Dirty clears when the solve completes.
+				if (plan.metadata?.graphDirty ?? false) {
 					return;
 				}
 				this.calculate();
@@ -958,7 +969,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		// The copies go side by side across the flow, one node box plus the
 		// layout's own node spacing apart.
 		const size = this.plannerGraph.nodeSize(node);
-		const layout = GraphLayoutDefaults.resolve(plan.settings.graph);
+		const layout = this.graphLayout.resolve(plan.settings.graph);
 		const offset: GraphPoint = layout.direction === 'down'
 			? {x: size.width + layout.nodeSpacing, y: 0}
 			: {x: 0, y: size.height + layout.nodeSpacing};
@@ -1440,12 +1451,15 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (request.nodeIds.length === 1) {
 			this.plannerGraph.selectNodeById(request.nodeIds[0]);
 		}
-		this.planManager.setGraph(plan.id, graph, true);
+		// Locking is not a graph edit that a recalculation would undo - locked nodes are
+		// exactly what every solve keeps. So it must not mark the graph dirty (which would
+		// pause automatic mode); omitting the flag leaves whatever state the plan was in.
+		this.planManager.setGraph(plan.id, graph);
 	}
 
 	/**
-	 * Marks nodes as built ("done") in the game. Like a lock change it is a
-	 * manual graph edit: it persists with the graph and undo covers it. The
+	 * Marks nodes as built ("done") in the game. It is a manual graph edit: a
+	 * recalculation throws the flags away, so it marks the graph dirty. The
 	 * selection is restored so repeated Enter presses keep toggling.
 	 */
 	private applyDoneChange(request: NodeDoneRequest): void
@@ -1791,7 +1805,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.history.push(this.snapshotOf(plan));
 
 		const origin = pending ? graph.nodes.find(candidate => candidate.id === pending.nodeId) ?? null : null;
-		this.placeAddedNode(node, position, origin, GraphLayoutDefaults.resolve(plan.settings.graph).direction === 'down');
+		this.placeAddedNode(node, position, origin, this.graphLayout.resolve(plan.settings.graph).direction === 'down');
 
 		const updated: Graph = {nodes: [...graph.nodes, node], edges: [...graph.edges]};
 		const edge = pending ? this.connectingEdgeFor(updated, pending, node) : null;
