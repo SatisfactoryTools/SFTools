@@ -1,0 +1,68 @@
+{
+    "_comment": "Shared by tools-api (tests/meta-text-fixtures.json) and sftools-frontend (src/app/Model/Meta/meta-text-fixtures.json) - keep both copies identical.",
+    "description": [
+        {
+            "input": "Used for crafting.\nPrimarily used to build Power Lines.",
+            "note": "line breaks collapse",
+            "expected": "Used for crafting. Primarily used to build Power Lines."
+        },
+        {
+            "input": "  <b>Bold</b> text\t\twith <color=#ff0000>colour</color> markup<br/>end  ",
+            "note": "markup stripped",
+            "expected": "Bold text with colour markup end"
+        },
+        {
+            "input": "Ratio a < b & \"c\" > d",
+            "note": "bare < and > are text, not tags",
+            "expected": "Ratio a < b & \"c\" > d"
+        },
+        {
+            "input": "Non breaking spaces",
+            "note": "Unicode spaces collapse too",
+            "expected": "Non breaking spaces"
+        },
+        {
+            "input": "",
+            "note": "empty",
+            "expected": ""
+        },
+        {
+            "input": "Crafts 1 part into another part. Can be automated by feeding component parts in via a Conveyor Belt connected to the input port. The resulting parts can be automatically extracted by connecting a Conveyor Belt to the output port.",
+            "note": "cut at a word boundary",
+            "expected": "Crafts 1 part into another part. Can be automated by feeding component parts in via a Conveyor Belt connected to the input port. The resulting parts can be automatically extracted by connecting a…"
+        },
+        {
+            "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "note": "one overlong word is cut mid-word",
+            "expected": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…"
+        },
+        {
+            "input": "Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel,",
+            "note": "emoji count as one character",
+            "expected": "Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel, Rocket 🚀 fuel…"
+        },
+        {
+            "input": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end, tailwordtailwordtailwordtailwordtailword",
+            "note": "trailing punctuation before the ellipsis is dropped",
+            "expected": "word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word word end…"
+        }
+    ],
+    "title": [
+        {
+            "input": "Cable",
+            "expected": "Cable – Satisfactory Tools"
+        },
+        {
+            "input": "  Plan \n with  spaces ",
+            "expected": "Plan with spaces – Satisfactory Tools"
+        },
+        {
+            "input": "",
+            "expected": "Satisfactory Tools"
+        },
+        {
+            "input": "\"><script>alert(1)</script>",
+            "expected": "\"><script>alert(1)</script> – Satisfactory Tools"
+        }
+    ]
+}

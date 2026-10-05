@@ -6,6 +6,18 @@ Require all granted
 	Options -Indexes
 </IfModule>
 
+# Page requests go through index.php when the deploy added it (deploy/web/, see
+# docs/link-previews.md): it prints page-specific link preview tags into
+# index.html. A plain `npm run build` has no index.php and serves index.html as
+# before. "/" is a directory, so the front controller below never sees it -
+# DirectoryIndex picks the same file for it.
+DirectoryIndex index.php index.html
+
+# Where index.php asks for the metadata (GET /v1/meta).
+<IfModule mod_env.c>
+	SetEnv SFTOOLS_API_URL https://api.new.satisfactorytools.com
+</IfModule>
+
 # The beta host must not compete with the real site in search results: the
 # same pages under new.satisfactorytools.com are marked noindex. After the
 # move this is moot (everything redirects), so it can stay.
@@ -35,7 +47,12 @@ Require all granted
 	# prevents files starting with dot to be viewed by browser
 	RewriteRule /\.|^\.(?!well-known/) - [F]
 
-	# front controller
+	# front controller: index.php when deployed (link previews), else index.html
+	RewriteCond %{REQUEST_FILENAME} !-f
+	RewriteCond %{REQUEST_FILENAME} !-d
+	RewriteCond %{DOCUMENT_ROOT}/index.php -f
+	RewriteRule !\.(pdf|js|mjs|ico|gif|jpg|jpeg|png|webp|svg|css|rar|zip|7z|tar\.gz|map|eot|ttf|otf|woff|woff2)$ index.php [L]
+
 	RewriteCond %{REQUEST_FILENAME} !-f
 	RewriteCond %{REQUEST_FILENAME} !-d
 	RewriteRule !\.(pdf|js|mjs|ico|gif|jpg|jpeg|png|webp|svg|css|rar|zip|7z|tar\.gz|map|eot|ttf|otf|woff|woff2)$ index.html [L]

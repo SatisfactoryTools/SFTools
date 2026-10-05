@@ -1,9 +1,10 @@
 import {ApplicationConfig, isDevMode, importProvidersFrom} from '@angular/core';
 import {HTTP_INTERCEPTORS, provideHttpClient, withFetch, withInterceptorsFromDi} from '@angular/common/http';
-import {provideRouter, withComponentInputBinding, withInMemoryScrolling} from '@angular/router';
+import {TitleStrategy, provideRouter, withComponentInputBinding, withInMemoryScrolling} from '@angular/router';
 import {AppTooltipConfig} from '@src/AppTooltipConfig';
 import {AuthInterceptor} from '@src/Model/Auth/AuthInterceptor';
 import {RetryInterceptor} from '@src/Model/API/RetryInterceptor';
+import {AppTitleStrategy} from '@src/Model/Meta/AppTitleStrategy';
 import {RouteList} from '@src/RouteList';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {CollapseModule} from 'ngx-bootstrap/collapse';
@@ -26,6 +27,8 @@ export const config: ApplicationConfig = {
 		{provide: HTTP_INTERCEPTORS, useClass: RetryInterceptor, multi: true},
 		{provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true},
 		{provide: TooltipConfig, useClass: AppTooltipConfig},
+		// Tab titles and link preview tags per route (see PageMetaService).
+		{provide: TitleStrategy, useClass: AppTitleStrategy},
 		importProvidersFrom([
 			BrowserAnimationsModule,
 			CollapseModule,

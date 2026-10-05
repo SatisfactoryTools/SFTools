@@ -29,6 +29,17 @@ jobs:
             -   name: Build
                 run: npm run build
 
+            -   name: Lint web layer
+                run: php -l deploy/web/index.php
+
+            # Link previews (docs/link-previews.md): index.php prints page-specific
+            # meta tags into index.html. Only once the vhost runs PHP - set the
+            # repository variable WEB_LAYER_ENABLED=true then. Without it the
+            # build stays a plain static bundle, served exactly as before.
+            -   name: Add web layer
+                if: vars.WEB_LAYER_ENABLED == 'true'
+                run: cp -a deploy/web/. dist/
+
             -   name: Upload build artifact
                 if: github.event_name == 'push' && github.ref == 'refs/heads/master'
                 uses: actions/upload-artifact@v4
@@ -83,3 +94,8 @@ jobs:
                       mv -T current.tmp current &&
                       ls -1dt releases/*/ | tail -n +6 | xargs -r rm -rf
                     "
+
+            -   name: Check link previews
+                if: vars.WEB_LAYER_ENABLED == 'true'
+                continue-on-error: true
+                run: curl -fsS -A Discordbot "https://new.satisfactorytools.com/help?v=${GITHUB_SHA:0:7}" | grep -q 'og:title" content="Help'

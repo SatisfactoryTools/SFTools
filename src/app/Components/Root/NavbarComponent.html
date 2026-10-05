@@ -56,6 +56,14 @@
 			}
 			<ul class="navbar-nav ms-auto mb-2 mb-lg-0">
 				<navbar-community-links/>
+				@if (helpAvailable()) {
+					<li class="nav-item">
+						<a class="nav-link" routerLink="/help" routerLinkActive="active" aria-label="Help" tooltip="Help" placement="bottom" container="body">
+							<fa-icon [icon]="faCircleQuestion" [fixedWidth]="true"></fa-icon>
+							<span class="d-lg-none ms-1">Help</span>
+						</a>
+					</li>
+				}
 				<li class="nav-item">
 					<a class="nav-link" routerLink="/settings" routerLinkActive="active">
 						<fa-icon [icon]="faGear"></fa-icon>

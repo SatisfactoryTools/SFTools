@@ -6,7 +6,8 @@
 		"start": "ng serve",
 		"build": "ng build",
 		"watch": "ng build --watch --configuration development",
-		"test": "ng test"
+		"test": "ng test",
+		"test:meta-text": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/test-meta-text.mts"
 	},
 	"private": true,
 	"dependencies": {

@@ -3,13 +3,14 @@ import {NavigationEnd, Router, RouterLink, RouterLinkActive} from '@angular/rout
 import {Subscription} from 'rxjs';
 import {filter} from 'rxjs/operators';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faDiagramProject, faGear, faMagnifyingGlass} from '@fortawesome/free-solid-svg-icons';
+import {faCircleQuestion, faDiagramProject, faGear, faMagnifyingGlass} from '@fortawesome/free-solid-svg-icons';
 import {CollapseModule} from 'ngx-bootstrap/collapse';
 import {NavbarVersionSwitcherComponent} from '@src/Components/Root/NavbarVersionSwitcherComponent';
 import {NavbarSearchComponent} from '@src/Components/Root/NavbarSearchComponent';
 import {MobileSearchComponent} from '@src/Components/Root/MobileSearchComponent';
 import {NavbarCommunityLinksComponent} from '@src/Components/Root/NavbarCommunityLinksComponent';
 import {NavbarUserDropdownComponent} from '@src/Components/Root/NavbarUserDropdownComponent';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
@@ -30,6 +31,7 @@ import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 		MobileSearchComponent,
 		NavbarUserDropdownComponent,
 		NavbarCommunityLinksComponent,
+		AppTooltipDirective,
 	],
 	// On desktop the search sits between the side groups and shrinks when they
 	// leave too little room; on a phone it is the fullscreen mobile-search
@@ -94,6 +96,7 @@ export class NavbarComponent implements OnDestroy
 	public readonly faGear = faGear;
 	public readonly faDiagramProject = faDiagramProject;
 	public readonly faMagnifyingGlass = faMagnifyingGlass;
+	public readonly faCircleQuestion = faCircleQuestion;
 
 	/** Bootstrap's lg breakpoint: below it the navbar is folded into the menu. */
 	private static readonly WIDE_SCREEN = 992;
@@ -157,6 +160,9 @@ export class NavbarComponent implements OnDestroy
 	protected readonly searchAvailable = computed(
 		() => this.versionManager.activeVersion() !== null || this.help.hasArticles(),
 	);
+
+	/** No articles loaded (yet, or the API is down) - a link to an empty help page would be a dead end. */
+	protected readonly helpAvailable = computed(() => this.help.hasArticles());
 
 	public constructor(
 		protected readonly versionManager: VersionManager,

@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, computed, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
+import {AfterViewInit, Component, computed, effect, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, Router} from '@angular/router';
 import {faBolt, faBook, faChartPie, faCircleQuestion, faCoins, faCrosshairs, faCubes, faFolderTree, faGear, faListCheck} from '@fortawesome/free-solid-svg-icons';
@@ -90,6 +90,8 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
+import {PageMetaService} from '@src/Model/Meta/PageMetaService';
+import {ShareMetaResolver} from '@src/Model/Meta/ShareMetaResolver';
 import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
 import {PlanLinkUnavailableDialogComponent} from '@src/Components/Planner/Share/PlanLinkUnavailableDialogComponent';
 import {PlanShareDialogComponent} from '@src/Components/Planner/Share/PlanShareDialogComponent';
@@ -179,6 +181,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly signInPrompt: SignInPromptService,
 		private readonly oldToolsImports: OldToolsImportRequestService,
 		private readonly oldToolsShares: OldToolsShareService,
+		private readonly pageMeta: PageMetaService,
+		private readonly shareMeta: ShareMetaResolver,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
 	)
@@ -612,6 +616,15 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				}
 			}),
 		);
+
+		// An open share names the tab after the shared plan or folder; own plans keep the route's
+		// "Production planner" title (their names stay private, as in link previews).
+		effect(() => {
+			const payload = this.activeShare.payload();
+			if (payload !== null) {
+				this.pageMeta.set(this.shareMeta.resolve(payload));
+			}
+		});
 	}
 
 	public ngAfterViewInit(): void

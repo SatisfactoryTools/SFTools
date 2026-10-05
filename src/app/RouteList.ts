@@ -96,6 +96,13 @@ export class RouteList
 
 	private static readonly LEGACY_FIRST_SEGMENTS: ReadonlyArray<string> = ['0.8', '1.0', '1.0-ficsmas', 'production', 'codex', 'import'];
 
+	/**
+	 * Route `title`s and `data.description`s are the tab title and link
+	 * preview text (AppTitleStrategy; "{V}" = the game version's name). Bots
+	 * get the same strings from the API (tools-api: MetaResolver, which also
+	 * mirrors the reserved first segments here) - keep them in sync. A route
+	 * without a title shows the site defaults.
+	 */
 	public static routes: Routes = [
 		{
 			path: '',
@@ -114,26 +121,34 @@ export class RouteList
 					// section is part of the URL; a bare /settings redirects to
 					// the first one (links made before that still work).
 					path: 'settings',
+					title: 'Settings',
 					component: SettingsComponent,
 				},
 				{
 					path: 'settings/:section',
+					title: 'Settings',
 					component: SettingsComponent,
 				},
 				{
 					path: 'about',
+					title: 'About',
+					data: {description: 'Who makes Satisfactory Tools, what it can do, and where to report a bug or ask for a feature.'},
 					component: AboutComponent,
 				},
 				{
 					// Open to anonymous users too - their created versions are
 					// tracked in localStorage instead of the account.
 					path: 'create-version',
+					title: 'Create custom version',
+					data: {description: 'Make your own game version: add mods, change recipe and power costs, and set up a different world.'},
 					component: CreateVersionPageComponent,
 				},
 				// Mod management - signed-in users only. All of these must
 				// precede the ':versionSlug' catch-all.
 				{
 					path: 'mods',
+					title: 'Mods',
+					data: {description: 'Upload and manage mod data, then use the mods in your custom game versions.'},
 					canActivate: [AuthGuard],
 					children: [
 						{
@@ -153,12 +168,15 @@ export class RouteList
 				{
 					// Standalone mod data scratchpad (produces JSON only).
 					path: 'mod-editor',
+					title: 'Mod editor',
+					data: {description: 'Write the items, recipes and buildings of a mod and get the data file to upload.'},
 					component: ModEditorComponent,
 				},
 				{
 					// Writing the tutorials - editors only. Must precede the
 					// help matcher, which would otherwise read 'editor' as a slug.
 					path: 'help/editor',
+					title: 'Help editor',
 					canActivate: [HelpEditorGuard],
 					children: [
 						{
@@ -175,6 +193,8 @@ export class RouteList
 				{
 					// Tutorials. Must precede the ':versionSlug' catch-all.
 					matcher: RouteList.helpMatcher,
+					title: 'Help',
+					data: {description: 'Guides and reference for Satisfactory Tools.'},
 					component: HelpPageComponent,
 				},
 				{
@@ -182,24 +202,29 @@ export class RouteList
 					children: [
 						{
 							path: 'login',
+							title: 'Sign in',
 							component: LoginComponent,
 						},
 						{
 							path: 'register',
+							title: 'Register',
 							component: RegisterComponent,
 						},
 						{
 							path: 'forgot-password',
+							title: 'Forgot password',
 							component: ForgotPasswordComponent,
 						},
 						{
 							path: 'reset-password',
+							title: 'Reset password',
 							component: ResetPasswordComponent,
 						},
 						{
 							// OAuth providers redirect here; the page forwards
 							// the query string to the backend callback.
 							path: 'callback/:provider',
+							title: 'Sign in',
 							component: OAuthCallbackComponent,
 						},
 					],
@@ -207,6 +232,7 @@ export class RouteList
 				{
 					// Sign-in methods management (connected accounts).
 					path: 'account',
+					title: 'Account',
 					canActivate: [AuthGuard],
 					component: AccountComponent,
 				},
@@ -238,12 +264,15 @@ export class RouteList
 						},
 						{
 							matcher: RouteList.codexMatcher,
+							title: 'Codex ({V})',
+							data: {description: 'Searchable codex of items, recipes, buildings and schematics in Satisfactory ({V}).'},
 							component: CodexPageComponent,
 						},
 						{
 							// 'planner' with an optional ':planId' - one route, so switching
 							// plans only changes the param and reuses the component.
 							matcher: RouteList.plannerMatcher,
+							title: 'Planner ({V})',
 							component: PlannerComponent,
 						},
 						{
