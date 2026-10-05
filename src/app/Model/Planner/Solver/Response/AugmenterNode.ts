@@ -4,17 +4,7 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 
-/**
- * The plan's Alien Power Augmenters as one graph node, so the Alien Power
- * Matrix the boosted ones burn can be wired up like any other item flow.
- * `amount` is how many are built, `boosted` how many of them run on matrix.
- *
- * It is a picture of the Power tab's setting rather than something the solver
- * chose: the solver rebuilds it from `alienPowerAugmenters` on every solve,
- * which is also why the power totals are read from the settings (see
- * ExtraPower) and not from this node - so nothing counts the augmenters
- * twice. The node carries the matrix flow, nothing else.
- */
+/** A picture of the Power tab's setting, rebuilt on every solve. Power totals are read from the settings (see ExtraPower), not this node, so nothing counts the augmenters twice - the node only carries the matrix flow. */
 export class AugmenterNode extends Node
 {
 
@@ -25,7 +15,7 @@ export class AugmenterNode extends Node
 		amount: number,
 		public readonly boosted: number,
 		public readonly building: Building,
-		/** Null when the version has no Alien Power Matrix - then nothing is burned. */
+		/** Null when the version has no Alien Power Matrix. */
 		public readonly matrixItem: Item | null,
 	)
 	{
@@ -33,7 +23,6 @@ export class AugmenterNode extends Node
 		this.setupIO();
 	}
 
-	/** What these augmenters add to the plan's power, on their own. */
 	public extraPower(): ExtraPower
 	{
 		return ExtraPower.forAugmenters(this.amount, this.boosted);

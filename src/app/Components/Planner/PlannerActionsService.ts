@@ -13,11 +13,7 @@ import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 
-/**
- * Mediates planner-wide actions between panels (which are instantiated via
- * ngComponentOutlet and cannot use output bindings) and the PlannerComponent,
- * which owns the graph canvas and runs the solver.
- */
+/** Panels are created via ngComponentOutlet and cannot use output bindings, so their actions reach PlannerComponent through here. */
 @Injectable()
 export class PlannerActionsService
 {
@@ -28,102 +24,90 @@ export class PlannerActionsService
 	private readonly cancelSubject = new Subject<void>();
 	public readonly cancelRequests: Observable<void> = this.cancelSubject.asObservable();
 
-	/** A replacement node (same id) to swap into the graph and reconcile. */
+	/** A replacement node with the same id. */
 	private readonly nodeUpdateSubject = new Subject<Node>();
 	public readonly nodeUpdateRequests: Observable<Node> = this.nodeUpdateSubject.asObservable();
 
 	private readonly nodeLockSubject = new Subject<NodeLockRequest>();
 	public readonly nodeLockRequests: Observable<NodeLockRequest> = this.nodeLockSubject.asObservable();
 
-	/** Mark nodes as built ("done") in the game - a visual progress marker. */
 	private readonly nodeDoneSubject = new Subject<NodeDoneRequest>();
 	public readonly nodeDoneRequests: Observable<NodeDoneRequest> = this.nodeDoneSubject.asObservable();
 
-	/** Re-lay the active plan's graph through ELK without changing any amounts. */
 	private readonly relayoutSubject = new Subject<void>();
 	public readonly relayoutRequests: Observable<void> = this.relayoutSubject.asObservable();
 
-	/** Graph-local position where the manual add-node dialog should open. */
+	/** Graph-local position. */
 	private readonly nodeAddSubject = new Subject<GraphPoint>();
 	public readonly nodeAddRequests: Observable<GraphPoint> = this.nodeAddSubject.asObservable();
 
-	/** A user-drawn edge between two existing nodes. */
 	private readonly edgeAddSubject = new Subject<GraphEdgeAddRequest>();
 	public readonly edgeAddRequests: Observable<GraphEdgeAddRequest> = this.edgeAddSubject.asObservable();
 
-	/** A connect gesture dropped on blank canvas: create and wire the counterpart node there. */
 	private readonly connectToBlankSubject = new Subject<GraphConnectToBlankRequest>();
 	public readonly connectToBlankRequests: Observable<GraphConnectToBlankRequest> = this.connectToBlankSubject.asObservable();
 
-	/** The edge to remove from the graph. */
 	private readonly edgeDeleteSubject = new Subject<GraphEdge>();
 	public readonly edgeDeleteRequests: Observable<GraphEdge> = this.edgeDeleteSubject.asObservable();
 
-	/** A new flow amount for one edge (minimise/maximise). */
 	private readonly edgeAmountSubject = new Subject<GraphEdgeAmountRequest>();
 	public readonly edgeAmountRequests: Observable<GraphEdgeAmountRequest> = this.edgeAmountSubject.asObservable();
 
-	/** Split one node into a copy per incoming and/or outgoing connection. */
 	private readonly nodeSplitSubject = new Subject<NodeSplitRequest>();
 	public readonly nodeSplitRequests: Observable<NodeSplitRequest> = this.nodeSplitSubject.asObservable();
 
-	/** Ids of the nodes to remove from the graph (together with their edges). */
+	/** Node ids; their edges go too. */
 	private readonly nodeDeleteSubject = new Subject<string[]>();
 	public readonly nodeDeleteRequests: Observable<string[]> = this.nodeDeleteSubject.asObservable();
 
-	/** Graph-local position where a new empty subplan node should be created. */
+	/** Graph-local position. */
 	private readonly subplanCreateSubject = new Subject<GraphPoint>();
 	public readonly subplanCreateRequests: Observable<GraphPoint> = this.subplanCreateSubject.asObservable();
 
-	/** Ids of the nodes to extract into a new subplan. */
+	/** Node ids. */
 	private readonly subplanConvertSubject = new Subject<string[]>();
 	public readonly subplanConvertRequests: Observable<string[]> = this.subplanConvertSubject.asObservable();
 
-	/** Id of the subplan (plan) to open as the active plan. */
+	/** Plan id. */
 	private readonly subplanOpenSubject = new Subject<string>();
 	public readonly subplanOpenRequests: Observable<string> = this.subplanOpenSubject.asObservable();
 
-	/** Resize a whole subplan (its graph, requests and inputs) by a factor. */
 	private readonly subplanScaleSubject = new Subject<SubplanScaleRequest>();
 	public readonly subplanScaleRequests: Observable<SubplanScaleRequest> = this.subplanScaleSubject.asObservable();
 
-	/** Change how many times a subplan node builds its subplan. */
 	private readonly subplanBuildCountSubject = new Subject<SubplanBuildCountRequest>();
 	public readonly subplanBuildCountRequests: Observable<SubplanBuildCountRequest> = this.subplanBuildCountSubject.asObservable();
 
-	// Production-request shortcuts from node context menus: each edits the
-	// plan's solver inputs (settings/requests/inputs); automatic mode then
-	// recalculates on its own.
+	// Node context menu shortcuts that edit the solver inputs; automatic mode then recalculates on its own.
 
-	/** Recipe class name to remove from the enabled-recipes selection. */
+	/** Recipe class name. */
 	private readonly recipeDisableSubject = new Subject<string>();
 	public readonly recipeDisableRequests: Observable<string> = this.recipeDisableSubject.asObservable();
 
-	/** Machine class name to add to the disabled-machines selection. */
+	/** Machine class name. */
 	private readonly machineDisableSubject = new Subject<string>();
 	public readonly machineDisableRequests: Observable<string> = this.machineDisableSubject.asObservable();
 
-	/** Item class name the solver may no longer overproduce as a byproduct. */
+	/** Item class name. */
 	private readonly byproductDisableSubject = new Subject<string>();
 	public readonly byproductDisableRequests: Observable<string> = this.byproductDisableSubject.asObservable();
 
-	/** One generator+fuel combination to remove from the enabled fuels. */
 	private readonly fuelDisableSubject = new Subject<FuelDisableRequest>();
 	public readonly fuelDisableRequests: Observable<FuelDisableRequest> = this.fuelDisableSubject.asObservable();
 
-	/** Generator class name whose fuels are all removed from the enabled fuels. */
+	/** Generator class name. */
 	private readonly generatorDisableSubject = new Subject<string>();
 	public readonly generatorDisableRequests: Observable<string> = this.generatorDisableSubject.asObservable();
 
-	/** Item class name whose production requests are removed from the plan. */
+	/** Item class name. */
 	private readonly productRemoveSubject = new Subject<string>();
 	public readonly productRemoveRequests: Observable<string> = this.productRemoveSubject.asObservable();
 
-	/** Raw resource class name whose mining limit is set to zero. */
+	/** Raw resource class name. */
 	private readonly resourceDisableSubject = new Subject<string>();
 	public readonly resourceDisableRequests: Observable<string> = this.resourceDisableSubject.asObservable();
 
-	/** Item class name whose input rows are removed from the plan. */
+	/** Item class name. */
 	private readonly inputRemoveSubject = new Subject<string>();
 	public readonly inputRemoveRequests: Observable<string> = this.inputRemoveSubject.asObservable();
 
@@ -139,8 +123,6 @@ export class PlannerActionsService
 	private readonly solveErrorSignal = signal<string | null>(null);
 	public readonly solveError: Signal<string | null> = this.solveErrorSignal.asReadonly();
 
-	// Longer explanation of a failed solve, shown in the calculator panel
-	// (the status bar only has room for the short message).
 	private readonly solveErrorDetailSignal = signal<string | null>(null);
 	public readonly solveErrorDetail: Signal<string | null> = this.solveErrorDetailSignal.asReadonly();
 

@@ -4,15 +4,6 @@ import {OptimisationDefaults} from '@src/Model/Planner/OptimisationDefaults';
 import {OptimisationSettings} from '@src/Model/Planner/OptimisationSettings';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 
-/**
- * What the solver minimises: raw resources (weighted per resource in the
- * Resources tab), the plan's inputs (weighted per input in the Input tab),
- * power and/or machine count, with weights setting their relative worth
- * (e.g. how much 1 MW costs compared to 1 machine). Defaults: resources,
- * power and input weights on with power weighted far below the resource
- * weights. At least one goal must stay enabled - the solver refuses to run
- * otherwise.
- */
 @Component({
 	selector: 'calculator-optimisation-tab',
 	templateUrl: './CalculatorOptimisationTabComponent.html',
@@ -54,7 +45,6 @@ export class CalculatorOptimisationTabComponent
 		return !this.resourcesEnabled && !this.powerEnabled && !this.machinesEnabled && !(this.inputsEnabled && this.hasInputs);
 	}
 
-	/** Whether the active plan has inputs to price; folders have none. */
 	public get hasInputs(): boolean
 	{
 		return (this.planManager.activePlan()?.inputs ?? []).some(input => input.itemClassName !== '' && input.amount > 0);
@@ -116,8 +106,7 @@ export class CalculatorOptimisationTabComponent
 		this.planManager.updateActiveSettings({
 			...settings,
 			optimisation: {
-				// Persist the effective flags explicitly so a partial edit
-				// never flips the absent-means-default fields by accident.
+				// Persist the effective flags explicitly so a partial edit never flips the absent-means-default fields by accident.
 				rawResources: this.resourcesEnabled,
 				power: this.powerEnabled,
 				machines: this.machinesEnabled,

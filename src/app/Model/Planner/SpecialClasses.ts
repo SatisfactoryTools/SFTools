@@ -3,22 +3,18 @@ export const SpecialClasses = {
 	PowerProduction: '__special_power_production',
 	Machines: '__special_machines',
 	Sloops: '__special_sloops',
-	/** Pseudo-item class used in production requests to demand power in MW. */
+	/** Pseudo-item for requesting power, in MW. */
 	PowerTarget: '__power_target',
-	/** Pseudo-item class used in production requests to demand AWESOME Sink points per minute. */
+	/** Pseudo-item for requesting sink points per minute. */
 	SinkPointsTarget: '__sink_points_target',
-	/** Water is effectively unlimited (extractors need no node) - world limits never apply to it. */
+	/** World limits never apply to water - extractors need no node. */
 	WaterItem: 'Desc_Water_C',
-	/** The Converter building and the Reanimated SAM it burns - together they define resource conversion recipes. */
 	ConverterBuilding: 'Desc_Converter_C',
 	ReanimatedSamItem: 'Desc_SAMIngot_C',
-	/** Real game item classes whose icons stand in for build-cost quantities. */
 	PowerShardItem: 'Desc_CrystalShard_C',
 	SomersloopItem: 'Desc_WAT1_C',
 	SinkCouponItem: 'Desc_ResourceSinkCoupon_C',
-	/** Power buildings that sit outside the production graph - see ExtraPower. */
 	GeothermalGeneratorBuilding: 'Desc_GeneratorGeoThermal_C',
 	AlienPowerAugmenterBuilding: 'Desc_AlienPowerBuilding_C',
-	/** What a boosted Alien Power Augmenter burns. */
 	AlienPowerMatrixItem: 'Desc_AlienPowerFuel_C',
 }

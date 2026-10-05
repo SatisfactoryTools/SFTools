@@ -17,12 +17,7 @@ import {SettingsApiDataBackend} from '@src/Model/Settings/SettingsApiDataBackend
 import {SettingsConflictService} from '@src/Model/Settings/SettingsConflictService';
 import {SettingsDefaults} from '@src/Model/Settings/SettingsDefaults';
 
-/**
- * Global, user-scoped settings, persisted exactly like plans: to localStorage
- * while logged out and to the settings API once authenticated (the base class
- * migrates local edits up on login). Every field is defaulted on read, so
- * partial or legacy payloads never surface undefined values.
- */
+/** Persisted like plans (localStorage when logged out, the API once authenticated); every field is defaulted on read so partial or legacy payloads never surface undefined. */
 @Injectable({providedIn: 'root'})
 export class SettingsManager extends SyncableService<Settings>
 {
@@ -79,17 +74,12 @@ export class SettingsManager extends SyncableService<Settings>
 		this.persist({...this.settings(), account: {...this.account(), ...patch}});
 	}
 
-	/**
-	 * Replaces the whole set of key overrides - the caller decides what stays,
-	 * since dropping an entry (back to the factory key) and setting it to null
-	 * (no key at all) mean different things.
-	 */
+	/** Replaces all overrides - the caller decides, since a dropped entry (factory key) and null (no key) mean different things. */
 	public updateHotkeys(hotkeys: HotkeyOverrides): void
 	{
 		this.persist({...this.settings(), hotkeys});
 	}
 
-	/** Replaces the remembered panel layout; null resets it to the defaults. */
 	public updatePanels(panels: PanelLayoutState | null): void
 	{
 		this.persist({...this.settings(), panels});

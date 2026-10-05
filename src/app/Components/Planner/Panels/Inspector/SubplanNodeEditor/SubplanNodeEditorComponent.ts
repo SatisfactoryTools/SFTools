@@ -17,22 +17,9 @@ import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/** Quiet time after the last edit before the resize is applied to the subplan. */
 const APPLY_DEBOUNCE_MS = 400;
 
-/**
- * Inspector editor of a subplan node. What it edits is the subplan's size:
- * typing a new rate for any of its inputs or outputs resizes the whole
- * subplan by that ratio - its graph, its machines (rebuilt per its own
- * grouping and clock settings) and its production requests - exactly as
- * typing a rate rescales a recipe node. Everything else about a subplan is
- * edited by opening it.
- *
- * The build count is the other way to size a subplan: the subplan stays as
- * it is and is simply built that many times over, like a blueprint. The
- * rates typed here are always those of a single build; what all the builds
- * come to together is shown under them.
- */
+/** A typed rate resizes the whole subplan (graph, machines, requests) by that ratio; the build count instead builds it that many times over, and the rates shown are always one build's. */
 @Component({
 	selector: 'subplan-node-editor',
 	templateUrl: './SubplanNodeEditorComponent.html',
@@ -80,26 +67,19 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 
 	@Input({required: true}) public node!: SubplanNode;
 
-	/** A read-only plan is inspected, never edited - only the fields lock, opening the subplan stays. */
+	/** Only the fields lock - opening the subplan stays possible. */
 	@Input() public readOnly = false;
 
 	public inputRates: SubplanIORateDraft[] = [];
 	public outputRates: SubplanIORateDraft[] = [];
 
-	/** How many times the whole subplan is built by this node. */
 	public buildCount = 1;
 
-	/**
-	 * The node instance the draft was built from. A still-pending resize is
-	 * measured against the node the user actually typed into, even when the
-	 * selection has already moved on (see ngOnChanges).
-	 */
+	/** A still-pending resize is measured against the node the user actually typed into, even when the selection has already moved on. */
 	private loadedNode: SubplanNode | null = null;
 
-	/** The resize the typed rate asks for, applied once the typing stops. */
 	private pendingFactor: number | null = null;
 
-	/** The build count typed but not yet applied to the node. */
 	private pendingBuildCount: number | null = null;
 
 	private readonly applySubject = new Subject<void>();
@@ -123,8 +103,7 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 	{
 		if (this.loadedNode?.id === this.node.id) {
 			this.loadedNode = this.node;
-			// A resize coming back - show the rates it actually landed on,
-			// unless the user has kept typing in the meantime.
+			// A resize coming back - show the rates it actually landed on, unless the user has kept typing in the meantime.
 			if (this.pendingFactor === null) {
 				this.refreshRates();
 			}
@@ -146,7 +125,7 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.applySubscription.unsubscribe();
 	}
 
-	/** The subplan's current name (it may have been renamed since the node was saved). */
+	/** The subplan may have been renamed since the node was saved. */
 	public get displayName(): string
 	{
 		const plan = this.subplan;
@@ -159,16 +138,11 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		return plan ? this.planIcons.iconHash(plan) : null;
 	}
 
-	/** False for a node whose subplan is gone (a dangling reference) - nothing to open. */
 	public get subplanExists(): boolean
 	{
 		return this.subplan !== null;
 	}
 
-	/**
-	 * How many builds the totals are shown for: what is typed in the build
-	 * count field, or the node's own count while that field is mid-edit.
-	 */
 	public get builds(): number
 	{
 		return typeof this.buildCount === 'number' && isFinite(this.buildCount) && this.buildCount >= 1
@@ -176,13 +150,11 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 			: this.node.buildCount;
 	}
 
-	/** Whether the node builds its subplan more than once - only then is a total worth showing. */
 	public get buildsMany(): boolean
 	{
 		return this.builds > 1;
 	}
 
-	/** What one build's rate comes to across all the builds; empty while the field is mid-typing. */
 	public totalText(draft: SubplanIORateDraft): string
 	{
 		if (typeof draft.rate !== 'number' || !isFinite(draft.rate)) {
@@ -191,7 +163,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		return this.rateFormatter.rate(draft.rate * this.builds, draft.item);
 	}
 
-	/** An empty subplan has no rates to type into - there is nothing to resize yet. */
 	public get isEmpty(): boolean
 	{
 		return this.inputRates.length === 0 && this.outputRates.length === 0;
@@ -202,10 +173,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.actions.requestSubplanOpen(this.node.subplanId);
 	}
 
-	/**
-	 * A new build count leaves the subplan alone and simply builds it that
-	 * many times - every rate, machine and cost of it counts that many times.
-	 */
 	public onBuildCountChange(): void
 	{
 		// Mid-typing values (empty, zero, negative) must not reach the node.
@@ -216,7 +183,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.applySubject.next();
 	}
 
-	/** A typed input rate resizes the subplan by that ratio; every other rate follows. */
 	public onInputRateChange(index: number): void
 	{
 		this.scheduleScale(this.perBuild(this.editedNode.inputs[index]?.maxAmount), this.inputRates[index]?.rate, {kind: 'input', index});
@@ -249,17 +215,11 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		return this.planManager.findPlan(this.node.subplanId);
 	}
 
-	/** The draft the getters work on - the loaded node while it exists, the input before the first load. */
 	private get editedNode(): SubplanNode
 	{
 		return this.loadedNode ?? this.node;
 	}
 
-	/**
-	 * Rewrites the rate fields from the node's own rates (per build) and the
-	 * resize the user has asked for, keeping the field being typed in
-	 * untouched.
-	 */
 	private refreshRates(typed: {kind: 'input' | 'output'; index: number} | null = null): void
 	{
 		const factor = this.pendingFactor ?? 1;
@@ -275,7 +235,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 				: {item: io.item, rate: rateOf(io.maxAmount)});
 	}
 
-	/** An edit typed but not yet applied must still land - before the draft is replaced or the editor closes. */
 	private flushPendingApply(): void
 	{
 		if (this.pendingFactor !== null || this.pendingBuildCount !== null) {

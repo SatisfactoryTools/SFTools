@@ -27,9 +27,7 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FaIconComponent, BsDropdownModule, GameIconComponent, AppTooltipDirective],
 	styles: [`
-		/* The bar never spills out of its box: it drops detail in steps as the
-		   centre column narrows (ranges, then label words, then the state text),
-		   and whatever is left is clipped rather than overflowing the canvas. */
+		/* Drops detail in steps as the column narrows (ranges, label words, state text); the rest is clipped rather than overflowing the canvas. */
 		:host {
 			display: flex;
 			align-items: center;
@@ -50,7 +48,6 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 		.stat b { color: #dfe5ec; font-weight: 600; }
 		.stat-icon { display: none; opacity: 0.8; }
 		.stat .abbr { display: none; }
-		/* Variable-draw band beside the figure; the tooltip keeps it when the bar gets tight. */
 		.stat .range { margin-left: 4px; font-size: 0.8em; color: #6f7f99; }
 		.stat b.production { color: #7bc98a; }
 		.stat b.deficit { color: #e0b56a; }
@@ -118,8 +115,7 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 		}
 		.warnings-toggle:hover { background: rgba(224, 181, 106, 0.2); color: #f0cd8b; }
 
-		/* The warnings dropup. It is rendered into the body (container="body"),
-		   so everything here is addressed by class - no :host descendants. */
+		/* Rendered into the body (container="body"), so everything is addressed by class - no :host descendants. */
 		.warnings-menu {
 			width: min(440px, calc(100vw - 24px));
 			padding: 0;
@@ -147,8 +143,6 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			text-align: center;
 			font-weight: 600;
 		}
-		/* Kind chips: with many warnings the list is far easier to read one
-		   kind at a time, and the counts alone already say what is wrong. */
 		.warnings-kinds {
 			display: flex;
 			flex-wrap: wrap;
@@ -172,8 +166,6 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 		.kind-chip b { color: #dfe5ec; font-weight: 600; }
 		.kind-chip:hover { background: #1f2836; color: #dfe5ec; }
 		.kind-chip.active { background: #2a3547; border-color: #4a5c7c; color: #dfe5ec; }
-		/* Scrolls instead of growing past the screen; the list keeps its
-		   header and chips in view while it does. */
 		.warnings-list {
 			max-height: min(52vh, 420px);
 			overflow-y: auto;
@@ -221,8 +213,6 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			text-align: center;
 			color: #9fb0c8;
 		}
-		/* One warning: the item's picture, the plain-words numbers, and the
-		   kind on the right - so a long list can be skimmed by icon alone. */
 		.warning-row {
 			display: flex;
 			align-items: center;
@@ -253,8 +243,7 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			white-space: nowrap;
 			color: #7d8ca5;
 		}
-		/* Red = the plan cannot run as it stands, amber = it runs but wastes
-		   something, blue = purely informational. */
+		/* Red = the plan cannot run as it stands, amber = it runs but wastes something, blue = purely informational. */
 		.warning-row.kind-input, .warning-row.kind-output, .warning-row.kind-pool { border-left-color: #d4663f; }
 		.warning-row.kind-input .row-kind, .warning-row.kind-output .row-kind, .warning-row.kind-pool .row-kind { color: #e58a72; }
 		.warning-row.kind-capacity { border-left-color: #c9962e; }
@@ -280,11 +269,6 @@ export class PlannerStatusBarComponent
 	public readonly faLayerGroup = faLayerGroup;
 	public readonly faDiagramProject = faDiagramProject;
 
-	/**
-	 * Plan-wide totals from the same breakdown the Power and Build cost panels
-	 * show, so generators (fractional counts built as whole machines) and
-	 * subplans are included here exactly as there.
-	 */
 	private readonly power: Signal<PowerBreakdown> = computed(() =>
 		this.breakdownService.power(this.planManager.activePlan()));
 
@@ -293,7 +277,6 @@ export class PlannerStatusBarComponent
 
 	public readonly buildings = computed(() => this.buildCost().machines);
 
-	/** MW drawn by all machines; "-" until the plan touches power at all. */
 	public readonly powerText = computed(() => {
 		const consumption = this.power().consumption.average;
 		if (this.rateFormatter.isZero(consumption) && !this.hasProduction()) {
@@ -302,17 +285,14 @@ export class PlannerStatusBarComponent
 		return this.rateFormatter.power(consumption);
 	});
 
-	/** The consumption's min–max band when variable-draw machines are in the plan; empty otherwise. */
 	public readonly powerRangeText = computed(() => this.rangeText(this.power().consumption));
 
 	public readonly netRangeText = computed(() => this.rangeText(this.power().net));
 
-	/** MW produced by generators - only shown once the plan has any. */
 	public readonly hasProduction = computed(() => !this.rateFormatter.isZero(this.power().production));
 
 	public readonly productionText = computed(() => this.rateFormatter.power(this.power().production));
 
-	/** Production minus consumption; surplus reads as an explicit gain ("+150 MW"). */
 	public readonly net = computed(() => this.power().net.average);
 
 	public readonly netIsSurplus = computed(() => this.net() > 0 && !this.rateFormatter.isZero(this.net()));
@@ -325,10 +305,8 @@ export class PlannerStatusBarComponent
 		return net > 0 ? `+${this.rateFormatter.power(net)}` : `-${this.rateFormatter.power(-net)}`;
 	});
 
-	/** Somersloops slotted across all machine groups of the plan. */
 	public readonly sloops = computed(() => this.buildCost().sloops);
 
-	/** Power shards needed to run every overclocked machine group. */
 	public readonly shards = computed(() => this.buildCost().shards);
 
 	public readonly sloopIcon = computed(() =>
@@ -341,7 +319,6 @@ export class PlannerStatusBarComponent
 
 	public readonly warningEntries: Signal<GraphWarningEntry[]>;
 
-	/** Pooled resources the plan mines beyond what the other plans of its folder left. */
 	public readonly poolWarnings = computed<PoolResourceStatus[]>(() => {
 		const plan = this.planManager.activePlan();
 		if (!plan || this.planManager.activePlanReadOnly()) {
@@ -353,20 +330,13 @@ export class PlannerStatusBarComponent
 	public readonly warningCount = computed(() =>
 		this.warningEntries().reduce((sum, entry) => sum + entry.details.length, 0) + this.poolWarnings().length);
 
-	/** The kind the list is narrowed to; null shows every warning. */
 	private readonly warningFilterSignal = signal<GraphWarningKind | null>(null);
 
-	/** The narrowing actually in force - a kind the plan no longer has drops itself. */
 	public readonly warningFilter = computed<GraphWarningKind | null>(() => {
 		const kind = this.warningFilterSignal();
 		return kind !== null && this.warningFilters().some(chip => chip.kind === kind) ? kind : null;
 	});
 
-	/**
-	 * One chip per kind of warning the plan actually has, so a long list can
-	 * be cut down to "just the missing inputs" (and the counts alone already
-	 * say what kind of trouble the plan is in).
-	 */
 	public readonly warningFilters = computed<WarningKindFilter[]>(() => {
 		const counts = new Map<GraphWarningKind, number>();
 		this.warningEntries().forEach(entry => entry.details.forEach(detail =>
@@ -379,7 +349,6 @@ export class PlannerStatusBarComponent
 			.map(kind => ({kind, label: this.kindLabel(kind), count: counts.get(kind) ?? 0}));
 	});
 
-	/** Warning-bearing nodes the chip selection leaves, with their own warnings narrowed the same way. */
 	public readonly visibleEntries = computed<GraphWarningEntry[]>(() => {
 		const kind = this.warningFilter();
 		if (kind === null) {
@@ -404,14 +373,12 @@ export class PlannerStatusBarComponent
 
 	public readonly graphDirty: Signal<boolean>;
 
-	/** Automatic mode holding still because the graph was edited by hand. */
 	public readonly automaticPaused = computed(() =>
 		(this.planManager.activeSettings()?.calculationMode ?? 'automatic') === 'automatic'
 		&& this.planManager.activePlanGraphDirty());
 
 	private readonly graphNodes = computed(() => this.planManager.activePlan()?.graph?.nodes ?? []);
 
-	/** How many times the open subplan is built in its parent; 0 when the plan is not a subplan. */
 	public readonly subplanBuilds = computed(() => this.subplanBuildCounter.buildsOf(this.planManager.activePlan()));
 
 	public readonly subplanBuildsText = computed(() => {
@@ -442,7 +409,6 @@ export class PlannerStatusBarComponent
 		this.plannerGraph.focusNode(entry.nodeId);
 	}
 
-	/** Clicking the selected chip again clears the filter. */
 	public selectWarningFilter(kind: GraphWarningKind): void
 	{
 		this.warningFilterSignal.set(this.warningFilter() === kind ? null : kind);
@@ -464,7 +430,6 @@ export class PlannerStatusBarComponent
 		}
 	}
 
-	/** The pooled-resource warning in the same "name - what is wrong" shape as the node ones. */
 	public poolWarningText(status: PoolResourceStatus): string
 	{
 		return `mines ${this.rateFormatter.rate(status.usedByPlan, status.item)}, `
@@ -472,7 +437,6 @@ export class PlannerStatusBarComponent
 	}
 
 
-	/** "(250–750 MW)" for a variable figure, in the same orientation as its number; empty for a fixed one. */
 	private rangeText(power: PowerDraw): string
 	{
 		if (!power.isVariable()) {

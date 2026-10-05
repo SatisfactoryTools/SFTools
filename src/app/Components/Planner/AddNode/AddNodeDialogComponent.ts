@@ -38,17 +38,6 @@ import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 
-/**
- * Modal for manually adding a graph node. The node type is chosen through the
- * toggles at the top (recipe by default); the set-once identity (recipe +
- * machine, item, or generator + fuel) is picked below, with the rate/count
- * defaulting to one - those numbers are tuned afterwards in the inspector.
- * Emits the built node on `add` and `close` on dismissal (backdrop, ✕, Escape).
- *
- * With a `filter` set (the dialog completes a connect-to-blank gesture), only
- * node types that can consume/produce the filter item are offered, the item
- * choice is fixed to it, and `suggestedAmount` prefills the rate.
- */
 @Component({
 	selector: 'add-node-dialog',
 	templateUrl: './AddNodeDialogComponent.html',
@@ -68,7 +57,6 @@ export class AddNodeDialogComponent implements OnInit
 	@Output() public readonly add = new EventEmitter<Node>();
 	@Output() public readonly close = new EventEmitter<void>();
 
-	/** Escape leaves the dialog, like clicking outside it does. */
 	@HostListener('document:keydown.escape')
 	public onEscape(): void
 	{
@@ -105,10 +93,6 @@ export class AddNodeDialogComponent implements OnInit
 	{
 	}
 
-	/**
-	 * With a filter, start on the most likely type: a mine when producing a
-	 * raw resource, otherwise the first type that can take the item.
-	 */
 	public ngOnInit(): void
 	{
 		if (!this.filter) {
@@ -119,7 +103,6 @@ export class AddNodeDialogComponent implements OnInit
 		this.setType(preferMine ? 'mine' : (types[0]?.type ?? 'recipe'));
 	}
 
-	/** Node types on offer - all of them, or only those matching the connect filter. */
 	public get types(): AddNodeTypeOption[]
 	{
 		const filter = this.filter;
@@ -137,8 +120,7 @@ export class AddNodeDialogComponent implements OnInit
 		if (filter.role === 'consumer') {
 			allowed.add('product');
 			allowed.add('byproduct');
-			// Only solids worth points can go into the sink - a fluid pipe into
-			// a sink is impossible in the game.
+			// Only solids worth points can go into the sink - a fluid pipe into a sink is impossible in the game.
 			if (this.filterItem?.isSinkable() ?? false) {
 				allowed.add('sink');
 			}
@@ -151,7 +133,6 @@ export class AddNodeDialogComponent implements OnInit
 		return this.allTypes.filter(option => allowed.has(option.type));
 	}
 
-	/** The item the connect filter fixes; null without a filter. */
 	public get filterItem(): Item | null
 	{
 		if (!this.filter) {
@@ -160,7 +141,6 @@ export class AddNodeDialogComponent implements OnInit
 		return this.data?.searchItemByClassName(this.filter.itemClassName) ?? null;
 	}
 
-	/** Switching type clears the previous selection so no stale value leaks across kinds. */
 	public setType(type: AddNodeType): void
 	{
 		this.nodeType = type;
@@ -173,7 +153,6 @@ export class AddNodeDialogComponent implements OnInit
 		this.applySingleOptionDefaults();
 	}
 
-	/** A choice with exactly one candidate is no choice - pre-select it. */
 	private applySingleOptionDefaults(): void
 	{
 		if (this.nodeType === 'recipe') {
@@ -189,7 +168,6 @@ export class AddNodeDialogComponent implements OnInit
 		}
 	}
 
-	/** With a connect filter, the item is fixed and the rate starts at the gesture's free flow. */
 	private applyFilterDefaults(): void
 	{
 		const filter = this.filter;
@@ -228,11 +206,7 @@ export class AddNodeDialogComponent implements OnInit
 			.sort((a, b) => a.label.localeCompare(b.label));
 	}
 
-	/**
-	 * Raw resources for a mine, sinkable items for a sink, every item
-	 * otherwise - subject to the unmakeable-items display setting (raw
-	 * resources always count as makeable, so mines are unaffected).
-	 */
+	/** Subject to the unmakeable-items setting; raw resources always count as makeable, so mines are unaffected. */
 	public get itemOptions(): ItemPickerOption[]
 	{
 		const data = this.data;
@@ -272,7 +246,6 @@ export class AddNodeDialogComponent implements OnInit
 		return fuels.map(fuel => ({value: fuel.item.className, label: fuel.item.name, iconHash: fuel.item.icon}));
 	}
 
-	/** A generator's fuel entries that touch the filter item; all of them without a filter. */
 	private matchingFuels(generator: Building): Fuel[]
 	{
 		const filter = this.filter;
@@ -285,7 +258,6 @@ export class AddNodeDialogComponent implements OnInit
 			: generator.fuel.filter(fuel => fuel.byproduct?.className === filter.itemClassName);
 	}
 
-	/** Selecting a generator defaults the fuel to its first accepted (and filter-matching) fuel. */
 	public onGeneratorChange(className: string): void
 	{
 		this.generatorClassName = className;
@@ -299,12 +271,6 @@ export class AddNodeDialogComponent implements OnInit
 		this.applyGeneratorSuggestion();
 	}
 
-	/**
-	 * With a connect filter, prefills the machine count so the generators
-	 * exchange exactly the suggested rate of the filter item - whichever way
-	 * the chosen fuel touches it (burning it, using it as the supplemental
-	 * fluid, or emitting it as the burn byproduct).
-	 */
 	private applyGeneratorSuggestion(): void
 	{
 		const filter = this.filter;
@@ -335,7 +301,7 @@ export class AddNodeDialogComponent implements OnInit
 		}
 	}
 
-	/** Machines (at 100% clock) needed to exchange the suggested rate of the filter item; 1 without a filter. */
+	/** Machines at 100% clock; 1 without a filter. */
 	private recipeTargetFor(recipe: Recipe, machine: Building): number
 	{
 		const filter = this.filter;
@@ -373,9 +339,7 @@ export class AddNodeDialogComponent implements OnInit
 
 		switch (this.nodeType) {
 			case 'recipe': {
-				// Each recipe is produced in exactly one machine - no choice to
-				// make. With a connect filter, the node is sized to exchange the
-				// suggested rate of the filter item; one machine otherwise.
+				// Each recipe is produced in exactly one machine.
 				const recipe = data.getRecipeByClassName(this.recipeClassName);
 				const machine = recipe.producedIn[0];
 				const target = this.recipeTargetFor(recipe, machine);
@@ -417,8 +381,7 @@ export class AddNodeDialogComponent implements OnInit
 				break;
 		}
 
-		// Manually added nodes are user-owned: the solver builds around them and
-		// never replaces them, just like edited recipe nodes and subplans.
+		// Manually added nodes are user-owned: the solver builds around them and never replaces them, like edited recipe nodes and subplans.
 		node.locked = true;
 		this.add.emit(node);
 	}

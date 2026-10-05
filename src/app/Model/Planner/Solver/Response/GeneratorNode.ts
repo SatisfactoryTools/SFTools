@@ -4,22 +4,13 @@ import {Fuel} from '@src/Model/Data/Entities/Parts/Fuel';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 
-/**
- * A power generator burning one specific fuel. `amount` is the (fractional)
- * number of generators, each running at `clockSpeed`; the IO covers the fuel,
- * the supplemental fluid and the burn byproduct - power itself is not an item
- * and shows only in the node's stats.
- */
+/** `amount` is the fractional number of generators; power is not an item and shows only in the node's stats. */
 export class GeneratorNode extends Node
 {
 
 	public readonly type = 'generator' as const;
 
-	/**
-	 * @param clockSpeed Percent, 1–250. Power and fuel scale with it in step,
-	 *                   so it only decides how many buildings (and power
-	 *                   shards) the same generation takes.
-	 */
+	/** @param clockSpeed Percent, 1–250. Power and fuel scale with it in step, so it only decides how many buildings (and power shards) the same generation takes. */
 	public constructor(
 		id: string,
 		amount: number,
@@ -32,19 +23,18 @@ export class GeneratorNode extends Node
 		this.setupIO();
 	}
 
-	/** MW produced by this node. */
+	/** In MW. */
 	public powerProduction(): number
 	{
 		return Formulas.generatorPowerProduction(this.generator, this.amount, this.clockSpeed);
 	}
 
-	/** Whole power shards this node's generators need; 0 at or below 100%. */
+	/** 0 at or below 100%. */
 	public powerShards(): number
 	{
 		return this.wholeGenerators() * Formulas.powerShards(this.clockSpeed);
 	}
 
-	/** Generator counts are fractional - building them takes whole machines. */
 	public wholeGenerators(): number
 	{
 		return Math.ceil(this.amount - 1e-9);

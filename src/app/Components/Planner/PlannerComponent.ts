@@ -93,11 +93,8 @@ import {PlanLinkUnavailableDialogComponent} from '@src/Components/Planner/Share/
 import {PlanShareDialogComponent} from '@src/Components/Planner/Share/PlanShareDialogComponent';
 import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 
-// Flows closer than this count as equal when deciding whether a menu action
-// (minimise/maximise, increase-output) has anything to change - matches the
-// reconciler's absolute warning tolerance.
+// Matches the reconciler's absolute warning tolerance.
 const FLOW_TOLERANCE = 0.001;
-// Same idea for node utilization ratios (1 = the node already matches its edges).
 const RATIO_TOLERANCE = 1e-4;
 
 @Component({
@@ -123,29 +120,18 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 	private hotkeyRegistrations: HotkeyRegistration[] = [];
 
-	/** Plan hotkeys waiting for the Plans panel to appear (see openPlansPanelAndRun). */
 	private readonly plansHotkeyRetries = new Set<HotkeyAction>();
 
 	private readonly subscription = new Subscription();
 	private calcSubscription: Subscription | null = null;
 	private renderedPlanId: string | null = null;
 
-	/**
-	 * The ':planId' URL param last applied to (or seen matching) the active
-	 * plan. Store changes re-run the URL → state sync while the address bar
-	 * may still name the previous plan (the State → URL navigation is async);
-	 * remembering what was already applied keeps such a stale param from
-	 * re-activating the plan the user just left (e.g. right after cloning).
-	 */
+	/** Keeps a stale URL param (State → URL navigation is async) from re-activating the plan just left. */
 	private urlAppliedPlanId: string | null = null;
 
-	// Graph-local spot for the manual add-node dialog; non-null while it is open.
 	private readonly addNodePositionSignal = signal<GraphPoint | null>(null);
 	public readonly addNodeOpen = computed(() => this.addNodePositionSignal() !== null);
 
-	// Connect gesture that ended on blank canvas - the add-node dialog then
-	// completes it: it offers only matching node types and the new node is
-	// wired to the gesture's origin on add.
 	private readonly pendingConnectSignal = signal<GraphConnectToBlankRequest | null>(null);
 	public readonly addNodeFilter = computed<AddNodeFilter | null>(() => {
 		const pending = this.pendingConnectSignal();
@@ -155,7 +141,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		return {itemClassName: pending.itemClassName, role: pending.side === 'output' ? 'consumer' : 'producer'};
 	});
 
-	// Free flow at the gesture's origin when it started, prefilled as the new node's rate.
 	private readonly addNodeSuggestedAmountSignal = signal<number | null>(null);
 	public readonly addNodeSuggestedAmount = this.addNodeSuggestedAmountSignal.asReadonly();
 
@@ -194,11 +179,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly router: Router,
 	)
 	{
-		// Nudge signed-out users towards an account - but not when they arrive
-		// through someone's share link, which should just open. A plan id that
-		// is not (yet) one of their own may be someone else's plan link, which
-		// should just open too; the URL -> state sync below prompts as soon as
-		// the plan turns out to be theirs after all.
+		// A plan id that isn't the user's own may be someone else's plan link; the URL → state sync prompts if it turns out to be theirs.
 		const planIdParam = route.snapshot.paramMap.get('planId');
 		const ownPlan = planIdParam === null || planManager.plans().some(p => p.id === planIdParam);
 		if (route.snapshot.paramMap.get('shareId') === null && ownPlan) {
@@ -305,13 +286,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			defaultFloatHeight: 400,
 		});
 
-		// Restore the remembered panel layout now that every panel is registered.
 		panelLayout.applyLayout(this.settings.panels());
 
 		this.registerHotkeys();
 
-		// A refreshed or shared URL with ?codex=… must show the codex even if
-		// the remembered layout has that panel closed. Same for ?help=.
 		if (this.route.snapshot.queryParamMap.has('codex')) {
 			panelLayout.focusPanel('codex');
 		}
@@ -371,8 +349,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.actions.nodeDeleteRequests.subscribe(nodeIds => this.applyNodeDelete(nodeIds)),
 		);
 
-		// Production-request shortcuts from node context menus: each edits the
-		// plan's solver inputs; the automatic-mode effect below then re-solves.
 		this.subscription.add(
 			this.actions.recipeDisableRequests.subscribe(recipeClassName => this.disableRecipe(recipeClassName)),
 		);
@@ -405,9 +381,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.actions.inputRemoveRequests.subscribe(itemClassName => this.removeInput(itemClassName)),
 		);
 
-		// Node appearance settings (global colours/glow/machine display, number
-		// formatting, per-plan machine colours) only affect styling, so re-render
-		// the current graph in place - no re-layout or solve - whenever they change.
 		this.subscription.add(
 			toObservable(computed(() => {
 				const planGraph = this.planManager.activePlan()?.settings.graph;
@@ -447,10 +420,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.actions.redoRequests.subscribe(() => this.redo()),
 		);
 
-		// Automatic mode: recalculate when the active plan's solver inputs
-		// change - requests, enabled recipes or raw-resource limits. pairwise
-		// + same-id guard keeps plan switches and graph saves from triggering
-		// a solve - only actual edits do.
+		// pairwise + same-id guard: plan switches and graph saves must not trigger a solve.
 		this.subscription.add(
 			toObservable(computed(() => {
 				const plan = this.planManager.activePlan();
@@ -459,11 +429,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 					id: plan.id,
 					mode: this.modeOf(plan),
 					requestsKey: JSON.stringify({
-						// powerUnit is a display-only input scale - switching it must not re-solve.
+						// powerUnit is display-only - must not re-solve.
 						requests: plan.requests.map(r => ({itemClassName: r.itemClassName, ratePerMinute: r.ratePerMinute, mode: r.mode})),
 						inputs: plan.inputs,
-						// Without an explicit selection the plan follows the user's
-						// plan defaults - so those belong in the key instead.
+						// Without an explicit selection the plan follows the plan defaults.
 						recipes: plan.settings.enabledRecipes ?? [defaults.alternateRecipes, defaults.conversionRecipes],
 						machines: plan.settings.disabledMachines,
 						limits: [plan.settings.resourceLimits, plan.settings.disabledResources, plan.settings.resourceWeightMode, plan.settings.resourceWeights],
@@ -471,8 +440,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 						byproducts: plan.settings.disabledByproducts,
 						sinkable: plan.settings.sinkableItems,
 						factoryPower: [plan.settings.producePowerForFactory, plan.settings.excessPowerPercent],
-						// Geysers and augmenters change the power balance, and the
-						// boosted ones also change how much matrix the plan must make.
 						extraPower: [plan.settings.geothermalGenerators, plan.settings.alienPowerAugmenters],
 						optimisation: plan.settings.optimisation,
 						sloops: [plan.settings.maxSloops, plan.settings.sloopAccuracy],
@@ -491,11 +458,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			).subscribe(() => {
 				const plan = this.planManager.activePlan();
 				if (!plan) return;
-				// A manually modified graph pauses automatic recalculation - silently.
-				// Asking here meant a blocking dialog on every keystroke, and declining
-				// changed nothing, so the next edit asked again. The calculator panel and
-				// the status bar say the plan is paused, and the Calculate button resumes
-				// it. Dirty clears when the solve completes.
+				// A dirty graph pauses automatic mode silently - asking meant a blocking dialog on every keystroke.
 				if (plan.metadata?.graphDirty ?? false) {
 					return;
 				}
@@ -507,8 +470,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.plannerGraph.contextMenuRequests.subscribe(request => this.openContextMenu(request)),
 		);
 
-		// Edge corner gestures snapshot the pre-change state for undo, once
-		// per gesture (the service fires before applying the first change).
 		this.subscription.add(
 			this.plannerGraph.graphEditStarts.subscribe(() => {
 				const plan = this.planManager.activePlan();
@@ -518,8 +479,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}),
 		);
 
-		// Node drags and edge corner edits mutate the rendered graph in
-		// place; debounce to one save per gesture.
 		this.subscription.add(
 			this.plannerGraph.graphChanges.pipe(debounceTime(500)).subscribe(() => {
 				const planId = this.planManager.activePlanId();
@@ -529,8 +488,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}),
 		);
 
-		// URL → state: activate the plan named by the ':planId' param once it
-		// exists in the store (plans may arrive async from the API).
 		this.subscription.add(
 			combineLatest([this.route.paramMap, toObservable(this.planManager.plans)]).subscribe(([params, plans]) => {
 				const planId = params.get('planId');
@@ -546,36 +503,17 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				if (plans.some(p => p.id === planId)) {
 					this.urlAppliedPlanId = planId;
 					this.planManager.setActivePlan(planId);
-					// Their own plan after all - the nudge the constructor held back.
 					this.signInPrompt.maybePrompt();
 					return;
 				}
-				// None of the user's own: once the store really is loaded for this
-				// version, the id can only be someone else's plan, pasted out of their
-				// address bar. Open it read-only if its owner allows that
-				// (ActivePlanLinkManager), and say so plainly when they do not -
-				// silently showing the viewer their own plan instead is what made these
-				// links look broken. The flag must be the version-scoped one: arriving
-				// from a version-less page (help, settings) the store is "loaded" while
-				// still empty, and the user's own plan would open as a stranger's.
+				// Must be the version-scoped flag - from a version-less page the store is "loaded" while still empty.
 				if (this.planManager.loadedForActiveVersion()) {
 					this.planLink.open(planId);
 				}
 			}),
 		);
 
-		// State → URL: reflect the active plan in the address bar. skip(1)
-		// ignores the initial null so a shared link isn't stripped on load.
-		// Query params carry independent state (the codex panel), so keep them.
-		// Shared plans are addressed by their share URL, never a plan id -
-		// while one is selected, the address bar stays untouched. Selecting
-		// one of the user's OWN plans or folders while a share is open leaves
-		// the share URL (and with it share mode - see the paramMap subscription
-		// below), so the selection is not left half-applied on a share page.
-		// A plan left on this device has no URL either (its id means nothing
-		// to the account): looking at one shows the bare planner URL. The
-		// device flag is part of the key so moving the open plan into the
-		// account (it stays selected) puts its id into the address bar.
+		// skip(1) keeps a shared link from being stripped on load; the local flag is in the key so moving a device plan into the account updates the URL.
 		this.subscription.add(
 			toObservable(computed(() => {
 				const id = this.planManager.activePlanId();
@@ -598,8 +536,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				}),
 		);
 
-		// Closing the codex or help panel drops its query param, so a refresh
-		// doesn't resurrect the panel the user just dismissed.
 		for (const panel of ['codex', 'help']) {
 			this.subscription.add(
 				toObservable(computed(() => this.panelLayout.isOpen(panel))).pipe(skip(1)).subscribe(open => {
@@ -614,8 +550,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			);
 		}
 
-		// Remember where the planner was left so the navbar can offer a way
-		// back from non-versioned pages (account, settings, …).
 		this.subscription.add(
 			this.route.paramMap.subscribe(params => {
 				const version = this.versionManager.activeVersion();
@@ -624,9 +558,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}),
 		);
 
-		// A plan re-renders when it becomes another plan, or when the SAME plan
-		// changes read-only state - moving a device plan into the account (or
-		// back) keeps it selected, and the canvas must follow.
+		// Also re-render when read-only state flips (moving a device plan into the account keeps it selected).
 		this.subscription.add(
 			toObservable(this.planManager.activePlan).pipe(skip(1)).subscribe(plan => {
 				if (plan?.id === this.renderedPlanId && (plan === null || this.planManager.isReadOnlyPlan(plan.id) === this.plannerGraph.readOnly)) return;
@@ -635,21 +567,14 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}),
 		);
 
-		// Deleting a subplan from the plans panel (or via a folder cascade)
-		// scrubs its node out of the parent's stored graph; when that parent
-		// is on the canvas, re-render it to drop the node there too.
 		this.subscription.add(
 			this.planManager.scrubbedGraphs.subscribe(planIds => this.refreshScrubbedGraph(planIds)),
 		);
 
-		// A folder-wide recalculation replaces stored graphs off-canvas; the
-		// one on the canvas must follow.
 		this.subscription.add(
 			this.folderRecalculation.graphReplaced.subscribe(planId => this.refreshScrubbedGraph([planId])),
 		);
 
-		// Renaming a subplan must relabel its node in the parent graph, which
-		// may be the plan currently on the canvas.
 		this.subscription.add(
 			toObservable(computed(() => new Map(this.planManager.plans().map(p => [p.id, p.name]))))
 				.pipe(pairwise())
@@ -661,9 +586,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				}),
 		);
 
-		// Shared route ↔ share mode: 'planner/shared/:shareId' opens the share
-		// read-only, any other planner URL leaves it. paramMap emits its
-		// current value synchronously, so a direct load activates right here.
+		// paramMap emits synchronously, so share mode activates within the constructor.
 		this.subscription.add(
 			this.route.paramMap.subscribe(params => {
 				const shareId = params.get('shareId');
@@ -672,8 +595,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				} else {
 					this.activeShare.close();
 				}
-				// A plan opened by link is addressed by its own id; any other planner
-				// URL (a plan of the viewer's own, the bare planner) leaves that view.
 				const planId = params.get('planId');
 				if (planId === null || this.planManager.plans().some(p => p.id === planId)) {
 					this.planLink.close();
@@ -691,13 +612,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.openRequestedPanel();
 	}
 
-	/**
-	 * `?panel=inspector` - how a panel link in a help article gets back here.
-	 * Handled this late because the panel container decides only in its own
-	 * ngAfterViewInit whether the layout is the mobile one, and showing a
-	 * panel means something different there. The param is an instruction
-	 * rather than state, so it leaves the URL again once carried out.
-	 */
+	/** Deferred to here: the panel container decides mobile layout only in its own ngAfterViewInit. */
 	private openRequestedPanel(): void
 	{
 		const requested = this.route.snapshot.queryParamMap.get('panel');
@@ -725,13 +640,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planLink.close();
 	}
 
-	/**
-	 * What the canvas hotkeys run: the entries of the context menu the current
-	 * selection would open, plus the blank-canvas ones (which need no
-	 * selection and place their node in the middle of the view). Reading them
-	 * from the menus is what keeps a key and its menu row doing the same
-	 * thing, grayed-out entries included.
-	 */
 	public hotkeyItems(): HotkeyItem[]
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -748,10 +656,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		return items;
 	}
 
-	/**
-	 * Canvas-wide hotkeys - the ones with no menu row of their own. The
-	 * context-menu actions come from hotkeyItems() instead.
-	 */
 	private registerHotkeys(): void
 	{
 		this.hotkeyRegistrations.push(
@@ -764,9 +668,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.hotkeys.register('planner.zoomOut', () => this.plannerGraph.zoomOut()),
 			this.hotkeys.register('planner.zoomFit', () => this.plannerGraph.zoomFit()),
 		);
-		// The production request tabs. Its panel need not be open - the tab
-		// state lives outside it, so the key shows the panel and lands on the
-		// tab in one go.
 		CalculatorTabHotkeys.ENTRIES.forEach(entry => {
 			this.hotkeyRegistrations.push(this.hotkeys.register(entry.action, () => {
 				this.panelLayout.focusPanel('calculator');
@@ -779,19 +680,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				this.hotkeyRegistrations.push(this.hotkeys.register(panel.hotkey, () => this.panelLayout.toggleFromRail(id)));
 			}
 		});
-		// The Plans tree only exists while its panel is the visible one, and
-		// the tree is what runs the plan actions. With the panel away these
-		// stand in: show it, then let the tree take the key on the next tick.
+		// The Plans tree only handles these while visible, so show it and re-run the key next tick.
 		HotkeyCatalog.definitionsOf('plans').forEach(definition => {
 			this.hotkeyRegistrations.push(this.hotkeys.register(definition.action, () => this.openPlansPanelAndRun(definition.action)));
 		});
 	}
 
-	/**
-	 * Only ever one retry: the panel is already open on the second pass, so if
-	 * the tree still does not answer (no plan open, say) the key does nothing
-	 * rather than bouncing between here and the hotkey service.
-	 */
+	/** Single retry, so an unanswered key doesn't bounce between here and the hotkey service. */
 	private openPlansPanelAndRun(action: HotkeyAction): void
 	{
 		if (this.plansHotkeyRetries.has(action)) {
@@ -805,7 +700,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		});
 	}
 
-	/** Every edit is inert on a read-only plan, exactly as the menus are. */
 	private runIfEditable(action: () => void): void
 	{
 		if (!this.planManager.activePlanReadOnly()) {
@@ -815,8 +709,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 	private openContextMenu(request: GraphContextMenuRequest): void
 	{
-		// A read-only plan's canvas offers no context menus - every entry would
-		// be an edit. Subplans still open by double-click.
 		if (this.planManager.activePlanReadOnly()) {
 			return;
 		}
@@ -835,14 +727,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.contextMenu.open(menu, request.clientX, request.clientY);
 	}
 
-	/** Edge menu heading: the flowing item and its rate, matching the edge label. */
 	private edgeMenuTitle(edge: GraphEdge): string
 	{
 		const item = this.versionManager.activeVersionData()?.searchItemByClassName(edge.itemClassName) ?? null;
 		return `${item?.name ?? edge.itemClassName} - ${this.rateFormatter.rate(edge.amount, item)}`;
 	}
 
-	/** The active plan's graph revived for a read-only computation; null when unavailable. */
 	private reviveActiveGraph(): Graph | null
 	{
 		const plan = this.planManager.activePlan();
@@ -856,13 +746,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 	}
 
-	/**
-	 * The edge menu's minimise/maximise targets: what this edge could carry
-	 * given the source's output (net of its other edges) and the target's
-	 * requirement (net of its other suppliers). Null entries render grayed -
-	 * when both ends agree there is nothing to choose, and a bound the edge
-	 * already sits at is no change.
-	 */
 	private edgeAmountActions(edge: GraphEdge): {minimise: EdgeAmountAction | null; maximise: EdgeAmountAction | null}
 	{
 		const graph = this.reviveActiveGraph();
@@ -885,12 +768,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		};
 	}
 
-	/**
-	 * The node menu's minimise/maximise replacements: the node scaled to the
-	 * smallest/largest utilization its connected edges imply (per item with
-	 * at least one edge; unconnected items don't count). Null when the node
-	 * cannot resize, has no edges, or already sits at that size.
-	 */
 	private nodeResizeOptions(node: Node): NodeResizeOptions
 	{
 		const none: NodeResizeOptions = {minimise: null, maximise: null};
@@ -905,8 +782,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (ratios.length === 0) {
 			return none;
 		}
-		// Minimise shrinks (some edge implies a smaller size), maximise grows -
-		// a node already matching its edges grays both.
 		const minRatio = Math.min(...ratios);
 		const maxRatio = Math.max(...ratios);
 		return {
@@ -915,11 +790,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		};
 	}
 
-	/**
-	 * How many nodes each of the menu's three splits would produce - the menu
-	 * grays an entry that would leave the node as it is. All ones when the
-	 * node cannot be split at all (a subplan, or no graph to read).
-	 */
 	private nodeSplitOptions(node: Node): NodeSplitOptions
 	{
 		const none: NodeSplitOptions = {inputs: 1, outputs: 1, both: 1};
@@ -937,12 +807,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		};
 	}
 
-	/**
-	 * Replaces a node with one copy per connection (see NodeSplitter). The
-	 * copies are stacked across the graph's flow direction where the node
-	 * stood, and take its place in the selection. Flows are preserved exactly,
-	 * so nothing needs reconciling afterwards.
-	 */
 	private applyNodeSplit(request: NodeSplitRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -966,8 +830,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// The copies go side by side across the flow, one node box plus the
-		// layout's own node spacing apart.
 		const size = this.plannerGraph.nodeSize(node);
 		const layout = this.graphLayout.resolve(plan.settings.graph);
 		const offset: GraphPoint = layout.direction === 'down'
@@ -981,8 +843,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.history.push(this.snapshotOf(plan));
 
-		// The copies are the nodes the split added, plus the one that kept the
-		// original's id - select them all, so the split is visible at a glance.
 		const before = new Set(graph.nodes.map(candidate => candidate.id));
 		const pieceIds = updated.nodes
 			.filter(candidate => candidate.id === request.nodeId || !before.has(candidate.id))
@@ -992,11 +852,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
-	/**
-	 * Swaps a manually edited node into the active plan's graph, reconciles
-	 * flows (byproduct nodes, edge amounts, warnings) and persists the result
-	 * as a manual modification - marking the graph dirty.
-	 */
 	private applyNodeUpdate(updated: Node): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1015,13 +870,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// Auto-applied inspector edits are debounced - the node may have been
-		// deleted by the time the update lands.
+		// Inspector edits are debounced - the node may be gone by now.
 		if (!current.nodes.some(node => node.id === updated.id)) {
 			return;
 		}
 
-		// Snapshot before reconciliation - it adjusts edge amounts in place.
+		// Snapshot before reconcile, which mutates edge amounts in place.
 		this.history.push(this.snapshotOf(plan));
 
 		const replaced: Graph = {
@@ -1030,21 +884,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		};
 		const reconciled = this.graphReconciler.reconcile(replaced, updated.id);
 
-		// Keep whatever is selected NOW - a debounced inspector edit may land
-		// after the user already selected another node. Updates arriving with
-		// nothing selected (context-menu resizes) select the updated node.
+		// A debounced inspector edit may land after another node was selected.
 		const selectedIds = this.plannerGraph.selectedNodes().map(node => node.id);
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
 		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [updated.id]);
 		this.planManager.setGraph(plan.id, reconciled, true);
 	}
 
-	/**
-	 * Inserts a user-drawn edge between two existing nodes. By default the
-	 * edge carries as much flow as both ends still have free; when the
-	 * source falls short of the target's demand and could be grown, a small
-	 * menu at the drop point offers to increase its output instead.
-	 */
 	private applyEdgeAdd(request: GraphEdgeAddRequest): void
 	{
 		const prepared = this.prepareEdgeAdd(request);
@@ -1059,7 +905,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.insertPreparedEdge(prepared, request);
 	}
 
-	/** Validates an edge-add request against the current plan; null when it no longer applies. */
 	private prepareEdgeAdd(request: GraphEdgeAddRequest): PreparedEdgeAdd | null
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1094,7 +939,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		};
 	}
 
-	/** The default insertion: the edge carries min(free output, unmet demand). */
 	private insertPreparedEdge(prepared: PreparedEdgeAdd, request: GraphEdgeAddRequest): void
 	{
 		this.history.push(this.snapshotOf(prepared.plan));
@@ -1109,12 +953,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(prepared.plan.id, updated, true);
 	}
 
-	/**
-	 * The source cannot cover the target's demand: let the user choose
-	 * between growing the source and connecting only the free amount. Both
-	 * actions re-validate - the graph may have changed while the menu was
-	 * open - and dismissing the menu creates no edge.
-	 */
 	private openEdgeShortageMenu(request: GraphEdgeAddRequest, prepared: PreparedEdgeAdd, deficit: number): void
 	{
 		const item = this.versionManager.activeVersionData()?.searchItemByClassName(request.itemClassName) ?? null;
@@ -1133,11 +971,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.contextMenu.open(menu, request.clientX, request.clientY);
 	}
 
-	/**
-	 * Grows the source to cover the target's demand and connects the full
-	 * amount. Runs through the reconciler like any node edit, so the grown
-	 * source draws its own extra inputs from upstream spare where possible.
-	 */
 	private applyEdgeAddIncreasing(request: GraphEdgeAddRequest): void
 	{
 		const prepared = this.prepareEdgeAdd(request);
@@ -1165,11 +998,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(prepared.plan.id, reconciled, true);
 	}
 
-	/**
-	 * Sets one edge's flow (minimise/maximise). Elastic endpoints - input
-	 * node source, byproduct node target - follow the new flow so their
-	 * labels stay truthful; everything else surfaces as warnings.
-	 */
 	private applyEdgeAmount(request: GraphEdgeAmountRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1208,7 +1036,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
-	/** Resizes an input-node source / byproduct-node target of the changed edge to the flow they now carry. */
 	private withElasticEndpointsResized(nodes: Node[], edges: GraphEdge[], changed: GraphEdge): Node[]
 	{
 		return nodes.map(node => {
@@ -1224,12 +1051,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		});
 	}
 
-	/**
-	 * Removes one edge. Nothing else changes: the freed flow stays with the
-	 * producer and the consumer's shortfall surfaces as the usual warnings.
-	 * Edges have no id, so the request edge is matched by its unique
-	 * source/target/item triple.
-	 */
 	private applyEdgeDelete(edge: GraphEdge): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1261,12 +1082,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
-	/**
-	 * Removes nodes together with every edge touching them. Deleting a subplan
-	 * node deletes the subplan (and its own subplans) from the plans tree too,
-	 * after confirmation. Undo only restores the parent graph - the subplan
-	 * node comes back dangling (see SubplanIOResolver).
-	 */
+	/** Undo only restores the parent graph - a deleted subplan comes back as a dangling node. */
 	private applyNodeDelete(nodeIds: string[]): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1313,12 +1129,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		subplans.forEach(node => this.planManager.deletePlan(node.subplanId));
 	}
 
-	/**
-	 * A connect gesture dropped on blank canvas: open the add-node dialog
-	 * there, restricted to node types that can take the dragged item, with
-	 * the origin's free flow as the suggested rate. onAddNode() finishes the
-	 * job by wiring the new node to the gesture's origin.
-	 */
 	private beginConnectToBlank(request: GraphConnectToBlankRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1381,8 +1191,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// Undo/redo always leaves the plan "modified": the restored graph may
-		// no longer match the current request, so it must not read as up to date.
+		// Always dirty: the restored graph may not match the current request.
 		if (snapshot.graphJson === null) {
 			this.plannerGraph.clear();
 			this.planManager.setGraph(plan.id, null, true);
@@ -1402,13 +1211,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.restoreSubplans(plan.id, snapshot);
 	}
 
-	/**
-	 * Undo/redo companion to the graph restore: recreates subplan entities the
-	 * banked operation deleted and deletes ones it created, so the plans panel
-	 * and the API stay consistent with the subplan nodes on the canvas. Runs
-	 * after the graph restore - the redo-side entity delete then finds the
-	 * node already gone and scrubs nothing.
-	 */
+	/** Must run after the graph restore so the redo-side delete finds the node gone and scrubs nothing. */
 	private restoreSubplans(planId: string, snapshot: GraphSnapshot): void
 	{
 		try {
@@ -1418,7 +1221,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 	}
 
-	/** Toggles user ownership of nodes; a lock change is a manual graph edit and persists as such. */
 	private applyLockChange(request: NodeLockRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1437,7 +1239,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// Snapshot before the in-place lock flips.
 		this.history.push(this.snapshotOf(plan));
 
 		const ids = new Set(request.nodeIds);
@@ -1451,17 +1252,11 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (request.nodeIds.length === 1) {
 			this.plannerGraph.selectNodeById(request.nodeIds[0]);
 		}
-		// Locking is not a graph edit that a recalculation would undo - locked nodes are
-		// exactly what every solve keeps. So it must not mark the graph dirty (which would
-		// pause automatic mode); omitting the flag leaves whatever state the plan was in.
+		// Not dirty: every solve keeps locked nodes, and dirty would pause automatic mode.
 		this.planManager.setGraph(plan.id, graph);
 	}
 
-	/**
-	 * Marks nodes as built ("done") in the game. It is a manual graph edit: a
-	 * recalculation throws the flags away, so it marks the graph dirty. The
-	 * selection is restored so repeated Enter presses keep toggling.
-	 */
+	/** Dirty because a recalculation drops the flags. */
 	private applyDoneChange(request: NodeDoneRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1480,7 +1275,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// Snapshot before the in-place flag flips.
 		this.history.push(this.snapshotOf(plan));
 
 		const ids = new Set(request.nodeIds);
@@ -1494,10 +1288,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.plannerGraph.selectNodesById(request.nodeIds);
 		this.planManager.setGraph(plan.id, graph, true);
 	}
-
-	// ── Production-request shortcuts (node context menus) ───────────────────
-	// Each edits the active plan's solver inputs exactly like the matching
-	// calculator tab would; automatic mode re-solves via the requestsKey effect.
 
 	private disableRecipe(recipeClassName: string): void
 	{
@@ -1540,8 +1330,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 		const fuels = {...(settings.enabledFuels ?? {})};
-		// A generator with no enabled fuel left is disabled entirely - drop its
-		// key, matching the Power tab's persistence.
 		const remaining = (fuels[request.generatorClassName] ?? []).filter(fuel => fuel !== request.fuelItemClassName);
 		if (remaining.length > 0) {
 			fuels[request.generatorClassName] = remaining;
@@ -1591,11 +1379,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setInputs(plan.id, plan.inputs.filter(input => input.itemClassName !== itemClassName));
 	}
 
-	/**
-	 * Re-lays the active plan's graph through ELK using the plan's layout
-	 * settings - positions and edge routing only, no amounts change. The
-	 * dirty flag stays as it is, matching manual node drags.
-	 */
+	/** Leaves the dirty flag as is, like manual node drags. */
 	private async relayoutGraph(): Promise<void>
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1630,13 +1414,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, graph);
 	}
 
-	/**
-	 * Resizes a subplan from its node's inspector: the subplan itself is
-	 * multiplied (graph, requests and inputs, nested subplans included), then
-	 * the node re-reads its interface and its edges are reconciled to the new
-	 * rates. One undo step covers both sides - the snapshot carries the
-	 * parent's graph and its subplans.
-	 */
 	private applySubplanScale(request: SubplanScaleRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1655,7 +1432,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// The edit is debounced - the node may be gone by the time it lands.
 		const node = graph.nodes.find(candidate => candidate.id === request.nodeId);
 		if (!(node instanceof SubplanNode)) {
 			return;
@@ -1670,8 +1446,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 		this.history.push(snapshot);
 
-		// Every node pointing at the resized subplan re-reads it, not just the
-		// inspected one - a plan may place the same subplan more than once.
+		// A plan may place the same subplan more than once.
 		const refreshed = this.refreshSubplanNodes(graph);
 		const resizedIds = refreshed.nodes
 			.filter((candidate): candidate is SubplanNode => candidate instanceof SubplanNode && candidate.subplanId === request.subplanId)
@@ -1684,12 +1459,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, reconciled, true);
 	}
 
-	/**
-	 * Sets how many times a subplan node builds its subplan - a blueprint
-	 * placed several times. Nothing inside the subplan changes; the node's
-	 * rates are multiplied by the new count and its edges are reconciled to
-	 * them, so every panel counts the subplan that many times.
-	 */
 	private applySubplanBuildCount(request: SubplanBuildCountRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1733,9 +1502,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 	private openSubplan(subplanId: string): void
 	{
-		// Shared graphs reference shared subplans (hydrated alongside them),
-		// device plans reference device subplans - opening one keeps the
-		// planner in read-only mode.
 		if (this.planManager.findPlan(subplanId) !== null) {
 			this.planManager.setActivePlan(subplanId);
 		} else {
@@ -1750,7 +1516,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.addNodeSuggestedAmountSignal.set(null);
 	}
 
-	/** Re-renders the current graph in place to pick up new node styling (colours/glow). */
 	private restyleGraph(): void
 	{
 		const plan = this.planManager.activePlan();
@@ -1766,12 +1531,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
 	}
 
-	/**
-	 * Inserts a manually built node at the spot the add-node dialog was
-	 * opened from. When the dialog completes a connect-to-blank gesture, the
-	 * new node is also wired to the gesture's origin, carrying as much flow
-	 * as both ends have free.
-	 */
 	public onAddNode(node: Node): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1789,7 +1548,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// A still-uncalculated plan starts from an empty graph (manual mode).
 		let graph: Graph;
 		if (plan.graph) {
 			try {
@@ -1817,12 +1575,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
-	/**
-	 * Positions a dialog-built node around the drop/click point. Plain adds
-	 * center on it; a node completing a connect gesture instead starts at it -
-	 * the border facing the gesture's origin passes through the point, so the
-	 * drawn edge ends exactly where the drag was released.
-	 */
+	/** For connect gestures the border facing the origin lands on the point, so the edge ends at the drop; plain adds center on it. */
 	private placeAddedNode(node: Node, position: GraphPoint, origin: Node | null, verticalLayout: boolean): void
 	{
 		const size = this.plannerGraph.nodeSize(node);
@@ -1841,7 +1594,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 	}
 
-	/** The edge completing a connect-to-blank gesture; null when either end cannot carry the item after all. */
 	private connectingEdgeFor(graph: Graph, pending: GraphConnectToBlankRequest, added: Node): GraphEdge | null
 	{
 		if (!graph.nodes.some(node => node.id === pending.nodeId)) {
@@ -1860,7 +1612,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		return {sourceId, targetId, itemClassName: pending.itemClassName, amount};
 	}
 
-	/** Creates a new empty subplan under the active plan, represented by a node at the clicked spot. */
 	private createSubplanNode(position: GraphPoint): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1871,7 +1622,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// A still-uncalculated plan starts from an empty graph (manual mode).
 		let graph: Graph;
 		if (plan.graph) {
 			try {
@@ -1898,14 +1648,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
-	/**
-	 * Extracts the given nodes into a new subplan under the active plan. The
-	 * nodes move into the subplan as locked nodes with their connections
-	 * intact; every severed connection becomes an input or product node
-	 * there, and the subplan's graph is laid out from scratch. In the parent,
-	 * a single subplan node takes their place and the severed edges re-attach
-	 * to it.
-	 */
 	private async convertToSubplan(nodeIds: string[]): Promise<void>
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1938,9 +1680,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		const inbound = graph.edges.filter(e => !selectedIds.has(e.sourceId) && selectedIds.has(e.targetId));
 		const outbound = graph.edges.filter(e => selectedIds.has(e.sourceId) && !selectedIds.has(e.targetId));
 
-		// The subplan gets deep clones of the extracted nodes: the layout
-		// below repositions them, and the parent's instances must stay intact
-		// for the history snapshot (and in case anything here fails).
+		// Deep clones: layout repositions them, and the parent's instances must stay intact for the history snapshot.
 		let subNodes: Node[];
 		try {
 			subNodes = this.planSerializer.reviveGraph(JSON.parse(JSON.stringify({nodes: selected, edges: []})) as Graph).nodes;
@@ -1948,15 +1688,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.notifications.show('Could not create subplan: ' + String(err));
 			return;
 		}
-		// The extracted nodes become user-owned inside the subplan.
 		subNodes.forEach(node => node.locked = true);
 
 		const boundaryNodes: Node[] = [];
 		const boundaryEdges: GraphEdge[] = [];
 
-		// Boundary nodes are the subplan's outside interface - locked so a
-		// recalculation of the subplan builds around them instead of dropping
-		// what the parent graph relies on.
+		// Locked so recalculating the subplan keeps what the parent relies on.
 		this.groupByItem(inbound).forEach((edges, itemClassName) => {
 			const amount = edges.reduce((sum, e) => sum + e.amount, 0);
 			const node = new InputNode(crypto.randomUUID(), amount, data.getItemByClassName(itemClassName));
@@ -1973,19 +1710,11 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			edges.forEach(e => boundaryEdges.push({sourceId: e.sourceId, targetId: node.id, itemClassName, amount: e.amount}));
 		});
 
-		// The subplan gets its own layout - routing carried over from the
-		// parent would be meaningless around the new input/product nodes.
-		// Several severed edges of one item can share an endpoint (a node
-		// feeding the same product to two outside consumers, or fed by two
-		// outside sources) - inside the subplan they all meet at the single
-		// boundary node, so they collapse into one edge carrying the sum.
 		const subGraph: Graph = {
 			nodes: [...subNodes, ...boundaryNodes],
 			edges: [...internal.map(e => ({...e, vertices: undefined, labelDistance: undefined})), ...this.mergeParallelEdges(boundaryEdges)],
 		};
 		try {
-			// The new subplan inherits this plan's layout settings, so lay its
-			// graph out with them right away.
 			await this.plannerGraph.layout(subGraph.nodes, subGraph.edges, plan.settings.graph);
 		} catch (err) {
 			this.notifications.show('Could not create subplan: ' + String(err));
@@ -1999,7 +1728,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		const io = this.subplanResolver.resolveGraph(subGraph);
 		const subplanNode = new SubplanNode(crypto.randomUUID(), subplan.id, subplan.name, io.inputs, io.outputs);
-		// The parent-side node takes the extracted nodes' place.
 		subplanNode.x = selected.reduce((sum, n) => sum + n.x, 0) / selected.length;
 		subplanNode.y = selected.reduce((sum, n) => sum + n.y, 0) / selected.length;
 
@@ -2030,7 +1758,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		return groups;
 	}
 
-	/** Re-attached edges can collapse onto the same source/target/item pair - merge their amounts. */
 	private mergeParallelEdges(edges: GraphEdge[]): GraphEdge[]
 	{
 		const merged = new Map<string, GraphEdge>();
@@ -2039,7 +1766,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			const existing = merged.get(key);
 			if (existing) {
 				existing.amount += edge.amount;
-				// Routing from either original edge no longer fits the merged flow.
 				delete existing.vertices;
 				delete existing.labelDistance;
 			} else {
@@ -2064,7 +1790,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		return `New Subplan ${counter}`;
 	}
 
-	/** Returns the same graph when every subplan node is already up to date. */
+	/** Returns the same instance when nothing changed. */
 	private refreshSubplanNodes(graph: Graph): Graph
 	{
 		let changed = false;
@@ -2079,13 +1805,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		return changed ? {nodes, edges: graph.edges} : graph;
 	}
 
-	/**
-	 * Re-renders the canvas after the stored graph of the rendered plan
-	 * changed elsewhere - a deleted subplan scrubbed out of it, a folder-wide
-	 * recalculation, or a subplan moved in or out of it from the plans tree.
-	 * A node that just arrived has no interface yet, so the subplan refresh
-	 * runs here too.
-	 */
 	private refreshScrubbedGraph(planIds: string[]): void
 	{
 		const plan = this.planManager.activePlan();
@@ -2108,7 +1827,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
 	}
 
-	/** Re-renders the canvas when a subplan rename left a node label stale. */
 	private refreshRenderedSubplanNodes(): void
 	{
 		const plan = this.planManager.activePlan();
@@ -2133,23 +1851,16 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 	private renderPlan(plan: Plan | null): void
 	{
-		// Only ever called on plan switch or initial load - history is per plan.
 		this.history.clear();
 		if (!plan) {
 			this.renderedPlanId = null;
 			this.plannerGraph.clear();
 			return;
 		}
-		// Read-only plans (shared, or left on this device while signed in)
-		// render their graph exactly as saved: no canvas interaction, no
-		// subplan refresh (their subplans live in the same read-only store),
-		// no write-back. restore() rebuilds the x6 instance, so the flag takes
-		// effect on every plan switch in both directions.
+		// Read-only plans render as saved: their subplans share the read-only store, and nothing is written back.
 		const readOnly = this.planManager.isReadOnlyPlan(plan.id);
 		this.plannerGraph.readOnly = readOnly;
 		if (!plan.graph) {
-			// Manual mode builds from scratch: give an uncalculated plan an
-			// interactive blank canvas so nodes can be added by right-click.
 			this.renderedPlanId = plan.id;
 			this.plannerGraph.restore(this.graphContainerRef.nativeElement, {nodes: [], edges: []});
 			return;
@@ -2165,8 +1876,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		// Subplans may have changed since the parent graph was saved - pick up
-		// their current name and outside interface on every render.
 		if (!readOnly) {
 			graph = this.refreshSubplanNodes(graph);
 		}
@@ -2180,37 +1889,27 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 	private calculate(): void
 	{
-		// A read-only plan is never solved, never touched.
 		if (this.planManager.activePlanReadOnly()) return;
 		const plan = this.planManager.activePlan();
 		if (!plan) return;
 		if (this.actions.isCalculating()) {
-			// In automatic mode a newer request supersedes the running solve;
-			// manual modes just wait for it (the button is disabled anyway).
 			if (this.modeOf(plan) !== 'automatic') return;
 			this.cancelCalculation();
 		}
 		const validRequests = plan.requests.filter(r => r.itemClassName !== '');
 
-		// Locked nodes constrain the solve in every mode except append, whose
-		// island is self-contained by design. Every locked node type becomes a
-		// fixed LP column - recipes and subplans, but also manually placed
-		// inputs, products, byproducts, mines, generators and sinks - so the
-		// solver builds the rest of the plan around them.
+		// Append mode's island is self-contained by design, so no locks.
 		const existing = this.existingGraph(plan);
 		const lockedNodes = this.modeOf(plan) === 'manual-append'
 			? []
 			: existing?.nodes.filter(node => node.locked) ?? [];
 
-		// Locked nodes alone are enough to solve: the solver fills the production
-		// their inputs demand. Only bail when there is genuinely nothing to build.
 		if (validRequests.length === 0 && lockedNodes.length === 0) return;
 
 		let result$;
 		try {
 			result$ = this.productionSolver.solve({...plan, requests: validRequests}, lockedNodes);
 		} catch (err) {
-			// Solver problems surface only as the closable label above the request panel.
 			this.actions.setSolveError('error', 'Could not start the calculation: ' + String(err));
 			return;
 		}
@@ -2228,7 +1927,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				void this.applyResult(plan, result, existing).then(graph => {
 					this.renderedPlanId = plan.id;
 					this.planManager.setGraph(plan.id, graph, false);
-					// Undefined clears stale maximise results of earlier solves.
+					// Undefined clears stale maximise results.
 					this.planManager.setAchievedMaximums(plan.id, result.achievedMaximums);
 				}).catch(err => {
 					this.actions.setSolveError('error', 'Could not draw the graph: ' + String(err));
@@ -2241,17 +1940,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		});
 	}
 
-	/** Cancelling unsubscribes the in-flight solve, which kills the solver worker. */
+	/** Unsubscribing kills the solver worker. */
 	private cancelCalculation(): void
 	{
 		this.calcSubscription?.unsubscribe();
 		this.calcSubscription = null;
 	}
 
-	/**
-	 * Runs the failure diagnosis in the background (it may re-solve once) and
-	 * surfaces the explanation as the closable label above the request panel.
-	 */
 	private explainSolveFailure(plan: Plan, lockedNodes: Node[]): void
 	{
 		this.subscription.add(
@@ -2262,7 +1957,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		);
 	}
 
-	/** Turns a solver result into the plan's new graph according to the plan's calculation mode. */
 	private async applyResult(plan: Plan, result: SolverResponse, existing: Graph | null): Promise<Graph>
 	{
 		const container = this.graphContainerRef.nativeElement;
@@ -2289,10 +1983,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 
 		if (existing && hasLocks) {
-			// Automatic/fresh around locked nodes: the locked nodes' data
-			// (recipe, groups, target) passes through, but the whole graph is
-			// laid out from scratch - a partial solve looks exactly like a
-			// fresh one. Position preservation is a future option.
 			const rebuilt = this.graphComposer.rebuild(existing, result.nodes);
 			await this.plannerGraph.layout(rebuilt.nodes, rebuilt.edges, plan.settings.graph);
 			const graph: Graph = {nodes: rebuilt.nodes, edges: rebuilt.edges};
@@ -2316,7 +2006,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 	}
 
-	/** Plans saved before calculation modes existed have no mode - treat them as automatic. */
+	/** Plans saved before calculation modes existed have none. */
 	private modeOf(plan: Plan): CalculationMode
 	{
 		return plan.settings.calculationMode ?? 'automatic';

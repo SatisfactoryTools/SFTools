@@ -3,26 +3,15 @@ import {Directive, EventEmitter, HostListener, Input, OnDestroy, Output} from '@
 const HOLD_MS = 500;
 const MOVE_TOLERANCE = 10;
 
-/**
- * Touch-screen stand-in for dragging a row with the mouse: a finger starts no
- * native HTML drag at all, so holding the host for half a second picks it up
- * instead. That is the same half second that opens the row's context menu
- * (LongPressContextMenuDirective) - holding and lifting leaves the menu,
- * holding and then moving drags, and the host closes the menu on the first
- * move. Moving before the half second is over is an ordinary list scroll and
- * cancels the pick-up; once the row is held, moves are swallowed so the list
- * stays put while the row travels.
- */
+/** A finger starts no native HTML drag, so holding the host picks it up instead. Shares the hold with LongPressContextMenuDirective: lifting leaves the menu, moving drags (the host closes the menu on the first move). */
 @Directive({
 	selector: '[longPressDrag]',
 })
 export class LongPressDragDirective implements OnDestroy
 {
 
-	/** False for rows that must not be dragged (a subplan goes with its plan). */
 	@Input() public longPressDrag: boolean | '' = '';
 
-	/** The row was held long enough to pick it up - the drag has not moved yet. */
 	@Output() public readonly dragPick = new EventEmitter<void>();
 	@Output() public readonly dragMove = new EventEmitter<Touch>();
 	@Output() public readonly dragDrop = new EventEmitter<Touch>();

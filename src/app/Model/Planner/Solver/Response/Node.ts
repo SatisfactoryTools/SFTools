@@ -8,7 +8,7 @@ export abstract class Node
 	public x: number = 0;
 	public y: number = 0;
 
-	/** Locked nodes are user-owned: the solver builds around them and never replaces them. */
+	/** The solver builds around locked nodes and never replaces them. */
 	public locked = false;
 
 	/** Done nodes are already built in the game - a purely visual progress marker. */
@@ -29,7 +29,6 @@ export abstract class Node
 
 	public abstract toJSON(): object;
 
-	/** Spread into subclass toJSON() results; omits unset flags entirely. */
 	protected serializeFlags(): {locked?: true; done?: true}
 	{
 		return {

@@ -12,20 +12,10 @@ export class RecipeNode extends Node
 
 	public readonly type = 'recipe' as const;
 
-	/**
-	 * How this node's machine groups are arranged when they are regenerated
-	 * (the inspector's Calculate/Autofill, resize assists). Seeded from the
-	 * plan's default when the node is created; like x/y/locked it is carried
-	 * over to replacement instances, not constructed.
-	 */
+	/** Like x/y/locked it is carried over to replacement instances, not constructed. */
 	public groupingMode: GroupingMode = 'underclock-last';
 
-	/**
-	 * @param target Exact production rate in machine-equivalents at 100% clock -
-	 *               the source of truth for all flows. The machine groups only
-	 *               define capacity (>= target; clocks round up), so a machine
-	 *               that micro-stalls waiting for input never overstates output.
-	 */
+	/** @param target Exact rate in machine-equivalents at 100% clock - the source of truth for all flows; the groups only define capacity (>= target, clocks round up). */
 	public constructor(
 		id: string,
 		public readonly target: number,
@@ -38,56 +28,43 @@ export class RecipeNode extends Node
 		this.setupIO();
 	}
 
-	/** Machine-equivalents at 100% clock the groups can run. */
+	/** Machine-equivalents at 100% clock. */
 	public capacity(): number
 	{
 		return Formulas.groupCapacity(this.groups);
 	}
 
-	/**
-	 * Whether machines with this capacity cannot reach the target. Near-exact
-	 * by design: every generation path rounds clocks UP so capacity >= target,
-	 * meaning anything beyond float noise is a real, user-made shortfall - a
-	 * single machine clocked 0.0001% under the requirement already counts.
-	 */
+	/** Near-exact by design: every generation path rounds clocks UP, so anything beyond float noise is a real, user-made shortfall. */
 	public static isCapacityShort(target: number, capacity: number): boolean
 	{
 		return target - capacity > Math.max(1e-9, 1e-10 * capacity);
 	}
 
-	/** The node's own machines cannot reach its target. */
 	public hasCapacityShortage(): boolean
 	{
 		return RecipeNode.isCapacityShort(this.target, this.capacity());
 	}
 
-	/** target / capacity; exceeds 1 when the built machines cannot reach the target (never clamped). */
+	/** Exceeds 1 when the built machines cannot reach the target (never clamped). */
 	public utilization(): number
 	{
 		const capacity = this.capacity();
 		return capacity > 0 ? this.target / capacity : 0;
 	}
 
-	/** Fraction of time the machines run - utilization capped at 100%, machines cannot duty-cycle beyond that. */
+	/** Fraction of time the machines run. */
 	public efficiency(): number
 	{
 		return Math.min(1, this.utilization());
 	}
 
-	/**
-	 * Output boost from somersloops: boosted cycles per plain cycle, weighted
-	 * by each group's share of the capacity. 1 when no sloops are slotted.
-	 */
+	/** Boosted cycles per plain cycle, weighted by each group's share of the capacity; 1 without sloops. */
 	public outputBoostRatio(): number
 	{
 		return Formulas.outputBoostRatio(this.machine, this.groups);
 	}
 
-	/**
-	 * Draw in MW with its oscillation band, over all machine groups. Throttled
-	 * machines duty-cycle, so the whole band scales by efficiency - the node
-	 * counts as that fraction of a machine, peak included.
-	 */
+	/** In MW. Throttled machines duty-cycle, so the whole band, peak included, scales by efficiency. */
 	public powerDraw(): PowerDraw
 	{
 		const perClock = PowerDraw.sum(this.groups.map(group =>
@@ -95,7 +72,7 @@ export class RecipeNode extends Node
 		return perClock.scale(this.efficiency());
 	}
 
-	/** Average draw in MW - the single figure the solver and the totals count. */
+	/** In MW - the single figure the solver and the totals count. */
 	public averagePowerUsage(): number
 	{
 		return this.powerDraw().average;
@@ -106,8 +83,7 @@ export class RecipeNode extends Node
 		const referenceCycles = Formulas.referenceCycles(this.recipe, this.machine);
 		const targetCycles = referenceCycles * this.target;
 
-		// Sloop boost applies to outputs only, per machine group; with the node
-		// throttled to its target, all machines slow down uniformly.
+		// Sloop boost applies to outputs only, per machine group; with the node throttled to its target, all machines slow down uniformly.
 		const boostedTargetCycles = targetCycles * Formulas.outputBoostRatio(this.machine, this.groups);
 
 		this.recipe.ingredients.forEach(ingredient =>

@@ -19,9 +19,9 @@ const FLOAT_MIN_WIDTH = 220;
 const FLOAT_MIN_HEIGHT = 140;
 const TAB_BAR_HEIGHT = 36;
 
-export const RAIL_WIDTH = 40;        // px - icon-rail width (desktop)
-export const STATUS_BAR_HEIGHT = 32; // px - status-bar height (desktop)
-export const MOBILE_NAV_HEIGHT = 56; // px - bottom tab-bar height (mobile)
+export const RAIL_WIDTH = 40;        // px
+export const STATUS_BAR_HEIGHT = 32; // px
+export const MOBILE_NAV_HEIGHT = 56; // px
 
 @Injectable()
 export class PanelLayoutService implements OnDestroy
@@ -30,14 +30,13 @@ export class PanelLayoutService implements OnDestroy
 	private readonly registeredSignal = signal<PanelDefinition[]>([]);
 	public readonly registered = this.registeredSignal.asReadonly();
 
-	// Autosave starts only once the remembered layout has been applied, so the
-	// default post-registration layout never overwrites the saved one.
+	// Autosave starts only once the remembered layout is applied, so the default layout never overwrites the saved one.
 	private readonly restoredSignal = signal(false);
 	private readonly saveSubscription: Subscription;
 
 	private readonly statesSignal = signal<Map<string, PanelRuntimeState>>(new Map());
 
-	// Ordered tab ids per side; membership mirrors open+docked panel states.
+	// Membership mirrors open+docked panel states.
 	private readonly sideTabsSignal = signal<Record<PanelSide, string[]>>({
 		left: [], right: [], top: [],
 	});
@@ -46,7 +45,7 @@ export class PanelLayoutService implements OnDestroy
 		left: null, right: null, top: null,
 	});
 
-	// Floating windows; array order is the stacking order (last = topmost).
+	// Array order is the stacking order (last = topmost).
 	private readonly floatingGroupsSignal = signal<FloatingGroup[]>([]);
 	public readonly floatingGroups = this.floatingGroupsSignal.asReadonly();
 
@@ -61,7 +60,6 @@ export class PanelLayoutService implements OnDestroy
 	private readonly mergePreviewSignal = signal<string | null>(null);
 	public readonly mergePreview = this.mergePreviewSignal.asReadonly();
 
-	// Set by PlannerPanelContainerComponent on init and every window resize.
 	// Infinity until first measurement so pre-init sizes are never clamped.
 	private availableWidth = Infinity;
 	private availableHeight = Infinity;
@@ -76,11 +74,6 @@ export class PanelLayoutService implements OnDestroy
 	private readonly mobileSignal = signal(false);
 	public readonly isMobile = this.mobileSignal.asReadonly();
 
-	/**
-	 * How much of the canvas is covered by pinned chrome on each side -
-	 * rail, docked panels and status bar (or the tab bar on mobile). Used
-	 * to fit the graph into the actually visible area.
-	 */
 	public readonly canvasInsets = computed<CanvasInsets>(() => {
 		if (this.mobileSignal()) {
 			return {left: 0, right: 0, top: 0, bottom: MOBILE_NAV_HEIGHT};
@@ -96,8 +89,7 @@ export class PanelLayoutService implements OnDestroy
 
 	public constructor(private readonly settings: SettingsManager)
 	{
-		// Persist the layout (debounced) on every change once restored. The key
-		// dedupe skips no-op emissions; skip(1) drops the just-restored snapshot.
+		// The key dedupe skips no-op emissions; skip(1) drops the just-restored snapshot.
 		this.saveSubscription = toObservable(computed(() =>
 			this.restoredSignal() ? JSON.stringify(this.snapshot()) : null,
 		)).pipe(
@@ -113,13 +105,11 @@ export class PanelLayoutService implements OnDestroy
 		this.saveSubscription.unsubscribe();
 	}
 
-	/** Called by the container component whenever the layout mode changes. */
 	public setMobile(mobile: boolean): void
 	{
 		this.mobileSignal.set(mobile);
 	}
 
-	/** The current layout as a plain, serializable snapshot. */
 	public snapshot(): PanelLayoutState
 	{
 		return {
@@ -131,13 +121,7 @@ export class PanelLayoutService implements OnDestroy
 		};
 	}
 
-	/**
-	 * Applies a remembered layout over the registered defaults, then enables
-	 * autosave. Unknown panel ids (from a removed panel) are dropped and
-	 * newly-registered panels keep their defaults, so the layout self-heals.
-	 * A null/invalid state just keeps the defaults. Call once, after every
-	 * panel is registered.
-	 */
+	/** Unknown panel ids are dropped and new panels keep their defaults, so the layout self-heals. Call once, after every panel is registered. */
 	public applyLayout(state: PanelLayoutState | null): void
 	{
 		if (state && state.states && state.sideTabs && state.sizes) {
@@ -200,11 +184,6 @@ export class PanelLayoutService implements OnDestroy
 		return this.statesSignal().get(id)?.open ?? false;
 	}
 
-	/**
-	 * Rail-click behavior: opens the panel if closed, selects its tab if it is
-	 * open but not the visible tab of its side or window, and closes it if it
-	 * is already the visible one - the rail button toggles.
-	 */
 	public toggleFromRail(id: string): void
 	{
 		if (this.isVisible(id)) {
@@ -214,7 +193,6 @@ export class PanelLayoutService implements OnDestroy
 		}
 	}
 
-	/** Open and the selected tab of its side, or of a floating window that is in front. */
 	public isVisible(id: string): boolean
 	{
 		const state = this.statesSignal().get(id);
@@ -229,14 +207,8 @@ export class PanelLayoutService implements OnDestroy
 		return group !== undefined && group.activeTabId === id && groups[groups.length - 1] === group;
 	}
 
-	/**
-	 * Brings a panel into view: opens it if closed, selects its tab if it is
-	 * open but not the visible tab of its side or window, and does nothing if
-	 * already visible.
-	 */
 	public focusPanel(id: string): void
 	{
-		// On mobile every panel is a full-screen view - focusing means showing it.
 		if (this.mobileSignal() && id !== 'plans') {
 			this.setMobilePanel(id);
 			return;
@@ -293,7 +265,6 @@ export class PanelLayoutService implements OnDestroy
 		}
 	}
 
-	/** Detaches a panel into its own floating window. */
 	public floatPanel(id: string): void
 	{
 		const state = this.statesSignal().get(id);
@@ -301,7 +272,7 @@ export class PanelLayoutService implements OnDestroy
 
 		if (state.open && state.floating) {
 			const group = this.groupOf(id);
-			if (!group || group.tabIds.length === 1) return; // already its own window
+			if (!group || group.tabIds.length === 1) return;
 			this.removeFromGroup(id);
 			this.createGroupWith(id, {x: group.x + 24, y: group.y + 24});
 			return;
@@ -329,7 +300,6 @@ export class PanelLayoutService implements OnDestroy
 		this.clampCombinedWidth();
 	}
 
-	/** Moves a panel into an existing floating window as its focused tab. */
 	public moveIntoGroup(panelId: string, groupId: string): void
 	{
 		const state = this.statesSignal().get(panelId);
@@ -354,7 +324,7 @@ export class PanelLayoutService implements OnDestroy
 		this.activeTabIdsSignal.update(active => ({...active, [side]: id}));
 	}
 
-	/** Used when picking a tab from the overflow dropdown: it becomes the first (always visible) tab. */
+	/** The first tab is always visible, so an overflow pick moves there. */
 	public moveTabToFront(side: PanelSide, id: string): void
 	{
 		this.sideTabsSignal.update(tabs => tabs[side].includes(id)
@@ -366,8 +336,6 @@ export class PanelLayoutService implements OnDestroy
 	{
 		return this.defsFor(this.sideTabsSignal()[side]);
 	}
-
-	// ── Floating windows ──────────────────────────────────────────────────────
 
 	public panelsInGroup(group: FloatingGroup): PanelDefinition[]
 	{
@@ -385,7 +353,7 @@ export class PanelLayoutService implements OnDestroy
 			g.id === groupId && g.tabIds.includes(panelId) ? {...g, activeTabId: panelId} : g));
 	}
 
-	/** Used when picking a tab from the overflow dropdown: it becomes the first (always visible) tab. */
+	/** The first tab is always visible, so an overflow pick moves there. */
 	public moveFloatingTabToFront(groupId: string, panelId: string): void
 	{
 		this.floatingGroupsSignal.update(groups => groups.map(g =>
@@ -426,7 +394,6 @@ export class PanelLayoutService implements OnDestroy
 		}));
 	}
 
-	/** Positions a dragged panel's window so its tab bar is centered under the pointer. */
 	public dragFloatingTo(panelId: string, contentX: number, contentY: number): void
 	{
 		const group = this.groupOf(panelId);
@@ -435,16 +402,11 @@ export class PanelLayoutService implements OnDestroy
 		}
 	}
 
-	/** Converts viewport client coordinates to content-area coordinates. */
 	public pointerToContent(clientX: number, clientY: number): {x: number; y: number}
 	{
 		return {x: clientX - this.originX, y: clientY - this.originY};
 	}
 
-	/**
-	 * Called while dragging a panel or window: highlights another window's tab
-	 * bar as a merge target, or a dock edge, whichever the pointer is over.
-	 */
 	public updateDragPreview(contentX: number, contentY: number, excludeGroupId: string | null): void
 	{
 		if (this.availableWidth === Infinity) {
@@ -466,12 +428,7 @@ export class PanelLayoutService implements OnDestroy
 		}
 		this.mergePreviewSignal.set(null);
 
-		// Dock zones. A side already showing a docked panel gets a slightly
-		// wider edge strip - releasing there merges the dragged panel in as a
-		// new tab - but never the whole panel, so a floating window can still
-		// hover over docked panels without snapping. An empty side keeps a
-		// thin edge strip for pinning a fresh panel there. Left and right claim
-		// the full height (so the corners belong to them); top takes the middle.
+		// An occupied side gets a wider edge strip (merges in as a tab) but never the whole panel, so floating windows can hover over docked panels without snapping. Left and right claim the full height; top takes the middle.
 		const leftZone = this.activeDockedPanel('left') !== null ? OCCUPIED_DOCK_ZONE : DOCK_ZONE;
 		const rightZone = this.activeDockedPanel('right') !== null ? OCCUPIED_DOCK_ZONE : DOCK_ZONE;
 		const topZone = this.activeDockedPanel('top') !== null ? OCCUPIED_DOCK_ZONE : DOCK_ZONE;
@@ -487,7 +444,6 @@ export class PanelLayoutService implements OnDestroy
 		this.dockPreviewSignal.set(preview);
 	}
 
-	/** Called on single-panel drag release: merges, docks, or leaves floating. */
 	public completeFloatDrag(panelId: string): void
 	{
 		const merge = this.mergePreviewSignal();
@@ -501,7 +457,6 @@ export class PanelLayoutService implements OnDestroy
 		}
 	}
 
-	/** Called on whole-window drag release: merges or docks all its tabs. */
 	public completeGroupDrag(groupId: string): void
 	{
 		const merge = this.mergePreviewSignal();
@@ -538,8 +493,6 @@ export class PanelLayoutService implements OnDestroy
 		});
 	}
 
-	// ── Mobile ────────────────────────────────────────────────────────────────
-
 	private readonly mobileActivePanelIdSignal = signal<string | null>(null);
 	public readonly mobileActivePanel = computed(() => {
 		const id = this.mobileActivePanelIdSignal();
@@ -557,9 +510,6 @@ export class PanelLayoutService implements OnDestroy
 		return this.registeredSignal().find(p => p.id === id) ?? null;
 	}
 
-	// ── Available-space tracking ───────────────────────────────────────────
-
-	/** Called by the container component on init and every window resize. */
 	public updateAvailableSpace(width: number, height: number, originX: number, originY: number): void
 	{
 		this.availableWidth = width;
@@ -585,7 +535,6 @@ export class PanelLayoutService implements OnDestroy
 			return {left, right, top};
 		});
 
-		// Shrink and pull any floating window back fully on-screen after a resize.
 		this.floatingGroupsSignal.update(groups => groups.map(g => {
 			const groupWidth = Math.max(FLOAT_MIN_WIDTH, Math.min(g.width, width));
 			const groupHeight = Math.max(FLOAT_MIN_HEIGHT, Math.min(g.height, height));
@@ -666,7 +615,6 @@ export class PanelLayoutService implements OnDestroy
 		}]);
 	}
 
-	/** Keeps a floating window entirely inside the content area. */
 	private clampGroupPosition(x: number, y: number, width: number, height: number): {x: number; y: number}
 	{
 		if (this.availableWidth === Infinity) return {x, y};

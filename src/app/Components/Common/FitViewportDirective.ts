@@ -1,28 +1,17 @@
 import {Directive, ElementRef, Input, OnDestroy, OnInit} from '@angular/core';
 
-/**
- * Caps a scrolling list at the room actually on screen.
- *
- * `vh` is no help on a phone: the on-screen keyboard covers most of the
- * window without changing it, so a list sized that way runs off underneath.
- * The visual viewport does shrink, so the height comes from there, and a
- * change in it also nudges the page to reposition anything anchored to an
- * element (ngx-bootstrap menus follow window resizes, which iOS does not
- * fire for the keyboard).
- */
+/** `vh` ignores a phone's on-screen keyboard but the visual viewport shrinks, so the height comes from there. A change also fires a window resize, since ngx-bootstrap menus follow those and iOS does not fire one for the keyboard. */
 @Directive({
 	selector: '[fitViewport]',
 })
 export class FitViewportDirective implements OnInit, OnDestroy
 {
 
-	/** Room to leave for whatever sits above and below the list. */
+	/** In px, like the min and max: room to leave for whatever sits above and below the list. */
 	@Input() public fitViewportReserve = 180;
 
-	/** The list never grows past this, however tall the screen is. */
 	@Input() public fitViewportMax = 320;
 
-	/** …and never shrinks below this, so a couple of rows always show. */
 	@Input() public fitViewportMin = 120;
 
 	private readonly listener: () => void;

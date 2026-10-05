@@ -53,89 +53,53 @@ import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 const NODE_WIDTH = GraphMetrics.NODE_WIDTH;
 const NODE_HEIGHT = GraphMetrics.NODE_HEIGHT;
 
-// Estimated on-screen size of an edge label (item name in 14px bold-ish
-// above the 12px rate, padded rect) - declared to ELK so the layout reserves
-// room for each label. Titles run two sizes above body text everywhere so
-// they stay legible when zoomed out.
 const LABEL_CHAR_WIDTH = 6.8;
 const LABEL_NAME_CHAR_WIDTH = 7.9;
 const LABEL_PADDING_X = 20;
 const LABEL_HEIGHT = 46;
 const LABEL_FONT_SIZE = 12;
 const LABEL_NAME_FONT_SIZE = 14;
-// Vertical centres of the two label lines relative to the label point.
 const LABEL_NAME_Y = -9;
 const LABEL_RATE_Y = 11;
 
-// The flowing item's icon sits at the left of the edge label; the text is
-// nudged right by half the reserved icon strip so it stays centered in the
-// remaining space.
 const EDGE_ICON_SIZE = 24;
 const EDGE_ICON_GAP = 4;
-// The node's own icon (producing machine, or the item for IO nodes) - larger
-// and vertically centered on the node's left side. Lock and somersloop
-// indicators stack in the top-right.
 const NODE_ICON_SIZE = 30;
 const LEFT_ICON_SIZE = 40;
 const LEFT_ICON_X = 12;
-// Text is kept clear of the left icon: it centers in the band between the icon
-// (plus a gap) on the left and a smaller padding on the right, so its bounding
-// box never runs under the icon (at the cost of not centering in the whole node).
 const TEXT_LEFT_INSET = LEFT_ICON_X + LEFT_ICON_SIZE + 6;
 const TEXT_RIGHT_PAD = 16;
 const TEXT_SHIFT = (TEXT_LEFT_INSET - TEXT_RIGHT_PAD) / 2;
-// A faint somersloop-tinted outer glow marks slooped recipe nodes.
 const SLOOP_GLOW_COLOR = '#c56cf0';
 const LOCK_ICON_SIZE = 18;
 const SLOOP_ICON_SIZE = 20;
 const CORNER_INSET = 5;
-// Done ("already built") nodes trade their accent colour for neutral grey and
-// fade to this opacity; edges between two done nodes fade with them. The
-// green check itself stays fully opaque.
 const DONE_OPACITY = 0.4;
 const DONE_ICON_SIZE = 20;
 const DONE_FILL = '#1b212a';
 const DONE_STROKE = '#525e6c';
-// Second row of the top-right stack, where the lock drops when a sloop icon
-// occupies the top row.
 const LOCK_ROW2_Y = CORNER_INSET + SLOOP_ICON_SIZE + 3;
 
-// Subplan node: input item icons down the left edge, outputs down the right,
-// each a single column capped at SUBPLAN_IO_MAX rows (last row becomes "+N").
 const SUBPLAN_IO_MAX = 5;
 const SUBPLAN_IO_ICON = 20;
-// Room one icon column takes off the node's width (inset + icon + a gap
-// before the label), so a widened node keeps its name clear of the icons.
 const SUBPLAN_IO_COLUMN_WIDTH = 36;
 const SUBPLAN_IO_ROW_H = 20;
 const SUBPLAN_IO_TOP = 40;
 
 const NODE_STROKE_WIDTH = 1.5;
-// Fallback body colours baked into the registered shapes. x6 ships its `rect`
-// shape with a white body fill and black labels (meant for light canvases);
-// every node overrides them in addNode, but the defaults still sit underneath
-// and win the moment a per-node attribute fails to apply - which renders the
-// node as a white box on our dark canvas. Dark defaults make that impossible.
+// Dark fallbacks: x6's `rect` defaults (white body, black text) show whenever a per-node attr fails to apply.
 const NODE_FALLBACK_FILL = '#141c28';
 const NODE_FALLBACK_STROKE = '#5c718a';
 const NODE_FALLBACK_TEXT = '#dde4ef';
-// Base label font sizes of regular nodes (title two sizes above the stat
-// lines) and the ⚠ indicator size; all scale with the node scale setting
-// (see registerPlannerShapes).
 const NODE_FONT_SIZE = 12;
 const NODE_NAME_FONT_SIZE = 14;
 const NODE_NAME_CHAR_WIDTH = 8.75;
 const SUBPLAN_NAME_FONT_SIZE = 18;
-// Estimated character widths of the subplan label fonts (bold 18px name,
-// regular 13px stat line), used to widen the node to fit its plan name.
 const SUBPLAN_NAME_CHAR_WIDTH = 9.8;
 const SUBPLAN_STATS_CHAR_WIDTH = 7.4;
 const SUBPLAN_MAX_WIDTH = 520;
 const WARNING_ICON_SIZE = 14;
 
-// Recipe node label layout: recipe name (larger) pinned near the top, the
-// bold built-machine count under it, then one stat line per machine group.
-// The node grows per group row and widens to fit the longest line.
 const RECIPE_NAME_Y = 18;
 const RECIPE_NAME_FONT_SIZE = 16;
 const RECIPE_MACHINES_Y = 38;
@@ -143,37 +107,24 @@ const RECIPE_STATS_Y = 50;
 const RECIPE_STATS_LINE_HEIGHT = 16;
 const RECIPE_BOTTOM_PADDING = 10;
 const RECIPE_MAX_WIDTH = 360;
-// Estimated character widths per font (12px regular measures ~6.8px).
 const RECIPE_NAME_CHAR_WIDTH = 9.8;
 const RECIPE_BOLD_CHAR_WIDTH = 7.5;
 const RECIPE_STATS_CHAR_WIDTH = 6.8;
 const RECIPE_TEXT_PADDING_X = 30;
-// A small somersloop icon replaces the "S" at the end of each slooped machine
-// group's stat line; one badge slot per line up to this cap.
 const STAT_SLOOP_SIZE = 12;
-// Negative because the somersloop icon has ~25% transparent padding on each
-// side, so the box must overlap the text a little for the glyph to sit snug.
+// Negative: the somersloop icon has ~25% transparent padding per side.
 const STAT_SLOOP_GAP = -1;
 const STAT_SLOOP_MAX_LINES = 8;
-// The stat line's glyphs sit centered ~5px below RECIPE_STATS_Y (measured from
-// the rendered text box); the badge centers on that so it lines up with them.
+// Measured from the rendered text box.
 const STAT_SLOOP_CENTER_OFFSET = 5;
-// Hide the new-corner preview this close (graph units) to an existing corner
-// handle - clicking there grabs the handle instead of adding a corner.
 const CORNER_PREVIEW_SNAP = 10;
 const EDGE_STROKE = '#5c718a';
 const EDGE_STROKE_WIDTH = 1.5;
-// Straight edges sharing a node pair (A→B + B→A, or two items one way) are
-// fanned out perpendicular to their line, this far apart, so they don't cover
-// each other - a pair sits at ±half this gap.
 const PARALLEL_EDGE_GAP = 40;
 const SELECTED_STROKE = '#f0ad4e';
 const SELECTED_STROKE_WIDTH = 3;
 const SELECTED_EDGE_STROKE_WIDTH = 2.5;
-// The hovered node's outline lives in styles.scss (.pn-body), not here.
-// The hovered edge's line and label box live in styles.scss; these are the
-// class names those rules key off. An edge next to a selected node carries the
-// highlight class as well, which opts it out of the hover look.
+// Hover styles live in styles.scss; the highlight class opts an edge out of the hover look.
 const EDGE_LINE_CLASS = 'pg-edge-line';
 const EDGE_HOVER_CLASS = 'pg-edge-hovered';
 const EDGE_HIGHLIGHT_CLASS = 'pg-edge-highlighted';
@@ -184,17 +135,8 @@ const LABEL_BOX_STROKE = '#2e3d52';
 const LABEL_BOX_STROKE_WIDTH = 1;
 const LABEL_TEXT_FILL = '#dde4ef';
 const LABEL_BOX_RADIUS = 4;
-// A highlighted edge echoes its color on the label box border; the border
-// stays thin so the label reads dimmer than the thick selected-node outline.
 const LABEL_BOX_HIGHLIGHT_STROKE_WIDTH = 1.5;
-/**
- * Replaces x6's own default edge label - a white box with black text, drawn
- * for a light canvas - with the same label in our colours. Every label sets
- * these itself in addEdge, but the default sits underneath and wins the
- * moment one of those attributes fails to apply, turning the label into a
- * white box; this way the fallback is a dark one (same reasoning as the
- * node fallbacks above). Markup and position are x6's, left as they were.
- */
+/** Dark replacement for x6's white default label, shown when a label attr fails to apply. */
 const EDGE_DEFAULT_LABEL = {
 	markup: [
 		{tagName: 'rect', selector: 'body'},
@@ -223,42 +165,24 @@ const EDGE_DEFAULT_LABEL = {
 	},
 	position: {distance: 0.5},
 };
-// Highlighted cells jump above the rest of the graph so dense plans don't
-// bury them behind unrelated nodes and labels. Edges sit above the raised
-// nodes (matching the base nodes-then-edges order) and the in-flight connect
-// preview stays on top of everything. Base z-indexes are auto-assigned in
-// insertion order, so these must clear any realistic cell count.
+// Must clear any realistic cell count: base z-indexes are auto-assigned in insertion order.
 const NODE_HIGHLIGHT_Z = 100000;
 const EDGE_HIGHLIGHT_Z = 100001;
 const CONNECT_PREVIEW_Z = 100002;
-/**
- * A selected node on a touch screen, above the edges highlighted with it: its
- * ports are the only way a finger can start a connection, and an edge's hit
- * area is wide enough to cover the very port it ends at.
- */
+/** Above highlighted edges: on touch, an edge's hit area would cover the port it ends at. */
 const SELECTED_TOUCH_Z = 100003;
 
-// Connection ports: one grip per distinct IO item - inputs along one node
-// edge, outputs along the opposite one (which pair depends on the layout
-// direction). Ports are hidden until their node is hovered; during a connect
-// drag the ports that could accept the dragged item show on every node
-// instead (see the pg-port rules in styles.scss).
 const PORT_RADIUS = 8;
 const PORT_ICON_SIZE = 12;
 const PORT_FILL = '#141c28';
 const PORT_STROKE = '#8ea9c9';
 const CONNECT_SNAP_RADIUS = 30;
 
-// One somersloop badge slot per possible machine-group stat line; positioned
-// and shown per node in recipeSloopBadges(), invisible (no href) otherwise.
 const statSloopMarkup: {tagName: string; selector: string}[] = [];
 for (let i = 0; i < STAT_SLOOP_MAX_LINES; i++) {
 	statSloopMarkup.push({tagName: 'image', selector: `statSloop${i}`});
 }
 
-// Subplan nodes get their own shape: a title, an in/out summary line, and two
-// single-column stacks of item icons - inputs on the left edge, outputs on the
-// right - each capped at SUBPLAN_IO_MAX rows with the last row an "+N" overflow.
 const subplanIoMarkup: {tagName: string; selector: string}[] = [];
 for (let i = 0; i < SUBPLAN_IO_MAX; i++) {
 	subplanIoMarkup.push({tagName: 'image', selector: `in${i}`});
@@ -266,12 +190,6 @@ for (let i = 0; i < SUBPLAN_IO_MAX; i++) {
 }
 const SUBPLAN_MORE_Y = SUBPLAN_IO_TOP + (SUBPLAN_IO_MAX - 1) * SUBPLAN_IO_ROW_H + SUBPLAN_IO_ICON / 2;
 
-/**
- * (Re)registers the node shapes at the given node scale: every static size
- * and offset in the shape attrs is multiplied, so a node, its text and its
- * icons grow together (the per-node attrs set in addNode scale the same way).
- * Registered once at load and again whenever the scale setting changes.
- */
 function registerPlannerShapes(scale: number): void
 {
 	const px = (value: number): number => value * scale;
@@ -298,11 +216,7 @@ function registerPlannerShapes(scale: number): void
 			{tagName: 'image', selector: 'capacityWarning', className: 'pn-capacity-warning'},
 		],
 		attrs: {
-			// `rect` / `text` are x6's own defaults for the inherited rect shape
-			// (a white body and black labels); they are matched by element name,
-			// so they reach our body rect and every label underneath the
-			// selector-specific attrs below. Restated here in our colours so a
-			// node can never fall back to a white box with black text.
+			// Restates x6's inherited rect defaults (white body, black text), which match by element name.
 			rect: {fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
 			text: {fill: NODE_FALLBACK_TEXT},
 			body: {refWidth: '100%', refHeight: '100%', fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
@@ -315,8 +229,7 @@ function registerPlannerShapes(scale: number): void
 				width: px(NODE_ICON_SIZE),
 				height: px(NODE_ICON_SIZE),
 			},
-			// Top-right, top row; a slooped recipe node shows the sloop here.
-			// refDx offsets from the right edge (refX: 1 is read as an absolute 1px).
+			// refDx offsets from the right edge (refX: 1 would be an absolute 1px).
 			sloop: {
 				refDx: -px(SLOOP_ICON_SIZE + CORNER_INSET),
 				refY: 0,
@@ -325,7 +238,6 @@ function registerPlannerShapes(scale: number): void
 				height: px(SLOOP_ICON_SIZE),
 				cursor: 'help',
 			},
-			// Top-right; drops to the second row (its y is set per node) when a sloop icon is present.
 			lock: {
 				refDx: -px(LOCK_ICON_SIZE + CORNER_INSET),
 				refY: 0,
@@ -334,7 +246,6 @@ function registerPlannerShapes(scale: number): void
 				height: px(LOCK_ICON_SIZE),
 				cursor: 'help',
 			},
-			// Bottom-right; the capacity warning yields (shifts left) when both show.
 			done: {
 				refDx: -px(DONE_ICON_SIZE + CORNER_INSET),
 				refDy: -px(DONE_ICON_SIZE + CORNER_INSET),
@@ -358,7 +269,6 @@ function registerPlannerShapes(scale: number): void
 				height: px(WARNING_ICON_SIZE),
 				cursor: 'help',
 			},
-			// Bottom-right, clear of the top-right lock/sloop stack.
 			capacityWarning: {
 				refDx: -px(WARNING_ICON_SIZE + CORNER_INSET),
 				refDy: -px(WARNING_ICON_SIZE + CORNER_INSET),
@@ -415,12 +325,9 @@ function registerPlannerShapes(scale: number): void
 			{tagName: 'image', selector: 'done', className: 'pn-done'},
 		],
 		attrs: {
-			// Same dark fallbacks as the regular node shape - see the note there.
 			rect: {fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
 			text: {fill: NODE_FALLBACK_TEXT},
 			body: {refWidth: '100%', refHeight: '100%', fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
-			// Name and stats sit vertically centered between the IO icon columns,
-			// sized up to match the node being larger than regular ones.
 			name: {refX: 0.5, refY: 0.5, y: px(-10), textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fontSize: px(SUBPLAN_NAME_FONT_SIZE), fill: '#dde4ef'},
 			stats: {refX: 0.5, refY: 0.5, y: px(12), textAnchor: 'middle', textVerticalAnchor: 'middle', fontSize: px(13), fill: '#aab8cc'},
 			...subplanIoAttrs,
@@ -434,12 +341,11 @@ function registerPlannerShapes(scale: number): void
 
 registerPlannerShapes(1);
 
-/** lock/done/inputWarning/outputWarning/capacityWarning carry icon data URIs; empty string hides the icon. */
+/** Icon fields are data URIs; '' hides the icon. */
 interface NodeStyle {
 	bodyFill: string;
 	bodyStroke: string;
 	name: string;
-	/** Bold built-machine count line; only recipe nodes use it. */
 	machines: string;
 	stats: string;
 	lock: string;
@@ -453,96 +359,61 @@ interface NodeStyle {
 export class PlannerGraphService implements OnDestroy
 {
 
-	/**
-	 * Read-only rendering (the share view): panning/zooming stay, but nodes
-	 * cannot be moved, ports cannot connect and edges get no corner tools.
-	 * Set before restore().
-	 */
+	/** Share view. Set before restore(). */
 	public readOnly = false;
 
 	private x6Graph: X6Graph | null = null;
 	private touchGestures: GraphTouchGestures | null = null;
-	/** The canvas has been touched - hover affordances are replaced by touch ones. */
 	private touchUsed = false;
-	/** Set when our long-press gesture opened a menu; a native contextmenu arriving right after is the same press. */
 	private suppressNativeContextMenuUntil = 0;
 	private selection: Selection | null = null;
 	private cornerPreview: SVGCircleElement | null = null;
 	private hoveredEdgeView: EdgeView | null = null;
-	/** The edge a finger tapped: its corner handles stay out until the next tap elsewhere. */
 	private touchedEdgeId: string | null = null;
 	private hoverMoveTarget: HTMLElement | null = null;
 	private readonly edgeHoverListener: (e: MouseEvent) => void;
 	private readonly warningOverListener: (e: MouseEvent) => void;
 	private readonly warningOutListener: (e: MouseEvent) => void;
-	/** Hides the hover tooltip when the window loses focus or the pointer leaves the canvas. */
 	private readonly tooltipDismissListener: () => void;
-	/**
-	 * The port/indicator element the visible tooltip belongs to. Alt-tabbing
-	 * away loses the browser's hover state, so the element's mouseout never
-	 * fires afterwards - onEdgeHoverMove hides the tooltip once the pointer
-	 * is seen anywhere else instead.
-	 */
+	/** Alt-tab loses hover state, so the anchor's mouseout may never fire. */
 	private tooltipAnchor: Element | null = null;
-	/** Node scale the shapes are currently registered at (see registerPlannerShapes). */
 	private registeredScale = 1;
 
-	/** Local-coordinate start of a shift+rubberband gesture, null outside one. */
 	private rubberbandStart: GraphPoint | null = null;
-	/** Edge corners selected by the last rubberband: x6 edge id → vertex indices. */
 	private readonly selectedVertexMap = new Map<string, number[]>();
 	private vertexHighlights: SVGCircleElement[] = [];
-	/**
-	 * One node of the current selection whose position changes stand in for
-	 * the whole selection drag - selected corners follow its move delta.
-	 */
 	private vertexDragAnchorId: string | null = null;
 	private readonly nodeById = new Map<string, Node>();
-	/** Ids of done nodes in the rendered graph - edges between two of them render faded. */
 	private doneNodeIds = new Set<string>();
 	private readonly edgeById = new Map<string, GraphEdge>();
-	/** Auto-assigned z-index of each currently raised cell, to drop it back on unhighlight. */
 	private readonly baseZIndexById = new Map<string, number>();
-	/** Z-index changes queued for the next animation frame (see scheduleZChange); null restores. */
 	private readonly pendingZChanges = new Map<string, {cell: Cell; zIndex: number | null}>();
 	private zChangeScheduled = false;
-	/** Per-edge sideways anchor shift separating straight edges that share a node pair. */
 	private parallelOffsets = new Map<GraphEdge, GraphPoint>();
 
 	private readonly selectedNodesSignal = signal<Node[]>([]);
 	public readonly selectedNodes: Signal<Node[]> = this.selectedNodesSignal.asReadonly();
 
-	/** Warning-bearing nodes of the rendered graph, for the status bar list. */
 	private readonly warningEntriesSignal = signal<GraphWarningEntry[]>([]);
 	public readonly warningEntries: Signal<GraphWarningEntry[]> = this.warningEntriesSignal.asReadonly();
 
 	private readonly contextMenuSubject = new Subject<GraphContextMenuRequest>();
 	public readonly contextMenuRequests: Observable<GraphContextMenuRequest> = this.contextMenuSubject.asObservable();
 
-	/** Fires on in-place graph edits (node drags, edge corner changes). */
 	private readonly graphChangedSubject = new Subject<void>();
 	public readonly graphChanges: Observable<void> = this.graphChangedSubject.asObservable();
 
-	/**
-	 * Fires once at the start of an edge-corner gesture (move, add or click
-	 * remove), while the model still holds the pre-change state - the moment
-	 * to take an undo snapshot.
-	 */
+	/** Fires before the model changes, for an undo snapshot. */
 	private readonly graphEditStartSubject = new Subject<void>();
 	public readonly graphEditStarts: Observable<void> = this.graphEditStartSubject.asObservable();
 
-	/** True while a burst of vertex changes belongs to one already-snapshotted gesture. */
 	private vertexGestureActive = false;
 	private readonly gestureResetSubscription: Subscription;
 
-	/** Under-supplied nodes (recomputed on every restore), node id → warnings. */
 	private warningsById = new Map<string, GraphNodeWarnings>();
 
-	/** The connect gesture in flight (dragged-from node, side and item); null outside one. */
 	private connectGesture: PortConnectGesture | null = null;
-	/** Ports marked available for the current gesture, unmarked when it ends. */
 	private markedPorts: Array<{cell: X6Node; portId: string}> = [];
-	/** Nodes dimmed for the current gesture (no port accepts the dragged item). */
 	private dimmedNodeIds: string[] = [];
 
 	private readonly lockIconUri = this.iconDataUri(faLock, '#c9962e');
@@ -569,17 +440,12 @@ export class PlannerGraphService implements OnDestroy
 		this.warningOutListener = e => this.onWarningOut(e);
 		this.tooltipDismissListener = () => {
 			this.hideTooltip();
-			// The pointer left the canvas (or the window lost focus): no
-			// mouseleave arrives for the hovered edge if x6 was mid-press.
-			// A tap is the exception - the browser ends its made-up pointer
-			// on the canvas the moment the finger lifts, and the handles the
-			// tap just brought out would go with it.
+			// x6 swallows mouseleave mid-press. Taps excepted: lifting the finger ends the synthetic pointer and would drop the handles.
 			if (this.touchedEdgeId === null) {
 				this.endEdgeHover();
 			}
 		};
-		// A gesture is one burst of vertex changes; the same quiet gap that
-		// triggers the debounced save also closes the gesture.
+		// Same quiet gap as the debounced save.
 		this.gestureResetSubscription = this.graphChangedSubject.pipe(debounceTime(500)).subscribe(() => {
 			this.vertexGestureActive = false;
 		});
@@ -599,13 +465,6 @@ export class PlannerGraphService implements OnDestroy
 		return graph;
 	}
 
-	/**
-	 * Runs ELK layout on the given nodes and the subset of the given edges
-	 * that connect two of them, writing positions onto the nodes and routing
-	 * (vertices + label position) onto those edges. Coordinates start at the
-	 * origin - callers placing an island beside an existing graph offset the
-	 * result afterwards (see GraphComposer.offsetBelow / placeNear).
-	 */
 	public async layout(nodes: Node[], edges: GraphEdge[], layoutSettings?: GraphLayoutSettings): Promise<void>
 	{
 		if (nodes.length === 0) {
@@ -616,9 +475,6 @@ export class PlannerGraphService implements OnDestroy
 		const nodeIds = new Set(nodes.map(node => node.id));
 		const layoutEdges = edges.filter(e => nodeIds.has(e.sourceId) && nodeIds.has(e.targetId));
 
-		// Each edge declares its label size and asks for inline placement,
-		// so ELK routes the edge through a reserved box for the label
-		// instead of letting labels pile up mid-corridor.
 		const elkEdges: ElkExtendedEdge[] = layoutEdges.map((e, i) => {
 			const label = this.labelTextFor(e);
 			const size = this.labelSizeFor(label);
@@ -671,15 +527,12 @@ export class PlannerGraphService implements OnDestroy
 		layoutEdges.forEach((edge, i) => {
 			const laidEdge = laidEdgeById.get(`e${i}`);
 			if (laidEdge) {
-				// Straight edges skip ELK's corners but keep its label spot -
-				// projected onto the direct line it still lands about right.
 				edge.vertices = settings.edgeShape === 'straight' ? [] : this.elkEdgeVertices(laidEdge);
 				edge.labelDistance = this.elkLabelDistance(laidEdge);
 			}
 		});
 	}
 
-	/** Set fit to false to keep the current viewport, e.g. on in-place node updates. */
 	public restore(container: HTMLElement, graph: Graph, fit = true): void
 	{
 		const previous = this.x6Graph && !fit
@@ -689,8 +542,7 @@ export class PlannerGraphService implements OnDestroy
 		this.warningsById = this.reconciler.computeWarnings(graph);
 		const x6Graph = this.createGraph(container);
 
-		// Known before the edges render, so an edge between two done nodes can
-		// fade with them (nodeById itself fills later, in trackNodeMoves).
+		// Before addEdge, so edges between done nodes fade too.
 		this.doneNodeIds = new Set(graph.nodes.filter(node => node.done).map(node => node.id));
 		this.parallelOffsets = this.computeParallelOffsets(graph);
 
@@ -733,13 +585,11 @@ export class PlannerGraphService implements OnDestroy
 		this.warningEntriesSignal.set([]);
 	}
 
-	/** The on-canvas box size a node will render at - for placing new nodes before they exist on the canvas. */
 	public nodeSize(node: Node): {width: number; height: number}
 	{
 		return this.sizeFor(node);
 	}
 
-	/** Programmatically selects a node, e.g. to keep the inspector focused across a re-render. */
 	public selectNodeById(id: string): void
 	{
 		const cell = this.x6Graph?.getCellById(id);
@@ -748,7 +598,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/** Replaces the selection with the given nodes (an empty list clears it), e.g. to carry it across a re-render. */
 	public selectNodesById(ids: string[]): void
 	{
 		const cells: Cell[] = [];
@@ -761,7 +610,6 @@ export class PlannerGraphService implements OnDestroy
 		this.selection?.reset(cells);
 	}
 
-	/** Centers the viewport on a node (e.g. from the status bar warning list) and selects it. */
 	public focusNode(id: string): void
 	{
 		const x6Graph = this.x6Graph;
@@ -773,7 +621,6 @@ export class PlannerGraphService implements OnDestroy
 			x6Graph.zoom(0.8, {absolute: true});
 		}
 		x6Graph.centerCell(cell);
-		// Compensate for the panels overlaying the canvas edges, like zoomToVisibleArea does.
 		const insets = this.panelLayout.canvasInsets();
 		x6Graph.translateBy((insets.left - insets.right) / 2, (insets.top - insets.bottom) / 2);
 		this.selection?.reset(cell);
@@ -801,12 +648,7 @@ export class PlannerGraphService implements OnDestroy
 		return entries;
 	}
 
-	/**
-	 * Icon shown beside the node in the warnings list: the building for recipe
-	 * and generator nodes, the item for the IO ones. Unlike the on-canvas
-	 * icons this ignores the graph display settings - the list is a reading
-	 * aid, and it needs its pictures whatever the canvas shows.
-	 */
+	/** Deliberately ignores the graph display settings, unlike nodeIconFor. */
 	private warningNodeIcon(node: Node): string | null
 	{
 		if (node instanceof RecipeNode) {
@@ -824,11 +666,6 @@ export class PlannerGraphService implements OnDestroy
 		return null;
 	}
 
-	/**
-	 * Middle of the canvas area that is actually visible (the panels cover its
-	 * edges), in graph coordinates - where a node added by hotkey rather than
-	 * by right-click lands.
-	 */
 	public canvasCenter(): GraphPoint
 	{
 		if (!this.x6Graph) {
@@ -859,13 +696,7 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/**
-	 * The canvas spans the whole planner area but is partly covered by the
-	 * rail, docked panels and status bar - fit the graph into the space that
-	 * is actually visible. x6's zoomToFit derives the scale from the padding
-	 * but always centers content on the full canvas, so the asymmetric part
-	 * of the padding is applied as a translation afterwards.
-	 */
+	/** x6's zoomToFit centers on the full canvas, so the padding asymmetry is applied as a translation. */
 	private zoomToVisibleArea(x6Graph: X6Graph): void
 	{
 		const insets = this.panelLayout.canvasInsets();
@@ -908,14 +739,7 @@ export class PlannerGraphService implements OnDestroy
 			autoResize: true,
 			panning: true,
 			mousewheel: true,
-			// Edges are reshaped through their corner handles only - dragging
-			// the line itself must not translate the whole edge. Read-only
-			// rendering turns all cell interaction off.
 			interacting: this.readOnly ? false : {edgeMovable: false},
-			// Edges are drawn by dragging a port: outputs connect to matching
-			// inputs (and vice versa - direction is normalized on drop). A drop
-			// on blank canvas is allowed and offers to create the counterpart
-			// node there; the dangling edge is cleaned up in settleConnectDrop.
 			connecting: {
 				snap: {radius: CONNECT_SNAP_RADIUS},
 				allowBlank: true,
@@ -926,13 +750,10 @@ export class PlannerGraphService implements OnDestroy
 				validateMagnet: ({magnet}) => !this.readOnly && this.portInfo(this.portIdOf(magnet)) !== null,
 				validateConnection: ({targetCell, targetMagnet}) =>
 					this.isValidConnectTarget(targetCell ?? null, targetMagnet ?? null),
-				// this.x6Graph (not the local const) - referencing the graph in
-				// its own initializer would defeat type inference; by the time a
-				// gesture can start, this.x6Graph is this very instance.
+				// Must not reference the local x6Graph: that breaks type inference of its own initializer.
 				createEdge: ({sourceCell, sourceMagnet}) => this.beginConnectGesture(sourceCell, sourceMagnet),
 			},
 			highlighting: {
-				// Snap feedback: x6 marks the port the dangling end would attach to.
 				magnetAdsorbed: {name: 'className', args: {className: 'pg-port-adsorbed'}},
 			},
 		});
@@ -968,8 +789,6 @@ export class PlannerGraphService implements OnDestroy
 				this.onEdgeContextMenu(e.clientX ?? 0, e.clientY ?? 0, {x, y}, edge);
 			}
 		});
-		// Double-clicking empty canvas adds a node there, like the blank
-		// context menu's "Add node…" (read-only graphs cannot add anything).
 		x6Graph.on('blank:dblclick', ({x, y}) => this.onBlankDoubleClick({x, y}));
 		x6Graph.on('node:dblclick', ({node}) => this.onNodeDoubleClick(node));
 
@@ -1007,24 +826,15 @@ export class PlannerGraphService implements OnDestroy
 		x6Graph.on('node:mouseenter', ({node}) => this.applyNodeHover(node, true));
 		x6Graph.on('node:mouseleave', ({node}) => this.applyNodeHover(node, false));
 
-		// Corner handles appear while hovering an edge: drag a handle to move
-		// the corner, press anywhere on the line to add one, click a handle
-		// to remove it (Google-Maps-style path editing). While hovering, a
-		// ghost circle previews where a pressed corner would be created - x6
-		// only emits cell mousemove during a press-drag, so the ghost is
-		// driven by a native mousemove listener on the container instead.
+		// x6 emits cell mousemove only while pressed, so the corner preview uses a native listener (onEdgeHoverMove).
 		x6Graph.on('edge:mouseenter', ({view, edge}) => this.showEdgeTools(view, edge));
 		x6Graph.on('edge:mouseleave', ({view, edge}) => {
-			// The pointer never "leaves" an edge a finger tapped - the browser
-			// sends this the moment the tap ends, and the handles must stay.
+			// A tap ends with a synthetic mouseleave; a tapped edge keeps its handles.
 			if (this.touchedEdgeId !== edge.id) {
 				this.hideEdgeTools(view, edge);
 			}
 		});
 
-		// A finger cannot hover, so on a touch screen tapping an edge is what
-		// brings its corner handles out; they stay until something else is
-		// tapped. The handles themselves drag under a finger by themselves.
 		x6Graph.on('edge:click', ({view, edge}) => {
 			if (this.touchUsed) {
 				this.showEdgeTools(view, edge);
@@ -1045,10 +855,6 @@ export class PlannerGraphService implements OnDestroy
 		window.addEventListener('blur', this.tooltipDismissListener);
 		this.hoverMoveTarget = container;
 
-		// The Selection plugin only understands cells, so edge corners caught
-		// by the shift+rubberband are tracked here: the gesture's rectangle is
-		// recorded from blank mousedown/mouseup and every corner inside it
-		// becomes selected (highlighted, and moved along with the selection).
 		x6Graph.on('blank:mousedown', ({e, x, y}) => {
 			if (e.shiftKey) {
 				this.rubberbandStart = {x, y};
@@ -1066,9 +872,7 @@ export class PlannerGraphService implements OnDestroy
 		x6Graph.on('edge:change:vertices', ({edge}) => {
 			const modelEdge = this.edgeById.get(edge.id);
 			if (modelEdge) {
-				// First change of a gesture: the model edge still holds the
-				// pre-change vertices, so the snapshot taken by this event
-				// captures the state before the edit.
+				// Snapshot first: the model edge still holds the pre-change vertices.
 				if (!this.vertexGestureActive) {
 					this.vertexGestureActive = true;
 					this.graphEditStartSubject.next();
@@ -1105,14 +909,10 @@ export class PlannerGraphService implements OnDestroy
 					fill: '#141c28',
 					stroke: SELECTED_STROKE,
 					'stroke-width': 1.5,
-					// Pointer advertises the click-to-remove action; the move
-					// cursor appears only while actually dragging (see the
-					// .x6-edge-tool-vertex rules in styles.scss).
+					// The move cursor is set while dragging, in styles.scss.
 					cursor: 'pointer',
 				},
-				// The stock tool removes corners on double-click; rewire each
-				// handle so a plain click (press + release without dragging)
-				// removes it instead.
+				// The stock tool removes on double-click; here a click without dragging removes.
 				processHandle: (handle: VertexHandle) => {
 					let moved = false;
 					handle.on('change', () => {
@@ -1123,8 +923,7 @@ export class PlannerGraphService implements OnDestroy
 					});
 					handle.on('changed', args => {
 						if (!moved) {
-							// Deferred so the tool finishes its move-vertex
-							// batch for this event before the removal runs.
+							// Deferred so the tool finishes its move-vertex batch first.
 							setTimeout(() => handle.trigger('remove', args));
 						}
 					});
@@ -1143,15 +942,9 @@ export class PlannerGraphService implements OnDestroy
 		const style = this.styleFor(node);
 		const size = this.sizeFor(node);
 		const sloopIcon = this.sloopIconFor(node);
-		// The corner icon and the glow are independent, toggleable effects.
 		const sloopGlow = sloopIcon !== '' && this.settings.graph().sloopGlow;
 		const cornerSloop = sloopIcon !== '' && this.settings.graph().showSloopCornerIcon ? sloopIcon : '';
 		const textShift = this.textShiftFor(node);
-		// Recipe and sink nodes grow with their stat rows (machine groups /
-		// sinked items), so the name pins to the top (slightly larger) and the
-		// bold line plus stat lines flow below it instead of the default
-		// percentage-based centering. A block shorter than the minimum node
-		// height shifts down to sit vertically centered.
 		const scale = this.nodeScale();
 		const labelOffset = node instanceof RecipeNode || node instanceof SinkNode
 			? this.labelBlockOffset(style.stats, size.height)
@@ -1167,8 +960,7 @@ export class PlannerGraphService implements OnDestroy
 				},
 			}
 			: {name: {}, machines: {}, stats: {}};
-		// A done node fades element by element - the green check (the `done`
-		// selector itself) stays fully opaque on top of the faded body.
+		// Faded per element so the `done` check stays opaque.
 		const fade = node.done ? {opacity: DONE_OPACITY} : {};
 		x6Graph.addNode({
 			id: node.id,
@@ -1185,7 +977,6 @@ export class PlannerGraphService implements OnDestroy
 					strokeWidth: NODE_STROKE_WIDTH,
 					rx: 5,
 					ry: 5,
-					// A soft somersloop-colored glow around slooped recipe nodes.
 					...(sloopGlow
 						? {filter: {name: 'dropShadow', args: {dx: 0, dy: 0, blur: 9, color: SLOOP_GLOW_COLOR, opacity: 0.55}}}
 						: {}),
@@ -1197,13 +988,10 @@ export class PlannerGraphService implements OnDestroy
 				machineIcon: {...this.iconAttrs(this.nodeIconFor(node)), ...this.leftIconAttrs(node), ...fade},
 				...this.recipeSloopBadges(node, textShift, labelOffset, fade),
 				sloop: {...this.iconAttrs(cornerSloop), ...fade},
-				// The lock drops to the second row when the sloop icon holds the top.
 				lock: {...this.iconAttrs(style.lock), y: (cornerSloop ? LOCK_ROW2_Y : CORNER_INSET) * scale, ...fade},
 				done: this.iconAttrs(style.done),
 				inputWarning: {...this.iconAttrs(style.inputWarning), ...fade},
 				outputWarning: {...this.iconAttrs(style.outputWarning), ...fade},
-				// The capacity warning shares the bottom-right corner with the
-				// done check - it steps left when both are shown.
 				capacityWarning: {
 					...this.iconAttrs(style.capacityWarning),
 					...(node.done ? {refDx: -(WARNING_ICON_SIZE + CORNER_INSET + DONE_ICON_SIZE + 4) * scale} : {}),
@@ -1221,12 +1009,10 @@ export class PlannerGraphService implements OnDestroy
 			body: {fill: style.bodyFill, stroke: style.bodyStroke, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
 			name: {text: this.subplanDisplayName(node)},
 			stats: {text: this.subplanStats(node)},
-			// Subplan nodes are always locked; the lock reads as "solver won't touch me".
 			lock: this.iconAttrs(this.lockIconUri),
 		};
 		this.applySubplanIoIcons(attrs, 'in', node.inputs);
 		this.applySubplanIoIcons(attrs, 'out', node.outputs);
-		// A done node fades wholesale; only the green check stays fully opaque.
 		if (node.done) {
 			Object.values(attrs).forEach(attr => attr['opacity'] = DONE_OPACITY);
 		}
@@ -1243,12 +1029,6 @@ export class PlannerGraphService implements OnDestroy
 		});
 	}
 
-	/**
-	 * Fills in{i}/out{i} icon slots and the {prefix}More overflow text for one
-	 * side of a subplan node. Each column is centered vertically in the node
-	 * (the registered shape's static y values are placeholders for the full
-	 * five-row case).
-	 */
 	private applySubplanIoIcons(attrs: Record<string, Record<string, string | number>>, prefix: 'in' | 'out', ios: NodeIO[]): void
 	{
 		const show = this.settings.graph().showSubplanItemIcons;
@@ -1272,15 +1052,9 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/**
-	 * Connection ports for a node: one per distinct input item and one per
-	 * distinct output item, placed on opposite node edges following the flow
-	 * direction of the plan's layout. The port id encodes side and item
-	 * (`in|Desc_IronPlate_C`), which is all the connect gesture needs.
-	 */
+	/** Port ids are `in|<itemClassName>` / `out|<itemClassName>`. */
 	private portsFor(node: Node): Partial<PortsMetadata>
 	{
-		// Ports only exist to start connect gestures - read-only graphs get none.
 		if (this.readOnly) {
 			return {};
 		}
@@ -1337,7 +1111,6 @@ export class PlannerGraphService implements OnDestroy
 		return items;
 	}
 
-	/** Decodes a port id (`in|Desc_IronPlate_C`) back into side and item. */
 	private portInfo(portId: string | null): {side: 'in' | 'out'; itemClassName: string} | null
 	{
 		if (!portId) {
@@ -1351,7 +1124,6 @@ export class PlannerGraphService implements OnDestroy
 		return {side, itemClassName: portId.slice(separator + 1)};
 	}
 
-	/** The port id a magnet element belongs to - x6 stamps it on the port's root element. */
 	private portIdOf(magnet: Element | null | undefined): string | null
 	{
 		if (!magnet) {
@@ -1361,12 +1133,6 @@ export class PlannerGraphService implements OnDestroy
 		return carrier?.getAttribute('port') ?? null;
 	}
 
-	/**
-	 * Starts a connect gesture from a port: remembers where it started, shows
-	 * the matching port on every node that could take the item (dimming nodes
-	 * that could not), and returns the dashed preview edge x6 drags around.
-	 * The gesture always settles in settleConnectDrop, driven by mouseup.
-	 */
 	private beginConnectGesture(sourceCell: Cell, sourceMagnet: Element): X6Edge | null
 	{
 		const x6Graph = this.x6Graph;
@@ -1381,9 +1147,6 @@ export class PlannerGraphService implements OnDestroy
 			x6Graph.container.classList.add('pg-connecting');
 			this.watchConnectDrop(x6Graph);
 		}
-		// The arrow shows the future flow direction: dragging from an output
-		// it points at the cursor (flow leaves the start node); from an input
-		// it points back at the start node (flow will arrive there).
 		const markers = info?.side === 'in'
 			? {sourceMarker: {name: 'block', size: 7}, targetMarker: null}
 			: {sourceMarker: null, targetMarker: {name: 'block', size: 7}};
@@ -1407,7 +1170,6 @@ export class PlannerGraphService implements OnDestroy
 		return (edge.getData() as {tempConnect?: boolean} | null)?.tempConnect === true;
 	}
 
-	/** Reveals the ports that accept the dragged item; dims nodes offering none. */
 	private markConnectTargets(x6Graph: X6Graph): void
 	{
 		const gesture = this.connectGesture;
@@ -1457,13 +1219,7 @@ export class PlannerGraphService implements OnDestroy
 		this.dimmedNodeIds = [];
 	}
 
-	/**
-	 * x6 has no single "gesture over" event covering connected, dangling and
-	 * cancelled drops alike, so the gesture settles on the next macrotask
-	 * after the press ends - by then x6 has finished connecting or reverting.
-	 * A touch drag ends in touchend and never in a mouseup (the browser only
-	 * synthesizes mouse events for taps), so both endings are watched.
-	 */
+	/** x6 has no single event for connected/dangling/cancelled drops, so settle on the next macrotask. Touch drags end in touchend, not mouseup. */
 	private watchConnectDrop(x6Graph: X6Graph): void
 	{
 		const stop = (): void => {
@@ -1478,7 +1234,6 @@ export class PlannerGraphService implements OnDestroy
 		};
 		const onTouchEnd = (event: TouchEvent): void => {
 			stop();
-			// touchend carries the lifted finger in changedTouches, not touches.
 			const touch = event.changedTouches[0];
 			const client = {x: touch?.clientX ?? 0, y: touch?.clientY ?? 0};
 			setTimeout(() => this.settleConnectDrop(x6Graph, client));
@@ -1488,12 +1243,6 @@ export class PlannerGraphService implements OnDestroy
 		document.addEventListener('touchcancel', onTouchEnd, true);
 	}
 
-	/**
-	 * Runs once the drop settled: the preview edge either connected to a node
-	 * (create the model edge), dangles on blank canvas (offer creating the
-	 * counterpart node there), or is gone (cancelled). The preview edge never
-	 * survives - the model edge arrives through the component re-render.
-	 */
 	private settleConnectDrop(x6Graph: X6Graph, client: {x: number; y: number}): void
 	{
 		const gesture = this.connectGesture;
@@ -1521,8 +1270,7 @@ export class PlannerGraphService implements OnDestroy
 			return;
 		}
 		if (targetPoint) {
-			// A drop over an incompatible node also leaves a dangling edge -
-			// only a genuinely blank spot offers to create the counterpart.
+			// Drops over incompatible nodes dangle too.
 			if (x6Graph.getNodesFromPoint(targetPoint.x, targetPoint.y).length > 0) {
 				return;
 			}
@@ -1535,7 +1283,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/** The model edge a finished gesture asks for, normalized to flow direction. */
 	private edgeRequestFor(gesture: PortConnectGesture, droppedOnId: string, client: {x: number; y: number}): GraphEdgeAddRequest | null
 	{
 		if (!this.nodeById.has(droppedOnId) || droppedOnId === gesture.nodeId || this.hasEdgeBetween(droppedOnId, gesture)) {
@@ -1550,7 +1297,6 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/** One edge per source/target/item - connecting the same pair again is blocked. */
 	private hasEdgeBetween(otherNodeId: string, gesture: PortConnectGesture): boolean
 	{
 		const sourceId = gesture.side === 'out' ? gesture.nodeId : otherNodeId;
@@ -1563,12 +1309,6 @@ export class PlannerGraphService implements OnDestroy
 		return false;
 	}
 
-	/**
-	 * Live validation while dragging: the drop target must be another node
-	 * that exchanges the dragged item on the opposite side and is not already
-	 * connected for it. A drop on a specific port must be the matching one; a
-	 * drop on the node body is accepted whenever some port would match.
-	 */
 	private isValidConnectTarget(targetCell: Cell | null, targetMagnet: Element | null): boolean
 	{
 		const gesture = this.connectGesture;
@@ -1588,15 +1328,7 @@ export class PlannerGraphService implements OnDestroy
 		return ios.some(io => io.item.className === gesture.itemClassName);
 	}
 
-	/**
-	 * Sideways shifts for straight (vertex-less) edges sharing the same
-	 * unordered node pair - a reciprocal A→B/B→A pair, or several items
-	 * flowing one way - which would otherwise draw on top of each other.
-	 * Each group fans out perpendicular to its centre line in PARALLEL_EDGE_GAP
-	 * steps. The perpendicular comes from the canonical (lower node id first)
-	 * orientation so both directions of a pair split to opposite sides, and
-	 * members are sorted so an edge keeps its side across re-renders.
-	 */
+	/** Perpendicular from the lower-id-first orientation so both directions split to opposite sides; sorted so edges keep their side across re-renders. */
 	private computeParallelOffsets(graph: Graph): Map<GraphEdge, GraphPoint>
 	{
 		const centers = new Map<string, GraphPoint>();
@@ -1657,13 +1389,9 @@ export class PlannerGraphService implements OnDestroy
 		const scale = this.edgeScale();
 		const textShift = hasIcon ? (EDGE_ICON_SIZE + EDGE_ICON_GAP) * scale / 2 : 0;
 		const showBox = this.settings.graph().showEdgeLabelBox;
-		// An edge whose both endpoints are done is implicitly built too - it
-		// fades like the nodes (edges carry no done flag of their own).
 		const fade = this.doneNodeIds.has(edge.sourceId) && this.doneNodeIds.has(edge.targetId)
 			? {opacity: DONE_OPACITY}
 			: {};
-		// The same sideways shift on both anchors keeps the line parallel to
-		// the centre-to-centre one; boundary clipping follows the shifted line.
 		const offset = this.parallelOffsets.get(edge);
 		const anchor = offset ? {name: 'center', args: {dx: offset.x, dy: offset.y}} : undefined;
 
@@ -1689,7 +1417,6 @@ export class PlannerGraphService implements OnDestroy
 				],
 				position: {distance: edge.labelDistance ?? 0.5},
 				attrs: {
-					// The item name is the label's title - two sizes above the rate.
 					name: {
 						text: label.name,
 						fill: LABEL_TEXT_FILL,
@@ -1711,9 +1438,6 @@ export class PlannerGraphService implements OnDestroy
 						y: LABEL_RATE_Y * scale,
 						...fade,
 					},
-					// The flowing item's icon, pinned just inside the left edge
-					// of the label rect and vertically centered; zero-sized when
-					// the item has no icon so only the text shows.
 					icon: hasIcon
 						? {
 							'xlink:href': label.iconUrl,
@@ -1724,12 +1448,7 @@ export class PlannerGraphService implements OnDestroy
 							...fade,
 						}
 						: {'xlink:href': '', width: 0, height: 0},
-					// The default label rect is sized from the measured text
-					// bbox, which drifts with font metrics and load timing.
-					// Give it the same explicit size the layout reserved,
-					// centered on the label point like the text is. With the
-					// box hidden it stays transparent (not removed) so the
-					// label keeps its hover/right-click hit area.
+					// Sized explicitly: the default rect follows the text bbox, which drifts with font metrics and load timing. Hidden stays transparent to keep the hit area.
 					rect: {
 						class: showBox ? LABEL_BOX_CLASS : '',
 						ref: null,
@@ -1773,7 +1492,6 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/** Edge label box (scaled by the edge scale setting) - declared to ELK and drawn as the label rect. */
 	private labelSizeFor(label: {name: string; rate: string; iconUrl: string | null}): {width: number; height: number}
 	{
 		const textWidth = Math.max(label.name.length * LABEL_NAME_CHAR_WIDTH, label.rate.length * LABEL_CHAR_WIDTH);
@@ -1816,7 +1534,6 @@ export class PlannerGraphService implements OnDestroy
 		this.selectedNodesSignal.set(selectedNodes);
 	}
 
-	/** Replaces the corner selection with all edge corners inside the rectangle. */
 	private selectVerticesWithin(a: GraphPoint, b: GraphPoint): void
 	{
 		if (!this.x6Graph) {
@@ -1847,7 +1564,6 @@ export class PlannerGraphService implements OnDestroy
 		this.vertexHighlights = [];
 	}
 
-	/** Marks selected corners with the same circle the hover handles use. */
 	private renderVertexHighlights(): void
 	{
 		this.vertexHighlights.forEach(circle => circle.remove());
@@ -1875,14 +1591,7 @@ export class PlannerGraphService implements OnDestroy
 		});
 	}
 
-	/**
-	 * Makes a selection drag move exactly the selected corners. x6 itself
-	 * translates ALL vertices of any edge touching a selected node, so on
-	 * touched edges the unselected corners get the delta subtracted back,
-	 * while selected corners on untouched edges get it added. Both are pure
-	 * additions, so this composes with x6's translation in either event
-	 * order within the drag tick.
-	 */
+	/** x6 moves all vertices of edges touching a selected node: undo that for unselected corners, and apply it to selected corners on untouched edges. */
 	private applySelectionDragToVertices(dx: number, dy: number): void
 	{
 		if (!this.x6Graph || this.selectedVertexMap.size === 0) {
@@ -1923,26 +1632,13 @@ export class PlannerGraphService implements OnDestroy
 		if (!this.hoveredEdgeView || !this.x6Graph) {
 			return;
 		}
-		// x6 stops listening on the container for the duration of a press
-		// (it switches to document events), so the mouseleave that ends a
-		// hover can be swallowed - by a corner drag that ends off the edge,
-		// or by a node drag passing over it - and the corner handles would
-		// stay behind. This listener is our own and keeps running, so the
-		// hover is also ended here once the pointer is seen somewhere that
-		// is not the hovered edge (its tools included). Not while a button
-		// is held: that pointer is dragging a handle away from the line.
-		// Compared by cell id, not by view: raising the edge re-renders it,
-		// and the view the hover started on is a different object by now. An
-		// edge whose handles a tap brought out is left alone altogether - the
-		// mouse events the browser makes up around a tap must not take them
-		// away again.
+		// x6 may swallow mouseleave during a press, so end the hover here. Compared by id: raising the edge re-renders its view.
 		const hoveredId = this.hoveredEdgeView.cell.id;
 		const under = this.x6Graph.findViewByElem(e.target as Element | null);
 		if (e.buttons === 0 && under?.cell.id !== hoveredId && this.touchedEdgeId !== hoveredId) {
 			this.endEdgeHover();
 			return;
 		}
-		// Read-only edges have no corner handles, so no ghost corner either.
 		if (this.readOnly) {
 			return;
 		}
@@ -1950,7 +1646,6 @@ export class PlannerGraphService implements OnDestroy
 		this.moveCornerPreview(this.hoveredEdgeView, point.x, point.y);
 	}
 
-	/** Drops the hover state of the currently hovered edge: corner handles, ghost corner and line style. */
 	private endEdgeHover(): void
 	{
 		const view = this.hoveredEdgeView;
@@ -1967,11 +1662,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/**
-	 * Ghost corner following the cursor along the hovered edge, previewing
-	 * where pressing the line would create a corner. Hidden near existing
-	 * corner handles, where pressing grabs the handle instead.
-	 */
 	private moveCornerPreview(view: EdgeView, x: number, y: number): void
 	{
 		if (!this.x6Graph) {
@@ -2002,11 +1692,6 @@ export class PlannerGraphService implements OnDestroy
 		this.cornerPreview = null;
 	}
 
-	/**
-	 * A circle matching the vertices tool's corner handles, drawn in the
-	 * decorator layer (so it pans/zooms with the graph). Purely visual -
-	 * pointer events must reach the edge line and handles underneath.
-	 */
 	private createHandleCircle(): SVGCircleElement
 	{
 		const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -2018,7 +1703,6 @@ export class PlannerGraphService implements OnDestroy
 		return circle;
 	}
 
-	/** True while either end of the edge is selected - what the highlight shows. */
 	private isEdgeHighlighted(edge: X6Edge): boolean
 	{
 		const selection = this.selection;
@@ -2026,11 +1710,6 @@ export class PlannerGraphService implements OnDestroy
 			&& (selection.isSelected(edge.getSourceCellId()) || selection.isSelected(edge.getTargetCellId()));
 	}
 
-	/**
-	 * The highlight an edge wears while one of its nodes is selected. Only the
-	 * selection changes this, so the attr writes here are rare - the hover look
-	 * is CSS for the reason given in applyEdgeHover.
-	 */
 	private applyEdgeStyle(edge: X6Edge): void
 	{
 		const highlighted = this.isEdgeHighlighted(edge);
@@ -2043,17 +1722,7 @@ export class PlannerGraphService implements OnDestroy
 		this.scheduleZChange(edge, highlighted ? EDGE_HIGHLIGHT_Z : null);
 	}
 
-	/**
-	 * Hovering an edge raises it above the rest and hands its lighter line and
-	 * label box outline to CSS (see .pg-edge-hovered in styles.scss). The class
-	 * goes straight on the rendered element rather than through the cell,
-	 * because every attr write makes x6 re-apply the edge's whole attrs object,
-	 * which rewrites the `xlink:href` of its label icon and has the browser
-	 * fetch that icon again on every enter and leave. The plain `:hover`
-	 * selector cannot do this job: the corner-handle tool covers the hovered
-	 * edge with a path of its own, in x6's tool layer rather than inside the
-	 * edge, so the edge element stops being the one under the pointer.
-	 */
+	/** Class on the view, not an attr: attr writes re-apply all attrs and re-fetch the label icon. `:hover` fails since the vertex tool covers the edge. */
 	private applyEdgeHover(view: EdgeView, edge: X6Edge, hovered: boolean): void
 	{
 		if (hovered) {
@@ -2064,10 +1733,6 @@ export class PlannerGraphService implements OnDestroy
 		this.scheduleZChange(edge, hovered || this.isEdgeHighlighted(edge) ? EDGE_HIGHLIGHT_Z : null);
 	}
 
-	/**
-	 * Echoes the edge highlight on its label box border. With the box setting
-	 * off the label has no visible box, so there is nothing to highlight.
-	 */
 	private applyLabelBoxStyle(edge: X6Edge, highlighted: boolean): void
 	{
 		if (!this.settings.graph().showEdgeLabelBox || !edge.getLabelAt(0)) {
@@ -2078,16 +1743,7 @@ export class PlannerGraphService implements OnDestroy
 		edge.prop('labels/0/attrs/rect/class', highlighted ? `${LABEL_BOX_CLASS} ${LABEL_BOX_HIGHLIGHT_CLASS}` : LABEL_BOX_CLASS);
 	}
 
-	/**
-	 * Raises (target z given) or restores (null) a cell on the next animation
-	 * frame rather than synchronously. A z-index change re-inserts the cell's
-	 * SVG element, and doing that inside a mouseenter makes the browser replay
-	 * mouseleave/mouseenter for the element under the cursor - the handlers
-	 * would then flip the z-index back and forth forever. Deferring one frame
-	 * lets that replayed pair settle first: its final enter schedules the same
-	 * raise again, which is a no-op on an already-raised cell, so the loop
-	 * converges after one bounce.
-	 */
+	/** Deferred a frame: re-inserting the SVG element in mouseenter makes the browser replay leave/enter, flipping z-index forever. */
 	private scheduleZChange(cell: Cell, zIndex: number | null): void
 	{
 		this.pendingZChanges.set(cell.id, {cell, zIndex});
@@ -2106,7 +1762,6 @@ export class PlannerGraphService implements OnDestroy
 		});
 	}
 
-	/** Lifts a highlighted cell above the rest of the graph, remembering its base z-index. */
 	private raiseCell(cell: Cell, zIndex: number): void
 	{
 		if (!this.baseZIndexById.has(cell.id)) {
@@ -2124,13 +1779,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/**
-	 * The canvas was touched. A finger cannot hover, so from here on the
-	 * selected node stands in for the hovered one: the class shows its ports
-	 * (see styles.scss) and the node is lifted clear of the edges that are
-	 * highlighted along with it, which would otherwise take the touch meant
-	 * for a port they end at.
-	 */
 	private markTouchUsed(x6Graph: X6Graph): void
 	{
 		if (this.touchUsed) {
@@ -2144,10 +1792,8 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/** Corner handles out, edge highlighted - from a hover or, on a touch screen, from a tap. */
 	private showEdgeTools(view: EdgeView, edge: X6Edge): void
 	{
-		// The in-flight connect preview is not editable - no corner tools.
 		if (this.isTempConnect(edge)) {
 			return;
 		}
@@ -2155,8 +1801,6 @@ export class PlannerGraphService implements OnDestroy
 			this.releaseTouchedEdge();
 		}
 		this.hoveredEdgeView = view;
-		// A tap arrives as both a click and a made-up mouseenter - the handles
-		// are added once, not once per event.
 		if (!this.readOnly && !edge.hasTools()) {
 			edge.addTools([this.verticesTool()]);
 		}
@@ -2176,12 +1820,7 @@ export class PlannerGraphService implements OnDestroy
 		this.hideCornerPreview();
 	}
 
-	/**
-	 * Puts away the handles a tap brought out, once the tap moves on to
-	 * something else. The edge is looked up again rather than kept as a view:
-	 * raising it re-renders the edge, and the view from the tap is gone by
-	 * then.
-	 */
+	/** Looked up again: raising the edge re-renders its view. */
 	private releaseTouchedEdge(): void
 	{
 		const id = this.touchedEdgeId;
@@ -2195,14 +1834,9 @@ export class PlannerGraphService implements OnDestroy
 
 	private applyNodeHover(cell: Cell, hovered: boolean): void
 	{
-		// Selected nodes keep their selection stroke and stay raised.
 		if (this.selection?.isSelected(cell)) {
 			return;
 		}
-		// The thicker outline is a CSS rule on .pn-body (see styles.scss), not an
-		// attr: every attr write makes x6 re-apply the node's whole attrs object,
-		// which rewrites the `xlink:href` of all its icons and has the browser
-		// fetch each one again - a dozen requests per node the pointer crosses.
 		this.scheduleZChange(cell, hovered ? NODE_HIGHLIGHT_Z : null);
 	}
 
@@ -2213,8 +1847,6 @@ export class PlannerGraphService implements OnDestroy
 			return;
 		}
 
-		// Right-clicking outside the current selection re-targets it, the
-		// same way file managers do; right-clicking inside keeps the group.
 		if (!selection.isSelected(cell)) {
 			selection.reset(cell);
 		}
@@ -2243,7 +1875,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/** Double click / double tap on empty canvas adds a node there (read-only graphs cannot add anything). */
 	private onBlankDoubleClick(local: GraphPoint): void
 	{
 		if (!this.readOnly) {
@@ -2251,7 +1882,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/** Subplans open their inner plan; every other node opens the inspector. */
 	private onNodeDoubleClick(cell: Cell): void
 	{
 		const modelNode = this.nodeById.get(cell.id);
@@ -2262,8 +1892,7 @@ export class PlannerGraphService implements OnDestroy
 			this.actions.requestSubplanOpen(modelNode.subplanId);
 		} else {
 			this.selectNodeById(modelNode.id);
-			// focusPanel, not openPanel: an already-open inspector hidden
-			// behind another tab on its side must still come to the front.
+			// focusPanel, not openPanel: an inspector hidden behind another tab must come to the front.
 			this.panelLayout.focusPanel('inspector');
 		}
 	}
@@ -2278,8 +1907,7 @@ export class PlannerGraphService implements OnDestroy
 		this.nodeById.clear();
 		nodes.forEach(node => this.nodeById.set(node.id, node));
 
-		// node:change:position (rather than node:moved) also covers nodes
-		// dragged as part of a multi-node selection.
+		// Not node:moved: that misses nodes dragged as part of a multi-selection.
 		x6Graph.on('node:change:position', ({node, current, previous}) => {
 			const modelNode = this.nodeById.get(node.id);
 			if (modelNode) {
@@ -2288,9 +1916,7 @@ export class PlannerGraphService implements OnDestroy
 				modelNode.y = position.y;
 				this.graphChangedSubject.next();
 			}
-			// Every node of a selection drag moves by the same delta each
-			// tick, so the anchor's delta is applied to the corner selection
-			// exactly once per tick.
+			// Every node of a selection drag fires this; apply the delta once, via the anchor.
 			if (node.id === this.vertexDragAnchorId && current && previous) {
 				this.applySelectionDragToVertices(current.x - previous.x, current.y - previous.y);
 			}
@@ -2307,12 +1933,7 @@ export class PlannerGraphService implements OnDestroy
 		return points;
 	}
 
-	/**
-	 * Converts ELK's absolute inline-label position into a 0–1 ratio along
-	 * the edge route, which is how x6 positions edge labels. The label
-	 * center lies on the route (inline placement), so projecting it onto
-	 * the polyline is exact up to node-boundary clipping differences.
-	 */
+	/** 0–1 ratio along the route, as x6 positions labels. */
 	private elkLabelDistance(edge: ElkExtendedEdge): number
 	{
 		const label = edge.labels?.[0];
@@ -2370,7 +1991,6 @@ export class PlannerGraphService implements OnDestroy
 		return style;
 	}
 
-	/** Renders a FontAwesome icon as an SVG data URI for use in x6 image elements. */
 	private iconDataUri(icon: IconDefinition, color: string): string
 	{
 		const [width, height, , , path] = icon.icon;
@@ -2384,11 +2004,6 @@ export class PlannerGraphService implements OnDestroy
 		return {'xlink:href': uri, display: uri ? 'inline' : 'none'};
 	}
 
-	/**
-	 * The node's own top-left icon: the producing machine for recipe/generator
-	 * nodes, the item itself for the IO nodes (mine, input, product, byproduct);
-	 * '' for nodes without one.
-	 */
 	private nodeIconFor(node: Node): string
 	{
 		const graph = this.settings.graph();
@@ -2400,7 +2015,6 @@ export class PlannerGraphService implements OnDestroy
 		} else if (node instanceof AugmenterNode) {
 			hash = graph.showNodeBuildingIcons ? node.building.icon : null;
 		} else if (node instanceof SinkNode) {
-			// Sink nodes render recipe-style (name + points + item line), no left icon.
 			hash = null;
 		} else if (node instanceof ItemAmountNode) {
 			hash = graph.showNodeItemIcons ? node.item.icon : null;
@@ -2408,26 +2022,22 @@ export class PlannerGraphService implements OnDestroy
 		return this.iconUrls.url(hash, 64) ?? '';
 	}
 
-	/** The subplan's shown name - the derived name of its plan, falling back to the node's stored name. */
 	private subplanDisplayName(node: SubplanNode): string
 	{
 		const plan = this.planManager.plans().find(candidate => candidate.id === node.subplanId);
 		return plan ? this.planNames.displayName(plan) : node.getDisplayName();
 	}
 
-	/** Nodes that carry a left-side icon (machine, generator or the IO item itself). */
 	private hasLeftIcon(node: Node): boolean
 	{
 		return this.nodeIconFor(node) !== '';
 	}
 
-	/** How far the label text is nudged right to clear the left icon (0 when there is none). */
 	private textShiftFor(node: Node): number
 	{
 		return this.hasLeftIcon(node) ? TEXT_SHIFT * this.nodeScale() : 0;
 	}
 
-	/** The larger, vertically-centered left icon shared by machine and IO nodes. */
 	private leftIconAttrs(node: Node): Record<string, number> | Record<string, never>
 	{
 		if (!this.hasLeftIcon(node)) {
@@ -2443,15 +2053,8 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/**
-	 * Somersloop badge slots: for each slooped machine-group stat line, an icon
-	 * placed just past the line's "+K", so the icon reads as the unit (replacing
-	 * the old "S"). Empty for non-recipe or unslooped nodes.
-	 */
 	private recipeSloopBadges(node: Node, textShift: number, labelOffset = 0, fade: {opacity?: number} = {}): Record<string, Record<string, string | number>>
 	{
-		// Single-line machine displays show no group lines to badge; the corner
-		// sloop icon and glow still mark the node as slooped.
 		if (!(node instanceof RecipeNode) || this.singleLineMachines()) {
 			return {};
 		}
@@ -2469,7 +2072,6 @@ export class PlannerGraphService implements OnDestroy
 			badges[`statSloop${i}`] = {
 				'xlink:href': url,
 				display: 'inline',
-				// The stat line centers at nodeCenter + textShift; the badge follows its right edge.
 				x: textShift + lineWidth / 2 + STAT_SLOOP_GAP * scale,
 				y: (RECIPE_STATS_Y + i * RECIPE_STATS_LINE_HEIGHT + STAT_SLOOP_CENTER_OFFSET - STAT_SLOOP_SIZE / 2) * scale + labelOffset,
 				...fade,
@@ -2478,7 +2080,6 @@ export class PlannerGraphService implements OnDestroy
 		return badges;
 	}
 
-	/** Somersloop icon URL for a recipe node with sloops slotted; '' otherwise. */
 	private sloopIconFor(node: Node): string
 	{
 		if (!(node instanceof RecipeNode) || !node.groups.some(group => group.sloops > 0)) {
@@ -2488,7 +2089,6 @@ export class PlannerGraphService implements OnDestroy
 		return this.iconUrls.url(hash, 64) ?? '';
 	}
 
-	/** On-canvas node box: the unscaled box times the node scale setting. */
 	private sizeFor(node: Node): {width: number; height: number}
 	{
 		const base = this.baseSizeFor(node);
@@ -2506,14 +2106,12 @@ export class PlannerGraphService implements OnDestroy
 		return this.settings.graph().edgeScale;
 	}
 
-	/** Whether the machine display collapses the group lines into one machine line (decimal or percent). */
 	private singleLineMachines(): boolean
 	{
 		const display = this.settings.graph().machineDisplay;
 		return display === 'decimal' || display === 'percent';
 	}
 
-	/** Node box at scale 1, from the label text lengths and line counts. */
 	private baseSizeFor(node: Node): {width: number; height: number}
 	{
 		if (node instanceof SubplanNode) {
@@ -2521,15 +2119,12 @@ export class PlannerGraphService implements OnDestroy
 		}
 		if (node instanceof RecipeNode) {
 			const stats = this.recipeStats(node);
-			// Slooped stat lines carry a badge past their text; reserve room for it.
 			const sloopExtra = stats !== '' && node.groups.some(group => group.sloops > 0) ? STAT_SLOOP_SIZE + STAT_SLOOP_GAP : 0;
 			return this.statLinesSize(node.getDisplayName(), this.machinesLine(node), stats, sloopExtra, this.horizontalPadding(node));
 		}
 		if (node instanceof SinkNode) {
 			return this.statLinesSize(node.getDisplayName(), this.sinkPointsLine(node), this.sinkStats(node));
 		}
-		// Generator and IO nodes have a left icon too, so they grow to keep the
-		// text clear of it (their labels are name + a single stat line).
 		if (this.hasLeftIcon(node)) {
 			const style = this.baseStyleFor(node);
 			const textWidth = Math.max(
@@ -2542,12 +2137,6 @@ export class PlannerGraphService implements OnDestroy
 		return {width: NODE_WIDTH, height: NODE_HEIGHT};
 	}
 
-	/**
-	 * Subplan node box: the standard size, widened when the plan name (or the
-	 * line under it) needs more room than sits between the two IO icon
-	 * columns - like recipe nodes, rather than letting the name run over the
-	 * node's edges.
-	 */
 	private subplanSize(node: SubplanNode): {width: number; height: number}
 	{
 		const textWidth = Math.max(
@@ -2562,13 +2151,11 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/** Left/right horizontal padding around the label - wider on the left when a left icon must be cleared. */
 	private horizontalPadding(node: Node): number
 	{
 		return this.hasLeftIcon(node) ? TEXT_LEFT_INSET + TEXT_RIGHT_PAD : RECIPE_TEXT_PADDING_X;
 	}
 
-	/** Node box sized for the top-pinned label layout: name, bold line, one stat line each. */
 	private statLinesSize(name: string, boldLine: string, stats: string, statsExtra = 0, horizontalPadding = RECIPE_TEXT_PADDING_X): {width: number; height: number}
 	{
 		const lines = stats === '' ? [] : stats.split('\n');
@@ -2584,10 +2171,6 @@ export class PlannerGraphService implements OnDestroy
 
 	private baseStyleFor(node: Node): NodeStyle
 	{
-		// Colours come from settings: the accent is the border, the fill is a
-		// darkened version of it. The rest of the style (labels) is per type.
-		// Done nodes lose the accent entirely - neutral grey plus the fade and
-		// the green check makes "already built" readable at a glance.
 		const accent = this.accentColor(node);
 		const colors = node.done
 			? {bodyFill: DONE_FILL, bodyStroke: DONE_STROKE}
@@ -2624,17 +2207,10 @@ export class PlannerGraphService implements OnDestroy
 		return {...colors, name: '?', machines: '', stats: this.rateFormatter.amount(node.amount), ...icons};
 	}
 
-	/**
-	 * The node's accent colour from settings. Recipe nodes may be coloured by
-	 * their machine when per-machine colouring is on and that machine has an
-	 * override; otherwise every type uses its configured colour.
-	 */
 	private accentColor(node: Node): string
 	{
 		const colors = this.settings.graph().nodeColors;
 		if (node instanceof RecipeNode) {
-			// Per-machine overrides are a per-plan setting (version-specific);
-			// machines without an override use the default recipe colour.
 			const custom = this.planManager.activePlan()?.settings.graph?.machineColors?.[node.machine.className];
 			return custom ?? colors.recipe;
 		}
@@ -2649,7 +2225,6 @@ export class PlannerGraphService implements OnDestroy
 		return '#666666';
 	}
 
-	/** A very dark version of the accent, used as the node body fill. */
 	private darken(hex: string, factor = 0.2): string
 	{
 		const clean = hex.replace('#', '');
@@ -2662,17 +2237,11 @@ export class PlannerGraphService implements OnDestroy
 		return `#${channel(0)}${channel(2)}${channel(4)}`;
 	}
 
-	/**
-	 * Hover tooltips on the per-node lock and ⚠ indicators, via delegated
-	 * container listeners: x6 renders cell views through an async scheduler,
-	 * so the indicator elements may not exist yet right after restore() -
-	 * delegation sidesteps the timing entirely (and survives re-renders).
-	 */
+	/** Delegated: x6 renders views asynchronously, so indicators may not exist yet after restore(). */
 	private onWarningHover(event: MouseEvent): void
 	{
 		const port = (event.target as Element | null)?.closest?.('[port]');
 		if (port) {
-			// No tooltip mid-gesture - it would chase the dragged edge end.
 			if (!this.connectGesture) {
 				this.showPortTooltip(port);
 			}
@@ -2719,7 +2288,6 @@ export class PlannerGraphService implements OnDestroy
 		this.showTooltip(content, indicator);
 	}
 
-	/** Shows the tooltip beside its anchor element and remembers the anchor (see tooltipAnchor). */
 	private showTooltip(content: NodeTooltipContent, anchor: Element): void
 	{
 		const box = anchor.getBoundingClientRect();
@@ -2740,7 +2308,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/** Port tooltip: the item and how much of its flow is still unconnected on this side. */
 	private showPortTooltip(portElement: Element): void
 	{
 		const info = this.portInfo(portElement.getAttribute('port'));
@@ -2757,8 +2324,6 @@ export class PlannerGraphService implements OnDestroy
 		const open = info.side === 'out'
 			? this.reconciler.spareOutput(graph, node.id, info.itemClassName)
 			: this.reconciler.remainingDemand(graph, node.id, info.itemClassName);
-		// "All … allocated" for a fully connected port - a bare "0 unallocated"
-		// reads as if something were left over until the number sinks in.
 		let line: string;
 		if (open <= 1e-6) {
 			line = info.side === 'out'
@@ -2799,10 +2364,6 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/**
-	 * The hover tooltips show one warning per line; the warnings list lays the
-	 * same parts out itself, so both come from the detail builders below.
-	 */
 	private warningLine(detail: GraphWarningDetail): string
 	{
 		return `${detail.title} - ${detail.text}`;
@@ -2834,7 +2395,7 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/** Clock-precision percentage (4 decimals) - a shortfall of a single 0.0001% clock step must read as more than "100%". */
+	/** Clock precision, so a 0.0001% shortfall doesn't read as 100%. */
 	private capacityWarningDetail(warning: GraphNodeCapacityWarning): GraphWarningDetail
 	{
 		return {
@@ -2871,11 +2432,6 @@ export class PlannerGraphService implements OnDestroy
 		return `${this.rateFormatter.amount(node.amount)}×${clock} (${node.fuel.item.name}) - ${this.rateFormatter.power(node.powerProduction())}`;
 	}
 
-	/**
-	 * Augmenter stat line: how many are built, how many of those run boosted,
-	 * and what they add. The percentage applies to everything the plan
-	 * generates, so the MW it comes to lives in the Power panel, not here.
-	 */
 	private augmenterStats(node: AugmenterNode): string
 	{
 		const extra = node.extraPower();
@@ -2884,7 +2440,6 @@ export class PlannerGraphService implements OnDestroy
 			+ `+${this.rateFormatter.power(extra.flatBonus)} and +${this.rateFormatter.percent(extra.multiplier - 1)}`;
 	}
 
-	/** IO node stat line: the node's role (Product, Byproduct, …) and its rate. */
 	private ioStats(role: string, amount: number, item: Item): string
 	{
 		return `${role} · ${this.rateFormatter.rate(amount, item)}`;
@@ -2892,7 +2447,6 @@ export class PlannerGraphService implements OnDestroy
 
 	private subplanStats(node: SubplanNode): string
 	{
-		// A subplan built more than once says so - its rates are the total.
 		const built = node.buildCount > 1 ? `built ${node.buildCount}× - ` : '';
 		if (node.inputs.length === 0 && node.outputs.length === 0) {
 			return `Subplan - ${built}empty`;
@@ -2900,14 +2454,6 @@ export class PlannerGraphService implements OnDestroy
 		return `Subplan - ${built}${node.inputs.length} in, ${node.outputs.length} out`;
 	}
 
-	/**
-	 * Bold machine line between the recipe name and the group lines, per the
-	 * configured machine display: the built total (default), the exact
-	 * fractional machine count at the recipe's configured clock ("3.85× Constructor
-	 * @ 150%"), the total clock percentage ("385% Constructor"), or the bare
-	 * machine name (groups-only, where no count line would otherwise say what
-	 * to build).
-	 */
 	private machinesLine(node: RecipeNode): string
 	{
 		switch (this.settings.graph().machineDisplay) {
@@ -2917,8 +2463,7 @@ export class PlannerGraphService implements OnDestroy
 				return `${this.rateFormatter.machineCount(machines)}× ${node.machine.name} @ ${this.rateFormatter.clock(clock)}%`;
 			}
 			case 'percent':
-				// The target is the machine count at 100% clock, so ×100 is the
-				// total clock percentage to spread over the machines built.
+				// target is in machines at 100% clock.
 				return `${this.rateFormatter.clock(node.target * 100)}% ${node.machine.name}`;
 			case 'groups-only':
 				return node.machine.name;
@@ -2927,12 +2472,6 @@ export class PlannerGraphService implements OnDestroy
 		}
 	}
 
-	/**
-	 * The clock the plan's Overclocking settings prescribe for this recipe -
-	 * the per-recipe override, else the node's machine override, else the plan
-	 * default. Null without an active plan (the read-only share view), where
-	 * the groups' clock is all there is.
-	 */
 	private recipeClockFor(node: RecipeNode): number | null
 	{
 		const settings = this.planManager.activePlan()?.settings;
@@ -2945,7 +2484,6 @@ export class PlannerGraphService implements OnDestroy
 			?? 100;
 	}
 
-	/** One line per machine group; none in the single-line machine displays. */
 	private recipeStats(node: RecipeNode): string
 	{
 		if (this.singleLineMachines()) {
@@ -2954,12 +2492,6 @@ export class PlannerGraphService implements OnDestroy
 		return node.groups.map(group => this.groupStatLine(group)).join('\n');
 	}
 
-	/**
-	 * Extra Y shift centering the top-pinned label block vertically: the block
-	 * only fills the node when it has enough stat lines to outgrow the minimum
-	 * height - with fewer, the leftover space is split evenly instead of all
-	 * sitting below the text.
-	 */
 	private labelBlockOffset(stats: string, height: number): number
 	{
 		const lines = stats === '' ? 0 : stats.split('\n').length;
@@ -2967,24 +2499,18 @@ export class PlannerGraphService implements OnDestroy
 		return Math.max(0, (height - naturalHeight) / 2);
 	}
 
-	/**
-	 * A machine group's stat line: count, clock and (for slooped groups) the
-	 * sloop count. The "+K" keeps the number; the somersloop icon that replaces
-	 * the "S" is drawn separately (see recipeSloopBadges), so it is omitted here.
-	 */
+	/** The somersloop icon is drawn separately (recipeSloopBadges). */
 	private groupStatLine(group: MachineGroup): string
 	{
 		const sloops = group.sloops > 0 ? ` +${group.sloops}` : '';
 		return `${group.machines} @ ${this.rateFormatter.clock(group.clockSpeed)}%${sloops}`;
 	}
 
-	/** Bold sink-point total shown between the name and the item lines. */
 	private sinkPointsLine(node: SinkNode): string
 	{
 		return `${this.rateFormatter.amount(node.sinkPoints())} points/min`;
 	}
 
-	/** The single sinked item and its rate. */
 	private sinkStats(node: SinkNode): string
 	{
 		return `${this.rateFormatter.rate(node.amount, node.item)} ${node.item.name}`;

@@ -1,10 +1,5 @@
 import {Directive, ElementRef, HostListener, Input} from '@angular/core';
 
-/**
- * Shows the given text as a native browser tooltip, but only while the
- * host's content is actually truncated (text-truncate overflow) - names
- * that fit need no tooltip.
- */
 @Directive({selector: '[truncateTitle]'})
 export class TruncateTitleDirective
 {

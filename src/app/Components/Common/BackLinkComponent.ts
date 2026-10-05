@@ -6,14 +6,6 @@ import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 
-/**
- * The quiet "← Parent page" link at the top of every non-planner page, so
- * the user can always step back up (home, the mod list, the mod itself…).
- * One look everywhere instead of ad-hoc outline buttons.
- *
- * It also owns the "go back" hotkey (Escape) while it is on screen, which is
- * what gives every one of those pages the same way out from the keyboard.
- */
 @Component({
 	selector: 'back-link',
 	templateUrl: './BackLinkComponent.html',
@@ -56,7 +48,6 @@ export class BackLinkComponent implements OnInit, OnDestroy
 
 	public readonly faArrowLeft = faArrowLeft;
 
-	/** Router commands of the parent page. */
 	@Input({required: true}) public link: string | string[] = '/';
 	@Input({required: true}) public label = '';
 
@@ -81,11 +72,7 @@ export class BackLinkComponent implements OnInit, OnDestroy
 		this.registration = null;
 	}
 
-	/**
-	 * "Back to planner" wins where the navbar offers it: on the settings or
-	 * account page that is where the user came from, and it is the way out
-	 * they are looking at. Otherwise the link this back-link itself shows.
-	 */
+	/** "Back to planner" wins where the navbar offers it: on the settings or account page that is where the user came from. */
 	private goBack(): void
 	{
 		const planner = this.backToPlanner.link();

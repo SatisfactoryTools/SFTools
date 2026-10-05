@@ -6,18 +6,7 @@ const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_RADIUS = 30;
 const MOVE_TOLERANCE = 10;
 
-/**
- * Touch-screen gestures for the graph canvas, which x6 lacks: two-finger
- * pinch zoom, double tap (add node / inspect) and long press (context menu).
- *
- * Blank-canvas touches are kept away from x6 (stopPropagation in the capture
- * phase) so its own single-finger panning does not fight the pinch; the pan
- * is re-implemented here. Touches on cells still reach x6, so node dragging
- * and tap-to-select keep working. After a recognised long press or double
- * tap the touchend is cancelled, which also suppresses the browser's
- * synthesized mouse events - a synthesized mousedown would otherwise close
- * the context menu the long press just opened.
- */
+/** Blank-canvas touches are kept from x6 (capture-phase stopPropagation) so its panning doesn't fight the pinch; the pan is re-implemented here. The touchend after a long press or double tap is cancelled, so no synthesized mousedown closes the context menu it just opened. */
 export class GraphTouchGestures
 {
 
@@ -25,18 +14,12 @@ export class GraphTouchGestures
 	private last: {x: number; y: number} | null = null;
 	private moved = false;
 	private longPressTimer: ReturnType<typeof setTimeout> | null = null;
-	/** A long press (ours or the browser's native contextmenu) happened in this touch - swallow its end. */
+	/** A long press (ours or the browser's native one) happened in this touch - swallow its end. */
 	private pressHandled = false;
 	private pinch: {distance: number; centerX: number; centerY: number} | null = null;
-	/**
-	 * A pinch ended but a finger is still down. That finger is ignored until
-	 * every finger lifts: the single-finger pan state dates from before the
-	 * pinch, so letting the leftover finger pan would first jump the canvas by
-	 * the distance travelled during the pinch.
-	 */
+	/** After a pinch, a leftover finger is ignored until all lift - its pan state predates the pinch and would jump the canvas. */
 	private pinchSettling = false;
 	private lastTap: {x: number; y: number; time: number} | null = null;
-	/** The graph is told once that it is being touched, not on every finger. */
 	private touchReported = false;
 
 	private readonly touchStartListener = (event: TouchEvent) => this.onTouchStart(event);
@@ -53,7 +36,6 @@ export class GraphTouchGestures
 
 	public attach(): void
 	{
-		// No browser panning/zooming of the page itself, and no double-tap zoom.
 		this.container.style.touchAction = 'none';
 		this.container.addEventListener('touchstart', this.touchStartListener, {capture: true, passive: false});
 		this.container.addEventListener('touchmove', this.touchMoveListener, {capture: true, passive: false});
@@ -107,7 +89,6 @@ export class GraphTouchGestures
 			event.stopPropagation();
 			this.cancelLongPress();
 			this.lastTap = null;
-			// A second finger back down after a pinch starts a fresh pinch.
 			this.pinchSettling = false;
 			const [a, b] = [event.touches[0], event.touches[1]];
 			this.pinch = {
@@ -203,7 +184,7 @@ export class GraphTouchGestures
 		this.lastTap = {x: start.x, y: start.y, time: now};
 	}
 
-	/** The browser opened a context menu itself (Android long press) - do not open a second one. */
+	/** Android long press opens a native context menu - do not open a second one. */
 	private onNativeContextMenu(): void
 	{
 		if (this.start) {

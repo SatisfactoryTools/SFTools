@@ -23,11 +23,7 @@ export class VersionManager
 		private readonly auth: AuthService,
 	)
 	{
-		// The version list depends on who asks (linked custom versions are
-		// per-user), so login/logout must refetch it - otherwise a signed-out
-		// user keeps seeing their custom versions until a full page reload.
-		// Logging in additionally adopts the anonymous localStorage versions
-		// into the account.
+		// Linked custom versions are per-user, so login/logout must refetch the list.
 		toObservable(auth.isAuthenticated).pipe(skip(1), distinctUntilChanged()).subscribe(authenticated => {
 			this.createdVersionsSignal.set([]);
 			this.localVersionsSignal.set([]);
@@ -43,9 +39,7 @@ export class VersionManager
 			this.loadLocalVersions();
 		}
 
-		// Data files are prunable cache artifacts - a failing fetch usually
-		// means the file is gone (or the dataPath went stale). Re-materialize
-		// it once per (version, path) and retry with the returned path.
+		// A failing fetch usually means the prunable file is gone or the dataPath went stale - re-materialize once per (version, path) and retry.
 		effect(() => {
 			if (this.api.versionDataResource.error() === undefined) {
 				return;
@@ -74,45 +68,28 @@ export class VersionManager
 	private activeVersionSlugSignal = signal<string | null>(null);
 	private activeVersionIdSignal = signal<string | null>(null);
 
-	/**
-	 * The version the route was resolved with. The list is a reloadable
-	 * resource, so a failed refresh (or a custom version dropped from the list
-	 * while login/logout re-resolves it) would otherwise blank activeVersion
-	 * while the planner keeps running on the data it already loaded - silently
-	 * switching off everything that needs the version, sharing included.
-	 */
+	/** Kept separately so a failed list refresh cannot blank activeVersion while the planner keeps running on already-loaded data. */
 	private activeVersionResolvedSignal = signal<Version | null>(null);
 
-	/**
-	 * Versions created this session while signed in, available immediately -
-	 * the canonical list only refreshes when the versions resource reloads.
-	 * Merged by id, with the resource's entry winning once it arrives.
-	 */
+	/** Available immediately; merged by id, with the resource's entry winning once it arrives. */
 	private createdVersionsSignal = signal<Version[]>([]);
 
-	/** The anonymous user's custom versions, resolved from the localStorage id list via GET /versions/{id}. */
 	private localVersionsSignal = signal<Version[]>([]);
 
-	/** False while the localStorage versions are still being fetched - the versions resolver waits for it. */
+	/** The versions resolver waits for it. */
 	private localVersionsLoadedSignal = signal(true);
 
-	/**
-	 * dataPath corrections learned from ensure calls - the stored lists keep
-	 * the path they were fetched with, which goes stale when a version is
-	 * re-materialized with changed inputs.
-	 */
+	/** The stored lists keep the path they were fetched with, which goes stale after re-materialization. */
 	private dataPathOverridesSignal = signal<ReadonlyMap<string, string>>(new Map());
 
-	/** (versionId:path) pairs already re-materialized, so a genuinely broken file cannot retry forever. */
+	/** So a genuinely broken file cannot retry forever. */
 	private readonly recoveryAttempts = new Set<string>();
 
 	public get versionsResource() { return this.api.versionsResource; }
 	public get versionDataResource() { return this.api.versionDataResource; }
 
 	public versions = computed(() => {
-		// value() throws while the resource is in its error state, and that
-		// exception would abort the template that is trying to explain the
-		// failure. An unreachable server simply means no versions yet.
+		// value() throws in the error state, which would abort the template trying to explain the failure.
 		const fetched = this.api.versionsResource.hasValue() ? this.api.versionsResource.value() : null;
 		const merged = [...fetched ?? []];
 		const ids = new Set(merged.map(v => v.id));
@@ -128,7 +105,6 @@ export class VersionManager
 			: merged.map(v => overrides.has(v.id) ? {...v, dataPath: overrides.get(v.id)!} : v);
 	});
 
-	/** True once the version list - including the anonymous localStorage versions - is usable. */
 	public ready = computed(() => !this.api.versionsResource.isLoading() && this.localVersionsLoadedSignal());
 
 	public activeVersion = computed(() => {
@@ -136,8 +112,7 @@ export class VersionManager
 		if (slug === null) {
 			return null;
 		}
-		// The list entry wins (it carries the freshest dataPath); the version
-		// resolved on navigation stands in while the list is missing it.
+		// The list entry carries the freshest dataPath.
 		return this.versions().find(v => this.urlSlug(v) === slug) ?? this.activeVersionResolvedSignal();
 	});
 	public activeVersionData = computed<Data | null>(() => {
@@ -145,7 +120,7 @@ export class VersionManager
 		return file ? this.transformer.transform(file, this.activeVersion()?.worldData?.limits ?? null) : null;
 	});
 
-	/** The URL segment addressing a version: its slug, or its id for custom versions without one. */
+	/** Its id for custom versions without a slug. */
 	public urlSlug(version: Version): string
 	{
 		return version.slug ?? version.id;
@@ -173,11 +148,6 @@ export class VersionManager
 		this.api.setVersionDataPath(null);
 	}
 
-	/**
-	 * Makes a just-created version usable right away. Signed in, the server
-	 * linked it to the account, so the canonical list refreshes in the
-	 * background; anonymous, ownership is only the localStorage id list.
-	 */
 	public registerCreatedVersion(version: Version): void
 	{
 		if (this.auth.isAuthenticated()) {
@@ -189,12 +159,7 @@ export class VersionManager
 		this.localVersionsSignal.update(local => [...local.filter(v => v.id !== version.id), version]);
 	}
 
-	/**
-	 * Removes the version from the user's list - the account link when signed
-	 * in, the localStorage entry otherwise. The version itself keeps existing
-	 * (it is shared and deduplicated); creating the same definition again
-	 * brings it back.
-	 */
+	/** The version itself keeps existing (shared and deduplicated). */
 	public removeCustomVersion(version: Version): void
 	{
 		this.createdVersionsSignal.update(created => created.filter(v => v.id !== version.id));
@@ -203,16 +168,13 @@ export class VersionManager
 		if (this.auth.isAuthenticated()) {
 			this.versionsApi.unlinkVersion(version.id).subscribe({
 				next: () => this.api.versionsResource.reload(),
-				// The version is already gone from the lists here. Refreshing
-				// puts it back if the server never got the call, which is the
-				// honest outcome - no message needed for a link that will be
-				// removed again on the next try.
+				// Refreshing puts it back if the server never got the call - no message needed.
 				error: () => this.api.versionsResource.reload(),
 			});
 		}
 	}
 
-	/** Resolves the anonymous localStorage versions; ids the server no longer knows are dropped from the store. */
+	/** Ids the server no longer knows are dropped from the store. */
 	private loadLocalVersions(): void
 	{
 		const ids = this.localStore.list();
@@ -234,12 +196,7 @@ export class VersionManager
 		});
 	}
 
-	/**
-	 * Adopts the anonymous localStorage versions into the just-signed-in
-	 * account, then refreshes the canonical list (which now includes them).
-	 * Linked ids leave localStorage - keeping them would only grow stale;
-	 * notFound ids are dead and leave too.
-	 */
+	/** Linked and notFound ids both leave localStorage. */
 	private adoptLocalVersions(): void
 	{
 		const ids = this.localStore.list().slice(0, 200);
