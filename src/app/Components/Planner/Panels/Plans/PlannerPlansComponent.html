@@ -29,6 +29,18 @@
 		</span>
 	</div>
 
+	@if (rootOpen() && oldLocalLineCount > 0 && !oldLocalPromptDismissed()) {
+		<!-- This app now answers on the old Satisfactory Tools' domain, so the
+		     lines the old site saved in this browser are right here. -->
+		<info-note>
+			<div>This browser holds {{ oldLocalLineCount }} production {{ oldLocalLineCount === 1 ? 'line' : 'lines' }} from the old Satisfactory Tools.</div>
+			<div class="d-flex gap-2 mt-1">
+				<button type="button" class="btn btn-sm btn-primary" (click)="importOldLocalLines()">Import them</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissOldLocalPrompt()">Not now</button>
+			</div>
+		</info-note>
+	}
+
 	@if (rootOpen() && rootEmpty() && !editState()) {
 		<div class="tree-empty">No plans yet. Use <fa-icon [icon]="faPlus"></fa-icon> above to create one.</div>
 	}
@@ -382,5 +394,5 @@
 }
 
 @if (importDialogOpen()) {
-	<import-old-plans-dialog (apply)="onImportApply($event)" (close)="closeImportDialog()"></import-old-plans-dialog>
+	<import-old-plans-dialog [initialRequest]="importDialogRequest()" (apply)="onImportApply($event)" (close)="closeImportDialog()"></import-old-plans-dialog>
 }

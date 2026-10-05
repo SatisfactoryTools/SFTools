@@ -131,6 +131,23 @@ export class VersionManager
 		return this.versions().find(v => this.urlSlug(v) === slugOrId) ?? null;
 	}
 
+	/**
+	 * The public version a link without one lands in: the official release
+	 * (FICSMAS or regular as asked), else the first public non-experimental
+	 * version of that flavour, else any public one. Null while the list is
+	 * empty.
+	 */
+	public defaultPublicVersion(ficsmas: boolean): Version | null
+	{
+		const publics = this.versions().filter(v => !v.custom);
+		const flavour = publics.filter(v => v.ficsmas === ficsmas);
+		return flavour.find(v => v.official && !v.experimental)
+			?? flavour.find(v => !v.experimental)
+			?? flavour[0]
+			?? publics[0]
+			?? null;
+	}
+
 	public setActiveVersion(slugOrId: string): void
 	{
 		const version = this.findByUrlSlug(slugOrId);

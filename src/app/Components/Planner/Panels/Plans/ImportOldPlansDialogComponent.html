@@ -22,6 +22,32 @@
 				<input type="file" accept=".sft" class="form-control form-control-sm bg-dark text-light border-secondary" [disabled]="importing()" (change)="onFilePicked($event)"/>
 			</div>
 
+			@if (localCount() > 0) {
+				<!-- The old site's own saved lines, right here in this browser once
+				     this app answers on the old site's domain. -->
+				<div class="d-flex align-items-center gap-2">
+					<button type="button" class="btn btn-sm btn-outline-primary" [disabled]="importing()" (click)="loadLocalLines()">
+						Load {{ localCount() }} {{ localCount() === 1 ? 'line' : 'lines' }} saved by the old tools in this browser
+					</button>
+				</div>
+			}
+
+			@if (otherFlavourSlug !== null && (otherFlavourShareKeys.length > 0 || localOtherCount > 0)) {
+				<info-note>
+					@if (otherFlavourShareKeys.length > 0) {
+						{{ otherFlavourShareKeys.length }} {{ otherFlavourShareKeys.length === 1 ? 'line was' : 'lines were' }}
+						made for the {{ otherFlavourName }} version and can only be imported there.
+						<a [routerLink]="['/', otherFlavourSlug, 'planner']" [queryParams]="{importOld: otherFlavourShareKeys.join(',')}" (click)="requestClose()">Open the {{ otherFlavourName }} version</a>
+						to import them after this.
+					} @else {
+						{{ localOtherCount }} {{ localOtherCount === 1 ? 'line' : 'lines' }} saved in this browser
+						{{ localOtherCount === 1 ? 'was' : 'were' }} made for the {{ otherFlavourName }} version.
+						<a [routerLink]="['/', otherFlavourSlug, 'planner']" [queryParams]="{importOld: 'local'}" (click)="requestClose()">Open the {{ otherFlavourName }} version</a>
+						to import them.
+					}
+				</info-note>
+			}
+
 			@for (error of errors(); track $index) {
 				<div class="alert alert-danger mb-0 py-1 px-2 small">{{ error }}</div>
 			}
@@ -41,6 +67,9 @@
 							<label class="form-check-label d-flex align-items-center gap-2 text-truncate" for="import-row-{{ row.plan.id }}">
 								<game-icon [hash]="row.iconHash" [size]="20" [alt]="row.plan.name"></game-icon>
 								<span class="text-truncate">{{ row.plan.name }}</span>
+								@if (row.madeFor !== null) {
+									<span class="badge bg-secondary" tooltip="Made for an older game version - items and recipes that no longer exist are skipped" container="body" placement="top">{{ row.madeFor }}</span>
+								}
 								@if (row.hasMaximise) {
 									<span class="text-warning" tooltip="Uses maximise - the result may look different here" container="body" placement="top">
 										<fa-icon [icon]="faTriangleExclamation"></fa-icon>

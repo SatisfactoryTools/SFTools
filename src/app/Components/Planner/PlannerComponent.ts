@@ -54,6 +54,8 @@ import {PlannerPlansComponent} from '@src/Components/Planner/Panels/Plans/Planne
 import {PlannerPowerComponent} from '@src/Components/Planner/Panels/Power/PlannerPowerComponent';
 import {PlannerSettingsComponent} from '@src/Components/Planner/Panels/Settings/PlannerSettingsComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {OldToolsImportRequestService} from '@src/Model/OldTools/OldToolsImportRequestService';
+import {OldToolsShareService} from '@src/Model/OldTools/OldToolsShareService';
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
 import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
@@ -175,6 +177,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		public readonly shareDialog: ShareDialogService,
 		private readonly folderRecalculation: FolderRecalculationService,
 		private readonly signInPrompt: SignInPromptService,
+		private readonly oldToolsImports: OldToolsImportRequestService,
+		private readonly oldToolsShares: OldToolsShareService,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
 	)
@@ -296,6 +300,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (this.route.snapshot.queryParamMap.has('help')) {
 			panelLayout.focusPanel('help');
 		}
+
+		// Arrivals from the old Satisfactory Tools (its share links and its
+		// "take my plans" button, both rewritten by LegacyUrlRedirectComponent)
+		// carry the keys to import. The plans panel owns the dialog, so the
+		// request is parked for it; the params leave the URL so a reload or a
+		// copied link does not import the same lines again.
+		this.acceptOldToolsImportLink();
 
 		this.subscription.add(
 			this.actions.calculateRequests.subscribe(() => this.calculate()),
@@ -625,6 +636,27 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		void this.router.navigate([], {
 			relativeTo: this.route,
 			queryParams: {panel: null},
+			queryParamsHandling: 'merge',
+			replaceUrl: true,
+		});
+	}
+
+	private acceptOldToolsImportLink(): void
+	{
+		const params = this.route.snapshot.queryParamMap;
+		const importOld = params.get('importOld');
+		if (importOld === null) {
+			return;
+		}
+		this.oldToolsImports.request({
+			shareKeys: importOld === 'local' ? [] : this.oldToolsShares.parseShareKeyList(importOld),
+			localLines: importOld === 'local',
+			otherFlavourShareKeys: this.oldToolsShares.parseShareKeyList(params.get('importOldOther')),
+		});
+		this.panelLayout.focusPanel('plans');
+		void this.router.navigate([], {
+			relativeTo: this.route,
+			queryParams: {importOld: null, importOldOther: null},
 			queryParamsHandling: 'merge',
 			replaceUrl: true,
 		});

@@ -17,6 +17,7 @@ import {ShareRedirectComponent} from '@src/Components/Shares/ShareRedirectCompon
 import {AuthGuard} from '@src/Model/Auth/AuthGuard';
 import {HelpEditorGuard} from '@src/Model/Help/HelpEditorGuard';
 import {NotFoundComponent} from '@src/Components/Errors/NotFoundComponent';
+import {LegacyUrlRedirectComponent} from '@src/Components/Legacy/LegacyUrlRedirectComponent';
 import {VersionsResolver} from '@src/Model/Data/VersionsResolver';
 import {VersionDataResolver} from '@src/Model/Data/VersionDataResolver';
 import {SettingsResolver} from '@src/Model/Settings/SettingsResolver';
@@ -79,6 +80,21 @@ export class RouteList
 		}
 		return {consumed: segments, posParams};
 	}
+
+	/**
+	 * The old Satisfactory Tools' addresses: `/{0.8|1.0|1.0-ficsmas}/…`,
+	 * version-less `/production` and `/codex/…`, and the `/import` link its
+	 * "take my plans" button sends people to. All of them, whatever follows.
+	 */
+	public static legacyMatcher(segments: UrlSegment[]): UrlMatchResult | null
+	{
+		if (segments.length < 1 || !RouteList.LEGACY_FIRST_SEGMENTS.includes(segments[0].path)) {
+			return null;
+		}
+		return {consumed: segments, posParams: {}};
+	}
+
+	private static readonly LEGACY_FIRST_SEGMENTS: ReadonlyArray<string> = ['0.8', '1.0', '1.0-ficsmas', 'production', 'codex', 'import'];
 
 	public static routes: Routes = [
 		{
@@ -200,6 +216,12 @@ export class RouteList
 					// of the share's version, where the share opens read-only.
 					path: 'shared/:shareId',
 					component: ShareRedirectComponent,
+				},
+				{
+					// Links from the old Satisfactory Tools era. Must precede
+					// the ':versionSlug' catch-all, which would send them home.
+					matcher: RouteList.legacyMatcher,
+					component: LegacyUrlRedirectComponent,
 				},
 				{
 					path: ':versionSlug',

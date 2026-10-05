@@ -2,6 +2,7 @@ import {Component, ChangeDetectionStrategy, HostListener} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
 import {HelpImageViewerComponent} from '@src/Components/Help/HelpImageViewerComponent';
 import {ServerStatusService} from '@src/Model/API/ServerStatusService';
+import {AnalyticsService} from '@src/Model/Analytics/AnalyticsService';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
 @Component({
@@ -19,6 +20,9 @@ export class RootComponent
     public constructor(
         public readonly serverStatus: ServerStatusService,
         private readonly hotkeys: HotkeyService,
+        // Injected for its side effect: it starts listening to the router
+        // here, at the root, so every navigation is counted.
+        analytics: AnalyticsService,
     )
     {
     }

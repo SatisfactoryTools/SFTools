@@ -1,4 +1,4 @@
-import {AfterViewChecked, Component, ElementRef, OnDestroy, Signal, ViewChild, ChangeDetectionStrategy, computed, signal} from '@angular/core';
+import {AfterViewChecked, Component, ElementRef, OnDestroy, Signal, ViewChild, ChangeDetectionStrategy, computed, effect, signal, untracked} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
@@ -14,6 +14,9 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {IconPickerDialogComponent} from '@src/Components/Common/IconPickerDialogComponent';
 import {TruncateTitleDirective} from '@src/Components/Common/TruncateTitleDirective';
 import {ImportOldPlansDialogComponent} from '@src/Components/Planner/Panels/Plans/ImportOldPlansDialogComponent';
+import {OldToolsImportRequest} from '@src/Model/OldTools/OldToolsImportRequest';
+import {OldToolsImportRequestService} from '@src/Model/OldTools/OldToolsImportRequestService';
+import {OldToolsLocalStorageService} from '@src/Model/OldTools/OldToolsLocalStorageService';
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
 import {DropPosition} from '@src/Components/Planner/Panels/Plans/DropPosition';
 import {DropTarget} from '@src/Components/Planner/Panels/Plans/DropTarget';
@@ -530,6 +533,17 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	private readonly importDialogOpenSignal = signal(false);
 	public readonly importDialogOpen: Signal<boolean> = this.importDialogOpenSignal.asReadonly();
+	/** What the dialog loads on open when it was opened by a link or the "old plans found" offer; null for a blank dialog. */
+	private readonly importDialogRequestSignal = signal<OldToolsImportRequest | null>(null);
+	public readonly importDialogRequest: Signal<OldToolsImportRequest | null> = this.importDialogRequestSignal.asReadonly();
+
+	/**
+	 * Production lines the old Satisfactory Tools left in this browser (this
+	 * app now answers on its domain). Offered once, until imported or waved
+	 * away; the count is read when the panel opens, which is often enough.
+	 */
+	public readonly oldLocalLineCount: number;
+	public readonly oldLocalPromptDismissed: Signal<boolean>;
 
 	public constructor(
 		private readonly planManager: PlanManager,
@@ -545,10 +559,25 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		public readonly hotkeys: HotkeyService,
 		private readonly router: Router,
 		private readonly elementRef: ElementRef<HTMLElement>,
+		private readonly oldToolsLocalStorage: OldToolsLocalStorageService,
+		oldToolsImports: OldToolsImportRequestService,
 		collapsedSections: CollapsedSectionsService,
 	)
 	{
 		this.foldState = new CollapsibleSections(collapsedSections, 'plans');
+		this.oldLocalLineCount = oldToolsLocalStorage.count();
+		this.oldLocalPromptDismissed = oldToolsLocalStorage.promptDismissed;
+		// A link from the old tools parked its import request before this
+		// panel existed; the dialog opens with it as soon as the panel does.
+		effect(() => {
+			const request = oldToolsImports.pending();
+			if (request !== null) {
+				untracked(() => {
+					oldToolsImports.consume();
+					this.openImportDialog(request);
+				});
+			}
+		});
 		this.hotkeyRegistration = hotkeys.registerSource(this);
 		// A share visited on another device has no local tree snapshot yet - fetch it once.
 		toObservable(visitedShares.visitedShares).subscribe(shares => shares.forEach(share => shareTrees.ensure(share.share)));
@@ -621,9 +650,21 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	// ── Import from old Satisfactory Tools ──────────────────────────────────
 
-	public openImportDialog(): void
+	public openImportDialog(request: OldToolsImportRequest | null = null): void
 	{
+		this.importDialogRequestSignal.set(request);
 		this.importDialogOpenSignal.set(true);
+	}
+
+	/** The "old plans found in this browser" offer - the dialog opens with those lines loaded. */
+	public importOldLocalLines(): void
+	{
+		this.openImportDialog({shareKeys: [], localLines: true, otherFlavourShareKeys: []});
+	}
+
+	public dismissOldLocalPrompt(): void
+	{
+		this.oldToolsLocalStorage.dismissPrompt();
 	}
 
 	public closeImportDialog(): void
@@ -637,6 +678,10 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.importDialogOpenSignal.set(false);
 		if (plans.length === 0) {
 			return;
+		}
+		// The browser's old lines are in now (or the user picked which) - the offer is done.
+		if (this.importDialogRequestSignal()?.localLines) {
+			this.oldToolsLocalStorage.dismissPrompt();
 		}
 		const folder: Folder = {
 			id: crypto.randomUUID(),

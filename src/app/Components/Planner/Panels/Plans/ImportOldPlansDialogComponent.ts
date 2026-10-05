@@ -1,4 +1,5 @@
-import {Component, ChangeDetectionStrategy, EventEmitter, OnDestroy, Output, Signal, computed, signal, HostListener} from '@angular/core';
+import {Component, ChangeDetectionStrategy, EventEmitter, Input, OnDestroy, OnInit, Output, Signal, computed, signal, HostListener} from '@angular/core';
+import {RouterLink} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {Subscription, firstValueFrom} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
@@ -10,9 +11,14 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {OldPlanConverter} from '@src/Model/OldTools/OldPlanConverter';
+import {OldGameVersion} from '@src/Model/OldTools/OldGameVersion';
 import {OldProductionData} from '@src/Model/OldTools/OldProductionData';
+import {OldToolsImportRequest} from '@src/Model/OldTools/OldToolsImportRequest';
+import {OldToolsLocalStorageService} from '@src/Model/OldTools/OldToolsLocalStorageService';
 import {OldToolsShareService} from '@src/Model/OldTools/OldToolsShareService';
 import {SftFileParser} from '@src/Model/OldTools/SftFileParser';
+import {AnalyticsService} from '@src/Model/Analytics/AnalyticsService';
+import {Version} from '@src/Model/API/Schema/Version';
 import {GraphEdgeBuilder} from '@src/Model/Planner/Graph/GraphEdgeBuilder';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanIconResolver} from '@src/Model/Planner/PlanIconResolver';
@@ -26,19 +32,27 @@ interface ImportRow
 	readonly unknownCount: number;
 	/** The old tools' maximise semantics differ - flagged so the user knows the result may vary. */
 	readonly hasMaximise: boolean;
+	/** Shown when the line was made for another game version than the one open (Update 8, or the other FICSMAS flavour). */
+	readonly madeFor: string | null;
 	readonly selected: boolean;
 }
 
 /**
  * Modal importing production lines from the old Satisfactory Tools - pasted
- * share links (?share=KEY) and/or an exported .sft file. Loaded lines are
- * listed with icons and checkboxes; the host receives the checked plans.
+ * share links (?share=KEY), an exported .sft file, the lines the old site
+ * left in this browser's localStorage, or the share keys an incoming link
+ * carried (`initialRequest`, loaded on open). Loaded lines are listed with
+ * icons and checkboxes; the host receives the checked plans.
+ *
+ * Lines convert against the open version only, so lines made for the other
+ * flavour (FICSMAS vs regular) are not loaded here - the dialog points to
+ * that version's planner instead, with the same request.
  */
 @Component({
 	selector: 'import-old-plans-dialog',
 	templateUrl: './ImportOldPlansDialogComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, GameIconComponent, AppTooltipDirective, InfoNoteComponent, HotkeyBlockDirective],
+	imports: [FaIconComponent, FormsModule, GameIconComponent, AppTooltipDirective, InfoNoteComponent, HotkeyBlockDirective, RouterLink],
 	styles: `
 		.import-backdrop {
 			position: fixed;
@@ -63,8 +77,11 @@ interface ImportRow
 		}
 	`,
 })
-export class ImportOldPlansDialogComponent implements OnDestroy
+export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 {
+
+	/** Share keys and/or local lines an incoming link asked for; loaded as soon as the dialog opens. */
+	@Input() public initialRequest: OldToolsImportRequest | null = null;
 
 	@Output() public readonly apply = new EventEmitter<Plan[]>();
 	@Output() public readonly close = new EventEmitter<void>();
@@ -92,6 +109,22 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 	/** Shows the maximise footnote as soon as one loaded line uses it. */
 	public readonly hasMaximiseRows: Signal<boolean> = computed(() => this.rowsSignal().some(row => row.hasMaximise));
 
+	/** Whether the open version is a FICSMAS one - decides which of the old site's stores belong here. */
+	public readonly ficsmas: boolean;
+	/** The current public version of the other flavour, where the lines not loadable here belong. */
+	public readonly otherFlavourVersion: Version | null;
+	public readonly otherFlavourSlug: string | null;
+	public readonly otherFlavourName: string;
+
+	/** Lines the old site saved in this browser for this flavour, still offered until loaded. */
+	private readonly localCountSignal = signal(0);
+	public readonly localCount: Signal<number> = this.localCountSignal.asReadonly();
+	/** …and for the other flavour, which only that version's planner can import. */
+	public readonly localOtherCount: number;
+
+	/** Share keys the incoming link carried for the other flavour; the template links that version's planner with them. */
+	public otherFlavourShareKeys: string[] = [];
+
 	private readonly loadedShareKeys = new Set<string>();
 	private readonly subscriptions: Subscription[] = [];
 
@@ -104,8 +137,32 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 		private readonly productionSolver: ProductionSolverService,
 		private readonly edgeBuilder: GraphEdgeBuilder,
 		private readonly plannerGraph: PlannerGraphService,
+		private readonly localStorageLines: OldToolsLocalStorageService,
+		private readonly analytics: AnalyticsService,
 	)
 	{
+		this.ficsmas = versionManager.activeVersion()?.ficsmas ?? false;
+		// defaultPublicVersion falls back across flavours when one has no
+		// version at all; the other flavour then simply does not exist here.
+		const other = versionManager.defaultPublicVersion(!this.ficsmas);
+		this.otherFlavourVersion = other !== null && other.ficsmas === !this.ficsmas ? other : null;
+		this.otherFlavourSlug = this.otherFlavourVersion === null ? null : versionManager.urlSlug(this.otherFlavourVersion);
+		this.otherFlavourName = this.ficsmas ? 'regular' : 'FICSMAS';
+		this.localCountSignal.set(localStorageLines.readFlavour(this.ficsmas).length);
+		this.localOtherCount = localStorageLines.readFlavour(!this.ficsmas).length;
+	}
+
+	public ngOnInit(): void
+	{
+		const request = this.initialRequest;
+		if (request === null) {
+			return;
+		}
+		this.loadShareKeys(request.shareKeys);
+		if (request.localLines) {
+			this.loadLocalLines();
+		}
+		this.otherFlavourShareKeys = request.otherFlavourShareKeys;
 	}
 
 	public loadLinks(): void
@@ -113,12 +170,30 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 		const lines = this.linksText.split('\n').map(line => line.trim()).filter(line => line !== '');
 		this.linksText = '';
 
+		const keys: string[] = [];
 		for (const line of lines) {
 			const key = this.shareService.extractShareKey(line);
 			if (key === null) {
 				this.addError(`Not a share link: "${line}"`);
 				continue;
 			}
+			keys.push(key);
+		}
+		this.loadShareKeys(keys);
+	}
+
+	/** The old site's lines left in this browser's localStorage, for the open flavour. */
+	public loadLocalLines(): void
+	{
+		const lines = this.localStorageLines.readFlavour(this.ficsmas);
+		this.localCountSignal.set(0);
+		lines.forEach(line => this.addProductionLine(line.data, line.gameVersion));
+		this.analytics.trackEvent('OldTools', 'load-local-lines', undefined, lines.length);
+	}
+
+	private loadShareKeys(keys: string[]): void
+	{
+		for (const key of keys) {
 			if (this.loadedShareKeys.has(key)) {
 				continue;
 			}
@@ -203,6 +278,7 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 			plans.push(await this.solve(plan));
 		}
 		this.importProgressSignal.set(null);
+		this.analytics.trackEvent('OldTools', 'import-plans', undefined, plans.length);
 		this.apply.emit(plans);
 	}
 
@@ -230,7 +306,7 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 		}
 	}
 
-	private addProductionLine(data: OldProductionData): void
+	private addProductionLine(data: OldProductionData, madeFor: OldGameVersion | null = null): void
 	{
 		const versionData = this.versionManager.activeVersionData();
 		if (!versionData) {
@@ -243,6 +319,7 @@ export class ImportOldPlansDialogComponent implements OnDestroy
 			iconHash: this.planIcons.iconHash(conversion.plan),
 			unknownCount: conversion.unknownClassNames.length,
 			hasMaximise: conversion.plan.requests.some(request => request.mode === 'maximise'),
+			madeFor: madeFor === '0.8' ? 'Update 8' : null,
 			selected: true,
 		}]);
 	}

@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+	Browser-data handoff for the domain move (see docs/migration-phase-2.md).
+
+	This page is served from the beta origin (new.satisfactorytools.com) and is
+	only ever loaded inside a hidden iframe by the app on the final domain. It
+	answers one message with everything the app stored in this origin's
+	localStorage - local plans, settings, the sign-in session - so a beta user
+	keeps them after the move. localStorage is per origin, so nothing else can
+	carry them over.
+
+	The reply goes only to the listed origins: the data includes the user's own
+	session, and any page could embed this one. The .htaccess also limits who
+	may frame it (frame-ancestors). Keep both lists in sync.
+-->
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="robots" content="noindex">
+	<title>Satisfactory Tools</title>
+</head>
+<body>
+<script>
+	(function () {
+		var ALLOWED_PARENT_ORIGINS = ['https://www.satisfactorytools.com', 'https://satisfactorytools.com'];
+		var REQUEST = 'sftools.handoff.request';
+		var REPLY = 'sftools.handoff.data';
+
+		function collect() {
+			var entries = {};
+			try {
+				for (var i = 0; i < localStorage.length; i++) {
+					var key = localStorage.key(i);
+					if (key && (key.indexOf('sftools.') === 0 || key.indexOf('auth.') === 0) && key.indexOf('sftools.handoff.') !== 0) {
+						entries[key] = localStorage.getItem(key);
+					}
+				}
+			} catch (e) {
+				// Storage blocked (private mode, third-party storage partitioning): nothing to hand over.
+			}
+			return entries;
+		}
+
+		window.addEventListener('message', function (event) {
+			if (ALLOWED_PARENT_ORIGINS.indexOf(event.origin) === -1 || !event.data || event.data.type !== REQUEST || !event.source) {
+				return;
+			}
+			event.source.postMessage({type: REPLY, entries: collect()}, event.origin);
+		});
+	})();
+</script>
+</body>
+</html>
