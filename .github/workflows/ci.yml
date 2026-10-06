@@ -62,7 +62,6 @@ jobs:
                     path: dist
 
             -   name: Add web layer
-                if: vars.WEB_LAYER_ENABLED == 'true'
                 run: cp -a deploy/web/. dist/
 
             -   name: Set up SSH
@@ -98,7 +97,6 @@ jobs:
                     "
 
             -   name: Check link previews
-                if: vars.WEB_LAYER_ENABLED == 'true'
                 continue-on-error: true
                 run: curl -fsS -A Discordbot "https://new.satisfactorytools.com/help?v=${GITHUB_SHA:0:7}" | grep -q 'og:title" content="Help'
 
