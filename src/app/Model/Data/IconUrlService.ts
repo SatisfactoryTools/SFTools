@@ -1,15 +1,17 @@
-import {Injectable} from '@angular/core';
+import {Injectable, Optional} from '@angular/core';
 import {env} from '@env/env';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
 
-/**
- * Resolves an icon hash to its image URL. Icons live at
- * {apiUrl}/data/images/{size}/{hash}.png, rendered at either 64px or 256px.
- * The hash comes from the `icon` field on items, buildings and schematics;
- * a null/empty hash yields null so callers can skip rendering.
- */
 @Injectable({providedIn: 'root'})
 export class IconUrlService
 {
+
+	private readonly base: string;
+
+	public constructor(@Optional() desktop: DesktopBridge | null)
+	{
+		this.base = desktop === null ? `${env.apiUrl}/data/images` : desktop.info.imageBase;
+	}
 
 	public url(hash: string | null | undefined, size: 64 | 256): string | null
 	{
@@ -18,7 +20,7 @@ export class IconUrlService
 		if (!hash || /[^A-Za-z0-9_-]/.test(hash)) {
 			return null;
 		}
-		return `${env.apiUrl}/data/images/${size}/${hash}.png`;
+		return `${this.base}/${size}/${hash}.png`;
 	}
 
 }

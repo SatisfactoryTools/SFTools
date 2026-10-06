@@ -1,12 +1,6 @@
 import {Folder} from '@src/Model/Planner/Folder';
 import {Plan} from '@src/Model/Planner/Plan';
 
-/**
- * Turns a plan or folder into the opaque `data` JSON string the API stores for
- * it. The same string goes into a plan/folder PUT and into a share created
- * from a tree the client sends, so both paths always agree on what a shared
- * plan contains - `SharePayloadHydrator` reads exactly these keys back.
- */
 export class PlanDataSerializer
 {
 

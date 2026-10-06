@@ -9,10 +9,8 @@ type SolutionWithRaw = {Columns?: Record<string, {Primal?: number}>; raw?: strin
 
 let highs: HighsInstance | null = null;
 
-// highs.js is CJS and can't be statically or dynamically imported directly.
-// Fetch it as text, append an ESM export, then import() via Blob URL - bypasses
-// Vite's @fs/ module resolution that blocks in dev mode, and avoids importScripts()
-// which module workers don't support.
+// highs.js is CJS and cannot be imported directly: fetched as text, given an ESM export and import()ed via a Blob URL,
+// which bypasses Vite's @fs/ resolution in dev and avoids importScripts(), which module workers lack.
 async function loadHighs(): Promise<HighsInstance>
 {
     const base = `${self.location.origin}/assets`;
@@ -28,12 +26,8 @@ async function loadHighs(): Promise<HighsInstance>
 }
 
 /**
- * highs.js extracts the solution by parsing HiGHS's "pretty" text format,
- * which carries only 6 significant digits - on large flows that quantization
- * unbalances items by whole hundredths per minute and surfaces as phantom
- * supply warnings. Patch its solve() to also write the raw solution file
- * (full precision) and expose the text, so the primals can be restored by
- * restoreFullPrecisionPrimals() after each solve.
+ * highs.js parses HiGHS's pretty text output, which carries only 6 significant digits - on large flows that
+ * unbalances items and raises phantom supply warnings. The patch also writes the raw full-precision solution.
  */
 function patchSolutionPrecision(source: string): string
 {
@@ -52,7 +46,6 @@ function patchSolutionPrecision(source: string): string
         .replace(anchorParse, anchorParse + 'output.raw=rawSolution;');
 }
 
-/** Overwrites the parsed 6-digit Primal values with the raw solution's full-precision ones. */
 function restoreFullPrecisionPrimals(solution: SolutionWithRaw): void
 {
     const raw = solution.raw;

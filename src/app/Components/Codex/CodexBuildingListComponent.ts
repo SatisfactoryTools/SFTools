@@ -5,10 +5,6 @@ import {Building} from '@src/Model/Data/Entities/Building';
 import {ItemAmount} from '@src/Model/Data/Entities/Parts/ItemAmount';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * Building cross-links as flush list-group rows - drop into a flush
- * codex-section. `showCost` adds each building's full build cost.
- */
 @Component({
 	selector: 'codex-building-list',
 	templateUrl: './CodexBuildingListComponent.html',

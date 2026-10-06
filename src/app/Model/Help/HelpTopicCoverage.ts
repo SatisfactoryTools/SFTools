@@ -5,16 +5,11 @@ import {HelpTopicClaim} from '@src/Model/Help/HelpTopicClaim';
 import {HelpTopicStatus} from '@src/Model/Help/HelpTopicStatus';
 import {HelpTopicStatusGroup} from '@src/Model/Help/HelpTopicStatusGroup';
 
-/**
- * Pairs the topics the app asks for with the articles that answer them, for
- * the help editor. Drafts count as claims - the topic is taken either way,
- * the button just stays hidden until the article is published.
- */
+/** Drafts count as claims: the topic is taken either way, the button just stays hidden until the article is published. */
 @Injectable({providedIn: 'root'})
 export class HelpTopicCoverage
 {
 
-	/** Every known topic, grouped the way the catalog groups them. */
 	public groups(articles: HelpEditorArticle[]): HelpTopicStatusGroup[]
 	{
 		const claims = this.claims(articles);
@@ -31,10 +26,6 @@ export class HelpTopicCoverage
 		}));
 	}
 
-	/**
-	 * Ids articles claim that the app never asks for - a typo in the id, or a
-	 * button that was taken out. They answer nothing until they are corrected.
-	 */
 	public unknown(articles: HelpEditorArticle[]): HelpTopicStatus[]
 	{
 		const unknown: HelpTopicStatus[] = [];
@@ -46,7 +37,6 @@ export class HelpTopicCoverage
 		return unknown;
 	}
 
-	/** How many known topics have an article, out of how many there are. */
 	public answered(articles: HelpEditorArticle[]): number
 	{
 		const claims = this.claims(articles);

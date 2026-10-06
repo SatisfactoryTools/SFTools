@@ -22,26 +22,19 @@ export class VersionDataResolver
 
 	public resolve(route: ActivatedRouteSnapshot, _state: RouterStateSnapshot): Observable<null>
 	{
-		// The segment is a public version's slug, or the id of a custom version.
 		const slug = route.paramMap.get('versionSlug')!;
 		const version = this.versionManager.findByUrlSlug(slug);
 
 		if (!version)
 		{
-			// A version someone else made is not in this user's list yet - the link they
-			// were sent is the first they hear of it. Adding it is what the share route
-			// does too, so a plan link into a custom version works the same. An unknown
-			// slug that the API does not know either still goes home.
+			// A link into someone else's custom version is the first this user hears of it, so link it the way the share route does.
 			return this.versionLinker.ensure(slug).pipe(
 				map(() => {
 					this.versionManager.setActiveVersion(slug);
 					return null;
 				}),
 				catchError((err: unknown) => {
-					// A slug the API does not know is a dead link and going home
-					// is the whole answer. A server that did not answer is not -
-					// bouncing someone out of their bookmarked planner with no
-					// word of why reads as the version having been deleted.
+					// A 404 is a dead link and going home says it all; a server that did not answer must not look like the version was deleted.
 					if (!(err instanceof HttpErrorResponse) || err.status !== 404) {
 						this.notifications.show('Could not reach the server, so this version could not be opened. Please try again in a moment.', 10_000);
 					}

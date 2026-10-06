@@ -27,7 +27,6 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FaIconComponent, BsDropdownModule, GameIconComponent, AppTooltipDirective],
 	styles: [`
-		/* Drops detail in steps as the column narrows (ranges, label words, state text); the rest is clipped rather than overflowing the canvas. */
 		:host {
 			display: flex;
 			align-items: center;
@@ -243,7 +242,6 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			white-space: nowrap;
 			color: #7d8ca5;
 		}
-		/* Red = the plan cannot run as it stands, amber = it runs but wastes something, blue = purely informational. */
 		.warning-row.kind-input, .warning-row.kind-output, .warning-row.kind-pool { border-left-color: #d4663f; }
 		.warning-row.kind-input .row-kind, .warning-row.kind-output .row-kind, .warning-row.kind-pool .row-kind { color: #e58a72; }
 		.warning-row.kind-capacity { border-left-color: #c9962e; }
@@ -367,7 +365,6 @@ export class PlannerStatusBarComponent
 	/** Chips are listed in the order trouble usually needs fixing in. */
 	private static readonly KIND_ORDER: GraphWarningKind[] = ['input', 'output', 'capacity', 'surplus', 'pool'];
 
-	/** Settings were pushed by the folder (or the pool moved) after the graph was solved. */
 	public readonly recalculationNeeded = computed(() =>
 		this.planManager.activePlan()?.metadata?.recalculationNeeded ?? false);
 

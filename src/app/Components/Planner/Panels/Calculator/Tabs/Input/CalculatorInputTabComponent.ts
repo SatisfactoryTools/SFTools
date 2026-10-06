@@ -16,13 +16,6 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {ResourceWeightResolver} from '@src/Model/Planner/ResourceWeightResolver';
 
-/**
- * User-supplied item sources for the solver: each row makes an item available
- * up to its amount, priced by its weight in the optimisation objective (a low
- * weight makes it a cheap alternative to mining or crafting). A new input's
- * weight follows the item until edited (see defaultWeightFor). Consumed inputs
- * appear in the graph as "input" nodes.
- */
 @Component({
 	selector: 'calculator-input-tab',
 	templateUrl: './CalculatorInputTabComponent.html',
@@ -39,11 +32,9 @@ export class CalculatorInputTabComponent implements OnDestroy
 
 	public rows: PlanInput[] = [];
 
-	/** Whether the input weights optimisation goal is on - the weights only matter then. */
 	public readonly weightsEnabled: Signal<boolean> = computed(() =>
 		this.planManager.activeSettings()?.optimisation?.inputs ?? true);
 
-	/** The plan's raw resource weights - an input of a raw resource is priced from its own weight. */
 	private readonly resourceWeights: Signal<Record<string, number>> = computed(() => {
 		const settings = this.planManager.activeSettings();
 		const data = this.versionManager.activeVersionData();
@@ -51,7 +42,6 @@ export class CalculatorInputTabComponent implements OnDestroy
 	});
 
 	private loadedPlanId: string | null = null;
-	/** JSON of the inputs the rows were last built from or synced to - external changes rebuild the rows. */
 	private loadedInputs: string | null = null;
 	private readonly subscription = new Subscription();
 
@@ -71,8 +61,7 @@ export class CalculatorInputTabComponent implements OnDestroy
 
 		this.subscription.add(
 			toObservable(this.planManager.activePlan).subscribe(plan => {
-				// Skip echoes of this tab's own sync(); anything else (plan
-				// switch, context-menu removal, undo) replaces the row drafts.
+				// Skip echoes of this tab's own sync(); anything else replaces the row drafts.
 				if (!plan || (plan.id === this.loadedPlanId && JSON.stringify(plan.inputs) === this.loadedInputs)) return;
 				this.loadedPlanId = plan.id;
 				this.loadRows(plan);
@@ -80,7 +69,6 @@ export class CalculatorInputTabComponent implements OnDestroy
 		);
 	}
 
-	/** Any item may be an input source, subject to the unmakeable-items display setting. */
 	public get itemOptions(): ItemPickerOption[]
 	{
 		return this.makeableItems.applyToActivePlan(
@@ -90,7 +78,6 @@ export class CalculatorInputTabComponent implements OnDestroy
 		);
 	}
 
-	/** Picking an item resets the weight to that item's default unless the user already typed their own. */
 	public onItemChange(row: PlanInput, value: string): void
 	{
 		if (row.weight === this.defaultWeightFor(row.itemClassName)) {
@@ -106,12 +93,6 @@ export class CalculatorInputTabComponent implements OnDestroy
 		this.sync();
 	}
 
-	/**
-	 * Half the raw resource weight for raw resources (mining it yourself costs
-	 * the full weight, so an input of it is the cheaper half), 0.01 for fluids
-	 * and gases, sink points / 100 for everything else; 1 without a sink value
-	 * (zero-point items, no item yet).
-	 */
 	public defaultWeightFor(itemClassName: string): number
 	{
 		const item = this.versionManager.activeVersionData()?.searchItemByClassName(itemClassName);
@@ -142,7 +123,6 @@ export class CalculatorInputTabComponent implements OnDestroy
 		this.subscription.unsubscribe();
 	}
 
-	/** The caps the limits weight mode reads: the plan's effective (pool-reduced) limits. */
 	private limitsInForce(): Record<string, number>
 	{
 		const plan = this.planManager.activePlan();

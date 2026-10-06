@@ -13,14 +13,9 @@ import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 
-/** Vertical clearance between the existing graph and an added island (covers node height plus a gap). */
+/** A node's height plus a gap. */
 const ISLAND_GAP = 200;
 
-/**
- * Combines a freshly solved result with a plan's existing graph, for the
- * manual "upgrade" (merge amounts into matching nodes) and "append" (place
- * alongside) calculation modes.
- */
 @Injectable({providedIn: 'root'})
 export class GraphComposer
 {
@@ -29,13 +24,6 @@ export class GraphComposer
 	{
 	}
 
-	/**
-	 * Merges incoming nodes into the existing graph: an incoming node matching
-	 * an existing one (same recipe/machine/clock/sloops, or same item for
-	 * mines, products and byproducts) is folded into it by summing amounts and
-	 * keeping its position. All edges are rebuilt from the merged amounts;
-	 * user-edited routing survives where the same connection still exists.
-	 */
 	public merge(existing: Graph, incoming: Node[]): GraphMergeResult
 	{
 		const replacements = new Map<string, Node>();
@@ -60,14 +48,6 @@ export class GraphComposer
 		return {nodes, edges: this.withPriorRouting(this.edgeBuilder.build(nodes, existing.edges), existing.edges), newNodes};
 	}
 
-	/**
-	 * Replaces the graph's solver-owned part with a fresh solver result, for
-	 * lock-aware recalculation: locked nodes pass through verbatim; an
-	 * incoming node matching an unlocked existing one takes over its identity
-	 * (id and position) but carries only the incoming data - amounts are
-	 * REPLACED, never summed. Unmatched existing solver-owned nodes are
-	 * dropped; unmatched incoming nodes are returned as newNodes for layout.
-	 */
 	public rebuild(existing: Graph, incoming: Node[]): GraphMergeResult
 	{
 		const adoptedByExistingId = new Map<string, Node>();
@@ -94,7 +74,6 @@ export class GraphComposer
 		return {nodes, edges: this.withPriorRouting(this.edgeBuilder.build(nodes, existing.edges), existing.edges), newNodes};
 	}
 
-	/** Carries user-edited routing over to rebuilt edges where the same connection still exists. */
 	private withPriorRouting(edges: GraphEdge[], priorEdges: GraphEdge[]): GraphEdge[]
 	{
 		return edges.map(edge => {
@@ -106,7 +85,6 @@ export class GraphComposer
 		});
 	}
 
-	/** Appends a laid-out island below the existing graph, without merging anything. */
 	public append(existing: Graph, addition: Graph): Graph
 	{
 		this.offsetBelow(addition.nodes, addition.edges, existing.nodes);
@@ -116,11 +94,6 @@ export class GraphComposer
 		};
 	}
 
-	/**
-	 * Moves an origin-based island below the anchor nodes' bounding box,
-	 * shifting island node positions and the routing of edges that connect
-	 * two island nodes (edges into the anchor graph are left unrouted).
-	 */
 	public offsetBelow(islandNodes: Node[], edges: GraphEdge[], anchorNodes: Node[]): void
 	{
 		if (islandNodes.length === 0 || anchorNodes.length === 0) {
@@ -145,9 +118,7 @@ export class GraphComposer
 
 	private identityKey(node: Node): string
 	{
-		// Clock speed and sloops are deliberately not part of the key: solver
-		// output always arrives at 100%/0 sloops, and merging into a
-		// user-customized node just concatenates its machine groups.
+		// Clock speed and sloops are deliberately not part of the key: solver output always arrives at 100%/0 sloops.
 		if (node instanceof RecipeNode) {
 			return `recipe:${node.recipe.className}@${node.machine.className}`;
 		}
@@ -157,8 +128,7 @@ export class GraphComposer
 		if (node instanceof MineNode || node instanceof ProductNode || node instanceof ByproductNode || node instanceof InputNode) {
 			return `${node.type}:${node.item.className}`;
 		}
-		// One augmenter node per plan, whatever the counts - a fresh solve
-		// takes over the existing node's place instead of adding a second one.
+		// One augmenter node per plan, whatever the counts.
 		if (node instanceof AugmenterNode) {
 			return 'augmenter';
 		}
@@ -178,7 +148,6 @@ export class GraphComposer
 				existing.machine,
 				existing.recipe,
 			);
-			// The existing node may carry a user-chosen grouping mode - keep it.
 			merged.groupingMode = existing.groupingMode;
 			node = merged;
 		} else if (existing instanceof MineNode) {
@@ -190,12 +159,10 @@ export class GraphComposer
 		} else if (existing instanceof InputNode) {
 			node = new InputNode(existing.id, amount, existing.item);
 		} else if (existing instanceof AugmenterNode && incoming instanceof AugmenterNode) {
-			// Both sides restate the same plan setting, so there is nothing to
-			// sum - the incoming counts simply win.
+			// Both sides restate the same plan setting, so nothing is summed - the incoming counts win.
 			node = new AugmenterNode(existing.id, incoming.amount, incoming.boosted, incoming.building, incoming.matrixItem);
 		} else if (existing instanceof GeneratorNode && incoming instanceof GeneratorNode) {
-			// Generators are linear in their clock, so the incoming count is
-			// restated at the existing node's clock - same power, same fuel.
+			// Generators are linear in their clock, so the incoming count is restated at the existing node's clock.
 			const incomingAtExistingClock = incoming.amount * incoming.clockSpeed / existing.clockSpeed;
 			node = new GeneratorNode(existing.id, existing.amount + incomingAtExistingClock, existing.generator, existing.fuel, existing.clockSpeed);
 		} else {
@@ -207,7 +174,6 @@ export class GraphComposer
 		return node;
 	}
 
-	/** The incoming node's data under the matched node's identity (id and canvas position). */
 	private adoptedNode(match: Node, incoming: Node): Node
 	{
 		let node: Node;
@@ -237,7 +203,6 @@ export class GraphComposer
 		return node;
 	}
 
-	/** Sums the machine counts of groups sharing the same clock speed and sloops. */
 	private coalesceGroups(groups: MachineGroup[]): MachineGroup[]
 	{
 		const merged: MachineGroup[] = [];

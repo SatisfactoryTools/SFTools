@@ -8,7 +8,6 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {faHashtag} from '@fortawesome/free-solid-svg-icons';
 
-/** "Numbers" settings section - how numbers and units are rendered everywhere. */
 @Component({
 	selector: 'settings-numbers',
 	templateUrl: './SettingsNumbersComponent.html',
@@ -62,7 +61,6 @@ export class SettingsNumbersComponent
 		this.settings.updateNumbers({showFluidUnit: value});
 	}
 
-	/** Guards against NaN (empty field) and keeps precision within sane bounds. */
 	private clamp(value: number, min: number, max: number): number
 	{
 		if (!Number.isFinite(value)) {

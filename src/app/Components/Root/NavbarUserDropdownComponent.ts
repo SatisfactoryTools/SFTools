@@ -6,12 +6,9 @@ import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {LogoutService} from '@src/Model/Auth/LogoutService';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 
-/**
- * Navbar account entry: the user menu when signed in, otherwise a "Sign in"
- * link (registration lives on the sign-in page) that brings the user back to
- * the current page afterwards.
- */
+/** Offline there is no signing in or out: signing out would drop edits not yet saved to the account. */
 @Component({
 	selector: 'navbar-user-dropdown',
 	templateUrl: './NavbarUserDropdownComponent.html',
@@ -46,6 +43,7 @@ export class NavbarUserDropdownComponent
 		protected readonly account: AccountProfileService,
 		private readonly logoutService: LogoutService,
 		protected readonly router: Router,
+		protected readonly connectivity: ConnectivityService,
 	)
 	{
 	}

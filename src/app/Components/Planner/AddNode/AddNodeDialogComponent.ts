@@ -301,7 +301,6 @@ export class AddNodeDialogComponent implements OnInit
 		}
 	}
 
-	/** Machines at 100% clock; 1 without a filter. */
 	private recipeTargetFor(recipe: Recipe, machine: Building): number
 	{
 		const filter = this.filter;

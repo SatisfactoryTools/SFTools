@@ -15,15 +15,7 @@ import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 
-/**
- * Re-solves every automatic-mode plan of a folder one by one, in tree order,
- * without the canvas: each plan is solved, laid out and stored like a
- * regular calculation, so a plan solved earlier already counts against the
- * shared resource pool of the plans after it. Manual-mode plans and plans
- * with hand-modified graphs are skipped - they keep their "recalculate"
- * flag for the user to resolve. Component-scoped like the graph service it
- * borrows the ELK layout from.
- */
+/** Sequential on purpose: a plan solved earlier counts against the shared resource pool of the plans after it. Component-scoped like the graph service it borrows the ELK layout from. */
 @Injectable()
 export class FolderRecalculationService
 {
@@ -31,7 +23,6 @@ export class FolderRecalculationService
 	private readonly progressSignal = signal<FolderRecalculationProgress | null>(null);
 	public readonly progress: Signal<FolderRecalculationProgress | null> = this.progressSignal.asReadonly();
 
-	/** Plan ids whose stored graph was just replaced - the canvas re-renders the active one. */
 	private readonly graphReplacedSubject = new Subject<string>();
 	public readonly graphReplaced: Observable<string> = this.graphReplacedSubject.asObservable();
 
@@ -53,13 +44,11 @@ export class FolderRecalculationService
 	{
 	}
 
-	/** Flagged by a settings push, or mining beyond its share of the pool. */
 	public isOutdated(plan: Plan): boolean
 	{
 		return (plan.metadata.recalculationNeeded ?? false) || this.pool.overUsed(plan).length > 0;
 	}
 
-	/** Inner plans whose stored graph no longer matches their settings or pool share. */
 	public outdatedPlans(folderId: string): Plan[]
 	{
 		return this.planManager.innerPlans(folderId).filter(plan => this.isOutdated(plan));
@@ -70,13 +59,11 @@ export class FolderRecalculationService
 		return this.progressSignal() !== null;
 	}
 
-	/** Inner plans the batch would solve: automatic mode with an untouched graph. */
 	public eligiblePlans(folderId: string): Plan[]
 	{
 		return this.planManager.innerPlans(folderId).filter(plan => this.isEligible(plan));
 	}
 
-	/** Inner plans flagged for recalculation that the batch will NOT touch (manual mode or hand-modified). */
 	public skippedOutdatedPlans(folderId: string): Plan[]
 	{
 		return this.planManager.innerPlans(folderId)
@@ -128,7 +115,6 @@ export class FolderRecalculationService
 		}
 	}
 
-	/** Stops after the current plan's solve is killed; already replaced graphs stay. */
 	public cancel(): void
 	{
 		this.cancelled = true;
@@ -141,7 +127,6 @@ export class FolderRecalculationService
 		return (plan.settings.calculationMode ?? 'automatic') === 'automatic' && !(plan.metadata.graphDirty ?? false);
 	}
 
-	/** Solves and stores one plan; returns a failure description or null. */
 	private async recalculate(plan: Plan): Promise<string | null>
 	{
 		const validRequests = plan.requests.filter(request => request.itemClassName !== '');
@@ -173,7 +158,6 @@ export class FolderRecalculationService
 		return null;
 	}
 
-	/** Mirrors the canvas calculation's automatic-mode composition, minus the rendering. */
 	private async composeGraph(plan: Plan, result: SolverResponse, existing: Graph | null): Promise<Graph>
 	{
 		if (existing && existing.nodes.some(node => node.locked)) {
@@ -186,7 +170,7 @@ export class FolderRecalculationService
 		return {nodes: result.nodes, edges};
 	}
 
-	/** One solve as a promise whose subscription stays cancellable (unsubscribing kills the solver worker). */
+	/** Kept as a cancellable subscription: unsubscribing kills the solver worker. */
 	private solveOnce(plan: Plan, lockedNodes: Graph['nodes']): Promise<SolverResponse>
 	{
 		return new Promise((resolve, reject) => {

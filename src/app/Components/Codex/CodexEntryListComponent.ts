@@ -5,12 +5,6 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexEntry} from '@src/Components/Codex/CodexEntry';
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 
-/**
- * The one list page layout for all codex sections: heading with a back link
- * to the section menu, then the entries. Adapts to its *container* (the
- * codex lives in a resizable panel, so the viewport is meaningless): a card
- * grid when wide, compact icon rows - in the same card colours - when narrow.
- */
 @Component({
 	selector: 'codex-entry-list',
 	templateUrl: './CodexEntryListComponent.html',

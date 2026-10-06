@@ -1,21 +1,20 @@
 import {Injectable} from '@angular/core';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 
 const STORAGE_KEY = 'sftools.customVersions';
 
-/**
- * The anonymous user's custom-version list: just the UUIDs, kept in
- * localStorage. The UUID is the durable part - names and data paths are
- * refreshed from the API. Logged-in users don't use this; their list is
- * linked server-side (and locals are adopted into it on login).
- */
 @Injectable({providedIn: 'root'})
 export class LocalCustomVersionsService
 {
 
+	public constructor(private readonly storage: AppStorage)
+	{
+	}
+
 	public list(): string[]
 	{
 		try {
-			const parsed: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+			const parsed: unknown = JSON.parse(this.storage.getItem(STORAGE_KEY) ?? '[]');
 			return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
 		} catch {
 			return [];
@@ -37,7 +36,7 @@ export class LocalCustomVersionsService
 
 	private store(ids: string[]): void
 	{
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
+		this.storage.setItem(STORAGE_KEY, JSON.stringify(ids));
 	}
 
 }

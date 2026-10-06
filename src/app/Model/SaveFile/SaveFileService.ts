@@ -6,13 +6,7 @@ import {SaveFileWorkerResponse} from '@src/Model/SaveFile/Worker/SaveFileWorkerR
 
 const PARSE_TIMEOUT_MS = 120_000;
 
-/**
- * Parses Satisfactory .sav files off the main thread and returns their unlock
- * progression. Saves run to several (tens of) MB and the parser is fully
- * synchronous, so each parse gets its own short-lived worker: unsubscribing
- * cancels the parse by terminating it, and completion frees the memory the
- * parsed save occupied.
- */
+/** Saves are tens of MB and the parser is synchronous, so each parse gets its own worker: unsubscribing terminates it and completion frees the memory. */
 @Injectable({providedIn: 'root'})
 export class SaveFileService
 {

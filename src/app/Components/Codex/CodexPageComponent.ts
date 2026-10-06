@@ -5,13 +5,6 @@ import {PageCodexNavigation} from '@src/Components/Codex/PageCodexNavigation';
 import {CodexMetaResolver} from '@src/Model/Meta/CodexMetaResolver';
 import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 
-/**
- * Fullscreen codex at /[version]/codex/…, reached by popping the panel out.
- * The host is a `panel` container like the planner's panel scroll wrappers,
- * so the codex's narrow-panel layouts (stacked tables, smaller hero icons)
- * apply on a phone too. The tab title follows the entry shown (the codex
- * panel in the planner leaves the planner's title alone).
- */
 @Component({
 	templateUrl: './CodexPageComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,

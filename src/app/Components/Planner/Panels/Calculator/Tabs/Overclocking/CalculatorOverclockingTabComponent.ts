@@ -14,15 +14,6 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {RecipeClockSpeed} from '@src/Model/Planner/RecipeClockSpeed';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * Clock speeds for the solver: a default for every machine it builds, plus
- * per-machine-type and per-recipe overrides (a recipe override beats its
- * machine's). Power generators keep their own list - the machine default is
- * about production machines, and a generator's power and fuel rise together
- * with its clock, so clocking one only trades buildings for power shards.
- * Blank rows live only in the component - settings carry the rows with a
- * recipe, machine or generator chosen.
- */
 @Component({
 	selector: 'calculator-overclocking-tab',
 	templateUrl: './CalculatorOverclockingTabComponent.html',
@@ -40,7 +31,6 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 
 	public generatorRows: GeneratorClockSpeed[] = [];
 
-	/** The plan or folder whose settings the rows were loaded from. */
 	private loadedOwnerId: string | null = null;
 	private readonly subscription = new Subscription();
 
@@ -64,7 +54,6 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 		);
 	}
 
-	/** Show the settings' overrides, or a single blank row so there's always one ready to fill. */
 	private loadRows(): void
 	{
 		const overrides = this.planManager.activeSettings()?.recipeClockSpeeds ?? [];
@@ -109,7 +98,6 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 		this.planManager.updateActiveSettings({...settings, defaultClockSpeed: clock === 100 ? undefined : clock});
 	}
 
-	/** Picker choices: every machine recipe, iconed by its first output. */
 	public get recipeOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();
@@ -124,7 +112,6 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 			}));
 	}
 
-	/** Picker choices: every production machine that can be overclocked. */
 	public get machineOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();
@@ -140,7 +127,6 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 			}));
 	}
 
-	/** Picker choices: every fuel-burning power generator that can be overclocked. */
 	public get generatorOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();

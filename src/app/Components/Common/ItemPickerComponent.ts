@@ -6,25 +6,12 @@ import {FocusOnInitDirective} from '@src/Components/Common/FocusOnInitDirective'
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 
-/**
- * A searchable select styled like a Bootstrap form-select: the toggle shows the
- * selected option's icon and label, the menu opens with a filter box and a
- * scrollable, icon-prefixed list. The menu renders on the body (container="body")
- * so it overlays the planner instead of being clipped by a panel's overflow.
- *
- * It is driven from the keyboard alone: one option is always highlighted (the
- * chosen one when the menu opens, the first match while filtering), the arrow
- * keys move that highlight, Enter takes it and Escape leaves.
- */
 @Component({
 	selector: 'item-picker',
 	templateUrl: './ItemPickerComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FormsModule, BsDropdownModule, GameIconComponent, FocusOnInitDirective, FitViewportDirective],
 	styles: [`
-		/* The highlight is the keyboard's cursor: lighter than the blue
-		   .active (which means "this is the chosen one"), and shown on hover
-		   too so pointer and keyboard agree on where the cursor is. */
 		.picker-option.highlighted {
 			background: rgba(255, 255, 255, 0.1);
 			box-shadow: inset 2px 0 0 #4c9be8;
@@ -32,7 +19,6 @@ import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 		.picker-option.highlighted.active {
 			box-shadow: inset 2px 0 0 #fff;
 		}
-		/* A phone gives the menu the width it has, not 320px of it. */
 		.picker-menu {
 			min-width: min(320px, calc(100vw - 16px));
 			max-width: calc(100vw - 16px);
@@ -51,7 +37,6 @@ export class ItemPickerComponent
 
 	public search = '';
 
-	/** Index into `filtered` of the option the keyboard is on. */
 	public highlighted = 0;
 
 	public get selected(): ItemPickerOption | null
@@ -59,7 +44,6 @@ export class ItemPickerComponent
 		return this.options.find(option => option.value === this.value) ?? null;
 	}
 
-	/** Name-substring match; empty filter shows everything. */
 	public get filtered(): ItemPickerOption[]
 	{
 		const term = this.search.trim().toLowerCase();
@@ -76,17 +60,13 @@ export class ItemPickerComponent
 		dropdown.hide();
 	}
 
-	/** Typing narrows the list, so the highlight goes back to the best match. */
 	public onSearchChange(search: string): void
 	{
 		this.search = search;
 		this.highlighted = 0;
 	}
 
-	/**
-	 * The search box owns the keyboard while the menu is open - the options
-	 * themselves are never focused, so the caret stays where the user types.
-	 */
+	/** Keyboard handling lives on the search box; the options are never focused, so the caret stays where the user types. */
 	public onSearchKeyDown(event: KeyboardEvent, dropdown: BsDropdownDirective): void
 	{
 		const options = this.filtered;
@@ -122,23 +102,12 @@ export class ItemPickerComponent
 		}
 	}
 
-	/**
-	 * Fresh filter on every open, then focus the search box. Focusing here -
-	 * once ngx-bootstrap has shown and positioned the container="body" menu -
-	 * is reliable even inside a modal, where the initial focusOnInit tick can
-	 * be lost when the menu is relocated to the body. The ViewChild does not
-	 * resolve for pickers created lazily (e.g. behind an @if), so fall back to
-	 * the one open menu's search box (only one picker is ever open at a time).
-	 */
+	/** Focused here, once ngx-bootstrap has positioned the body menu: the focusOnInit tick can be lost inside a modal. The ViewChild does not resolve for lazily created pickers, so fall back to the one open menu's search box. */
 	public onShown(): void
 	{
 		this.search = '';
-		// Open on the chosen option rather than the top of the list, so the
-		// menu starts where the value already is.
 		this.highlighted = Math.max(0, this.filtered.findIndex(option => option.value === this.value));
-		// The menu isn't in the DOM the instant onShown fires, and ngx-bootstrap
-		// focuses the toggle a frame later - so poll briefly, focusing the search
-		// box once it exists and keeping at it long enough to win that race.
+		// The menu isn't in the DOM the instant onShown fires, and ngx-bootstrap focuses the toggle a frame later - poll briefly to win that race.
 		let tries = 0;
 		const attempt = () => {
 			const input = this.searchInput?.nativeElement
@@ -157,7 +126,6 @@ export class ItemPickerComponent
 		if (count === 0) {
 			return;
 		}
-		// Wraps around, so holding Down from the last option comes back to the top.
 		this.setHighlight((this.highlighted + step + count) % count);
 	}
 
@@ -167,7 +135,6 @@ export class ItemPickerComponent
 		this.scrollHighlightedIntoView();
 	}
 
-	/** Keeps the highlighted row inside the scrolling list as the arrows walk past its edge. */
 	private scrollHighlightedIntoView(): void
 	{
 		const menu = this.searchInput?.nativeElement.closest('.dropdown-menu')

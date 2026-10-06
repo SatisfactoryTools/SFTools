@@ -1,11 +1,15 @@
-import {Injectable, Signal, computed, signal} from '@angular/core';
+import {Injectable, Optional, Signal, computed, signal} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
-import {Observable, Subject, distinctUntilChanged, map, skip} from 'rxjs';
+import {Observable, Subject, distinctUntilChanged, filter, map, skip} from 'rxjs';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {FoldersApiService} from '@src/Model/API/FoldersApiService';
 import {PlansApiService} from '@src/Model/API/PlansApiService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 import {NotificationService} from '@src/Model/NotificationService';
+import {DataBackend} from '@src/Model/Sync/DataBackend';
+import {OfflineMirrorBackend} from '@src/Model/Sync/OfflineMirrorBackend';
 import {SyncableService} from '@src/Model/Sync/SyncableService';
 import {UseLocalConflictResolver} from '@src/Model/Sync/UseLocalConflictResolver';
 import {Folder} from '@src/Model/Planner/Folder';
@@ -16,6 +20,7 @@ import {Plan} from '@src/Model/Planner/Plan';
 import {PlanApiDataBackend} from '@src/Model/Planner/PlanApiDataBackend';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {PlanStore} from '@src/Model/Planner/PlanStore';
+import {PlanStoreOfflineMerger} from '@src/Model/Planner/PlanStoreOfflineMerger';
 import {PlanTree} from '@src/Model/Planner/PlanTree';
 import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
 import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
@@ -25,6 +30,7 @@ import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {ProductionRequest} from '@src/Model/Planner/ProductionRequest';
 import {SettingsGroup} from '@src/Model/Planner/SettingsGroup';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 
 const EMPTY_STORE: PlanStore = {folders: [], plans: []};
@@ -121,13 +127,29 @@ export class PlanManager extends SyncableService<PlanStore>
 		notifications: NotificationService,
 		plannerLocation: PlannerLocationService,
 		private readonly settingsManager: SettingsManager,
+		storage: AppStorage,
+		connectivity: ConnectivityService,
+		@Optional() desktop: DesktopBridge | null,
 	)
 	{
-		const localBackend = new LocalPlanStoreBackend(versionManager, plannerLocation);
+		const localBackend = new LocalPlanStoreBackend(storage, versionManager, plannerLocation);
+		const apiBackend = new PlanApiDataBackend(plansApiService, foldersApiService, versionManager, notifications, desktop !== null);
+		// The desktop app keeps working on the account's plans while offline.
+		const remoteBackend: DataBackend<PlanStore> = desktop === null ? apiBackend : new OfflineMirrorBackend<PlanStore>(
+			apiBackend,
+			apiBackend,
+			storage,
+			'plans',
+			() => versionManager.activeVersion()?.id ?? null,
+			new PlanStoreOfflineMerger(),
+			connectivity,
+			notifications,
+			'plans',
+		);
 		super(
 			authService,
 			localBackend,
-			new PlanApiDataBackend(plansApiService, foldersApiService, versionManager, notifications),
+			remoteBackend,
 			new UseLocalConflictResolver<PlanStore>(),
 			EMPTY_STORE,
 			notifications,
@@ -157,6 +179,25 @@ export class PlanManager extends SyncableService<PlanStore>
 				this.refreshLocalStore();
 			}
 		});
+
+		// Back online: the reload is what sends the edits made offline.
+		if (desktop !== null) {
+			toObservable(connectivity.online).pipe(skip(1), filter(online => online)).subscribe(() => {
+				if (authService.isAuthenticated()) {
+					this.reload();
+				}
+			});
+		}
+	}
+
+	/** Between a version switch and its load, data() still holds the previous version's plans while the backends already write to the new one; saving then would copy plans across versions. */
+	protected override persist(data: PlanStore): void
+	{
+		if (!this.loadedForActiveVersion()) {
+			console.warn('Plans changed while another version was loading - not saved.');
+			return;
+		}
+		super.persist(data);
 	}
 
 	protected override onLogin(): void

@@ -49,7 +49,6 @@ export class CodexRecipeDetailComponent
 		return this.versionManager.activeVersionData()?.getSchematicsUnlockingRecipe(className) ?? [];
 	});
 
-	/** The recipe oscillates in at least one of its machines (a plain machine ignores the figures). */
 	protected readonly usesVariablePower = computed<boolean>(() => {
 		const recipe = this.recipe();
 		return recipe !== null && recipe.producedIn.some(machine => Formulas.usesVariablePower(recipe, machine));
@@ -60,7 +59,6 @@ export class CodexRecipeDetailComponent
 		return Formulas.variablePowerBand(recipe);
 	}
 
-	/** A recipe has no icon of its own - its products stand in, as in the recipe list. */
 	protected productIcons(recipe: Recipe): (string | null)[]
 	{
 		return recipe.products.map(product => product.item?.icon ?? null);

@@ -13,7 +13,6 @@ export class NotificationService
 
 	private timer: ReturnType<typeof setTimeout> | null = null;
 
-	/** Errors and warnings - the red toast. Confirmations go through showSuccess. */
 	public show(message: string, duration = 6000): void
 	{
 		this.display(message, 'error', duration);

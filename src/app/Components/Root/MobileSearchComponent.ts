@@ -7,12 +7,6 @@ import {SearchResultListComponent} from '@src/Components/Common/SearchResultList
 import {SearchBoxState} from '@src/Model/Search/SearchBoxState';
 import {SearchResult} from '@src/Model/Search/SearchResult';
 
-/**
- * Search on a phone: the magnifier in the navbar opens this over the whole
- * screen, with the box on top and the results filling everything below. The
- * navbar's own box is too cramped there - it lived in the folded menu, which
- * had to unfold first and then shared the width with everything else.
- */
 @Component({
 	selector: 'mobile-search',
 	templateUrl: './MobileSearchComponent.html',
@@ -66,9 +60,7 @@ export class MobileSearchComponent implements OnDestroy
 	{
 		this.state.clear();
 		this.visible = true;
-		// Rendered right away rather than on the next tick, so the caret goes
-		// in while the tap that opened this is still the browser's current
-		// gesture - that is what brings the on-screen keyboard up.
+		// Rendered right away, not on the next tick: the focus must happen inside the tap gesture, which is what brings the on-screen keyboard up.
 		this.changeDetector.detectChanges();
 		this.searchInput?.nativeElement.focus();
 		document.body.style.overflow = 'hidden';
@@ -118,7 +110,6 @@ export class MobileSearchComponent implements OnDestroy
 		}
 	}
 
-	/** Opens a result and leaves the search behind. */
 	protected open(result: SearchResult): void
 	{
 		this.visible = false;

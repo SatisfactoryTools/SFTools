@@ -16,8 +16,14 @@
 			(click)="start(provider)"
 		>
 			<span class="provider-icon" [style.color]="provider.color"><fa-icon [icon]="provider.icon" [fixedWidth]="true"></fa-icon></span>
-			<span class="provider-label">{{ startingProvider === provider.key ? 'Redirecting…' : verb + ' ' + provider.label }}</span>
+			<span class="provider-label">{{ startingProvider === provider.key ? (desktopOAuth.available ? 'Continue in your browser…' : 'Redirecting…') : verb + ' ' + provider.label }}</span>
 			<span class="provider-spacer"></span>
 		</button>
 	}
 </div>
+@if (desktopOAuth.available && startingProvider !== null) {
+	<p class="small text-secondary text-center mt-2 mb-0">
+		Finish signing in in the browser window that opened, then come back here.
+		<button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="cancel()">Cancel</button>
+	</p>
+}

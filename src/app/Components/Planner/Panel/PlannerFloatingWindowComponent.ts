@@ -51,7 +51,9 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 		.tab {
 			display: flex;
 			align-items: center;
-			flex: none;
+			/* Shrinkable: the one tab that is always kept may be wider than the strip, and then its label truncates rather than its close button being cut off. */
+			flex: 0 1 auto;
+			min-width: 0;
 			gap: 5px;
 			padding: 0 7px 0 12px;
 			border-right: 1px solid #1a2030;
@@ -69,7 +71,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			box-shadow: inset 0 2px 0 rgba(100,150,255,0.7);
 		}
 		.tab-icon { font-size: 14px; opacity: 0.75; flex: none; }
-		.tab-label { overflow: hidden; text-overflow: ellipsis; }
+		.tab-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 		.tab-close {
 			width: 18px;
 			height: 18px;
@@ -110,6 +112,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 		}
 		.tab-more:hover { background: rgba(255,255,255,0.05); color: #ccd6ee; }
 		.tab-more.active { color: #fff; box-shadow: inset 0 2px 0 rgba(100,150,255,0.7); }
+		.tab-measure .tab { flex: none; }
 		.tab-measure {
 			position: absolute;
 			top: -9999px;
@@ -156,6 +159,7 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 
 	@ViewChild('tabbarEl') private tabbarRef?: ElementRef<HTMLElement>;
 	@ViewChild('measureEl') private measureRef?: ElementRef<HTMLElement>;
+	@ViewChild('helpEl', {read: ElementRef}) private helpRef?: ElementRef<HTMLElement>;
 
 	private readonly measurer = new TabOverflowMeasurer();
 	private resizeObserver: ResizeObserver | null = null;
@@ -176,7 +180,6 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		this.recomputeTabOverflow();
 	}
 
-	/** Re-measures after every render so tab and window size changes are picked up. */
 	public ngAfterViewChecked(): void
 	{
 		this.recomputeTabOverflow();
@@ -225,13 +228,14 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		const measure = this.measureRef?.nativeElement;
 		if (!bar || !measure) return;
 		const widths = Array.from(measure.children).map(child => child.getBoundingClientRect().width);
-		const count = this.measurer.fit(bar.clientWidth, widths, OVERFLOW_BUTTON_WIDTH);
+		// The help button takes a fixed slice of the bar, so only the rest is for tabs.
+		const available = bar.clientWidth - (this.helpRef?.nativeElement.offsetWidth ?? 0);
+		const count = this.measurer.fit(available, widths, OVERFLOW_BUTTON_WIDTH);
 		if (count !== this.visibleTabCountSignal()) {
 			this.visibleTabCountSignal.set(count);
 		}
 	}
 
-	/** Dragging the tab-bar background moves the whole window. */
 	public onWindowDragStart(event: PointerEvent): void
 	{
 		event.preventDefault();
@@ -262,7 +266,6 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		document.addEventListener('pointercancel', onUp);
 	}
 
-	/** Dragging an edge or the corner resizes the window in place. */
 	public onResizeStart(event: PointerEvent, horizontal: boolean, vertical: boolean): void
 	{
 		event.preventDefault();
@@ -294,11 +297,6 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		document.addEventListener('pointercancel', onUp);
 	}
 
-	/**
-	 * A tab is both a selector and a drag handle: releasing without crossing
-	 * the drag threshold selects it; dragging past the threshold detaches that
-	 * panel into its own window, which can then merge or dock like any other.
-	 */
 	public onTabPointerDown(event: PointerEvent, panelId: string): void
 	{
 		event.preventDefault();
@@ -308,6 +306,10 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 		const startClientX = event.clientX;
 		const startClientY = event.clientY;
 		const groupId = this.group.id;
+		// The tab sits at the window's top-left, so the pointer's offset inside it is also its offset inside whichever window the tab ends up in.
+		const tabRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const grabX = startClientX - tabRect.left;
+		const grabY = startClientY - tabRect.top;
 		let detached = false;
 
 		const onMove = (e: PointerEvent): void => {
@@ -318,7 +320,7 @@ export class PlannerFloatingWindowComponent implements AfterViewInit, AfterViewC
 				this.layout.floatPanel(panelId);
 			}
 			const point = this.layout.pointerToContent(e.clientX, e.clientY);
-			this.layout.dragFloatingTo(panelId, point.x, point.y);
+			this.layout.dragFloatingTo(panelId, point.x, point.y, grabX, grabY);
 			this.layout.updateDragPreview(point.x, point.y, this.layout.groupIdOf(panelId));
 		};
 

@@ -1,16 +1,15 @@
 import {Component, ChangeDetectionStrategy, EventEmitter, Input, OnDestroy, OnInit, Output, Signal, computed, signal, HostListener} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {FormsModule} from '@angular/forms';
-import {Subscription, firstValueFrom} from 'rxjs';
+import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
-import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
-import {OldPlanConverter} from '@src/Model/OldTools/OldPlanConverter';
+import {OldPlanImporter} from '@src/Model/OldTools/OldPlanImporter';
 import {OldGameVersion} from '@src/Model/OldTools/OldGameVersion';
 import {OldProductionData} from '@src/Model/OldTools/OldProductionData';
 import {OldToolsImportRequest} from '@src/Model/OldTools/OldToolsImportRequest';
@@ -19,35 +18,20 @@ import {OldToolsShareService} from '@src/Model/OldTools/OldToolsShareService';
 import {SftFileParser} from '@src/Model/OldTools/SftFileParser';
 import {AnalyticsService} from '@src/Model/Analytics/AnalyticsService';
 import {Version} from '@src/Model/API/Schema/Version';
-import {GraphEdgeBuilder} from '@src/Model/Planner/Graph/GraphEdgeBuilder';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanIconResolver} from '@src/Model/Planner/PlanIconResolver';
-import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 
-/** A loaded production line offered for import; unchecked rows stay behind. */
 interface ImportRow
 {
 	readonly plan: Plan;
+	readonly source: OldProductionData;
+	readonly sourceVersion: OldGameVersion;
 	readonly iconHash: string | null;
 	readonly unknownCount: number;
-	/** The old tools' maximise semantics differ - flagged so the user knows the result may vary. */
-	readonly hasMaximise: boolean;
-	/** Shown when the line was made for another game version than the one open (Update 8, or the other FICSMAS flavour). */
 	readonly madeFor: string | null;
 	readonly selected: boolean;
 }
 
-/**
- * Modal importing production lines from the old Satisfactory Tools - pasted
- * share links (?share=KEY), an exported .sft file, the lines the old site
- * left in this browser's localStorage, or the share keys an incoming link
- * carried (`initialRequest`, loaded on open). Loaded lines are listed with
- * icons and checkboxes; the host receives the checked plans.
- *
- * Lines convert against the open version only, so lines made for the other
- * flavour (FICSMAS vs regular) are not loaded here - the dialog points to
- * that version's planner instead, with the same request.
- */
 @Component({
 	selector: 'import-old-plans-dialog',
 	templateUrl: './ImportOldPlansDialogComponent.html',
@@ -80,7 +64,6 @@ interface ImportRow
 export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 {
 
-	/** Share keys and/or local lines an incoming link asked for; loaded as soon as the dialog opens. */
 	@Input() public initialRequest: OldToolsImportRequest | null = null;
 
 	@Output() public readonly apply = new EventEmitter<Plan[]>();
@@ -99,31 +82,20 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 	private readonly pendingSignal = signal(0);
 	public readonly loading: Signal<boolean> = computed(() => this.pendingSignal() > 0);
 
-	/** Solve progress while the import runs; null outside an import. */
 	private readonly importProgressSignal = signal<{done: number; total: number} | null>(null);
 	public readonly importProgress = this.importProgressSignal.asReadonly();
 	public readonly importing: Signal<boolean> = computed(() => this.importProgressSignal() !== null);
 
 	public readonly selectedCount: Signal<number> = computed(() => this.rowsSignal().filter(row => row.selected).length);
 
-	/** Shows the maximise footnote as soon as one loaded line uses it. */
-	public readonly hasMaximiseRows: Signal<boolean> = computed(() => this.rowsSignal().some(row => row.hasMaximise));
-
-	/** Whether the open version is a FICSMAS one - decides which of the old site's stores belong here. */
 	public readonly ficsmas: boolean;
-	/** The current public version of the other flavour, where the lines not loadable here belong. */
 	public readonly otherFlavourVersion: Version | null;
 	public readonly otherFlavourSlug: string | null;
 	public readonly otherFlavourName: string;
 
-	/** Lines the old site saved in this browser for this flavour, still offered until loaded. */
 	private readonly localCountSignal = signal(0);
 	public readonly localCount: Signal<number> = this.localCountSignal.asReadonly();
-	/** …and for the other flavour, which only that version's planner can import. */
 	public readonly localOtherCount: number;
-
-	/** Share keys the incoming link carried for the other flavour; the template links that version's planner with them. */
-	public otherFlavourShareKeys: string[] = [];
 
 	private readonly loadedShareKeys = new Set<string>();
 	private readonly subscriptions: Subscription[] = [];
@@ -131,19 +103,15 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 	public constructor(
 		private readonly shareService: OldToolsShareService,
 		private readonly sftFileParser: SftFileParser,
-		private readonly converter: OldPlanConverter,
+		private readonly importer: OldPlanImporter,
 		private readonly versionManager: VersionManager,
 		private readonly planIcons: PlanIconResolver,
-		private readonly productionSolver: ProductionSolverService,
-		private readonly edgeBuilder: GraphEdgeBuilder,
-		private readonly plannerGraph: PlannerGraphService,
 		private readonly localStorageLines: OldToolsLocalStorageService,
 		private readonly analytics: AnalyticsService,
 	)
 	{
 		this.ficsmas = versionManager.activeVersion()?.ficsmas ?? false;
-		// defaultPublicVersion falls back across flavours when one has no
-		// version at all; the other flavour then simply does not exist here.
+		// defaultPublicVersion falls back across flavours, so the result's flavour must be checked.
 		const other = versionManager.defaultPublicVersion(!this.ficsmas);
 		this.otherFlavourVersion = other !== null && other.ficsmas === !this.ficsmas ? other : null;
 		this.otherFlavourSlug = this.otherFlavourVersion === null ? null : versionManager.urlSlug(this.otherFlavourVersion);
@@ -158,11 +126,10 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 		if (request === null) {
 			return;
 		}
-		this.loadShareKeys(request.shareKeys);
+		this.loadShareKeys(request.shareKeys, request.sourceVersion);
 		if (request.localLines) {
 			this.loadLocalLines();
 		}
-		this.otherFlavourShareKeys = request.otherFlavourShareKeys;
 	}
 
 	public loadLinks(): void
@@ -179,10 +146,9 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 			}
 			keys.push(key);
 		}
-		this.loadShareKeys(keys);
+		this.loadShareKeys(keys, null);
 	}
 
-	/** The old site's lines left in this browser's localStorage, for the open flavour. */
 	public loadLocalLines(): void
 	{
 		const lines = this.localStorageLines.readFlavour(this.ficsmas);
@@ -191,7 +157,7 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 		this.analytics.trackEvent('OldTools', 'load-local-lines', undefined, lines.length);
 	}
 
-	private loadShareKeys(keys: string[]): void
+	private loadShareKeys(keys: string[], sourceVersion: OldGameVersion | null): void
 	{
 		for (const key of keys) {
 			if (this.loadedShareKeys.has(key)) {
@@ -203,7 +169,7 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 			this.subscriptions.push(this.shareService.fetchShare(key).subscribe({
 				next: data => {
 					this.pendingSignal.update(count => count - 1);
-					this.addProductionLine(data);
+					this.addProductionLine(data, sourceVersion);
 				},
 				error: () => {
 					this.pendingSignal.update(count => count - 1);
@@ -246,8 +212,6 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 		return !this.loading() && !this.importing() && this.selectedCount() > 0;
 	}
 
-	/** Backdrop clicks and Cancel are ignored while plans are being calculated. */
-	/** Escape leaves the dialog, like clicking outside it does. */
 	@HostListener('document:keydown.escape')
 	public onEscape(): void
 	{
@@ -261,21 +225,17 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 		}
 	}
 
-	/**
-	 * Each selected plan gets one solver pass so it arrives with a calculated
-	 * graph instead of an empty canvas. A failed solve (or an empty plan)
-	 * imports without a graph - the user can calculate by hand later.
-	 */
 	public async importSelected(): Promise<void>
 	{
 		if (!this.canImport()) {
 			return;
 		}
-		const selected = this.rowsSignal().filter(row => row.selected).map(row => row.plan);
+		const selected = this.rowsSignal().filter(row => row.selected);
+		const data = this.versionManager.activeVersionData();
 		const plans: Plan[] = [];
-		for (const plan of selected) {
+		for (const row of selected) {
 			this.importProgressSignal.set({done: plans.length, total: selected.length});
-			plans.push(await this.solve(plan));
+			plans.push(data === null ? row.plan : (await this.importer.withGraph(row.plan, row.source, row.sourceVersion, data)).plan);
 		}
 		this.importProgressSignal.set(null);
 		this.analytics.trackEvent('OldTools', 'import-plans', undefined, plans.length);
@@ -287,39 +247,21 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 		this.subscriptions.forEach(subscription => subscription.unsubscribe());
 	}
 
-	private async solve(plan: Plan): Promise<Plan>
-	{
-		try {
-			const result = await firstValueFrom(this.productionSolver.solve(plan));
-			if (result.status !== 'Optimal' || result.nodes.length === 0) {
-				return plan;
-			}
-			const edges = this.edgeBuilder.build(result.nodes);
-			await this.plannerGraph.layout(result.nodes, edges, plan.settings.graph);
-			return {
-				...plan,
-				graph: {nodes: result.nodes, edges},
-				metadata: {...plan.metadata, achievedMaximums: result.achievedMaximums},
-			};
-		} catch {
-			return plan;
-		}
-	}
-
-	private addProductionLine(data: OldProductionData, madeFor: OldGameVersion | null = null): void
+	private addProductionLine(data: OldProductionData, sourceVersion: OldGameVersion | null = null): void
 	{
 		const versionData = this.versionManager.activeVersionData();
 		if (!versionData) {
 			this.addError('The game data of this version is not loaded.');
 			return;
 		}
-		const conversion = this.converter.convert(data, versionData);
+		const conversion = this.importer.convert(data, versionData);
 		this.rowsSignal.update(rows => [...rows, {
 			plan: conversion.plan,
+			source: data,
+			sourceVersion: sourceVersion ?? (this.ficsmas ? '1.0-ficsmas' : '1.0'),
 			iconHash: this.planIcons.iconHash(conversion.plan),
 			unknownCount: conversion.unknownClassNames.length,
-			hasMaximise: conversion.plan.requests.some(request => request.mode === 'maximise'),
-			madeFor: madeFor === '0.8' ? 'Update 8' : null,
+			madeFor: sourceVersion === '0.8' ? 'Update 8' : null,
 			selected: true,
 		}]);
 	}

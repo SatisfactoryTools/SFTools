@@ -2,10 +2,6 @@ import {Injectable, Signal, signal} from '@angular/core';
 import {ContextMenuPosition} from '@src/Components/Planner/ContextMenu/ContextMenuPosition';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 
-/**
- * Holds the currently open planner context menu (if any) and its screen
- * position, so the menu component can render it as a fixed overlay.
- */
 @Injectable()
 export class PlannerContextMenuService
 {

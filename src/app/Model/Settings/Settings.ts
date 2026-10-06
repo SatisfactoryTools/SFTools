@@ -6,7 +6,6 @@ import {NumberSettings} from '@src/Model/Settings/NumberSettings';
 import {PlanDefaultsSettings} from '@src/Model/Settings/PlanDefaultsSettings';
 import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
 
-/** Global, user-scoped application settings (not tied to a game version). */
 export interface Settings
 {
 
@@ -20,10 +19,8 @@ export interface Settings
 
 	readonly account: AccountSettings;
 
-	/** Key combinations the user changed; the rest keep their factory keys. */
 	readonly hotkeys: HotkeyOverrides;
 
-	/** Remembered planner panel layout (positions/sizes); null = defaults. */
 	readonly panels: PanelLayoutState | null;
 
 }

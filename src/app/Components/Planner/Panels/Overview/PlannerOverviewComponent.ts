@@ -28,15 +28,6 @@ import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConve
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * At-a-glance summary of the active plan as a set of collapsible cards:
- * raw resources against their caps, artifacts, products and byproducts,
- * buildings, power balance and the recipes in use. Every figure comes from
- * the same breakdowns the detailed panels show, subplans included. Cards
- * flow into columns by the panel's own width, not the viewport's. With a
- * folder selected the same cards sum every plan of the folder (subfolders
- * and subplans included), each row expandable into its per-plan split.
- */
 @Component({
 	selector: 'planner-overview',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -46,9 +37,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 		.overview-grid {
 			container-type: inline-size;
 		}
-		/* Each column is a "panel" container of its own: in a two- or three-column
-		   grid a card is ~300px wide however wide the panel is, so the
-		   narrow-panel table rules must see the card's width, not the panel's. */
+		/* Each column is its own "panel" container, so the narrow-table rules see the card's width, not the panel's. */
 		.overview-col {
 			flex: 0 0 100%;
 			max-width: 100%;
@@ -61,9 +50,6 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 		@container (min-width: 960px) {
 			.overview-col { flex: 0 0 33.3333%; max-width: 33.3333%; }
 		}
-		/* Usage bar along the bottom edge of the whole row. The row is the
-		   positioning context; its cells get extra bottom padding so the bar
-		   never sits on the text. */
 		tr.has-limit-bar { position: relative; }
 		tr.has-limit-bar > td { padding-bottom: 0.6rem; }
 		.limit-bar {
@@ -76,9 +62,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 			overflow: hidden;
 		}
 		.limit-bar > div { height: 100%; }
-		/* Resources switched off in the settings fade; a red usage still shows through. */
 		tr.resource-off td:first-child { opacity: 0.5; }
-		/* Below the resources table, set apart from the rows it summarises. */
 		.conversion-note {
 			border-top: 2px solid #5d7189;
 			background: rgba(0, 0, 0, 0.15);
@@ -101,7 +85,6 @@ export class PlannerOverviewComponent
 		{id: 'recipes', title: 'Recipes'},
 	];
 
-	/** Which cards are folded; shared, so a fold survives closing the panel. */
 	public readonly foldState: CollapsibleSections;
 
 	private readonly showAllRecipesSignal = signal(false);
@@ -109,7 +92,6 @@ export class PlannerOverviewComponent
 
 	public readonly isFolderView = computed(() => this.planManager.activeFolder() !== null);
 
-	/** Folder totals with per-plan splits; null while a plan (or nothing) is selected. */
 	public readonly folderOverview: Signal<FolderOverview | null> = computed(() => {
 		const folder = this.planManager.activeFolder();
 		return folder ? this.folderOverviewService.overview(folder) : null;
@@ -124,7 +106,6 @@ export class PlannerOverviewComponent
 
 	public readonly manualPlanCount = computed(() => this.folderOverview()?.plans.filter(plan => plan.manual).length ?? 0);
 
-	/** Folder rows expanded into their per-plan split, by row key. */
 	private readonly expandedRowsSignal = signal<ReadonlySet<string>>(new Set());
 
 	public readonly hasPlan = computed(() => this.planManager.activePlan() !== null);
@@ -132,7 +113,6 @@ export class PlannerOverviewComponent
 	public readonly resources: Signal<ResourceUsageRow[]> = computed(() =>
 		this.breakdownService.resources(this.planManager.activePlan()));
 
-	/** Pool shares when the plan's folder pools raw resources; the card then shows those instead of plain limits. */
 	public readonly poolStatus: Signal<PoolResourceStatus[] | null> = computed(() => {
 		const plan = this.planManager.activePlan();
 		return plan ? this.pool.status(plan) : null;
@@ -141,21 +121,14 @@ export class PlannerOverviewComponent
 	public readonly production: Signal<ProductionRow[]> = computed(() =>
 		this.breakdownService.production(this.planManager.activePlan()));
 
-	/**
-	 * Whether there is a calculated graph to read at all - an empty
-	 * production list means "not calculated yet" before there is one and
-	 * "makes no items" after it (a power-only plan makes none).
-	 */
 	public readonly hasGraph = computed(() => (this.planManager.activePlan()?.graph?.nodes.length ?? 0) > 0);
 
-	/** Same for a folder: any of its plans calculated. */
 	public readonly hasFolderGraphs = computed(() =>
 		this.folderOverview()?.plans.some(plan => plan.buildings > 0 || plan.production > 0) ?? false);
 
 	public readonly buildCost: Signal<BuildCostBreakdown> = computed(() =>
 		this.breakdownService.buildCost(this.planManager.activePlan()));
 
-	/** Building rows only - subplans are already folded into them by count, and their row would double up. */
 	public readonly buildings: Signal<BuildCostRow[]> = computed(() => this.buildCost().rows);
 
 	public readonly power: Signal<PowerBreakdown> = computed(() =>
@@ -167,16 +140,11 @@ export class PlannerOverviewComponent
 	public readonly recipes: Signal<RecipeUsageRow[]> = computed(() =>
 		this.showAllRecipes() ? this.allRecipes() : this.allRecipes().filter(row => row.recipe.alternate));
 
-	/** Class names of the version's resource conversion recipes; empty hides the conversion row. */
 	private readonly conversionRecipeClasses: Signal<ReadonlySet<string>> = computed(() => {
 		const data = this.versionManager.activeVersionData();
 		return new Set(data ? this.conversions.resolve(data).map(recipe => recipe.className) : []);
 	});
 
-	/**
-	 * Whether the plan (or any of the folder's plans) turns raw resources into
-	 * other raw resources; null when the version has no such recipes.
-	 */
 	public readonly conversionUsed: Signal<boolean | null> = computed(() => {
 		const classes = this.conversionRecipeClasses();
 		if (classes.size === 0) {
@@ -217,13 +185,11 @@ export class PlannerOverviewComponent
 		this.expandedRowsSignal.set(keys);
 	}
 
-	/** A plan name in a breakdown opens that plan. */
 	public openPlan(planId: string): void
 	{
 		this.planManager.setActivePlan(planId);
 	}
 
-	/** Folder resources: share of the folder cap in use (pooled: of the whole pool); null without a cap. */
 	public folderLimitFraction(row: FolderResourceRow): number | null
 	{
 		if (row.limit === null || row.disabled) {
@@ -246,13 +212,11 @@ export class PlannerOverviewComponent
 		return this.folderOverview()?.netPower ?? PowerDraw.ZERO;
 	}
 
-	/** A surplus reads green, a deficit (or nothing) amber. */
 	public isSurplus(net: PowerDraw): boolean
 	{
 		return net.average > 0 && !this.rateFormatter.isZero(net.average);
 	}
 
-	/** Share of the available pool this plan uses, capped for the bar; null when unlimited. */
 	public poolFraction(status: PoolResourceStatus): number | null
 	{
 		if (status.available === null) {
@@ -266,7 +230,6 @@ export class PlannerOverviewComponent
 		this.showAllRecipesSignal.set(showAll);
 	}
 
-	/** Share of the cap in use, capped at 100% for the bar; null when unlimited. */
 	public limitFraction(row: ResourceUsageRow): number | null
 	{
 		if (row.limit === null || row.disabled) {
@@ -284,7 +247,6 @@ export class PlannerOverviewComponent
 		return row.limit !== null && row.used - row.limit > 1e-6;
 	}
 
-	/** The cap shown after the usage: "off" for a switched-off resource, "∞" when unlimited. */
 	public limitText(row: ResourceUsageRow): string
 	{
 		if (row.disabled) {

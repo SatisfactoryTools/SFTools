@@ -5,23 +5,24 @@ import {SettingsApiService} from '@src/Model/API/SettingsApiService';
 import {Settings} from '@src/Model/Settings/Settings';
 import {NotificationService} from '@src/Model/NotificationService';
 import {DataBackend} from '@src/Model/Sync/DataBackend';
+import {SyncReporter} from '@src/Model/Sync/SyncReporter';
+import {SyncedStore} from '@src/Model/Sync/SyncedStore';
 
-/**
- * Persists the single per-user settings object to the API. Saves are debounced
- * and serialised (one in flight at a time); a revision conflict is resolved in
- * favour of the local edit, matching the plan store's "use local" policy.
- */
-export class SettingsApiDataBackend implements DataBackend<Settings>
+export class SettingsApiDataBackend implements DataBackend<Settings>, SyncReporter<Settings>
 {
 
-	/** Server revision as of the last load/save; 0 means never saved. */
 	private revision = 0;
 	private readonly saveSubject = new Subject<Settings>();
 	private readonly subscription: Subscription;
 
+	private readonly syncedSubject = new Subject<SyncedStore<Settings>>();
+	public readonly synced: Observable<SyncedStore<Settings>> = this.syncedSubject.asObservable();
+
 	public constructor(
 		private readonly api: SettingsApiService,
 		private readonly notifications: NotificationService,
+		/** In the desktop app an offline mirror keeps unsaved edits, so a lost connection is not worth a warning. */
+		private readonly connectionLossExpected = false,
 	)
 	{
 		this.subscription = this.saveSubject.pipe(
@@ -29,6 +30,9 @@ export class SettingsApiDataBackend implements DataBackend<Settings>
 			concatMap(settings => this.put(settings).pipe(
 				catchError(err => {
 					console.error('Settings API sync failed:', err);
+					if (this.connectionLossExpected && err instanceof HttpErrorResponse && err.status === 0) {
+						return of(void 0);
+					}
 					this.notifications.show('Could not save your settings to your account. They apply here, but they will be lost if you close the page.', 10_000);
 					return of(void 0);
 				}),
@@ -68,11 +72,13 @@ export class SettingsApiDataBackend implements DataBackend<Settings>
 	private put(settings: Settings): Observable<void>
 	{
 		return this.api.save(JSON.stringify(settings), this.revision).pipe(
-			tap(response => this.revision = response.revision),
+			tap(response => {
+				this.revision = response.revision;
+				this.syncedSubject.next({scope: '', data: settings});
+			}),
 			map(() => void 0),
 			catchError(err => {
-				// Another session saved first: adopt its revision and retry, so
-				// the local edit wins (there is only one settings object).
+				// Another session saved first: adopt its revision and retry so the local edit wins (there is only one settings object).
 				if (err instanceof HttpErrorResponse && err.status === 409 && typeof err.error?.currentRevision === 'number') {
 					this.revision = err.error.currentRevision;
 					return this.put(settings);

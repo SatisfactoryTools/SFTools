@@ -4,9 +4,6 @@ import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerCon
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 
-/**
- * Context menu shown when right-clicking an empty spot on the canvas.
- */
 export class BlankContextMenu extends PlannerContextMenu
 {
 

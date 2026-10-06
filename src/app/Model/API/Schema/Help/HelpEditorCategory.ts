@@ -1,4 +1,3 @@
-/** A help category as the editor endpoints return it. */
 export interface HelpEditorCategory
 {
 

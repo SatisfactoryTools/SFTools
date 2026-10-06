@@ -3,11 +3,6 @@ import {Observable} from 'rxjs';
 import {Settings} from '@src/Model/Settings/Settings';
 import {SettingsConflict} from '@src/Model/Settings/SettingsConflict';
 
-/**
- * Bridges the settings conflict resolver and the dialog that shows it: the
- * resolver `present()`s a conflict (exposing it as a signal for the dialog),
- * and the dialog calls `acceptLocal`/`acceptRemote` to complete the choice.
- */
 @Injectable({providedIn: 'root'})
 export class SettingsConflictService
 {
@@ -17,7 +12,6 @@ export class SettingsConflictService
 
 	private resolveFn: ((chosen: Settings) => void) | null = null;
 
-	/** Shows the conflict and resolves once the user picks a side. */
 	public present(conflict: SettingsConflict): Observable<Settings>
 	{
 		return new Observable<Settings>(subscriber => {

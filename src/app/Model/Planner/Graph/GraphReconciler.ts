@@ -15,41 +15,17 @@ import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 
-/** Below this, an edge or an elastic node is considered depleted. */
 const EPSILON = 1e-6;
 
-/**
- * Relative mismatch below which flows count as equal. HiGHS reports primal
- * values with ~6 significant digits, so a perfectly solved graph carries
- * relative noise around 1e-6 - warn only well above it.
- */
+/** HiGHS reports primals with ~6 significant digits, so a perfectly solved graph carries relative noise around 1e-6. */
 const TOLERANCE = 1e-4;
 
-/**
- * Absolute mismatch floor for warnings: differences below a thousandth of an
- * item per minute are solver noise, never actionable.
- */
 const ABSOLUTE_TOLERANCE = 0.001;
 
-/**
- * Keeps a graph's edges consistent with a manually edited node under the
- * "flows are contracts" policy: only the edited node's own edges adjust.
- * New demand draws from genuinely spare supply (upstream surplus, flow
- * already headed to a byproduct, elastic input nodes); freed supply simply
- * stays with the upstream producer. Everything that cannot be settled this
- * way is reported by computeWarnings() - resolving those is the job of the
- * (lock-aware) solver, never of this class. It follows that no byproduct
- * node is ever created here.
- */
 @Injectable({providedIn: 'root'})
 export class GraphReconciler
 {
 
-	/**
-	 * Adjusts the edited node's edge amounts in place (preserving user-edited
-	 * routing), resizes connected elastic nodes, and returns the graph with
-	 * depleted edges and elastic nodes pruned.
-	 */
 	public reconcile(graph: Graph, editedNodeId: string): Graph
 	{
 		const nodes = [...graph.nodes];
@@ -70,7 +46,6 @@ export class GraphReconciler
 		return {nodes: keptNodes, edges: keptEdges};
 	}
 
-	/** Nodes whose flows disagree with their configuration, keyed by node id. */
 	public computeWarnings(graph: Graph): Map<string, GraphNodeWarnings>
 	{
 		const warnings = new Map<string, GraphNodeWarnings>();
@@ -107,7 +82,6 @@ export class GraphReconciler
 		return warnings;
 	}
 
-	/** Output flow the node produces but does not yet send along any edge (≥ 0). */
 	public spareOutput(graph: Graph, nodeId: string, itemClassName: string): number
 	{
 		const node = this.nodeById(graph.nodes, nodeId);
@@ -119,7 +93,6 @@ export class GraphReconciler
 		return Math.max(0, produced - sent);
 	}
 
-	/** Input flow the node's configuration requires but no edge supplies yet (≥ 0). */
 	public remainingDemand(graph: Graph, nodeId: string, itemClassName: string): number
 	{
 		const node = this.nodeById(graph.nodes, nodeId);
@@ -131,11 +104,7 @@ export class GraphReconciler
 		return Math.max(0, required - supplied);
 	}
 
-	/**
-	 * Machine counts no longer follow the target - warn when the built
-	 * machines cannot reach it. Unlike the flow warnings, this compares two
-	 * locally computed numbers, so no solver-noise tolerance applies.
-	 */
+	/** Compares two locally computed numbers, so unlike the flow warnings no solver-noise tolerance applies. */
 	private capacityWarningFor(node: Node): GraphNodeCapacityWarning | null
 	{
 		if (!(node instanceof RecipeNode) || !node.hasCapacityShortage()) {
@@ -170,12 +139,6 @@ export class GraphReconciler
 		});
 	}
 
-	/**
-	 * Covers an input deficit using only spare supply, in priority order:
-	 * genuine upstream surplus, flow the upstream already discards into a
-	 * byproduct, and elastic input-node sources. Anything left surfaces as
-	 * an input warning.
-	 */
 	private growIncoming(
 		edited: Node,
 		itemClassName: string,
@@ -185,7 +148,6 @@ export class GraphReconciler
 		edges: GraphEdge[],
 	): void
 	{
-		// 1. Genuine surplus: the source produces more than it sends anywhere.
 		itemEdges.forEach(edge => {
 			if (deficit <= EPSILON) return;
 			const source = this.nodeById(nodes, edge.sourceId);
@@ -197,7 +159,6 @@ export class GraphReconciler
 			deficit -= take;
 		});
 
-		// 2. Reroute flow the source currently discards into a byproduct node.
 		itemEdges.forEach(edge => {
 			if (deficit <= EPSILON) return;
 			const source = this.nodeById(nodes, edge.sourceId);
@@ -214,7 +175,6 @@ export class GraphReconciler
 				});
 		});
 
-		// 3. Input nodes are elastic sources - they grow freely.
 		if (deficit > EPSILON) {
 			const inputEdges = itemEdges.filter(edge => this.nodeById(nodes, edge.sourceId) instanceof InputNode);
 			if (inputEdges.length > 0) {
@@ -253,12 +213,6 @@ export class GraphReconciler
 		});
 	}
 
-	/**
-	 * Distributes an output surplus along the edited node's existing edges:
-	 * first filling each consumer's remaining deficit, then topping up an
-	 * already-connected byproduct node. Anything left surfaces as an output
-	 * warning.
-	 */
 	private pushSurplus(
 		itemClassName: string,
 		surplus: number,
@@ -286,12 +240,7 @@ export class GraphReconciler
 		}
 	}
 
-	/**
-	 * Resizes byproduct/input nodes to their connected flow; drops the
-	 * depleted ones. The edited node is exempt - its configuration is the
-	 * contract the user just set, so an edited elastic node keeps its amount
-	 * (and an unconnected one is not pruned away).
-	 */
+	/** The edited node is exempt: its amount is the contract the user just set, even when unconnected. */
 	private recomputeElasticNodes(nodes: Node[], edges: GraphEdge[], editedNodeId: string): Node[]
 	{
 		return nodes
@@ -325,13 +274,11 @@ export class GraphReconciler
 		return replaced;
 	}
 
-	/** Recipe, product, subplan and sink nodes consume a fixed amount set by their own configuration. */
 	private hasFixedDemand(node: Node): boolean
 	{
 		return node instanceof RecipeNode || node instanceof ProductNode || node instanceof SubplanNode || node instanceof SinkNode;
 	}
 
-	/** Recipe, mine and subplan nodes produce a fixed amount set by their own configuration. */
 	private hasFixedSupply(node: Node): boolean
 	{
 		return node instanceof RecipeNode || node instanceof MineNode || node instanceof SubplanNode;
@@ -353,7 +300,6 @@ export class GraphReconciler
 		return produced;
 	}
 
-	/** Union of item classes a node exchanges and item classes its edges carry. */
 	private itemClasses(rates: Map<string, number>, nodeEdges: GraphEdge[]): Set<string>
 	{
 		return new Set([...rates.keys(), ...nodeEdges.map(edge => edge.itemClassName)]);

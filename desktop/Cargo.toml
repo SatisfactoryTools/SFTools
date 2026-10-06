@@ -1,0 +1,41 @@
+[package]
+name = "sftools-desktop"
+version = "0.1.0"
+description = "Satisfactory Tools desktop app"
+authors = ["greeny"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "sftools_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-updater = "2"
+tauri-plugin-deep-link = "2"
+tauri-plugin-single-instance = { version = "2", features = ["deep-link"] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Native roots too: a certificate the system trusts (e.g. a local dev CA from
+# mkcert) must work for icons just as it does in the webview.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots"] }
+futures = "0.3"
+sha2 = "0.10"
+url = "2"
+
+# Same version Tauri uses on Linux - only for naming the window class.
+[target.'cfg(target_os = "linux")'.dependencies]
+gtk = "0.18"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

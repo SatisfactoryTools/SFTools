@@ -4,10 +4,6 @@ import {ConflictResolver} from '@src/Model/Sync/ConflictResolver';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 import {VISITED_SHARES_CAP, VisitedShareStore} from '@src/Model/Shares/VisitedShareStore';
 
-/**
- * Login-time merge of the anonymous visited-shares list with the account's:
- * union by share uuid (the newer visit wins), newest first, capped.
- */
 export class MergeVisitedSharesConflictResolver implements ConflictResolver<VisitedShareStore>
 {
 

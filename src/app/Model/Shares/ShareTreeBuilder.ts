@@ -7,15 +7,6 @@ import {PlanDataSerializer} from '@src/Model/Planner/PlanDataSerializer';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanStore} from '@src/Model/Planner/PlanStore';
 
-/**
- * Packs a plan or folder subtree into the tree POST /v1/shares accepts in its
- * `root` field (see anonymous-shares.md). Used for plans the server does not
- * have: everything a signed-out user makes, and the "On this device" plans a
- * signed-in user has not moved into their account yet.
- *
- * Ids are sent as they are - inside a share they only tie a folder to the
- * plans under it, and copying a share re-mints them anyway.
- */
 @Injectable({providedIn: 'root'})
 export class ShareTreeBuilder
 {
@@ -30,10 +21,7 @@ export class ShareTreeBuilder
 		return this.folderNode(folder, store, new Set());
 	}
 
-	/**
-	 * @param ancestors The ids on the path down here - a corrupted cycle ends
-	 *                  the recursion instead of hanging the browser.
-	 */
+	/** `ancestors`: a corrupted cycle ends the recursion instead of hanging the browser. */
 	private planNode(plan: Plan, store: PlanStore, ancestors: ReadonlySet<string>): ShareCreatePlanNode
 	{
 		const path = new Set([...ancestors, plan.id]);

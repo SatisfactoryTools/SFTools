@@ -8,10 +8,8 @@ export abstract class Node
 	public x: number = 0;
 	public y: number = 0;
 
-	/** The solver builds around locked nodes and never replaces them. */
 	public locked = false;
 
-	/** Done nodes are already built in the game - a purely visual progress marker. */
 	public done = false;
 
 	public abstract readonly type: string;

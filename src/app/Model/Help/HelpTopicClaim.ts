@@ -1,4 +1,3 @@
-/** The article that answers a help topic. */
 export interface HelpTopicClaim
 {
 
@@ -8,7 +7,6 @@ export interface HelpTopicClaim
 
 	readonly published: boolean;
 
-	/** Section the topic points at; empty for the top of the article. */
 	readonly anchor: string;
 
 }

@@ -1,7 +1,6 @@
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 
-/** Permanently locked. Its IO is refreshed from the subplan's graph whenever the parent is rendered (see SubplanIOResolver) and is already multiplied by `buildCount`. */
 export class SubplanNode extends Node
 {
 
@@ -13,7 +12,6 @@ export class SubplanNode extends Node
 		public readonly name: string,
 		inputs: NodeIO[],
 		outputs: NodeIO[],
-		/** Whole number, at least 1. */
 		public readonly buildCount: number = 1,
 	)
 	{

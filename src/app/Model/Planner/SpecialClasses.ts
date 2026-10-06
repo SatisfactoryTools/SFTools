@@ -3,9 +3,7 @@ export const SpecialClasses = {
 	PowerProduction: '__special_power_production',
 	Machines: '__special_machines',
 	Sloops: '__special_sloops',
-	/** Pseudo-item for requesting power, in MW. */
 	PowerTarget: '__power_target',
-	/** Pseudo-item for requesting sink points per minute. */
 	SinkPointsTarget: '__sink_points_target',
 	/** World limits never apply to water - extractors need no node. */
 	WaterItem: 'Desc_Water_C',

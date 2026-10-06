@@ -18,9 +18,7 @@
 				<fa-icon [icon]="faXmark" size="lg"></fa-icon>
 			</button>
 		</div>
-		<!-- fitViewport, not just "the rest of the screen": with the on-screen
-		     keyboard up the window keeps its height and the list would run on
-		     underneath it. -->
+		<!-- fitViewport: with the on-screen keyboard up the window keeps its height and the list would run on underneath it. -->
 		<div class="search-results" fitViewport [fitViewportReserve]="60" [fitViewportMin]="200" [fitViewportMax]="4000">
 			@if (state.tooShort()) {
 				<div class="text-center text-muted py-5 px-3">

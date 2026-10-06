@@ -4,10 +4,6 @@ import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {SharePayloadHydrator} from '@src/Model/Shares/SharePayloadHydrator';
 
-/**
- * Copies a frozen share into the viewer's own plans (fresh UUIDs, subplan
- * references remapped - see SharePayloadHydrator).
- */
 @Injectable({providedIn: 'root'})
 export class ShareImportService
 {
@@ -19,10 +15,6 @@ export class ShareImportService
 	{
 	}
 
-	/**
-	 * Copies the share into the given folder (null = top level), placed last.
-	 * Returns the payload-id → copied-id map, so callers can locate a specific copy.
-	 */
 	public import(payload: SharePayload, folderId: string | null = null): Map<string, string>
 	{
 		const hydration = this.hydrator.hydrate(payload);
@@ -31,13 +23,6 @@ export class ShareImportService
 		return hydration.idMap;
 	}
 
-	/**
-	 * The same copy for a plan opened by its own URL: the tree is hydrated under fresh
-	 * ids here (unlike the read-only view, which keeps the originals), so the copy is a
-	 * plan of the viewer's own and never collides with the original.
-	 *
-	 * Returns the id the copied root plan got.
-	 */
 	public importPlanNode(root: SharedPlanNode, folderId: string | null = null): string
 	{
 		const hydration = this.hydrator.hydratePlanCopy(root);

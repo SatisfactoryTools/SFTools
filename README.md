@@ -44,3 +44,38 @@ npm run build
 ```
 
 The production build is emitted to the `dist/` folder. It uses `src/env/env.prod.ts` via build-time file replacement.
+
+## Desktop app
+
+A Tauri wrapper around the same bundle, released on every push to master (see
+`docs/desktop-app.md`). Installers are published next to the API; the app
+updates itself from there.
+
+### Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate
+by [SignPath Foundation](https://signpath.org).
+
+Windows installers are built by GitHub Actions from this repository
+(`.github/workflows/ci.yml`) and signed through SignPath. Every signing request
+is approved by hand.
+
+| Role | |
+|---|---|
+| Committers and reviewers | [greeny](https://github.com/greeny) |
+| Approvers | [greeny](https://github.com/greeny) |
+
+### Privacy
+
+The desktop app talks to `api.new.satisfactorytools.com`: on start it fetches
+the update manifest, and it downloads game data and icons on demand. When you
+sign in, your plans and settings are synced with your account. Page views are
+reported to the project's self-hosted, cookieless Matomo instance; no
+personal data, no tracking across sites. Nothing else leaves your machine. The
+web app at [satisfactorytools.com](https://www.satisfactorytools.com/) behaves
+the same way.
+
+## License
+
+[MIT](LICENSE). Satisfactory is made by Coffee Stain Studios; game icons and
+names are used with their permission and remain their property.

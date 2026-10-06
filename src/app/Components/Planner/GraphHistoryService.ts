@@ -3,12 +3,7 @@ import {GraphSnapshot} from '@src/Model/Planner/Graph/GraphSnapshot';
 
 const MAX_DEPTH = 50;
 
-/**
- * In-memory undo/redo of graph states for the active planner session.
- * Callers push a snapshot BEFORE each mutating operation (node edit, lock
- * change, solve application); node position moves are deliberately not
- * tracked. Cleared on plan switch.
- */
+/** Node position moves are deliberately not tracked. */
 @Injectable()
 export class GraphHistoryService
 {
@@ -25,7 +20,6 @@ export class GraphHistoryService
 		this.redoStackSignal.set([]);
 	}
 
-	/** Returns the state to restore, banking the current state for redo; null when empty. */
 	public undo(current: GraphSnapshot): GraphSnapshot | null
 	{
 		const stack = this.undoStackSignal();
@@ -38,7 +32,6 @@ export class GraphHistoryService
 		return snapshot;
 	}
 
-	/** Returns the state to restore, banking the current state for undo; null when empty. */
 	public redo(current: GraphSnapshot): GraphSnapshot | null
 	{
 		const stack = this.redoStackSignal();

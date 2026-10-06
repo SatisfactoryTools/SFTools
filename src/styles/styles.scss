@@ -1,3 +1,7 @@
+// Bundled rather than from Google Fonts, so the desktop app has it offline.
+@import "@fontsource/lato/300.css";
+@import "@fontsource/lato/400.css";
+@import "@fontsource/lato/700.css";
 @import "theme/bootstrap";
 
 // Tooltips are non-interactive; without this a tooltip rendered next to its
@@ -9,42 +13,54 @@
 		color: #fff;
 	}
 
-	// Small gap between the arrow and the trigger so the arrow touches the
-	// element instead of clipping into it.
+	// Gap so the arrow touches the trigger instead of clipping into it.
 	&.bs-tooltip-end { margin-left: 6px; }
 	&.bs-tooltip-start { margin-left: -6px; }
 	&.bs-tooltip-bottom { margin-top: 6px; }
 	&.bs-tooltip-top { margin-top: -6px; }
 }
 
-// Icons are decoration inside buttons, never interactive themselves. Without
-// this, crossing an icon's edge fires mouseout/mouseover on the tooltip host
-// (ngx-bootstrap's hover trigger), making the tooltip flicker.
+// Crossing an icon's edge fires mouseout/mouseover on the tooltip host (ngx-bootstrap's
+// hover trigger) and the tooltip flickers.
 fa-icon {
 	pointer-events: none;
 }
 
-// Superhero's $secondary (#4e5d6c) doubles as the card/modal/dropdown
-// background, so .text-secondary - used all over the app as "muted text" -
-// is invisible inside cards and modals. Restyle the utility to a tone that
-// reads on both the page (#0f2537) and card (#4e5d6c) backgrounds.
-// !important matches the specificity of Bootstrap's own utility rule.
+// Body-positioned tooltips/menus use whole-pixel offsets, so one hugging the right edge can
+// poke out by a fraction and flash a horizontal scrollbar. Nothing scrolls sideways at page level.
+html {
+	overflow-x: clip;
+}
+
+// Menus opened into <body>: Bootstrap positions the menu absolutely, leaving ngx-bootstrap's
+// wrapper 0x0, so its flip/overflow modifiers (AppPositioningService) have nothing to measure.
+// Laid out in flow the wrapper takes the menu's size; the transform override drops the inline
+// translateY(-101%) the library adds to dropups; min-content keeps long descriptions wrapping.
+bs-dropdown-container {
+	width: min-content;
+}
+
+bs-dropdown-container .dropdown-menu {
+	position: static;
+	transform: none !important;
+	max-height: calc(100vh - 1rem);
+	overflow-y: auto;
+}
+
+// Superhero's $secondary doubles as the card/modal/dropdown background, so .text-secondary is
+// invisible there. !important matches the specificity of Bootstrap's own utility rule.
 .text-secondary {
 	color: #9fb0c0 !important;
 }
 
-// The theme already draws the close icon white ($btn-close-color), and
-// Bootstrap's .btn-close-white does nothing but invert the icon - which turned
-// every close button in the app black. Every surface here is dark, so the
-// filter is dropped for both, with or without that class.
+// The theme already draws the close icon white; Bootstrap's .btn-close-white filter only
+// inverted it to black.
 .btn-close,
 .btn-close-white {
 	--bs-btn-close-filter: none;
 }
 
-// The same collision hits outline-secondary buttons (e.g. Cancel buttons in
-// dialogs): their border and label are $secondary and vanish on the card
-// background. Lift them to the readable muted tones.
+// Same collision: a $secondary border and label vanish on the card background.
 .btn-outline-secondary {
 	--bs-btn-color: #9fb0c0;
 	--bs-btn-border-color: #7e8f9e;
@@ -57,9 +73,7 @@ fa-icon {
 	--bs-btn-disabled-border-color: #7e8f9e;
 }
 
-// The theme's $primary is Satisfactory's orange, so a button that has to read
-// as blue (the share button, matching the old tools) needs its own class
-// instead of .btn-primary.
+// $primary is orange, so a button that has to read as blue needs its own class.
 .btn-blue {
 	--bs-btn-color: #fff;
 	--bs-btn-bg: #{$blue};
@@ -75,32 +89,24 @@ fa-icon {
 	--bs-btn-disabled-border-color: #{$blue};
 }
 
-// Bootstrap's select arrow is a dark-gray SVG baked in for light backgrounds;
-// on our bg-dark selects (e.g. the rate-mode picker in the production request
-// panel) it all but disappears. Swap in the same chevron with a white stroke.
+// Bootstrap's select arrow is a dark-gray SVG that all but disappears on bg-dark.
 .form-select.bg-dark {
 	--bs-form-select-bg-img: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m2 5 6 6 6-6'/%3e%3c/svg%3e");
 }
 
-// Table content sat right against the table's edge (Bootstrap pads cells
-// 0.5rem, compact tables only 0.25rem), which reads cramped inside cards and
-// panels. Give the outer cells of every row some breathing room; the gaps
-// between columns stay as they are.
+// Bootstrap's cell padding leaves the outer cells against the table's edge, cramped inside cards.
 .table > :not(caption) > * > :first-child { padding-left: 0.75rem; }
 .table > :not(caption) > * > :last-child { padding-right: 0.75rem; }
 .table-sm > :not(caption) > * > :first-child { padding-left: 0.6rem; }
 .table-sm > :not(caption) > * > :last-child { padding-right: 0.6rem; }
 
-// Numeric inputs are almost always followed by a unit ("/min", "%"), so the
-// number sits against it.
+// Numeric inputs are almost always followed by a unit, so the number sits against it.
 input[type="number"].form-control {
 	text-align: right;
 }
 
-// Dark form controls (the planner's inputs, selects and item pickers) sat on
-// the same #20374c as the cards and tables around them and vanished. Lift
-// them one step so they read as interactive. !important matches Bootstrap's
-// own utility rules (bg-dark / border-secondary) they are combined with.
+// Dark controls sat on the same #20374c as the cards around them. !important matches the
+// bg-dark / border-secondary utilities they are combined with.
 .form-control.bg-dark,
 .form-select.bg-dark,
 .input-group-text.bg-dark {
@@ -118,19 +124,14 @@ input[type="number"].form-control {
 	border-color: #46576b !important;
 }
 
-// Edge corner handles advertise click-to-remove with a pointer cursor (set
-// as a presentation attribute by the vertices tool); once a drag starts the
+// The vertices tool sets a pointer cursor as a presentation attribute; once a drag starts the
 // handle is the active element, so :active flips it to the move cursor.
 .x6-edge-tool-vertex:active {
 	cursor: move;
 }
 
-// Graph connection ports (one per IO item, drawn by PlannerGraphService).
-// Hidden - and inert, so they never steal the node's own drag - until their
-// node is hovered. During a connect drag (.pg-connecting on the canvas) the
-// hover rule is overridden: only ports that can accept the dragged item show,
-// on every node at once, and nodes without one dim out. Rule order matters:
-// the connecting rules share specificity with the hover rules and must win.
+// Ports are inert until hovered so they never steal the node's own drag. Rule order matters:
+// the .pg-connecting rules below share specificity with the hover rules and must win.
 .x6-node .pg-port {
 	opacity: 0;
 	pointer-events: none;
@@ -143,10 +144,8 @@ input[type="number"].form-control {
 	pointer-events: auto;
 	cursor: crosshair;
 }
-// A finger cannot hover, so on a touch screen (the class goes on the canvas
-// with the first touch - see PlannerGraphService.markTouchUsed) the selected
-// node shows its ports instead: tap a node, then drag one of its ports. The
-// rules stay above the connecting ones so those still win while a drag is on.
+// A finger cannot hover, so on a touch screen (.pg-touch, see PlannerGraphService.markTouchUsed)
+// the selected node shows its ports. Must stay above the connecting rules so those still win.
 .pg-touch .x6-node-selected .pg-port {
 	opacity: 1;
 }
@@ -170,21 +169,15 @@ input[type="number"].form-control {
 .pg-connecting .pg-node-dim {
 	opacity: 0.35;
 }
-// The outline of the node under the pointer. This is CSS rather than an attr
-// on the cell because x6 re-applies a node's whole attrs object whenever one
-// of them changes: a hover would rewrite the `xlink:href` of every icon in the
-// node and the browser would re-request each one. Selected nodes keep their
-// own thicker orange outline, so they are left out - a CSS rule beats the
-// presentation attribute that draws it.
+// CSS rather than a cell attr: x6 re-applies the node's whole attrs object on any change, which
+// rewrites every icon's xlink:href and re-requests it. Selected nodes are left out because a CSS
+// rule would beat the presentation attribute drawing their own outline.
 .x6-node:not(.x6-node-selected):hover rect.pn-body {
 	stroke-width: 2.5px;
 }
 
-// The line and label box of the edge under the pointer, CSS for the same
-// reason as .pn-body above. The class is put on by the hover handler rather
-// than by `:hover`, because the corner-handle tool covers a hovered edge with
-// a path of its own outside the edge element. An edge next to a selected node
-// wears the orange highlight instead, and opts out through its own class.
+// CSS for the same reason as .pn-body. The class comes from the hover handler, not :hover: the
+// corner-handle tool covers a hovered edge with a path of its own outside the edge element.
 .x6-edge.pg-edge-hovered path.pg-edge-line:not(.pg-edge-highlighted) {
 	stroke: #8ea9c9;
 	stroke-width: 2.5px;
@@ -194,23 +187,11 @@ input[type="number"].form-control {
 	stroke-width: 1.5px;
 }
 
-// Snap feedback while connecting, applied by x6's magnetAdsorbed highlighter.
 circle.pg-port-adsorbed {
 	stroke: #f0ad4e;
 	stroke-width: 2.5px;
 }
 
-// ── Narrow-panel responsiveness ─────────────────────────────────────────────
-// Every panel scroll wrapper (docked area, floating window, mobile view) is a
-// `panel` container, so panel content adapts to the width it actually has -
-// a docked panel resized to 300px on desktop behaves like a phone screen.
-//
-// .table-stack / .table-stack-sm: below the threshold the table drops its
-// header and every row becomes a wrapping flex line. Cells marked
-// .stack-full take a whole line, .stack-grow fill the rest, and a
-// data-label attribute prints as a small prefix so the number keeps its
-// meaning without the column header. Rows marked .stack-sub indent (the
-// expandable detail rows).
 @mixin table-stacked {
 	thead { display: none; }
 	tbody, tfoot { display: block; }
@@ -252,7 +233,6 @@ circle.pg-port-adsorbed {
 
 @container panel (max-width: 600px) {
 	.table-stack { @include table-stacked; }
-	// Recipe rows: the ingredient → product icons drop under the name.
 	.recipe-line { flex-wrap: wrap; }
 	.recipe-line .recipe-io {
 		flex-basis: 100%;
@@ -260,19 +240,13 @@ circle.pg-port-adsorbed {
 		justify-content: flex-start !important;
 	}
 }
-// Three/four-column figure tables still fit a 320px docked panel; only
-// narrower panels stack them. Their figure columns carry fixed widths on
-// purpose: when the panel is tight the browser shrinks fixed columns only
-// after the auto (name) column has wrapped down to its longest word, so the
-// figures keep one line as long as possible. That needs every figure to be
-// breakable somewhere (a space before the unit or a <wbr>), otherwise the
-// table grows past the panel and gets clipped.
+// Figure columns keep fixed widths on purpose: the browser shrinks them only after the auto (name)
+// column has wrapped to its longest word, so figures stay on one line. Every figure must be
+// breakable (space before the unit or <wbr>), otherwise the table grows past the panel.
 @container panel (max-width: 300px) {
 	.table-stack-sm { @include table-stacked; }
 }
 
-// Small uppercase label heading a group of controls or content inside a card
-// (settings sections, About page). Successive groups get breathing room.
 .subsection-title {
 	font-size: 0.78rem;
 	font-weight: 600;
@@ -286,16 +260,10 @@ circle.pg-port-adsorbed {
 }
 
 
-// Searchable pickers on a phone: the menu stops being a floating dropdown and
-// becomes a sheet pinned under the navbar. The toggle can sit anywhere on the
-// page and the on-screen keyboard takes most of the screen, so there is rarely
-// room to float anything beside it - and a menu positioned while the keyboard
-// was still down ends up behind it. The top is the one part of the screen the
-// keyboard never covers.
-//
-// The rule has to sit here, and on the container: ngx-bootstrap transforms
-// <bs-dropdown-container>, and a transform makes it the containing block for
-// anything `fixed` inside it, so positioning the menu itself does nothing.
+// Phone pickers become a sheet pinned under the navbar: the on-screen keyboard leaves no room to
+// float the menu, and one positioned while the keyboard was down ends up behind it. The rule must
+// sit on the container: ngx-bootstrap transforms <bs-dropdown-container>, making it the
+// containing block for anything `fixed` inside it.
 @media (max-width: 575.98px) {
 	bs-dropdown-container:has(.picker-menu) {
 		position: fixed !important;
@@ -308,5 +276,31 @@ circle.pg-port-adsorbed {
 		width: 100%;
 		min-width: 0;
 		max-width: none;
+	}
+}
+
+// WebKitGTK paints native scrollbars over everything whatever the z-index; styled ones are
+// drawn as part of the page and stack like the rest.
+.desktop-app,
+.desktop-app * {
+	&::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+
+	&::-webkit-scrollbar-track,
+	&::-webkit-scrollbar-corner {
+		background: transparent;
+	}
+
+	&::-webkit-scrollbar-thumb {
+		background-color: rgba(235, 235, 235, 0.25);
+		background-clip: padding-box;
+		border: 2px solid transparent;
+		border-radius: 5px;
+	}
+
+	&::-webkit-scrollbar-thumb:hover {
+		background-color: rgba(235, 235, 235, 0.45);
 	}
 }

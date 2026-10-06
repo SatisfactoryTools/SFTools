@@ -4,7 +4,7 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 
-/** A picture of the Power tab's setting, rebuilt on every solve. Power totals are read from the settings (see ExtraPower), not this node, so nothing counts the augmenters twice - the node only carries the matrix flow. */
+/** Power totals come from the settings (ExtraPower), not this node, so the augmenters are never counted twice. */
 export class AugmenterNode extends Node
 {
 
@@ -15,7 +15,6 @@ export class AugmenterNode extends Node
 		amount: number,
 		public readonly boosted: number,
 		public readonly building: Building,
-		/** Null when the version has no Alien Power Matrix. */
 		public readonly matrixItem: Item | null,
 	)
 	{

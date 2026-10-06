@@ -1,12 +1,7 @@
 import {CalculatorTab} from '@src/Components/Planner/Panels/Calculator/CalculatorTab';
 import {HotkeyAction} from '@src/Model/Hotkeys/HotkeyAction';
 
-/**
- * Which hotkey opens which production request tab. Kept in one place because
- * two parts need it and neither can ask the other: the planner registers the
- * keys (the panel is often not even built), and the tab bar puts the key in
- * each tab's tooltip.
- */
+/** Shared by the planner (registers the keys before the panel exists) and the tab bar (tooltips). */
 export class CalculatorTabHotkeys
 {
 

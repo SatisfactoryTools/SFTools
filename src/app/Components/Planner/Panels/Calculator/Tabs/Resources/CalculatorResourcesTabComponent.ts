@@ -22,32 +22,18 @@ import {ResourceWeightResolver} from '@src/Model/Planner/ResourceWeightResolver'
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * Per-minute mining caps the solver must respect, plus each resource's
- * optimisation weight. Every raw resource starts enabled and unlimited; the
- * checkbox switches it off entirely (the limit is kept for when it comes back)
- * and the ∞ toggle caps it at the entered rate (0 forbids mining too). Weights
- * follow the selected mode (see ResourceWeightMode) and are editable in
- * manual mode only; they matter while the raw resources goal is enabled in
- * the Optimisation tab. Edits the active plan's settings, or the active
- * folder's custom default settings.
- */
 @Component({
 	selector: 'calculator-resources-tab',
 	templateUrl: './CalculatorResourcesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FaIconComponent, FormsModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
 	styles: [`
-		/* The whole row toggles the resource (inputs and buttons excepted, see onRowClick). */
 		tr.resource-row { cursor: pointer; }
 		tr.resource-row:hover > td { background-color: rgba(255, 255, 255, 0.04); }
-		/* Switched-off resources fade, the toggle itself stays readable. */
 		tr.resource-disabled td:not(.toggle-cell) { opacity: 0.45; }
-		/* Block checkbox: no baseline offset, so it sits centred in the row. */
 		.toggle-cell .form-check-input { display: block; margin: 0 auto; float: none; }
-		/* Every unit addon is as wide as the widest ("m³/min"), so the numbers line up. */
+		/* As wide as "m³/min", so the numbers line up. */
 		.unit-addon { min-width: 4.6em; justify-content: flex-start; }
-		/* Pool share bar: other plans (amber), this plan (cyan), free (dark track). */
 		.pool-bar { height: 8px; background: #1d2733; }
 		.pool-others { background: #d9a441; }
 		.pool-plan { background: #5bc0de; }
@@ -76,16 +62,11 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		{mode: 'manual', label: 'Manual', description: 'Your own weights. They start from the values of the previous mode.'},
 	];
 
-	/**
-	 * Pool figures when the active plan's resources are pooled by its folder -
-	 * the tab then shows shares instead of editable limits. Null otherwise.
-	 */
 	public readonly poolStatus: Signal<PoolResourceStatus[] | null> = computed(() => {
 		const plan = this.planManager.activePlan();
 		return plan ? this.pool.status(plan) : null;
 	});
 
-	/** Folder in pool mode: total extraction by the plans inside, per resource; null otherwise. */
 	public readonly folderUsage: Signal<Map<string, number> | null> = computed(() => {
 		const folder = this.planManager.activeFolder();
 		if (!folder || this.planManager.folderGroupMode(folder, 'resources') !== 'pool') {
@@ -94,7 +75,6 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return this.pool.usageInFolder(folder.id);
 	});
 
-	/** Whether the raw resources optimisation goal is on - the weights only matter then. */
 	public readonly weightsEnabled: Signal<boolean> = computed(() =>
 		this.planManager.activeSettings()?.optimisation?.rawResources ?? true);
 
@@ -103,14 +83,12 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return settings ? this.weightResolver.modeOf(settings) : 'map';
 	});
 
-	/** Effective weights per resource for the current mode (unrounded). */
 	public readonly weights: Signal<Record<string, number>> = computed(() => {
 		const settings = this.planManager.activeSettings();
 		const data = this.versionManager.activeVersionData();
 		return settings && data ? this.weightResolver.resolve(settings, this.limitsInForce(), data) : {};
 	});
 
-	/** JSON of the limits and weights the rows were last built from or synced to - external changes rebuild the rows. */
 	private loadedKey: string | null = null;
 	private readonly subscription = new Subscription();
 
@@ -126,8 +104,7 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 
 		this.subscription.add(
 			toObservable(computed(() => [this.planManager.activeSettings(), this.weights()] as const)).subscribe(([settings]) => {
-				// Skip echoes of this tab's own sync(); anything else (owner
-				// switch, reset, inherit, a pool share change) replaces the row drafts.
+				// Skip echoes of this tab's own sync(); anything else replaces the row drafts.
 				if (this.key(settings) !== this.loadedKey) {
 					this.loadFrom(settings);
 				}
@@ -150,7 +127,6 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return this.versionManager.activeVersionData()?.iconForClassName(className) ?? null;
 	}
 
-	/** Rounded weight text of a resource under the current mode. */
 	public weightText(className: string): string
 	{
 		return this.rateFormatter.weight(this.weights()[className] ?? 1);
@@ -171,7 +147,6 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return this.folderUsage()?.get(row.className) ?? 0;
 	}
 
-	/** Folder pool view: plans together mine more than the folder allows (anything at all when switched off). */
 	public folderOverUse(row: ResourceLimitRow): boolean
 	{
 		const usage = this.folderUsageOf(row);
@@ -181,7 +156,6 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return !row.infinite && usage - row.limit > 1e-6;
 	}
 
-	/** Stacked bar segments in percent of the folder limit: others, this plan, free. */
 	public barSegments(status: PoolResourceStatus): {others: number; plan: number} | null
 	{
 		if (status.limit === null || status.limit <= 0) {
@@ -192,10 +166,7 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return {others, plan};
 	}
 
-	/**
-	 * Switches the weight mode. Manual starts from the values the previous
-	 * mode produced, so e.g. "all equal → manual" begins with every weight 1.
-	 */
+	/** Manual starts from the weights the previous mode produced. */
 	public setMode(mode: ResourceWeightMode): void
 	{
 		const settings = this.planManager.activeSettings();
@@ -205,24 +176,17 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		this.planManager.updateActiveSettings({...settings, resourceWeightMode: mode, resourceWeights});
 	}
 
-	/** Per-minute caps the version's map can supply; null for versions imported without world data. */
 	public get mapLimits(): Record<string, number> | null
 	{
 		return this.versionManager.activeVersionData()?.worldLimits ?? null;
 	}
 
-	/** Switches every raw resource on or off at once; the limits stay as they are. */
 	public setAllEnabled(enabled: boolean): void
 	{
 		this.rows.forEach(row => row.enabled = enabled);
 		this.sync();
 	}
 
-	/**
-	 * Caps every resource at what the version's map can supply - the limits a
-	 * new plan of this version starts with. Water and anything the map does
-	 * not cap become unlimited; a resource the map has none of ends up at 0.
-	 */
 	public setFromMapLimits(): void
 	{
 		const limits = this.mapLimits;
@@ -249,11 +213,6 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		this.sync();
 	}
 
-	/**
-	 * A click anywhere on the row flips the toggle, except on the controls
-	 * (the checkbox handles itself; inputs and buttons keep their own job) and
-	 * while the tab is read-only (a fixed folder disables the fieldset).
-	 */
 	public onRowClick(row: ResourceLimitRow, event: MouseEvent): void
 	{
 		const target = event.target as HTMLElement;
@@ -300,7 +259,6 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		this.subscription.unsubscribe();
 	}
 
-	/** The caps the limits mode reads: the plan's effective (pool-reduced) limits, or the folder's own. */
 	private limitsInForce(): Record<string, number>
 	{
 		const plan = this.planManager.activePlan();

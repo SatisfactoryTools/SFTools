@@ -5,11 +5,7 @@ import {ItemAmount} from '@src/Model/Data/Entities/Parts/ItemAmount';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {PageMeta} from '@src/Model/Meta/PageMeta';
 
-/**
- * Page metadata of a fullscreen codex path ('', 'items', 'items/Desc_Cable_C',
- * …) in the active version. The same rules as the API's MetaResolver::codex()
- * and VersionMetaIndex (recipe summaries) - keep them in sync.
- */
+/** Mirrors the API MetaResolver::codex() and VersionMetaIndex: keep them in sync. */
 @Injectable({providedIn: 'root'})
 export class CodexMetaResolver
 {
@@ -29,7 +25,6 @@ export class CodexMetaResolver
 	{
 	}
 
-	/** Null when the path names nothing (the route title stays). */
 	public resolve(path: string): PageMeta | null
 	{
 		const version = this.versionManager.activeVersion()?.name ?? '';
@@ -79,7 +74,6 @@ export class CodexMetaResolver
 		};
 	}
 
-	/** "2× Wire → 1× Cable in Constructor, 2 s" - per-cycle amounts, as the codex recipe row shows them. */
 	private recipeSummary(recipe: Recipe): string
 	{
 		let summary = `${this.amounts(recipe.ingredients)} → ${this.amounts(recipe.products)}`;
@@ -108,7 +102,6 @@ export class CodexMetaResolver
 		return rest > 0 ? `${minutes} min ${this.number(rest)} s` : `${minutes} min`;
 	}
 
-	/** Up to 4 decimals, trailing zeroes stripped. */
 	private number(value: number): string
 	{
 		const formatted = value.toFixed(4).replace(/\.?0+$/, '');

@@ -31,11 +31,7 @@ import {AccountComponent} from '@src/Components/Account/AccountComponent';
 export class RouteList
 {
 
-	/**
-	 * 'codex' plus any codex path after it - one route, so browsing within the
-	 * fullscreen codex reuses the component; CodexPageComponent reads the path
-	 * from the consumed segments.
-	 */
+	/** One route for 'codex' and any codex path below it, so browsing reuses the component. */
 	public static codexMatcher(segments: UrlSegment[]): UrlMatchResult | null
 	{
 		if (segments.length < 1 || segments[0].path !== 'codex') {
@@ -44,11 +40,7 @@ export class RouteList
 		return {consumed: segments, posParams: {}};
 	}
 
-	/**
-	 * 'help' plus the article slug after it - one route, so moving between
-	 * articles reuses the component. Help is about the tool rather than a game
-	 * version, so it sits at the top level, outside any version.
-	 */
+	/** One route for 'help' and the slug below it, so moving between articles reuses the component. */
 	public static helpMatcher(segments: UrlSegment[]): UrlMatchResult | null
 	{
 		if (segments.length < 1 || segments.length > 2 || segments[0].path !== 'help') {
@@ -57,12 +49,7 @@ export class RouteList
 		return {consumed: segments, posParams: {}};
 	}
 
-	/**
-	 * 'planner', 'planner/:planId' or 'planner/shared/:shareId' - one route,
-	 * so switching plans (or entering a shared plan) only changes the params
-	 * and reuses the component. Plan ids are UUIDs, so the literal 'shared'
-	 * segment cannot collide with one.
-	 */
+	/** One route for 'planner', 'planner/:planId' and 'planner/shared/:shareId', so switching plans reuses the component; plan ids are UUIDs, so 'shared' cannot collide. */
 	public static plannerMatcher(segments: UrlSegment[]): UrlMatchResult | null
 	{
 		if (segments.length < 1 || segments.length > 3 || segments[0].path !== 'planner') {
@@ -81,11 +68,6 @@ export class RouteList
 		return {consumed: segments, posParams};
 	}
 
-	/**
-	 * The old Satisfactory Tools' addresses: `/{0.8|1.0|1.0-ficsmas}/…`,
-	 * version-less `/production` and `/codex/…`, and the `/import` link its
-	 * "take my plans" button sends people to. All of them, whatever follows.
-	 */
 	public static legacyMatcher(segments: UrlSegment[]): UrlMatchResult | null
 	{
 		if (segments.length < 1 || !RouteList.LEGACY_FIRST_SEGMENTS.includes(segments[0].path)) {
@@ -94,15 +76,9 @@ export class RouteList
 		return {consumed: segments, posParams: {}};
 	}
 
-	private static readonly LEGACY_FIRST_SEGMENTS: ReadonlyArray<string> = ['0.8', '1.0', '1.0-ficsmas', 'production', 'codex', 'import'];
+	private static readonly LEGACY_FIRST_SEGMENTS: ReadonlyArray<string> = ['0.8', '1.0', '1.0-ficsmas', 'production', 'codex', 'items'];
 
-	/**
-	 * Route `title`s and `data.description`s are the tab title and link
-	 * preview text (AppTitleStrategy; "{V}" = the game version's name). Bots
-	 * get the same strings from the API (tools-api: MetaResolver, which also
-	 * mirrors the reserved first segments here) - keep them in sync. A route
-	 * without a title shows the site defaults.
-	 */
+	// Titles and descriptions are mirrored by tools-api's MetaResolver (which also mirrors the reserved first segments) - keep them in sync.
 	public static routes: Routes = [
 		{
 			path: '',
@@ -117,9 +93,6 @@ export class RouteList
 					component: HomeComponent,
 				},
 				{
-					// Global settings - not scoped to a game version. The open
-					// section is part of the URL; a bare /settings redirects to
-					// the first one (links made before that still work).
 					path: 'settings',
 					title: 'Settings',
 					component: SettingsComponent,
@@ -136,15 +109,12 @@ export class RouteList
 					component: AboutComponent,
 				},
 				{
-					// Open to anonymous users too - their created versions are
-					// tracked in localStorage instead of the account.
 					path: 'create-version',
 					title: 'Create custom version',
 					data: {description: 'Make your own game version: add mods, change recipe and power costs, and set up a different world.'},
 					component: CreateVersionPageComponent,
 				},
-				// Mod management - signed-in users only. All of these must
-				// precede the ':versionSlug' catch-all.
+				// Must precede the ':versionSlug' catch-all.
 				{
 					path: 'mods',
 					title: 'Mods',
@@ -166,15 +136,13 @@ export class RouteList
 					],
 				},
 				{
-					// Standalone mod data scratchpad (produces JSON only).
 					path: 'mod-editor',
 					title: 'Mod editor',
 					data: {description: 'Write the items, recipes and buildings of a mod and get the data file to upload.'},
 					component: ModEditorComponent,
 				},
 				{
-					// Writing the tutorials - editors only. Must precede the
-					// help matcher, which would otherwise read 'editor' as a slug.
+					// Must precede the help matcher, which would otherwise read 'editor' as a slug.
 					path: 'help/editor',
 					title: 'Help editor',
 					canActivate: [HelpEditorGuard],
@@ -184,14 +152,13 @@ export class RouteList
 							component: HelpEditorComponent,
 						},
 						{
-							// ':id' is an article uuid, or 'new'.
 							path: ':id',
 							component: HelpArticleEditorComponent,
 						},
 					],
 				},
 				{
-					// Tutorials. Must precede the ':versionSlug' catch-all.
+					// Must precede the ':versionSlug' catch-all.
 					matcher: RouteList.helpMatcher,
 					title: 'Help',
 					data: {description: 'Guides and reference for Satisfactory Tools.'},
@@ -221,8 +188,6 @@ export class RouteList
 							component: ResetPasswordComponent,
 						},
 						{
-							// OAuth providers redirect here; the page forwards
-							// the query string to the backend callback.
 							path: 'callback/:provider',
 							title: 'Sign in',
 							component: OAuthCallbackComponent,
@@ -230,22 +195,18 @@ export class RouteList
 					],
 				},
 				{
-					// Sign-in methods management (connected accounts).
 					path: 'account',
 					title: 'Account',
 					canActivate: [AuthGuard],
 					component: AccountComponent,
 				},
 				{
-					// Public share links - no auth, must precede the
-					// ':versionSlug' catch-all. Redirects into the planner
-					// of the share's version, where the share opens read-only.
+					// Must precede the ':versionSlug' catch-all.
 					path: 'shared/:shareId',
 					component: ShareRedirectComponent,
 				},
 				{
-					// Links from the old Satisfactory Tools era. Must precede
-					// the ':versionSlug' catch-all, which would send them home.
+					// Must precede the ':versionSlug' catch-all, which would send them home.
 					matcher: RouteList.legacyMatcher,
 					component: LegacyUrlRedirectComponent,
 				},
@@ -257,7 +218,6 @@ export class RouteList
 					},
 					children: [
 						{
-							// The planner is the version's home page.
 							path: '',
 							redirectTo: 'planner',
 							pathMatch: 'full',
@@ -269,8 +229,6 @@ export class RouteList
 							component: CodexPageComponent,
 						},
 						{
-							// 'planner' with an optional ':planId' - one route, so switching
-							// plans only changes the param and reuses the component.
 							matcher: RouteList.plannerMatcher,
 							title: 'Planner ({V})',
 							component: PlannerComponent,

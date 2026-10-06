@@ -6,12 +6,6 @@ import {SearchResultListComponent} from '@src/Components/Common/SearchResultList
 import {SearchBoxState} from '@src/Model/Search/SearchBoxState';
 import {SearchResult} from '@src/Model/Search/SearchResult';
 
-/**
- * The navbar's search box: everything the app knows about is in it - the
- * codex, the user's plans and folders, and the help articles. The arrow keys
- * walk the results and Enter opens the one under the cursor, the same way the
- * searchable pickers work.
- */
 @Component({
 	selector: 'navbar-search',
 	templateUrl: './NavbarSearchComponent.html',
@@ -19,7 +13,6 @@ import {SearchResult} from '@src/Model/Search/SearchResult';
 	imports: [FaIconComponent, SearchResultListComponent, FitViewportDirective],
 	providers: [SearchBoxState],
 	styles: `
-		/* Fills the room the navbar gives it (see NavbarComponent's styles). */
 		:host { display: block; }
 		.search-icon {
 			position: absolute;
@@ -50,7 +43,6 @@ export class NavbarSearchComponent
 	{
 	}
 
-	/** Puts the caret into the search box (the app's search shortcut). */
 	public focus(): void
 	{
 		this.searchInput?.nativeElement.focus();
@@ -106,7 +98,6 @@ export class NavbarSearchComponent
 		this.state.open(result);
 	}
 
-	/** Keeps the highlighted result inside the scrolling list as the arrows walk past its edge. */
 	private scrollActiveIntoView(): void
 	{
 		setTimeout(() => this.elementRef.nativeElement

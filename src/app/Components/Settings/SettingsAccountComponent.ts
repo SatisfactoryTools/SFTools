@@ -7,8 +7,8 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faUser} from '@fortawesome/free-solid-svg-icons';
+import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 
-/** "Account" settings section - sign-in status and the sign-in reminder switch. */
 @Component({
 	selector: 'settings-account',
 	templateUrl: './SettingsAccountComponent.html',
@@ -23,6 +23,7 @@ export class SettingsAccountComponent
 	public constructor(
 		private readonly settings: SettingsManager,
 		protected readonly auth: AuthService,
+		protected readonly platform: AppPlatform,
 		protected readonly account: AccountProfileService,
 	)
 	{

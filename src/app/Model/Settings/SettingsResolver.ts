@@ -4,11 +4,6 @@ import {ActivatedRouteSnapshot, RouterStateSnapshot} from '@angular/router';
 import {filter, Observable, take} from 'rxjs';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
-/**
- * Blocks the initial render until the user's settings have loaded, so number
- * formatting, graph colours and the remembered panel layout are all in place
- * before the planner (or anything else) draws - no flash of defaults.
- */
 @Injectable({providedIn: 'root'})
 export class SettingsResolver
 {

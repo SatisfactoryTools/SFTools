@@ -1,7 +1,6 @@
 import {Item} from '@src/Model/Data/Entities/Item';
 import {ItemFlowRow} from '@src/Model/Planner/Breakdown/ItemFlowRow';
 
-/** Items panel row: everything producing and consuming one item in the plan. */
 export interface ItemRow
 {
 
@@ -15,7 +14,6 @@ export interface ItemRow
 
 	readonly totalTargets: number;
 
-	/** totalSources − totalTargets; non-zero means the plan is out of balance. */
 	readonly net: number;
 
 }

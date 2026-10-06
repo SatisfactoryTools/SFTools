@@ -6,11 +6,7 @@ import {Data} from '@src/Model/Data/Data';
 export class DataTransformer
 {
 
-	/**
-	 * The fallback limits cover official versions: their data files store the
-	 * generator's raw world output without limits, so the caps live only on
-	 * the version record's worldData.
-	 */
+	/** Official versions' data files carry no limits; their caps live only on the version record's worldData. */
 	public transform(file: VersionFile, fallbackWorldLimits: Record<string, number> | null = null): Data
 	{
 		return new Data(file.data, file.metadata, fallbackWorldLimits);

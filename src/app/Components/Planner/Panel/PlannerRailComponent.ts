@@ -40,9 +40,6 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 		.rail-btn.active { background: rgba(100,150,255,0.18); color: #fff; }
 		.rail-btn:disabled { opacity: 0.35; cursor: default; }
 		.rail-btn:disabled:hover { background: transparent; color: #8899bb; }
-		/* Share is an action, not a panel, and people looked for it in vain - it gets the
-		   same blue as the Share button in the production request panel. The solid fill
-		   keeps it apart from an open panel, which is only a faint blue tint. */
 		.rail-btn-accent {
 			background: #4c9be8;
 			color: #fff;
@@ -62,7 +59,6 @@ export class PlannerRailComponent
 
 	public readonly faShareNodes = faShareNodes;
 
-	/** Says what the button would share, or why it cannot - a disabled icon on its own explains nothing. */
 	public readonly shareTooltip: Signal<string> = computed(() => {
 		const target = this.shareDialog.activeTarget();
 		if (target === null) {

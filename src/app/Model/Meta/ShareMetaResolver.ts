@@ -7,11 +7,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PageMeta} from '@src/Model/Meta/PageMeta';
 import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
 
-/**
- * Page metadata of a share link: the shared plan's or folder's name and a
- * description, the plan's icon when its version's data is loaded. The same
- * rules as the API's MetaResolver::share() - keep them in sync.
- */
+/** Mirrors the API MetaResolver::share(): keep them in sync. */
 @Injectable({providedIn: 'root'})
 export class ShareMetaResolver
 {
@@ -43,7 +39,6 @@ export class ShareMetaResolver
 		};
 	}
 
-	/** Plans in the folder tree, subfolders included; subplans belong to their plan and do not count. */
 	private countPlans(folder: SharedFolderNode): number
 	{
 		return folder.plans.length + folder.children.reduce((sum, child) => sum + this.countPlans(child), 0);

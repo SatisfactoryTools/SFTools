@@ -3,12 +3,7 @@ import {SettingsGroup} from '@src/Model/Planner/SettingsGroup';
 
 type SettingsKey = keyof PlanSettings;
 
-/**
- * Maps settings groups to the PlanSettings keys they own and copies groups
- * between settings objects. Calculation mode, graph layout and the default
- * grouping mode belong to no group - they stay per plan even under a folder
- * that fixes everything else.
- */
+/** Calculation mode, graph layout and the default grouping mode belong to no group: they stay per plan even under a folder that fixes everything else. */
 export class SettingsGroups
 {
 
@@ -50,7 +45,6 @@ export class SettingsGroups
 		return SettingsGroups.labels[group];
 	}
 
-	/** `target` with the given groups replaced by deep copies of `source`'s values (absent keys stay absent). */
 	public static apply(target: PlanSettings, source: PlanSettings, groups: readonly SettingsGroup[]): PlanSettings
 	{
 		const result: Record<string, unknown> = {...target};
@@ -65,7 +59,6 @@ export class SettingsGroups
 		return result as unknown as PlanSettings;
 	}
 
-	/** Whether any of the groups' values differ between the two settings objects. */
 	public static differ(a: PlanSettings, b: PlanSettings, groups: readonly SettingsGroup[]): boolean
 	{
 		return groups.some(group => SettingsGroups.keys[group].some(key =>

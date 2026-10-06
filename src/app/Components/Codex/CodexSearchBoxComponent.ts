@@ -3,11 +3,6 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faMagnifyingGlass, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {CodexSearchState} from '@src/Components/Codex/CodexSearchState';
 
-/**
- * The codex panel's search input: writes the shared CodexSearchState, whose
- * result list (codex-search-results) the host shows in place of the browsed
- * content. Arrow keys move the cursor, Enter opens, Escape clears.
- */
 @Component({
 	selector: 'codex-search-box',
 	templateUrl: './CodexSearchBoxComponent.html',

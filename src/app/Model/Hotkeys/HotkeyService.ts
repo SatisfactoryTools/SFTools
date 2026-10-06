@@ -7,21 +7,10 @@ import {HotkeyItemSource} from '@src/Model/Hotkeys/HotkeyItemSource';
 import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
-/**
- * Resolves which key runs which action and dispatches key presses to it.
- *
- * Two ways to answer a key: a plain handler (`register`) for things a single
- * component owns - zooming, opening a panel - and an item source
- * (`registerSource`) for the context-menu actions, which hands back the menu
- * entries that fit the current selection so the hotkey does exactly what the
- * menu row does. Because no two actions share a key, the first source that
- * knows the action is the right one.
- */
 @Injectable({providedIn: 'root'})
 export class HotkeyService
 {
 
-	/** Each action's key: the user's own choice where there is one, the factory key otherwise. */
 	public readonly bindings: Signal<Map<HotkeyAction, HotkeyBinding>> = computed(() => {
 		const overrides = this.settings.hotkeys();
 		const bindings = new Map<HotkeyAction, HotkeyBinding>();
@@ -34,11 +23,7 @@ export class HotkeyService
 		return bindings;
 	});
 
-	/**
-	 * Actions sharing one key. Nothing stops the user from making a clash -
-	 * the settings list points it out instead, and a clashing key runs the
-	 * action listed first.
-	 */
+	/** Clashes are allowed: the settings list points them out, and a clashing key runs the action listed first. */
 	public readonly conflicts: Signal<Set<HotkeyAction>> = computed(() => {
 		const seen = new Map<string, HotkeyAction>();
 		const clashing = new Set<HotkeyAction>();
@@ -70,7 +55,7 @@ export class HotkeyService
 
 	private readonly sources: HotkeyItemSource[] = [];
 
-	/** Open dialogs park the hotkeys - counted, because two can overlap. */
+	/** Counted rather than a flag: two open dialogs can overlap. */
 	private readonly blockersSignal = signal(0);
 
 	public constructor(
@@ -85,13 +70,11 @@ export class HotkeyService
 		return this.bindings().get(action) ?? null;
 	}
 
-	/** The key's text for a menu row or a tooltip; empty when the action has none. */
 	public label(action: HotkeyAction | undefined): string
 	{
 		return action === undefined ? '' : this.formatter.format(this.binding(action));
 	}
 
-	/** " (Ctrl+Z)" for a tooltip, empty when the action has no key. */
 	public suffix(action: HotkeyAction | undefined): string
 	{
 		const label = this.label(action);
@@ -124,7 +107,6 @@ export class HotkeyService
 		};
 	}
 
-	/** Holds every hotkey while a dialog is open; release it when the dialog closes. */
 	public block(): HotkeyRegistration
 	{
 		this.blockersSignal.update(count => count + 1);
@@ -139,10 +121,6 @@ export class HotkeyService
 		};
 	}
 
-	/**
-	 * Runs whatever the key press stands for. Returns whether something ran,
-	 * so the caller can keep the browser's own behaviour when nothing did.
-	 */
 	public handle(event: KeyboardEvent): boolean
 	{
 		if (this.blockersSignal() > 0 || this.isTyping()) {
@@ -156,22 +134,19 @@ export class HotkeyService
 		return action !== undefined && this.run(action);
 	}
 
-	/** Runs an action the same way a key press would; false when nothing could. */
 	public run(action: HotkeyAction): boolean
 	{
 		for (const source of this.sources) {
 			const item = source.hotkeyItems().find(candidate => candidate.hotkey === action);
 			if (item) {
-				// A grayed-out entry still claims the key - the action exists
-				// here, it just cannot run, and no other source should answer.
+				// A grayed-out entry still claims the key: the action exists here, it just cannot run, and no other source should answer.
 				if (!item.disabled) {
 					item.action();
 				}
 				return true;
 			}
 		}
-		// The last registration wins: an inner component that took an action
-		// over speaks for it while it is alive.
+		// The last registration wins: an inner component that took an action over speaks for it while it is alive.
 		const handlers = this.handlers.get(action) ?? [];
 		const handler = handlers[handlers.length - 1];
 		if (!handler) {
@@ -181,7 +156,6 @@ export class HotkeyService
 		return true;
 	}
 
-	/** Text fields keep every key to themselves, including the plain letters. */
 	private isTyping(): boolean
 	{
 		const active = document.activeElement;

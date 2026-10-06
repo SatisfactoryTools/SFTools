@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {HttpClient} from '@angular/common/http';
+import {HttpClient, HttpResponse} from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {env} from '@env/env';
 import {OAuthCallbackResponse} from '@src/Model/API/Schema/Auth/OAuthCallbackResponse';
@@ -8,13 +8,7 @@ import {OAuthProvidersResponse} from '@src/Model/API/Schema/Auth/OAuthProvidersR
 import {OAuthStartResponse} from '@src/Model/API/Schema/Auth/OAuthStartResponse';
 import {AuthenticatedRequest} from '@src/Model/Auth/AuthenticatedRequest';
 
-/**
- * Third-party sign-in endpoints. The AuthInterceptor skips /v1/auth/ URLs by
- * default, so the calls that need the signed-in user (link flow, connections,
- * disconnect) are marked with AuthenticatedRequest - the interceptor then
- * attaches the Bearer header and refreshes an expired access token for them
- * exactly as for the rest of the API.
- */
+/** The AuthInterceptor skips /v1/auth URLs, so the calls that need the signed-in user are marked with AuthenticatedRequest. */
 @Injectable({providedIn: 'root'})
 export class OAuthApiService
 {
@@ -30,23 +24,23 @@ export class OAuthApiService
 		return this.http.get<OAuthProvidersResponse>(`${this.base}/providers`);
 	}
 
-	/**
-	 * Starts a flow; redirect the browser to the returned authorizationUrl.
-	 * Without the Bearer header this is a login/signup; with it (`link`) the
-	 * provider is attached to the signed-in account instead - so the request
-	 * is only marked as authenticated when linking.
-	 */
-	public start(provider: string, link: boolean): Observable<OAuthStartResponse>
+	/** Only linking needs the signed-in user; without the Bearer header the same call is a login/signup. */
+	public start(provider: string, link: boolean, desktop = false): Observable<OAuthStartResponse>
 	{
-		return this.http.post<OAuthStartResponse>(`${this.base}/${provider}/start`, null, {
+		return this.http.post<OAuthStartResponse>(`${this.base}/${provider}/start`, desktop ? {desktop: true} : null, {
 			context: link ? AuthenticatedRequest.context() : undefined,
 		});
 	}
 
-	/** Completes a flow with every query parameter the provider sent to the callback page. */
 	public callback(provider: string, params: Record<string, string>): Observable<OAuthCallbackResponse>
 	{
 		return this.http.post<OAuthCallbackResponse>(`${this.base}/${provider}/callback`, {params});
+	}
+
+	/** Observed as a response: 202 means the browser has not come back yet. */
+	public pollDesktop(state: string, pollToken: string): Observable<HttpResponse<OAuthCallbackResponse>>
+	{
+		return this.http.post<OAuthCallbackResponse>(`${this.base}/desktop/poll`, {state, pollToken}, {observe: 'response'});
 	}
 
 	public getConnections(): Observable<OAuthConnectionsResponse>

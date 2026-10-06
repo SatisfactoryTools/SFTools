@@ -1,43 +1,30 @@
-import {Injectable} from '@angular/core';
+import {Injectable, Optional} from '@angular/core';
 import {HttpErrorResponse, HttpEvent, HttpHandler, HttpInterceptor, HttpRequest} from '@angular/common/http';
 import {Observable, throwError, timer} from 'rxjs';
 import {catchError, finalize, switchMap} from 'rxjs/operators';
 import {env} from '@env/env';
 import {ServerStatusService} from '@src/Model/API/ServerStatusService';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 
-/**
- * Waits before each retry, in milliseconds. The total (just over half a
- * minute) is set by how long a deployment takes to swap the API over - the
- * point is to ride out the gap without the user noticing anything but a
- * slower-than-usual request.
- */
+/** Totals just over half a minute - how long a deployment takes to swap the API over. */
 const RETRY_DELAYS = [2000, 5000, 10000, 15000];
 
-/**
- * Statuses the gateway produces while the application behind it is down. They
- * mean the request never reached the application, so replaying it cannot
- * duplicate anything - even a POST is safe.
- */
+/** The request never reached the application, so replaying it cannot duplicate anything - even a POST is safe. */
 const GATEWAY_STATUSES = [502, 503, 504];
 
-/** Methods that change nothing, so they stay safe to replay even when we cannot tell whether the request arrived. */
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
-/**
- * Retries API requests that failed because the server was momentarily
- * unreachable - the window while a deployment swaps the API over, when the
- * gateway answers 503. Every API call goes through HttpClient, so this covers
- * the boot resolvers, the version data files and the background syncs alike.
- *
- * Registered before AuthInterceptor, which puts it on the outside: each retry
- * passes through the auth layer again and so carries a freshly refreshed
- * token rather than the one that was current when the first attempt failed.
- */
+/** Registered before AuthInterceptor, so each retry passes through the auth layer again and carries a freshly refreshed token. */
 @Injectable()
 export class RetryInterceptor implements HttpInterceptor
 {
 
-	public constructor(private readonly serverStatus: ServerStatusService)
+	public constructor(
+		private readonly serverStatus: ServerStatusService,
+		private readonly connectivity: ConnectivityService,
+		@Optional() private readonly desktop: DesktopBridge | null,
+	)
 	{
 	}
 
@@ -73,10 +60,11 @@ export class RetryInterceptor implements HttpInterceptor
 		if (GATEWAY_STATUSES.includes(err.status)) {
 			return true;
 		}
-		// Status 0 is a connection that never completed. The request may or may
-		// not have been processed, so only the methods that change nothing are
-		// safe to send again.
-		return err.status === 0 && SAFE_METHODS.includes(req.method.toUpperCase());
+		// Status 0 never completed, so only methods that change nothing are replayed. The desktop app stops once the
+		// connection is known to be gone (its offline cache answers); a website cannot tell that from a deploy refusing connections.
+		return err.status === 0
+			&& SAFE_METHODS.includes(req.method.toUpperCase())
+			&& (this.desktop === null || this.connectivity.online());
 	}
 
 }

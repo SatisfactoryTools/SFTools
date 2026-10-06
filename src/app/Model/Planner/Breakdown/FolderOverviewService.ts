@@ -17,13 +17,6 @@ import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 
-/**
- * Folder-wide overview: the per-plan breakdowns of every top-level plan in
- * the folder and its subfolders (subplans folded into their parent), summed
- * per resource, item, building and recipe with the per-plan split kept for
- * expansion. Limits follow the folder's resources mode - the shared pool
- * when pooled, the per-plan cap when fixed, nothing when plans set their own.
- */
 @Injectable({providedIn: 'root'})
 export class FolderOverviewService
 {

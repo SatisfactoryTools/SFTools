@@ -8,11 +8,6 @@ import {SloopAccuracy} from '@src/Model/Planner/SloopAccuracy';
 import {SloopBudgetService} from '@src/Model/Planner/SloopBudgetService';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 
-/**
- * Somersloop budget for the solver. Placing sloops turns the solve into a
- * MIP, so the accuracy setting trades solve time against how far the result
- * may deviate from the optimum.
- */
 @Component({
 	selector: 'calculator-sloops-tab',
 	templateUrl: './CalculatorSloopsTabComponent.html',
@@ -36,13 +31,11 @@ export class CalculatorSloopsTabComponent
 	{
 	}
 
-	/** Somersloops already committed to locked recipe nodes in the current plan. */
 	public get sloopsUsedByLocked(): number
 	{
 		return this.sloopBudget.usedByLockedNodes(this.planManager.activePlan()?.graph);
 	}
 
-	/** Somersloops left for the solver to place - the budget minus locked-node usage. */
 	public get sloopsRemaining(): number
 	{
 		return this.sloopBudget.remaining(this.maxSloops, this.planManager.activePlan()?.graph);
@@ -63,13 +56,11 @@ export class CalculatorSloopsTabComponent
 		return this.planManager.activeSettings()?.sloopAccuracy ?? 'low';
 	}
 
-	/** "Produce power to run the factory" (Power tab) - with sloops it makes the MIP much harder. */
 	public get producePowerForFactory(): boolean
 	{
 		return this.planManager.activeSettings()?.producePowerForFactory ?? false;
 	}
 
-	/** A maximised request (Production tab) runs several MIP solves in a row - much harder with sloops. */
 	public get hasMaximiseRequest(): boolean
 	{
 		return this.planManager.activePlan()?.requests.some(request => request.mode === 'maximise') ?? false;

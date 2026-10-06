@@ -16,21 +16,14 @@ export abstract class SyncableService<T> implements OnDestroy
 	private readonly dataSignal: WritableSignal<T>;
 	public readonly data: Signal<T>;
 
-	// Flips true once the first backend load settles (data or error), so callers
-	// can wait for the real data before rendering instead of using emptyValue.
 	private readonly loadedSignal: WritableSignal<boolean> = signal(false);
 	public readonly loaded: Signal<boolean> = this.loadedSignal.asReadonly();
 
-	/**
-	 * True when the last load failed outright. What is held then is the
-	 * fallback default, not the user's data - saving it would replace what the
-	 * server still has with it, so remote writes stay blocked until a load
-	 * succeeds. (An empty store loads fine and leaves this false.)
-	 */
+	/** Blocks remote writes until a load succeeds: what is held after a failed load is the default, and saving it would replace what the server still has. */
 	private readonly loadFailedSignal: WritableSignal<boolean> = signal(false);
 	public readonly loadFailed: Signal<boolean> = this.loadFailedSignal.asReadonly();
 
-	/** The "not being saved" warning is shown once per failed load, not on every edit that follows it. */
+	/** The warning is shown once per failed load, not on every edit that follows it. */
 	private unsavedWarned = false;
 
 	private activeBackend: DataBackend<T>;
@@ -43,7 +36,6 @@ export abstract class SyncableService<T> implements OnDestroy
 		private readonly conflictResolver: ConflictResolver<T>,
 		private readonly emptyValue: T,
 		private readonly notifications: NotificationService,
-		/** What this store holds, for the "could not be loaded" message - "plans", "settings"... */
 		private readonly label: string,
 	)
 	{
@@ -72,9 +64,7 @@ export abstract class SyncableService<T> implements OnDestroy
 	protected persist(data: T): void
 	{
 		this.dataSignal.set(data);
-		// The edit stays in place for this session either way - it is only the
-		// write to the account that waits, because the baseline it would be
-		// written against was never loaded.
+		// The edit stays in place for this session; only the write to the account waits, because its baseline was never loaded.
 		if (this.loadFailedSignal() && this.activeBackend === this.remoteBackend) {
 			this.warnUnsaved();
 			return;
@@ -82,7 +72,6 @@ export abstract class SyncableService<T> implements OnDestroy
 		this.activeBackend.save(data).subscribe();
 	}
 
-	/** Re-fetches from the active backend, e.g. when the backend's scope (game version) changes. */
 	protected reload(): void
 	{
 		this.loadFrom(this.activeBackend);
@@ -106,17 +95,13 @@ export abstract class SyncableService<T> implements OnDestroy
 	protected loadFrom(backend: DataBackend<T>): void
 	{
 		backend.load().subscribe({
-			// A null load means the backend holds nothing (an empty account,
-			// an untouched device, a scope with no store yet), so what is on
-			// hand goes with it - keeping it would leave one scope's data, or
-			// a signed-out session, showing what the previous one loaded.
+			// A null load means the backend holds nothing, so what is on hand is replaced too:
+			// keeping it would show the previous scope's or session's data.
 			next: data => {
 				this.dataSignal.set(data ?? this.emptyValue);
 				this.settleLoad(false);
 			},
-			// The load still counts as settled: a resolver left pending forever
-			// would leave the page blank. What changes is that the data now on
-			// hand is known to be the default rather than the user's.
+			// A failed load still counts as settled: a resolver left pending forever would leave the page blank.
 			error: () => this.settleLoad(true),
 		});
 	}
@@ -131,11 +116,7 @@ export abstract class SyncableService<T> implements OnDestroy
 		this.onLoaded();
 	}
 
-	/**
-	 * Called after every backend load settles (initial and reload, success and
-	 * failure alike). Beware: the initial call can happen inside this base
-	 * constructor, before a subclass's own fields exist.
-	 */
+	/** Beware: the initial call can happen inside this base constructor, before a subclass's own fields exist. */
 	protected onLoaded(): void
 	{
 	}
@@ -150,7 +131,6 @@ export abstract class SyncableService<T> implements OnDestroy
 		);
 	}
 
-	/** A load that keeps a failure distinguishable from an empty store. */
 	private loadOutcome(backend: DataBackend<T>): Observable<LoadResult<T>>
 	{
 		return backend.load().pipe(
@@ -170,9 +150,7 @@ export abstract class SyncableService<T> implements OnDestroy
 			remote: this.loadOutcome(remote),
 		}).pipe(
 			switchMap(({local, remote: remoteResult}): Observable<T | null> => {
-				// An unreachable server is not an account with nothing stored.
-				// Merging on that reading would push this device's copy over
-				// whatever the account actually holds, so nothing is written.
+				// An unreachable server is not an empty account: merging would push this device's copy over whatever the account holds.
 				if (!remoteResult.ok) return of(null);
 
 				const remoteData = remoteResult.data;
@@ -196,13 +174,7 @@ export abstract class SyncableService<T> implements OnDestroy
 		});
 	}
 
-	/**
-	 * Signing out ends the account's session here and then: what was loaded
-	 * from it is dropped and this device's own store is read back, so nothing
-	 * of the signed-in user survives into the signed-out one. Deliberately
-	 * nothing of it is written down to the device either - that would leave
-	 * the account's data on a shared computer.
-	 */
+	/** Deliberately writes nothing of the account's data to the device: that would leave it on a shared computer. */
 	protected onLogout(): void
 	{
 		this.activeBackend = this.localBackend;

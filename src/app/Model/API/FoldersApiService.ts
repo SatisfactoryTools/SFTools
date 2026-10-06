@@ -17,7 +17,6 @@ export class FoldersApiService
 		return this.http.post<FolderSchema>(this.foldersBase(versionId), {id, name, parent, data});
 	}
 
-	/** General update guarded by the revision counter - the server answers 409 on a mismatch. */
 	public updateFolder(versionId: string, id: string, revision: number, fields: {name?: string; data?: string}): Observable<FolderSchema>
 	{
 		return this.http.put<FolderSchema>(`${this.foldersBase(versionId)}/${id}`, {...fields, revision});

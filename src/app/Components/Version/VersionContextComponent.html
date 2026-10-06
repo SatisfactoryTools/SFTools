@@ -3,7 +3,13 @@
 } @else if (data.error()) {
 	<div class="container mt-4">
 		<div class="alert alert-danger d-flex flex-wrap align-items-center gap-3" role="alert">
-			<span class="flex-grow-1">This version could not be loaded. The server may be updating, which usually takes less than a minute.</span>
+			@if (connectivity.online()) {
+				<span class="flex-grow-1">This version could not be loaded. The server may be updating, which usually takes less than a minute.</span>
+			} @else if (platform.desktop) {
+				<span class="flex-grow-1">You are offline, and this version has not been downloaded for offline use. Download it in Settings &rarr; Desktop app once you are back online.</span>
+			} @else {
+				<span class="flex-grow-1">You are offline. This version loads once you are back online.</span>
+			}
 			<button type="button" class="btn btn-outline-light btn-sm flex-shrink-0" (click)="data.reload()">Try again</button>
 		</div>
 	</div>

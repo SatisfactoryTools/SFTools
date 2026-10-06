@@ -7,34 +7,15 @@ import {HelpLinkResolver} from '@src/Model/Help/HelpLinkResolver';
 import {HotkeyAction} from '@src/Model/Hotkeys/HotkeyAction';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
-/** The three tones a `:::` callout can have, with the icon each one shows. */
 const CALLOUT_ICONS: Record<string, IconDefinition> = {
 	note: faCircleInfo,
 	warning: faTriangleExclamation,
 	tip: faLightbulb,
 };
 
-/** URL schemes a link in an article may use; anything else loses its href. */
 const SAFE_PROTOCOLS = ['http:', 'https:', 'mailto:'];
 
-/**
- * Renders an article's Markdown to the HTML the reader displays.
- *
- * Raw HTML in the source is dropped rather than passed through - an article is
- * text, and nothing an editor types should be able to run - and links are
- * limited to the schemes above, so the result is safe to insert as-is.
- *
- * On top of Markdown it understands the app's own references:
- *
- *   [Manual editing](help:manual-editing#replace)  another article
- *   [Overview panel](panel:overview)               opens a planner panel
- *   `hotkey:planner.calculate`                     the user's current key for an action
- *   :::note / :::warning / :::tip … :::            a callout box
- *   ![Alt](data/help/images/x.png "caption")       a screenshot with a caption
- *
- * Heading ids are generated exactly like the backend's MarkdownSections, so the
- * anchors listed in the manifest match the ones rendered here.
- */
+/** Heading ids are generated exactly like the backend MarkdownSections, so the manifest anchors match the rendered ones. */
 @Injectable({providedIn: 'root'})
 export class HelpMarkdownRenderer
 {
@@ -49,17 +30,10 @@ export class HelpMarkdownRenderer
 	public render(markdown: string, links: HelpLinkResolver): string
 	{
 		const html = this.marked(links).parse(markdown, {async: false});
-		// The app's tables everywhere else are compact and dark; marked has no
-		// hook for the opening tag alone, and rebuilding its table renderer to
-		// add two classes would be far more code than this.
+		// marked has no hook for the opening tag alone; rebuilding its table renderer for two classes would be far more code.
 		return html.replace(/<table>/g, '<table class="table table-sm table-dark mb-3">');
 	}
 
-	/**
-	 * The headings of a body, with the anchors they render with - the same list
-	 * the backend puts in the manifest. The editor uses it to offer the
-	 * sections a help topic can point at, before anything is saved.
-	 */
 	public sections(markdown: string): HelpArticleSection[]
 	{
 		const sections: HelpArticleSection[] = [];
@@ -86,7 +60,7 @@ export class HelpMarkdownRenderer
 		return sections;
 	}
 
-	/** Lowercased, spaces to dashes - mirrored from the backend. */
+	/** Mirrored from the backend. */
 	public anchor(title: string): string
 	{
 		return title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -121,14 +95,12 @@ export class HelpMarkdownRenderer
 				},
 			],
 			renderer: {
-				// Raw HTML is not content: an article is Markdown, and letting
-				// tags through would be the one way to sneak script into a page.
+				// Raw HTML is dropped: letting tags through would be the one way to sneak script into a page.
 				html: () => '',
 
 				heading({tokens, depth}): string {
 					const text = this.parser.parseInline(tokens);
-					// The anchor comes from the heading's plain text, so links,
-					// code and emphasis inside it do not change where it points.
+					// The anchor comes from the plain text, so links, code and emphasis inside the heading do not change where it points.
 					const anchor = renderer.uniqueAnchor(this.parser.parseInline(tokens, new TextRenderer()), usedAnchors);
 					return `<h${depth} id="${renderer.escape(anchor)}">`
 						+ renderer.sectionAnchor(anchor, links) + text
@@ -150,10 +122,6 @@ export class HelpMarkdownRenderer
 		});
 	}
 
-	/**
-	 * The '#' in front of a heading: a link to that very section, so a reader
-	 * can copy the address of the part they are looking at.
-	 */
 	private sectionAnchor(anchor: string, links: HelpLinkResolver): string
 	{
 		if (anchor === '') {
@@ -163,7 +131,6 @@ export class HelpMarkdownRenderer
 			+ ` data-help-section="${this.escape(anchor)}" aria-label="Link to this section">#</a>`;
 	}
 
-	/** The see-also list and the callouts reuse the app's info-note styling. */
 	private callout(kind: string, content: string): string
 	{
 		const icon = CALLOUT_ICONS[kind] ?? faCircleInfo;
@@ -185,8 +152,7 @@ export class HelpMarkdownRenderer
 		const panel = /^panel:(.+)$/.exec(href);
 		if (panel !== null) {
 			const target = links.panelHref(panel[1]);
-			// No planner to point at: the panel name stays as plain text
-			// instead of becoming a link that leads nowhere.
+			// No planner to point at: plain text rather than a link that leads nowhere.
 			if (target === '') {
 				return text;
 			}
@@ -194,7 +160,6 @@ export class HelpMarkdownRenderer
 				+ `${titleAttribute}>${text}</a>`;
 		}
 
-		// An app route, e.g. /settings - handled by the router on click.
 		if (href.startsWith('/')) {
 			return `<a href="${this.escape(href)}" data-help-route="${this.escape(href)}"${titleAttribute}>${text}</a>`;
 		}
@@ -216,13 +181,11 @@ export class HelpMarkdownRenderer
 		const caption = title !== null && title !== ''
 			? `<figcaption>${this.escape(title)}</figcaption>`
 			: '';
-		// Focusable: the reader opens a picture at full size when it is clicked,
-		// and a keyboard should be able to do the same.
+		// tabindex: a keyboard should be able to open the picture at full size like a click does.
 		return `<figure class="help-figure">`
 			+ `<img src="${this.escape(source)}" alt="${this.escape(alt)}" loading="lazy" tabindex="0">${caption}</figure>`;
 	}
 
-	/** `hotkey:some.action` becomes the key the user has bound right now. */
 	private codespan(text: string): string
 	{
 		const hotkey = /^hotkey:(.+)$/.exec(text);
@@ -245,7 +208,6 @@ export class HelpMarkdownRenderer
 		return seen > 1 ? `${anchor}-${seen}` : anchor;
 	}
 
-	/** The visible text of a heading, without the inline Markdown around it. */
 	private plainText(title: string): string
 	{
 		return title

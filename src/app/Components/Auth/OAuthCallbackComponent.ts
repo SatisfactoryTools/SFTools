@@ -8,12 +8,6 @@ import {AuthReturnUrlService} from '@src/Model/Auth/AuthReturnUrlService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {OAuthProviders} from '@src/Model/Auth/OAuthProviders';
 
-/**
- * Landing page of the OAuth redirect (/auth/callback/{provider}): forwards
- * every query parameter the provider sent to the backend callback endpoint,
- * then either stores the token pair (sign-in, returning to the page the user
- * signed in from) or returns to the account page (link flow). The state and code are single-use, so this runs exactly once.
- */
 @Component({
 	templateUrl: './OAuthCallbackComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -24,6 +18,7 @@ export class OAuthCallbackComponent
 
 	public readonly providerLabel: string;
 	public error: string | null = null;
+	public completedForDesktop = false;
 
 	public constructor(
 		private readonly oauthApiService: OAuthApiService,
@@ -43,13 +38,15 @@ export class OAuthCallbackComponent
 
 		this.oauthApiService.callback(provider, params).subscribe({
 			next: response => {
+				if (response.desktop) {
+					this.completedForDesktop = true;
+					return;
+				}
 				if (response.linked) {
-					// Link flow - already signed in; back to the connections screen.
 					void this.router.navigate(['/account'], {queryParams: {linked: provider}});
 					return;
 				}
-				// There is no username to show for third-party sign-ins; the
-				// navbar displays the provider instead.
+				// No username for third-party sign-ins; the navbar shows the provider instead.
 				this.authService.storeSession(`via ${this.providerLabel}`, response as TokenResponse);
 				void this.router.navigateByUrl(this.authReturnUrl.consume());
 			},

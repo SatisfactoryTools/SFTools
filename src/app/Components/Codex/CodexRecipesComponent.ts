@@ -12,8 +12,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 export class CodexRecipesComponent
 {
 
-	// Build-gun recipes are excluded - they are the buildings' build costs,
-	// not production recipes.
+	// Build-gun recipes are the buildings' build costs, not production recipes.
 	protected readonly entries = computed<CodexEntry[]>(() =>
 		(this.versionManager.activeVersionData()?.recipes ?? [])
 			.filter(recipe => !recipe.inBuildGun)

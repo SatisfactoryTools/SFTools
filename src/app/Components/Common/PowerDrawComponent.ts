@@ -3,13 +3,6 @@ import {PowerSign} from '@src/Components/Common/PowerSign';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * THE way a power figure renders in the planner: the average as the number
- * and, when the figure oscillates (variable-draw machines), the min–max band
- * on its own small muted line underneath. The band never sits beside the
- * number and may wrap when squeezed, so it cannot widen a table column or a
- * stacked mobile row.
- */
 @Component({
 	selector: 'power-draw',
 	templateUrl: './PowerDrawComponent.html',
@@ -45,10 +38,7 @@ export class PowerDrawComponent
 		return `${this.prefix(average)}${this.rateFormatter.power(Math.abs(average))}`;
 	}
 
-	/**
-	 * The band as magnitudes in the number's orientation - the number already
-	 * carries the sign, and a signed range ("-3–7 GW") would read as crossing zero.
-	 */
+	/** Magnitudes only: the number carries the sign, and a signed range ("-3–7 GW") would read as crossing zero. */
 	public get rangeText(): string
 	{
 		const band = this.sign !== 'plain' && this.draw.average < 0 ? this.draw.negate() : this.draw;

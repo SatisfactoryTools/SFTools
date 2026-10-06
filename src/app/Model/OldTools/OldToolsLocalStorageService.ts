@@ -1,17 +1,17 @@
-import {Injectable, Signal, signal} from '@angular/core';
+import {Injectable} from '@angular/core';
 import {OldGameVersion} from '@src/Model/OldTools/OldGameVersion';
 import {OldLocalProductionLine} from '@src/Model/OldTools/OldLocalProductionLine';
 import {OldProductionData} from '@src/Model/OldTools/OldProductionData';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 
-const PROMPT_DISMISSED_KEY = 'sftools.oldTools.localPromptDismissed';
+const COPIED_KEY = 'sftools.oldTools.copied';
 
-/**
- * Reads the production lines the old Satisfactory Tools kept in localStorage.
- * Once this app is served from the old site's domain, that data is right here
- * in the same origin - one key per game version, each a JSON array of lines.
- * The keys are never removed: the old data is small, and deleting it would
- * turn a failed import into a lost factory.
- */
+interface CopiedFlags
+{
+	regular?: number;
+	ficsmas?: number;
+}
+
 @Injectable({providedIn: 'root'})
 export class OldToolsLocalStorageService
 {
@@ -22,16 +22,15 @@ export class OldToolsLocalStorageService
 		{key: 'tmpProduction', gameVersion: '0.8'},
 	];
 
-	private readonly promptDismissedSignal = signal(localStorage.getItem(PROMPT_DISMISSED_KEY) !== null);
-	/** The user closed the "old plans found" offer (or imported them) - do not offer again. */
-	public readonly promptDismissed: Signal<boolean> = this.promptDismissedSignal.asReadonly();
+	public constructor(private readonly storage: AppStorage)
+	{
+	}
 
 	public readAll(): OldLocalProductionLine[]
 	{
 		return OldToolsLocalStorageService.KEYS.flatMap(({key, gameVersion}) => this.read(key).map(data => ({data, gameVersion})));
 	}
 
-	/** Lines made for a FICSMAS or a regular version; Update 8 lines count as regular. */
 	public readFlavour(ficsmas: boolean): OldLocalProductionLine[]
 	{
 		return this.readAll().filter(line => (line.gameVersion === '1.0-ficsmas') === ficsmas);
@@ -42,19 +41,36 @@ export class OldToolsLocalStorageService
 		return this.readAll().length;
 	}
 
-	public dismissPrompt(): void
+	public copied(ficsmas: boolean): boolean
 	{
-		localStorage.setItem(PROMPT_DISMISSED_KEY, String(Date.now()));
-		this.promptDismissedSignal.set(true);
+		return this.flags()[ficsmas ? 'ficsmas' : 'regular'] !== undefined;
+	}
+
+	public markCopied(ficsmas: boolean): void
+	{
+		const flags = this.flags();
+		flags[ficsmas ? 'ficsmas' : 'regular'] = Date.now();
+		this.storage.setItem(COPIED_KEY, JSON.stringify(flags));
+	}
+
+	private flags(): CopiedFlags
+	{
+		try {
+			const raw = this.storage.getItem(COPIED_KEY);
+			return raw === null ? {} : (JSON.parse(raw) as CopiedFlags);
+		} catch {
+			return {};
+		}
 	}
 
 	private read(key: string): OldProductionData[]
 	{
-		const raw = localStorage.getItem(key);
-		if (raw === null) {
-			return [];
-		}
 		try {
+			// Raw localStorage, not AppStorage: only the old site wrote these keys (the desktop app's storage never has them).
+			const raw = localStorage.getItem(key);
+			if (raw === null) {
+				return [];
+			}
 			const parsed: unknown = JSON.parse(raw);
 			if (!Array.isArray(parsed)) {
 				return [];

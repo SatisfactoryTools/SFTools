@@ -2,7 +2,7 @@ import {computed, effect, Injectable, signal, untracked} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {HttpErrorResponse} from '@angular/common/http';
 import {forkJoin, of} from 'rxjs';
-import {catchError, distinctUntilChanged, skip} from 'rxjs/operators';
+import {catchError, distinctUntilChanged, filter, skip} from 'rxjs/operators';
 import {ApiService} from '@src/Model/API/ApiService';
 import {Version} from '@src/Model/API/Schema/Version';
 import {VersionsApiService} from '@src/Model/API/VersionsApiService';
@@ -10,6 +10,7 @@ import {AuthService} from '@src/Model/Auth/AuthService';
 import {Data} from '@src/Model/Data/Data';
 import {DataTransformer} from '@src/Model/Data/DataTransformer';
 import {LocalCustomVersionsService} from '@src/Model/Data/LocalCustomVersionsService';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 
 @Injectable({providedIn: 'root'})
 export class VersionManager
@@ -21,8 +22,19 @@ export class VersionManager
 		private readonly localStore: LocalCustomVersionsService,
 		private readonly transformer: DataTransformer,
 		private readonly auth: AuthService,
+		connectivity: ConnectivityService,
 	)
 	{
+		// What failed while offline reloads by itself once the connection is back.
+		toObservable(connectivity.online).pipe(skip(1), filter(online => online)).subscribe(() => {
+			if (this.api.versionsResource.error() !== undefined) {
+				this.api.versionsResource.reload();
+			}
+			if (this.api.versionDataResource.error() !== undefined) {
+				this.api.versionDataResource.reload();
+			}
+		});
+
 		// Linked custom versions are per-user, so login/logout must refetch the list.
 		toObservable(auth.isAuthenticated).pipe(skip(1), distinctUntilChanged()).subscribe(authenticated => {
 			this.createdVersionsSignal.set([]);
@@ -71,12 +83,11 @@ export class VersionManager
 	/** Kept separately so a failed list refresh cannot blank activeVersion while the planner keeps running on already-loaded data. */
 	private activeVersionResolvedSignal = signal<Version | null>(null);
 
-	/** Available immediately; merged by id, with the resource's entry winning once it arrives. */
+	/** So a new version is usable before the list refetch arrives; the resource entry wins once it does. */
 	private createdVersionsSignal = signal<Version[]>([]);
 
 	private localVersionsSignal = signal<Version[]>([]);
 
-	/** The versions resolver waits for it. */
 	private localVersionsLoadedSignal = signal(true);
 
 	/** The stored lists keep the path they were fetched with, which goes stale after re-materialization. */
@@ -120,7 +131,6 @@ export class VersionManager
 		return file ? this.transformer.transform(file, this.activeVersion()?.worldData?.limits ?? null) : null;
 	});
 
-	/** Its id for custom versions without a slug. */
 	public urlSlug(version: Version): string
 	{
 		return version.slug ?? version.id;
@@ -131,12 +141,6 @@ export class VersionManager
 		return this.versions().find(v => this.urlSlug(v) === slugOrId) ?? null;
 	}
 
-	/**
-	 * The public version a link without one lands in: the official release
-	 * (FICSMAS or regular as asked), else the first public non-experimental
-	 * version of that flavour, else any public one. Null while the list is
-	 * empty.
-	 */
 	public defaultPublicVersion(ficsmas: boolean): Version | null
 	{
 		const publics = this.versions().filter(v => !v.custom);
@@ -176,7 +180,6 @@ export class VersionManager
 		this.localVersionsSignal.update(local => [...local.filter(v => v.id !== version.id), version]);
 	}
 
-	/** The version itself keeps existing (shared and deduplicated). */
 	public removeCustomVersion(version: Version): void
 	{
 		this.createdVersionsSignal.update(created => created.filter(v => v.id !== version.id));
@@ -191,7 +194,6 @@ export class VersionManager
 		}
 	}
 
-	/** Ids the server no longer knows are dropped from the store. */
 	private loadLocalVersions(): void
 	{
 		const ids = this.localStore.list();
@@ -213,7 +215,6 @@ export class VersionManager
 		});
 	}
 
-	/** Linked and notFound ids both leave localStorage. */
 	private adoptLocalVersions(): void
 	{
 		const ids = this.localStore.list().slice(0, 200);

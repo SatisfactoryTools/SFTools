@@ -5,11 +5,6 @@ import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerCon
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 
-/**
- * Context menu shown when right-clicking an edge. The title (item name and
- * rate) and the minimise/maximise targets are resolved by the caller - this
- * class has no access to version data; a null action renders grayed out.
- */
 export class EdgeContextMenu extends PlannerContextMenu
 {
 

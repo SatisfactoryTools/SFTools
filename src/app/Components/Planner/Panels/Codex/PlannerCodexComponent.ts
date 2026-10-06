@@ -11,12 +11,6 @@ import {CodexSearchState} from '@src/Components/Codex/CodexSearchState';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * The codex as a planner panel: a sticky toolbar (codex-scoped search plus a
- * pop-out button that continues at the same codex path on the fullscreen
- * page) above the shared browser; while a query is typed the search results
- * take the browser's place.
- */
 @Component({
 	selector: 'planner-codex',
 	templateUrl: './PlannerCodexComponent.html',
@@ -30,9 +24,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 		CodexSearchBoxComponent,
 		CodexSearchResultsComponent,
 	],
-	// The toolbar sits inside the panel's scroll container, so it needs the
-	// panel background to cover the content scrolling underneath it; the
-	// border matches the panel tab bar's.
+	// The toolbar is sticky inside the panel's scroll container, so it needs an opaque background.
 	styles: `
 		:host {
 			display: block;

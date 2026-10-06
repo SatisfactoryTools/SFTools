@@ -4,29 +4,13 @@ import {faMagnifyingGlassMinus, faMagnifyingGlassPlus} from '@fortawesome/free-s
 import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {HelpImageViewerService} from '@src/Model/Help/HelpImageViewerService';
 
-/** Fit to the screen is 100%; eight times that is as close as it goes. */
 const MIN_SCALE = 1;
 const MAX_SCALE = 8;
-/** One step of the buttons or one notch of the wheel. */
 const ZOOM_STEP = 1.4;
-/** How far a double tap zooms in, and how quickly the second tap must follow. */
 const DOUBLE_TAP_SCALE = 2.5;
 const DOUBLE_TAP_MS = 350;
-/** A press that travels further than this is a drag, not a tap. */
 const TAP_TOLERANCE = 10;
 
-/**
- * Shows a picture from a help article at full size, over the whole screen.
- *
- * It lives once, at the root of the app, and shows whatever
- * HelpImageViewerService holds - articles are read in several places and the
- * picture has to cover all of them.
- *
- * The picture starts fitted to the screen and can be zoomed with the buttons,
- * the wheel, a double tap or two fingers, and dragged around once it is larger
- * than the screen. Tapping the dark area around it, the X, or Escape closes it.
- * Panning is limited so the picture cannot be pushed off the screen.
- */
 @Component({
 	selector: 'help-image-viewer',
 	templateUrl: './HelpImageViewerComponent.html',
@@ -62,7 +46,6 @@ const TAP_TOLERANCE = 10;
 			align-items: center;
 			justify-content: center;
 			overflow: hidden;
-			/* The gestures below are ours: no page panning or zooming here. */
 			touch-action: none;
 		}
 		.viewer-stage.zoomed {
@@ -106,9 +89,7 @@ export class HelpImageViewerComponent
 	@ViewChild('stage') private stage: ElementRef<HTMLElement> | undefined;
 	@ViewChild('image') private picture: ElementRef<HTMLImageElement> | undefined;
 
-	/** Every finger or button currently down, by its pointer id. */
 	private readonly pointers = new Map<number, {x: number; y: number}>();
-	/** The two-finger gesture in progress, if there is one. */
 	private pinch: {distance: number; x: number; y: number} | null = null;
 	private pressStart: {x: number; y: number; onPicture: boolean} | null = null;
 	private dragged = false;
@@ -116,7 +97,6 @@ export class HelpImageViewerComponent
 
 	public constructor(protected readonly viewer: HelpImageViewerService)
 	{
-		// A different picture starts fitted to the screen again.
 		effect(() => {
 			this.viewer.image();
 			this.reset();
@@ -190,7 +170,6 @@ export class HelpImageViewerComponent
 		if (this.pointers.size < 2) {
 			this.pinch = null;
 		}
-		// A finger is still down: the gesture is not over yet.
 		if (this.pointers.size > 0) {
 			return;
 		}
@@ -201,13 +180,11 @@ export class HelpImageViewerComponent
 			return;
 		}
 
-		// A tap beside the picture closes the viewer, like clicking a backdrop.
 		if (!press.onPicture) {
 			this.close();
 			return;
 		}
 
-		// Two quick taps on the picture zoom in, and again to fit.
 		const now = performance.now();
 		if (now - this.lastTap < DOUBLE_TAP_MS) {
 			this.lastTap = 0;
@@ -221,7 +198,6 @@ export class HelpImageViewerComponent
 		this.lastTap = now;
 	}
 
-	/** Two fingers: the distance between them zooms, their middle drags. */
 	private pinchMove(): void
 	{
 		const [first, second] = [...this.pointers.values()];
@@ -252,10 +228,6 @@ export class HelpImageViewerComponent
 		this.zoomAt(rect.left + rect.width / 2, rect.top + rect.height / 2, scale);
 	}
 
-	/**
-	 * Zooms so that whatever is under the given screen point stays under it -
-	 * what the wheel, a double tap and a pinch all need.
-	 */
 	private zoomAt(x: number, y: number, wanted: number): void
 	{
 		const stage = this.stage?.nativeElement;
@@ -266,8 +238,7 @@ export class HelpImageViewerComponent
 		const scale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, wanted));
 		const ratio = scale / this.scaleSignal();
 		const rect = stage.getBoundingClientRect();
-		// The picture sits in the middle of the stage before it is moved, so
-		// the point to keep still is measured from there.
+		// The picture sits in the middle of the stage before it is moved, so the point to keep still is measured from there.
 		const fromCentreX = x - (rect.left + rect.width / 2);
 		const fromCentreY = y - (rect.top + rect.height / 2);
 
@@ -283,7 +254,6 @@ export class HelpImageViewerComponent
 		this.moveTo(this.offsetXSignal() + x, this.offsetYSignal() + y);
 	}
 
-	/** Moves the picture, never further than its own edges allow. */
 	private moveTo(x: number, y: number): void
 	{
 		const stage = this.stage?.nativeElement;

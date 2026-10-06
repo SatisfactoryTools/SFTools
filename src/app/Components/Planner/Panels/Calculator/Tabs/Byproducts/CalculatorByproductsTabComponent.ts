@@ -6,13 +6,6 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 
-/**
- * Byproduct selection for the solver: checked items may be overproduced and
- * left over as byproducts (everything is allowed by default). Unchecking an
- * item removes its overproduction slack, so the solver must consume exactly
- * what it makes of it. Lists every item an automated recipe produces plus
- * the generator burn byproducts.
- */
 @Component({
 	selector: 'calculator-byproducts-tab',
 	templateUrl: './CalculatorByproductsTabComponent.html',
@@ -31,7 +24,6 @@ export class CalculatorByproductsTabComponent
 	{
 	}
 
-	/** Byproduct-capable items matching the filter, sorted by name. */
 	public get items(): Item[]
 	{
 		const query = this.filter.trim().toLowerCase();
@@ -52,7 +44,6 @@ export class CalculatorByproductsTabComponent
 		this.persist(disabled);
 	}
 
-	/** All/None act on the currently filtered (visible) list. */
 	public setAll(items: Item[], value: boolean): void
 	{
 		const disabled = this.disabledSet();

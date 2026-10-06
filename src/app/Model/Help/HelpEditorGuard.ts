@@ -6,11 +6,7 @@ import {AccountApiService} from '@src/Model/API/AccountApiService';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 
-/**
- * Blocks the help editor for everyone but accounts with the help-editor flag.
- * The profile may not have arrived yet when the route activates, so the guard
- * asks the API directly rather than guessing from an empty signal.
- */
+/** The profile may not have arrived yet when the route activates, so the guard asks the API rather than guessing from an empty signal. */
 @Injectable({providedIn: 'root'})
 export class HelpEditorGuard
 {

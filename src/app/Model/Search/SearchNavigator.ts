@@ -5,11 +5,6 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {SearchResult} from '@src/Model/Search/SearchResult';
 import {SearchResultType} from '@src/Model/Search/SearchResultType';
 
-/**
- * Takes the user where a picked search result lives - the one place that
- * knows the URL of every kind of result, shared by the navbar search box and
- * the fullscreen search on phones.
- */
 @Injectable({providedIn: 'root'})
 export class SearchNavigator
 {
@@ -24,8 +19,7 @@ export class SearchNavigator
 
 	public open(result: SearchResult): void
 	{
-		// Help is about the tool rather than a game version, so it opens
-		// whether or not a version is active - everything else needs one.
+		// Help is about the tool, not a game version, so it opens without an active version.
 		if (result.type === 'article') {
 			const [slug, anchor] = result.id.split('#');
 			void this.router.navigate(['/', 'help', slug], {fragment: anchor});
@@ -43,8 +37,7 @@ export class SearchNavigator
 				void this.router.navigate(['/', slug, 'planner', result.id]);
 				return;
 			case 'folder':
-				// Folder selection has no URL state (yet) - navigate to the
-				// planner, then select the folder in the store.
+				// Folder selection has no URL state, so it is set in the store after navigating.
 				void this.router.navigate(['/', slug, 'planner'])
 					.then(() => this.planManager.setActiveFolder(result.id));
 				return;

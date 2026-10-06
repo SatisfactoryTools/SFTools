@@ -23,8 +23,6 @@
 			</div>
 
 			@if (localCount() > 0) {
-				<!-- The old site's own saved lines, right here in this browser once
-				     this app answers on the old site's domain. -->
 				<div class="d-flex align-items-center gap-2">
 					<button type="button" class="btn btn-sm btn-outline-primary" [disabled]="importing()" (click)="loadLocalLines()">
 						Load {{ localCount() }} {{ localCount() === 1 ? 'line' : 'lines' }} saved by the old tools in this browser
@@ -32,19 +30,12 @@
 				</div>
 			}
 
-			@if (otherFlavourSlug !== null && (otherFlavourShareKeys.length > 0 || localOtherCount > 0)) {
+			@if (otherFlavourSlug !== null && localOtherCount > 0) {
 				<info-note>
-					@if (otherFlavourShareKeys.length > 0) {
-						{{ otherFlavourShareKeys.length }} {{ otherFlavourShareKeys.length === 1 ? 'line was' : 'lines were' }}
-						made for the {{ otherFlavourName }} version and can only be imported there.
-						<a [routerLink]="['/', otherFlavourSlug, 'planner']" [queryParams]="{importOld: otherFlavourShareKeys.join(',')}" (click)="requestClose()">Open the {{ otherFlavourName }} version</a>
-						to import them after this.
-					} @else {
-						{{ localOtherCount }} {{ localOtherCount === 1 ? 'line' : 'lines' }} saved in this browser
-						{{ localOtherCount === 1 ? 'was' : 'were' }} made for the {{ otherFlavourName }} version.
-						<a [routerLink]="['/', otherFlavourSlug, 'planner']" [queryParams]="{importOld: 'local'}" (click)="requestClose()">Open the {{ otherFlavourName }} version</a>
-						to import them.
-					}
+					{{ localOtherCount }} {{ localOtherCount === 1 ? 'line' : 'lines' }} saved in this browser
+					{{ localOtherCount === 1 ? 'was' : 'were' }} made for the {{ otherFlavourName }} version.
+					<a [routerLink]="['/', otherFlavourSlug, 'planner']" [queryParams]="{importOld: 'local'}" (click)="requestClose()">Open the {{ otherFlavourName }} version</a>
+					to import them.
 				</info-note>
 			}
 
@@ -70,11 +61,6 @@
 								@if (row.madeFor !== null) {
 									<span class="badge bg-secondary" tooltip="Made for an older game version - items and recipes that no longer exist are skipped" container="body" placement="top">{{ row.madeFor }}</span>
 								}
-								@if (row.hasMaximise) {
-									<span class="text-warning" tooltip="Uses maximise - the result may look different here" container="body" placement="top">
-										<fa-icon [icon]="faTriangleExclamation"></fa-icon>
-									</span>
-								}
 								@if (row.unknownCount > 0) {
 									<span class="text-warning small text-nowrap">
 										<fa-icon [icon]="faTriangleExclamation"></fa-icon>
@@ -85,12 +71,10 @@
 						</div>
 					}
 				</div>
-				@if (hasMaximiseRows()) {
-					<info-note kind="warning">
-						Plans marked with a warning use "maximise", which worked differently in the old
-						tools. Their result may look different here.
-					</info-note>
-				}
+				<info-note>
+					Plans are calculated the way the old tools did it, so they arrive as you had them.
+					Calculating them again here may give a different factory.
+				</info-note>
 			}
 		</div>
 		<div class="card-footer d-flex align-items-center gap-2">

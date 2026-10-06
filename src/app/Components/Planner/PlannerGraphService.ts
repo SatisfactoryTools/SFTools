@@ -1,6 +1,6 @@
 import {Injectable, OnDestroy, Signal, signal} from '@angular/core';
 import {faCircleCheck, faLock, faTriangleExclamation, IconDefinition} from '@fortawesome/free-solid-svg-icons';
-import {Cell, Edge as X6Edge, EdgeToolNativeItem, EdgeView, Graph as X6Graph, Node as X6Node, Selection} from '@antv/x6';
+import {Cell, Edge as X6Edge, EdgeToolNativeItem, EdgeView, Export, Graph as X6Graph, Node as X6Node, Selection} from '@antv/x6';
 import type {Metadata as PortsMetadata, PortMetadata} from '@antv/x6/lib/model/port';
 import type {Handle as VertexHandle} from '@antv/x6/lib/registry/tool/vertices';
 import ELK from 'elkjs/lib/elk.bundled.js';
@@ -9,6 +9,9 @@ import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {Observable, Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {GraphContextMenuRequest} from '@src/Components/Planner/GraphContextMenuRequest';
+import {ExportBox} from '@src/Model/Export/ExportBox';
+import {GraphSvgCleaner} from '@src/Model/Export/GraphSvgCleaner';
+import {GraphSvgSnapshot} from '@src/Model/Export/GraphSvgSnapshot';
 import {GraphTouchGestures} from '@src/Components/Planner/GraphTouchGestures';
 import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -122,6 +125,8 @@ const EDGE_STROKE = '#5c718a';
 const EDGE_STROKE_WIDTH = 1.5;
 const PARALLEL_EDGE_GAP = 40;
 const SELECTED_STROKE = '#f0ad4e';
+const EXPORT_MARGIN = 40;
+const EXPORT_SAMPLE_MARGIN = 12;
 const SELECTED_STROKE_WIDTH = 3;
 const SELECTED_EDGE_STROKE_WIDTH = 2.5;
 // Hover styles live in styles.scss; the highlight class opts an edge out of the hover look.
@@ -359,7 +364,6 @@ interface NodeStyle {
 export class PlannerGraphService implements OnDestroy
 {
 
-	/** Share view. Set before restore(). */
 	public readOnly = false;
 
 	private x6Graph: X6Graph | null = null;
@@ -403,7 +407,6 @@ export class PlannerGraphService implements OnDestroy
 	private readonly graphChangedSubject = new Subject<void>();
 	public readonly graphChanges: Observable<void> = this.graphChangedSubject.asObservable();
 
-	/** Fires before the model changes, for an undo snapshot. */
 	private readonly graphEditStartSubject = new Subject<void>();
 	public readonly graphEditStarts: Observable<void> = this.graphEditStartSubject.asObservable();
 
@@ -433,6 +436,7 @@ export class PlannerGraphService implements OnDestroy
 		private readonly planNames: PlanNameResolver,
 		private readonly settings: SettingsManager,
 		private readonly graphLayout: GraphLayoutResolver,
+		private readonly svgCleaner: GraphSvgCleaner,
 	)
 	{
 		this.edgeHoverListener = e => this.onEdgeHoverMove(e);
@@ -710,6 +714,90 @@ export class PlannerGraphService implements OnDestroy
 		x6Graph.translateBy((padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2);
 	}
 
+	/** Copying the canvas with its computed styles is the slow part of an export, so the window takes this once and cuts every file and preview from it. */
+	public async exportSnapshot(): Promise<GraphSvgSnapshot | null>
+	{
+		const x6Graph = this.x6Graph;
+		if (x6Graph === null || x6Graph.getNodes().length === 0) {
+			return null;
+		}
+		const content = this.boxWithMargin(x6Graph.getContentArea(), EXPORT_MARGIN);
+		const sample = this.boxWithMargin(this.exportSampleNode(x6Graph, content).getBBox(), EXPORT_SAMPLE_MARGIN);
+		// Styling is in presentation attributes; x6's copyStyles would inline every computed property (the viewport's pan/zoom matrix among them) and bloat the file.
+		const fontFamily = getComputedStyle(x6Graph.container).fontFamily;
+		const text = await x6Graph.toSVGAsync({
+			viewBox: content,
+			preserveDimensions: true,
+			copyStyles: false,
+			beforeSerialize: svg => this.cleanExportSvg(svg, fontFamily),
+		});
+		const root = new DOMParser().parseFromString(text, 'image/svg+xml').documentElement;
+		if (!(root instanceof SVGSVGElement)) {
+			throw new Error('The graph could not be exported.');
+		}
+		return new GraphSvgSnapshot(root, content, sample);
+	}
+
+	private exportSampleNode(x6Graph: X6Graph, content: ExportBox): X6Node
+	{
+		const centerX = content.x + content.width / 2;
+		const centerY = content.y + content.height / 2;
+		let best: X6Node | null = null;
+		let bestDistance = Infinity;
+		x6Graph.getNodes().forEach(node => {
+			const center = node.getBBox().center;
+			const distance = (center.x - centerX) ** 2 + (center.y - centerY) ** 2;
+			if (distance < bestDistance) {
+				best = node;
+				bestDistance = distance;
+			}
+		});
+		return best!;
+	}
+
+	private boxWithMargin(box: ExportBox, margin: number): ExportBox
+	{
+		return {
+			x: Math.floor(box.x - margin),
+			y: Math.floor(box.y - margin),
+			width: Math.ceil(box.width + 2 * margin),
+			height: Math.ceil(box.height + 2 * margin),
+		};
+	}
+
+	/** The selection and its highlighted edges are drawn through cell attrs, so the copy carries them; this puts the plain look back. */
+	private cleanExportSvg(svg: SVGSVGElement, fontFamily: string): void
+	{
+		svg.setAttribute('font-family', fontFamily);
+		svg.querySelectorAll('.x6-node-selected rect.pn-body').forEach(body => {
+			const cellId = body.closest('[data-cell-id]')?.getAttribute('data-cell-id') ?? '';
+			const modelNode = this.nodeById.get(cellId);
+			body.setAttribute('stroke', modelNode ? this.styleFor(modelNode).bodyStroke : NODE_FALLBACK_STROKE);
+			body.setAttribute('stroke-width', String(NODE_STROKE_WIDTH));
+		});
+		svg.querySelectorAll(`path.${EDGE_HIGHLIGHT_CLASS}`).forEach(line => {
+			line.setAttribute('stroke', EDGE_STROKE);
+			line.setAttribute('stroke-width', String(EDGE_STROKE_WIDTH));
+			line.setAttribute('class', EDGE_LINE_CLASS);
+			// x6 keeps one <marker> per arrowhead colour, so a highlighted edge points at an orange one.
+			['marker-start', 'marker-mid', 'marker-end'].forEach(name => {
+				const markerId = line.getAttribute(name)?.match(/url\(#(.+)\)/)?.[1];
+				if (markerId !== undefined) {
+					svg.querySelectorAll(`#${CSS.escape(markerId)} [stroke="${SELECTED_STROKE}"]`).forEach(arrow => {
+						arrow.setAttribute('stroke', EDGE_STROKE);
+						arrow.setAttribute('fill', EDGE_STROKE);
+					});
+				}
+			});
+		});
+		svg.querySelectorAll(`rect.${LABEL_BOX_HIGHLIGHT_CLASS}`).forEach(box => {
+			box.setAttribute('stroke', LABEL_BOX_STROKE);
+			box.setAttribute('stroke-width', String(LABEL_BOX_STROKE_WIDTH));
+			box.setAttribute('class', LABEL_BOX_CLASS);
+		});
+		this.svgCleaner.clean(svg);
+	}
+
 	public ngOnDestroy(): void
 	{
 		this.gestureResetSubscription.unsubscribe();
@@ -769,6 +857,7 @@ export class PlannerGraphService implements OnDestroy
 			filter: cell => cell.isNode(),
 		});
 		x6Graph.use(selection);
+		x6Graph.use(new Export());
 
 		x6Graph.on('selection:changed', ({selected}) => this.onSelectionChanged(x6Graph, selected));
 		x6Graph.on('node:contextmenu', ({e, x, y, node}) => {
@@ -1052,7 +1141,6 @@ export class PlannerGraphService implements OnDestroy
 		};
 	}
 
-	/** Port ids are `in|<itemClassName>` / `out|<itemClassName>`. */
 	private portsFor(node: Node): Partial<PortsMetadata>
 	{
 		if (this.readOnly) {

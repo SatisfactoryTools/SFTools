@@ -1,0 +1,80 @@
+{
+	"$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+	"productName": "Satisfactory Tools",
+	"mainBinaryName": "satisfactory-tools",
+	"version": "0.1.0",
+	"identifier": "com.satisfactorytools.desktop",
+	"build": {
+		"frontendDist": "../dist",
+		"devUrl": "http://localhost:4200",
+		"beforeBuildCommand": "npm run build"
+	},
+	"app": {
+		"withGlobalTauri": true,
+		"windows": [
+			{
+				"label": "main",
+				"create": false,
+				"title": "Satisfactory Tools",
+				"width": 1440,
+				"height": 900,
+				"minWidth": 360,
+				"minHeight": 480,
+				"center": true,
+				"dragDropEnabled": false
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": ["nsis", "appimage"],
+		"createUpdaterArtifacts": true,
+		"category": "Utility",
+		"shortDescription": "Production planner for Satisfactory",
+		"longDescription": "An optimising production and logistics planner for Satisfactory, with a searchable codex, custom versions and mods. Works offline once a game version has been downloaded.",
+		"publisher": "greeny",
+		"copyright": "greeny",
+		"homepage": "https://satisfactorytools.com",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		],
+		"windows": {
+			"digestAlgorithm": "sha256",
+			"certificateThumbprint": null,
+			"timestampUrl": "",
+			"nsis": {
+				"installMode": "currentUser",
+				"displayLanguageSelector": false,
+				"template": "nsis/installer.nsi"
+			}
+		},
+		"linux": {
+			"appimage": {
+				"bundleMediaFramework": false
+			}
+		}
+	},
+	"plugins": {
+		"deep-link": {
+			"desktop": {
+				"schemes": ["sftools"]
+			}
+		},
+		"updater": {
+			"endpoints": [
+				"https://api.new.satisfactorytools.com/desktop/latest.json"
+			],
+			"pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEJDMjEwMTFDOTk0ODgzQzMKUldURGcwaVpIQUVodkpMQTNxd1ptQk8zVnh1bGJjQjJuM1VYalFsb21rR2pKaEg3eFA4TzFoTFQK",
+			"windows": {
+				"installMode": "passive"
+			}
+		}
+	}
+}

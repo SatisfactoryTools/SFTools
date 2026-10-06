@@ -11,12 +11,6 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * Power usage of the plan, grouped by building type. Each building row
- * expands into the recipes those machines run (machine groups and average
- * power per the clocking formula); generators show as production, subplans
- * as one summed row each.
- */
 @Component({
 	selector: 'planner-power',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -34,7 +28,6 @@ export class PlannerPowerComponent
 
 	private readonly expandedKeysSignal = signal<ReadonlySet<string>>(new Set());
 
-	/** Folder selected: one summed row per plan; plan selected: rows per building type. */
 	public readonly isFolderView = computed(() => this.planManager.activeFolder() !== null);
 
 	public readonly breakdown: Signal<PowerBreakdown> = computed(() => {
@@ -62,7 +55,6 @@ export class PlannerPowerComponent
 		this.searchTermSignal.set(value);
 	}
 
-	/** An active search auto-expands rows, so matched recipes are visible. */
 	public isExpanded(row: PowerRow): boolean
 	{
 		return row.entries.length > 0
@@ -79,7 +71,7 @@ export class PlannerPowerComponent
 		this.expandedKeysSignal.set(keys);
 	}
 
-	/** A negative balance is (net) production - shown green; float noise reads as zero. */
+	/** A negative average is net production; float noise reads as zero. */
 	public isProduction(power: PowerDraw): boolean
 	{
 		return power.average < 0 && !this.rateFormatter.isZero(power.average);

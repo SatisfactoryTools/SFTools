@@ -12,7 +12,6 @@ export class SinkNode extends ItemAmountNode
 		this.inputs.push(new NodeIO(this.item, this.amount));
 	}
 
-	/** Per minute. */
 	public sinkPoints(): number
 	{
 		return Formulas.sinkPoints(this.item, this.amount);

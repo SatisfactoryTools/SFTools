@@ -3,12 +3,6 @@ import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuIt
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
 
-/**
- * Context menu of an "On this device" row: the plans open read-only by click,
- * so the actions here are moving the plan or folder (with everything inside)
- * into the account - same as dragging it onto "Your plans" - and sharing it,
- * which sends its tree with the request since the server has no copy of it.
- */
 export class LocalItemContextMenu extends PlannerContextMenu
 {
 

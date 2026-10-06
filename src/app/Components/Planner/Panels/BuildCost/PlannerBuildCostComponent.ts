@@ -12,12 +12,6 @@ import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * Construction cost of the plan: buildings needed per type with power shards
- * (one per started 50% of overclock above 100%, per machine) and somersloops,
- * expandable into the construction materials - plus the plan-wide total.
- * Subplans appear as one summed row each.
- */
 @Component({
 	selector: 'planner-build-cost',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -35,7 +29,6 @@ export class PlannerBuildCostComponent
 
 	private readonly expandedKeysSignal = signal<ReadonlySet<string>>(new Set());
 
-	/** Folder selected: one summed row per plan; plan selected: rows per building type. */
 	public readonly isFolderView = computed(() => this.planManager.activeFolder() !== null);
 
 	public readonly breakdown: Signal<BuildCostBreakdown> = computed(() => {
@@ -48,7 +41,6 @@ export class PlannerBuildCostComponent
 	public readonly rows: Signal<BuildCostRow[]> = computed(() =>
 		this.filterRows(this.breakdown().rows, this.searchTerm().trim().toLowerCase()));
 
-	/** The total materials list honors the filter, so "concrete" answers "how much concrete overall". */
 	public readonly totalMaterials: Signal<BuildCostMaterialRow[]> = computed(() => {
 		const term = this.searchTerm().trim().toLowerCase();
 		const materials = this.breakdown().materials;
@@ -76,7 +68,6 @@ export class PlannerBuildCostComponent
 		this.searchTermSignal.set(value);
 	}
 
-	/** An active search auto-expands rows, so matched materials are visible. */
 	public isExpanded(row: BuildCostRow): boolean
 	{
 		return row.materials.length > 0

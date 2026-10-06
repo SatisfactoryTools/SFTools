@@ -1,11 +1,4 @@
-/**
- * A power figure in MW together with the band it oscillates in. Fixed-draw
- * machines have min = average = max; variable-draw recipes (Converter,
- * Particle Accelerator, Quantum Encoder) swing between min and max and count
- * as their average everywhere a single number is needed - the solver, the
- * totals, the sorting. Immutable: arithmetic returns new instances, so sums
- * and differences keep their bands (a difference's band is the widest one).
- */
+/** Variable-draw machines count as their average wherever a single number is needed; a difference's band is the widest one. */
 export class PowerDraw
 {
 
@@ -24,7 +17,6 @@ export class PowerDraw
 		return new PowerDraw(megawatts, megawatts, megawatts);
 	}
 
-	/** A uniform oscillation between min and max, counting as their midpoint. */
 	public static between(min: number, max: number): PowerDraw
 	{
 		return new PowerDraw((min + max) / 2, min, max);
@@ -35,7 +27,7 @@ export class PowerDraw
 		return draws.reduce((total, draw) => total.add(draw), PowerDraw.ZERO);
 	}
 
-	/** Whether the band is wider than float noise - the only case worth showing a range for. */
+	/** Wider than float noise. */
 	public isVariable(): boolean
 	{
 		return this.max - this.min > 1e-9;

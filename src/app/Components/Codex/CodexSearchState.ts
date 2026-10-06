@@ -5,18 +5,10 @@ import {SearchResultType} from '@src/Model/Search/SearchResultType';
 import {SearchService} from '@src/Model/Search/SearchService';
 
 const CODEX_TYPES: SearchResultType[] = ['item', 'recipe', 'building', 'schematic'];
-// Searching everything shows a handful per section; a single section is the
-// whole answer, so it may list far more.
+// A single section is the whole answer, so it may list far more than the everything search.
 const RESULTS_PER_GROUP_ALL = 8;
 const RESULTS_PER_GROUP_SECTION = 40;
 
-/**
- * The in-panel codex search: query, scope and keyboard cursor shared by the
- * search box (input) and the result list (output). Scoped to the current
- * codex section when there is one - browsing items searches only items -
- * and to the whole codex (never plans or folders) from the section menu.
- * Provided per codex host, so each panel instance has its own query.
- */
 @Injectable()
 export class CodexSearchState
 {
@@ -27,13 +19,11 @@ export class CodexSearchState
 	private readonly activeIndexSignal = signal(0);
 	public readonly activeIndex = this.activeIndexSignal.asReadonly();
 
-	/** The searched types - one section's type while in that section, else all four. */
 	public readonly types = computed<SearchResultType[]>(() => {
 		const type = this.sectionType(this.navigation.path().split('/')[0]);
 		return type !== null ? [type] : CODEX_TYPES;
 	});
 
-	/** Human label of the scope for the placeholder: "items", "recipes", … or "codex". */
 	public readonly scopeLabel = computed<string>(() => {
 		const section = this.navigation.path().split('/')[0];
 		return this.sectionType(section) !== null ? section : 'codex';
@@ -47,7 +37,6 @@ export class CodexSearchState
 
 	public readonly flatResults = computed<SearchResult[]>(() => this.groups().flatMap(group => group.results));
 
-	/** True while the search result list replaces the browsed content. */
 	public readonly active = computed<boolean>(() => this.querySignal().trim() !== '');
 
 	public constructor(
@@ -55,8 +44,6 @@ export class CodexSearchState
 		private readonly navigation: CodexNavigation,
 	)
 	{
-		// Any codex navigation (a clicked result, a link, the back button)
-		// ends the search and shows the target.
 		effect(() => {
 			this.navigation.path();
 			this.querySignal.set('');

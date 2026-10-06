@@ -4,13 +4,11 @@ import {Fuel} from '@src/Model/Data/Entities/Parts/Fuel';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 
-/** `amount` is the fractional number of generators; power is not an item and shows only in the node's stats. */
 export class GeneratorNode extends Node
 {
 
 	public readonly type = 'generator' as const;
 
-	/** @param clockSpeed Percent, 1–250. Power and fuel scale with it in step, so it only decides how many buildings (and power shards) the same generation takes. */
 	public constructor(
 		id: string,
 		amount: number,
@@ -23,13 +21,11 @@ export class GeneratorNode extends Node
 		this.setupIO();
 	}
 
-	/** In MW. */
 	public powerProduction(): number
 	{
 		return Formulas.generatorPowerProduction(this.generator, this.amount, this.clockSpeed);
 	}
 
-	/** 0 at or below 100%. */
 	public powerShards(): number
 	{
 		return this.wholeGenerators() * Formulas.powerShards(this.clockSpeed);

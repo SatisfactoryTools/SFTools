@@ -9,8 +9,6 @@
 
 			@if (choice(); as kind) {
 
-				<!-- One kind was picked: only its link is on screen, so there is nothing
-				     to copy by mistake. -->
 				<div class="d-flex align-items-center gap-2 mb-1">
 					<span class="fw-semibold">
 						<fa-icon [icon]="kind === 'snapshot' ? faCamera : faLink" class="me-1 opacity-75"></fa-icon>
@@ -67,8 +65,6 @@
 
 			} @else {
 
-				<!-- Nothing to copy yet: the two kinds are a choice, and the link appears
-				     only once one of them is picked. -->
 				<div class="text-secondary mb-3">How do you want to send this {{ target()?.type === 'folder' ? 'folder' : 'plan' }}?</div>
 
 				@if (error(); as message) {
@@ -101,7 +97,7 @@
 							} @else if (target()?.type === 'folder') {
 								A folder has no address of its own, so only a snapshot can be sent.
 							} @else {
-								This plan is saved only in this browser, so it has no address of its own. Only a
+								This plan is saved only on {{ platform.device }}, so it has no address of its own. Only a
 								snapshot can be sent.
 							}
 						</div>

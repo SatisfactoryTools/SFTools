@@ -15,7 +15,6 @@ export class RecipeNode extends Node
 	/** Like x/y/locked it is carried over to replacement instances, not constructed. */
 	public groupingMode: GroupingMode = 'underclock-last';
 
-	/** @param target Exact rate in machine-equivalents at 100% clock - the source of truth for all flows; the groups only define capacity (>= target, clocks round up). */
 	public constructor(
 		id: string,
 		public readonly target: number,
@@ -28,7 +27,6 @@ export class RecipeNode extends Node
 		this.setupIO();
 	}
 
-	/** Machine-equivalents at 100% clock. */
 	public capacity(): number
 	{
 		return Formulas.groupCapacity(this.groups);
@@ -45,26 +43,24 @@ export class RecipeNode extends Node
 		return RecipeNode.isCapacityShort(this.target, this.capacity());
 	}
 
-	/** Exceeds 1 when the built machines cannot reach the target (never clamped). */
+	/** Deliberately not clamped: above 1 means the built machines cannot reach the target. */
 	public utilization(): number
 	{
 		const capacity = this.capacity();
 		return capacity > 0 ? this.target / capacity : 0;
 	}
 
-	/** Fraction of time the machines run. */
 	public efficiency(): number
 	{
 		return Math.min(1, this.utilization());
 	}
 
-	/** Boosted cycles per plain cycle, weighted by each group's share of the capacity; 1 without sloops. */
 	public outputBoostRatio(): number
 	{
 		return Formulas.outputBoostRatio(this.machine, this.groups);
 	}
 
-	/** In MW. Throttled machines duty-cycle, so the whole band, peak included, scales by efficiency. */
+	/** Throttled machines duty-cycle, so the whole band, peak included, scales by efficiency. */
 	public powerDraw(): PowerDraw
 	{
 		const perClock = PowerDraw.sum(this.groups.map(group =>
@@ -72,7 +68,6 @@ export class RecipeNode extends Node
 		return perClock.scale(this.efficiency());
 	}
 
-	/** In MW - the single figure the solver and the totals count. */
 	public averagePowerUsage(): number
 	{
 		return this.powerDraw().average;

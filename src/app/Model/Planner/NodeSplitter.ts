@@ -13,35 +13,13 @@ import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 
-/**
- * Splits one node into several smaller copies of itself, so that a node fed
- * from (or feeding) several places becomes one node per place.
- *
- * The node is treated as a bar of length 1 that every connection covers a
- * slice of: an item's connections are laid out end to end, each taking the
- * share of the bar its rate is worth. Cutting the bar at the ends of those
- * slices gives the copies - one cut set per side, or both sets together for
- * the "single source, single target" split, which is why that one needs the
- * fewest copies possible. A copy is that slice of the original: its
- * production, its machines and all its other connections scale with it, so
- * the totals on both sides come out exactly as they were.
- *
- * Only connections that a cut falls inside are divided in two; the rest move
- * over whole. Subplan nodes are never split - a subplan is resized as a whole
- * (see SubplanScaler).
- */
 @Injectable({providedIn: 'root'})
 export class NodeSplitter
 {
 
-	/** Rates below this count as nothing at all. */
 	private static readonly EPSILON = 1e-9;
 
-	/**
-	 * Slices thinner than this share of the node are rounding dust, not a
-	 * real copy - two connections of the same rate must not leave a sliver
-	 * of a node between them.
-	 */
+	/** Thinner slices are rounding dust: two connections of the same rate must not leave a sliver between them. */
 	private static readonly MIN_SLICE = 1e-6;
 
 	public constructor(
@@ -51,13 +29,12 @@ export class NodeSplitter
 	{
 	}
 
-	/** Nodes this class can split at all. */
+	/** Subplans are resized as a whole instead (see SubplanScaler). */
 	public isSplittable(node: Node): boolean
 	{
 		return !(node instanceof SubplanNode);
 	}
 
-	/** How many nodes the split would produce; 1 when there is nothing to split. */
 	public pieceCount(graph: Graph, nodeId: string, mode: NodeSplitMode): number
 	{
 		const node = graph.nodes.find(candidate => candidate.id === nodeId);
@@ -67,14 +44,6 @@ export class NodeSplitter
 		return this.cuts(graph, nodeId, mode).length - 1;
 	}
 
-	/**
-	 * The graph with the node replaced by its copies and every connection
-	 * re-attached; null when the node cannot be split or the split would
-	 * produce a single node. The copies are spread out from the original's
-	 * position by `offset` each, staying centred on it, and they come back
-	 * locked - splitting by hand is a manual edit the solver must not undo.
-	 * `settings` are those of the plan the node lives in.
-	 */
 	public split(
 		graph: Graph,
 		nodeId: string,
@@ -105,8 +74,7 @@ export class NodeSplitter
 			pieces.push(piece);
 		}
 
-		// A node feeding itself has nothing to hand over - the first copy
-		// keeps the original's id, so such a connection stays valid as it is.
+		// A self-feeding connection stays as is: the first copy keeps the original's id.
 		const edges = graph.edges.filter(edge => (edge.sourceId !== nodeId && edge.targetId !== nodeId)
 			|| (edge.sourceId === nodeId && edge.targetId === nodeId));
 
@@ -121,11 +89,6 @@ export class NodeSplitter
 		};
 	}
 
-	/**
-	 * Where the node is cut, as shares of it from 0 to 1 - the copies are the
-	 * gaps between two neighbouring entries, so a node nothing asks to be cut
-	 * comes back as [0, 1].
-	 */
 	private cuts(graph: Graph, nodeId: string, mode: NodeSplitMode): number[]
 	{
 		const found: number[] = [];
@@ -146,7 +109,6 @@ export class NodeSplitter
 		return cuts;
 	}
 
-	/** The ends of one item's connection slices, bar the last (which is the end of the node). */
 	private collectCuts(group: GraphEdge[], cuts: number[]): void
 	{
 		const total = this.total(group);
@@ -160,11 +122,6 @@ export class NodeSplitter
 		});
 	}
 
-	/**
-	 * Hands one item's connections over to the copies whose share of the node
-	 * they cover, each getting the part of the rate that overlaps it. A
-	 * connection is only ever divided where a cut falls inside it.
-	 */
 	private reconnect(
 		group: GraphEdge[],
 		cuts: number[],
@@ -174,8 +131,7 @@ export class NodeSplitter
 	{
 		const total = this.total(group);
 		if (total <= NodeSplitter.EPSILON) {
-			// Nothing flows here at all - keep the connections on the first
-			// copy rather than dropping them silently.
+			// Nothing flows here; keep the connections on the first copy rather than dropping them silently.
 			group.forEach(edge => emit(edge, pieces[0], edge.amount));
 			return;
 		}
@@ -198,7 +154,6 @@ export class NodeSplitter
 		});
 	}
 
-	/** Index of the copy the given share of the node falls in. */
 	private pieceAt(cuts: number[], share: number): number
 	{
 		for (let index = cuts.length - 2; index > 0; index--) {
@@ -209,13 +164,6 @@ export class NodeSplitter
 		return 0;
 	}
 
-	/**
-	 * One copy of the node at `share` of its size, under the given id. Recipe,
-	 * generator and mine nodes go through the production scaler, so their
-	 * machines are arranged for the smaller target exactly as the original's
-	 * were - same grouping mode, same clocks; the item nodes are simply
-	 * re-rated. Null when the node type cannot be copied this way.
-	 */
 	private piece(node: Node, share: number, settings: PlanSettings | null, id: string): Node | null
 	{
 		let copy: Node | null;
@@ -245,11 +193,7 @@ export class NodeSplitter
 		return graph.edges.filter(edge => edge.sourceId === nodeId && edge.targetId !== nodeId);
 	}
 
-	/**
-	 * The connections by item, biggest first. Ordering both sides the same
-	 * way lines equal rates up, so a node fed 60+30 and sending 60+30 splits
-	 * in two rather than three.
-	 */
+	/** Both sides sorted the same way line equal rates up: fed 60+30 and sending 60+30 splits in two, not three. */
 	private byItem(edges: GraphEdge[]): Map<string, GraphEdge[]>
 	{
 		const groups = new Map<string, GraphEdge[]>();

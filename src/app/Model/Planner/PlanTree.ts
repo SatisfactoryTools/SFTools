@@ -5,6 +5,6 @@ export interface PlanTree
 {
 	readonly rootPlans: PlanTreePlan[];
 	readonly rootFolders: PlanTreeFolder[];
-	/** Root folders and plans together in display order - the user may interleave them freely. */
+	/** Interleaved with the folders: the user orders them freely. */
 	readonly entries: (PlanTreeFolder | PlanTreePlan)[];
 }

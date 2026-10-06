@@ -1,7 +1,7 @@
 import {Component, ChangeDetectionStrategy, Input, OnChanges, OnDestroy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faLock, faLockOpen, faPlus, faRotateLeft, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faLock, faLockOpen, faRotateLeft, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
@@ -23,28 +23,27 @@ import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
-/** Quiet time after the last edit before the draft is applied to the graph. */
 const APPLY_DEBOUNCE_MS = 400;
 
-/**
- * The production target is edited through the input/output rates: changing
- * any rate rescales the recipe (with the output as the source of truth -
- * sloop or group changes keep the outputs and re-derive the inputs). Machine
- * groups only describe how the machines are built; too few machines for the
- * target is allowed but warned about (with an Autofill shortcut), spare
- * machines just lower efficiency.
- *
- * Every change is applied to the graph automatically after a short quiet
- * period - there is no explicit "update" button. Manual edits mark the node
- * user-owned (locked); Calculate and Autofill only rearrange machines and
- * leave the ownership as it is.
- */
 @Component({
 	selector: 'recipe-node-editor',
 	templateUrl: './RecipeNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FormsModule, FaIconComponent, BsDropdownModule, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent],
 	styles: [`
+		@container panel (max-width: 300px) {
+			.groups-table td.stack-grow {
+				display: flex;
+				flex: 1 1 4rem;
+				flex-direction: column;
+				align-items: stretch;
+			}
+			.groups-table td.stack-grow[data-label]::before {
+				margin: 0 0 0.1rem;
+				white-space: nowrap;
+			}
+			.groups-table tbody td:last-child { margin-left: auto; }
+		}
 		.io-tiles {
 			display: flex;
 			flex-wrap: wrap;
@@ -75,7 +74,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 
 	public readonly faLock = faLock;
 	public readonly faLockOpen = faLockOpen;
-	public readonly faPlus = faPlus;
 	public readonly faRotateLeft = faRotateLeft;
 	public readonly faXmark = faXmark;
 
@@ -105,32 +103,19 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	public outputRates: IORateDraft[] = [];
 	public groupingMode: GroupingMode = 'underclock-last';
 
-	/**
-	 * The clock speed Calculate, Autofill and "add group" build machines at.
-	 * Seeded from the plan's Overclocking settings, but editable here: a graph
-	 * built by hand never goes through the production request panel, and the
-	 * machines still have to come out at the right clock.
-	 */
+	/** Hand-built graphs never go through the request panel, so the clock is seeded from the plan but editable here. */
 	public defaultClockSpeed = 100;
 
-	/** Once the field is edited the plan's value no longer overwrites it. */
 	private defaultClockEdited = false;
 
-	/** Boosted recipe cycles per minute delivered to the outputs - the draft's source of truth. */
 	private outputCycles = 0;
 
-	/**
-	 * The node instance the draft was built from. The draft getters and the
-	 * apply run against this, not the `node` input: when the selection moves
-	 * to another node, a still-pending apply must flush against the node the
-	 * user actually edited.
-	 */
+	/** Apply runs against this rather than the `node` input: a pending apply must flush against the node that was edited. */
 	private loadedNode: RecipeNode | null = null;
 
 	private readonly applySubject = new Subject<void>();
 	private readonly applySubscription: Subscription;
 	private applyPending = false;
-	/** Whether the pending apply contains a manual edit, which marks the node user-owned. */
 	private applyLocks = false;
 
 	public constructor(
@@ -145,12 +130,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 			.subscribe(() => this.applyDraft());
 	}
 
-	/**
-	 * Rebuilds the draft only when a different node is selected; the same
-	 * node arriving as a new instance (an applied update or a lock toggle
-	 * coming back) keeps the draft, only re-tracking the instance so the
-	 * next apply starts from its current lock state.
-	 */
+	/** The same node arriving as a new instance keeps the draft; it is only re-tracked so the next apply sees its current lock state. */
 	public ngOnChanges(): void
 	{
 		if (this.loadedNode?.id === this.node.id) {
@@ -168,14 +148,12 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.refreshRates();
 	}
 
-	/** An edit made just before deselecting the node must still reach the graph. */
 	public ngOnDestroy(): void
 	{
 		this.flushPendingApply();
 		this.applySubscription.unsubscribe();
 	}
 
-	/** Icon standing for the recipe: its first product. */
 	public get recipeIcon(): string | null
 	{
 		return this.editedNode.recipe.products[0]?.item.icon ?? null;
@@ -216,25 +194,18 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return Math.abs(this.draftTarget - node.target) > 1e-9 * Math.max(1, node.target);
 	}
 
-	/**
-	 * What the Overclocking tab asks for this recipe (its own row, else its
-	 * machine's row, else the plan's default), 100% when nothing is set - the
-	 * value the field starts at.
-	 */
 	private get planClockSpeed(): number
 	{
 		const machine = this.selectedMachine;
 		return machine ? this.clocks.forRecipe(this.editedNode.recipe, machine) : 100;
 	}
 
-	/** The field's value, clamped to the game's range; the plan's when it is blank. */
 	private get buildClockSpeed(): number
 	{
 		const value = this.defaultClockSpeed;
 		return isFinite(value) && value > 0 ? Formulas.clampClock(value) : this.planClockSpeed;
 	}
 
-	/** Whether the field still holds the plan's value - shown as a hint next to it. */
 	public get usesPlanClockSpeed(): boolean
 	{
 		return this.buildClockSpeed === this.planClockSpeed;
@@ -246,21 +217,18 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.defaultClockEdited = true;
 	}
 
-	/** Back to what the Overclocking tab says for this recipe. */
 	public resetDefaultClock(): void
 	{
 		this.defaultClockSpeed = this.planClockSpeed;
 		this.defaultClockEdited = false;
 	}
 
-	/** Fraction of time the drafted machines would run, capped at 100%. */
 	public get efficiency(): number
 	{
 		const capacity = this.draftCapacity;
 		return capacity > 0 ? Math.min(1, this.draftTarget / capacity) : 0;
 	}
 
-	/** The drafted machines cannot reach the target - warn and offer Autofill, never rescale. */
 	public get hasCapacityShortage(): boolean
 	{
 		return RecipeNode.isCapacityShort(this.draftTarget, this.draftCapacity);
@@ -271,7 +239,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.actions.requestNodeLock({nodeIds: [this.node.id], locked: !this.node.locked});
 	}
 
-	/** Rescales the whole recipe so this input is met; outputs follow the boost ratio. */
 	public onInputRateChange(index: number): void
 	{
 		const machine = this.selectedMachine;
@@ -285,7 +252,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.scheduleApply(true);
 	}
 
-	/** Pins the outputs to this rate; inputs re-derive from the boost ratio. */
 	public onOutputRateChange(index: number): void
 	{
 		const product = this.editedNode.recipe.products[index];
@@ -298,7 +264,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.scheduleApply(true);
 	}
 
-	/** Groups define the build only: outputs stay pinned, inputs re-derive from the new boost ratio. */
 	public onGroupsChange(): void
 	{
 		this.refreshRates();
@@ -320,8 +285,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	{
 		if (this.groupingMode !== mode) {
 			this.groupingMode = mode;
-			// The mode is part of the node - persist it, but a mode choice
-			// alone is not a manual edit and must not lock the node.
+			// A mode choice alone is not a manual edit and must not lock the node.
 			this.scheduleApply(false);
 		}
 	}
@@ -331,12 +295,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return this.groupingOptions.find(option => option.mode === this.groupingMode)?.label ?? '';
 	}
 
-	/**
-	 * Replaces the machine groups with an arrangement calculated from the
-	 * target, per the selected grouping mode. Groups are recalculated per
-	 * sloop count: each "machines + sloops" bucket keeps its capacity share,
-	 * so the somersloop boost - and the input/output ratio - is preserved.
-	 */
 	public calculate(): void
 	{
 		const machine = this.selectedMachine;
@@ -353,11 +311,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.scheduleApply(false);
 	}
 
-	/**
-	 * Appends machine groups covering the demand the current machines fall
-	 * short of, arranged per the grouping mode with the last group's sloop
-	 * count - the outputs stay exactly as configured.
-	 */
 	public autofill(): void
 	{
 		const machine = this.selectedMachine;
@@ -391,7 +344,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		}
 	}
 
-	/** The draft the getters work on - the loaded node while it exists, the input before the first load. */
 	private get editedNode(): RecipeNode
 	{
 		return this.loadedNode ?? this.node;
@@ -404,7 +356,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.applySubject.next();
 	}
 
-	/** Applies a not-yet-debounced edit immediately - before the draft is replaced or the editor closes. */
 	private flushPendingApply(): void
 	{
 		if (this.applyPending) {
@@ -428,38 +379,28 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		}
 
 		const groups = this.normalizedGroups(machine);
-		// The outputs are the promise: derive the target through the
-		// normalized groups' boost ratio so they hold exactly.
 		const target = this.outputCycles / this.boostRatioOf(groups, machine) / this.referenceCycles(machine);
 		const updated = new RecipeNode(node.id, target, groups, machine, node.recipe);
 		updated.x = node.x;
 		updated.y = node.y;
-		// A manual edit makes the node user-owned: the solver must build
-		// around it. Calculate/Autofill keep the ownership as it is.
+		// Manual edits make the node user-owned; Calculate/Autofill keep the ownership as it is.
 		updated.locked = node.locked || locks;
 		updated.done = node.done;
 		updated.groupingMode = this.groupingMode;
 		this.actions.requestNodeUpdate(updated);
 	}
 
-	/** Machine-equivalents at 100% clock the draft target needs. */
 	private get draftTarget(): number
 	{
 		const machine = this.selectedMachine;
 		return machine ? this.outputCycles / this.boostRatio(machine) / this.referenceCycles(machine) : 0;
 	}
 
-	/** Machine-equivalents at 100% clock the drafted groups provide. */
 	private get draftCapacity(): number
 	{
 		return Formulas.groupCapacity(this.sanitizedGroups());
 	}
 
-	/**
-	 * Machines (at 100% clock, with the fill sloop count) that Autofill would
-	 * append. Derived through boosted cycles, so the appended groups close the
-	 * shortage exactly even when the existing groups mix sloop counts.
-	 */
 	public autofillAmount(): number
 	{
 		const machine = this.selectedMachine;
@@ -472,7 +413,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return boostedDeficit / Formulas.sloopOutputMultiplier(machine, this.fillSloops(machine));
 	}
 
-	/** Autofill continues the build described above it: the last group's sloop count. */
 	private fillSloops(machine: Building): number
 	{
 		return this.normalizer.clampSloops(this.groups[this.groups.length - 1]?.sloops || 0, machine);
@@ -488,7 +428,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		}));
 	}
 
-	/** Rewrites all rate fields from the source of truth, keeping the field being typed in untouched. */
 	private refreshRates(skip: {kind: 'input' | 'output'; index: number} | null = null): void
 	{
 		const machine = this.selectedMachine;
@@ -529,7 +468,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return typeof rate === 'number' && isFinite(rate) && rate > 0;
 	}
 
-	/** Rates re-derived from the source of truth get readable rounding; typed values stay verbatim. */
 	private roundRate(rate: number): number
 	{
 		return Math.round(rate * 10000) / 10000;

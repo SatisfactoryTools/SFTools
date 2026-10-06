@@ -13,18 +13,6 @@ import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 
-/**
- * Resizes a whole subplan: every rate in its graph is multiplied by the
- * factor, its machines are rebuilt for the bigger (or smaller) target per
- * the plan's grouping and clock settings, and its own production requests
- * and inputs follow, so recalculating the subplan reproduces the new size
- * instead of snapping back. Subplans nested inside are resized with it -
- * each one only once, however many nodes point at it.
- *
- * The subplan's graph is the single source of truth for its size: the
- * parent's subplan node has no scale of its own, it just re-reads the
- * subplan's interface afterwards (see SubplanIOResolver).
- */
 @Injectable({providedIn: 'root'})
 export class SubplanScaler
 {
@@ -39,11 +27,6 @@ export class SubplanScaler
 	{
 	}
 
-	/**
-	 * Multiplies the subplan (and everything nested in it) by `factor`.
-	 * Throws when the graph cannot be read; does nothing for a factor of 1,
-	 * an unusable factor or a plan that cannot be edited.
-	 */
 	public scale(subplanId: string, factor: number): void
 	{
 		this.scaleInto(subplanId, factor, new Set());
@@ -64,8 +47,7 @@ export class SubplanScaler
 		scaled.add(planId);
 
 		if (plan.graph) {
-			// Nested subplans first: their nodes here re-read an interface
-			// that must already be the resized one.
+			// Nested subplans first: their nodes here re-read an interface that must already be resized.
 			const graph = this.planSerializer.reviveGraph(plan.graph);
 			graph.nodes
 				.filter((node): node is SubplanNode => node instanceof SubplanNode)
@@ -96,8 +78,7 @@ export class SubplanScaler
 		if (node instanceof ItemAmountNode) {
 			return this.resizer.withAmount(node, node.amount * factor);
 		}
-		// A nested subplan node re-reads the interface of its (already
-		// resized) subplan rather than being scaled itself.
+		// Re-reads the already resized subplan rather than being scaled itself.
 		if (node instanceof SubplanNode) {
 			return this.subplanIO.refresh(node);
 		}

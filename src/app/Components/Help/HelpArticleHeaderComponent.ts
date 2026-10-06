@@ -1,13 +1,5 @@
 import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 
-/**
- * The top of an article: the section it belongs to, its title and its
- * one-line summary. The editor's preview shows the same thing above the
- * Markdown it renders, so what a writer sees is what a reader gets.
- *
- * The title shrinks in a narrow `article` container (a docked panel), which
- * whoever hosts the article names - the reader does, and so does the preview.
- */
 @Component({
 	selector: 'help-article-header',
 	templateUrl: './HelpArticleHeaderComponent.html',
@@ -35,7 +27,6 @@ import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 			line-height: 1.5;
 			color: #c5d0db;
 		}
-		/* In a narrow panel the title takes up a whole screenful otherwise. */
 		@container article (max-width: 560px) {
 			.article-head h1 {
 				font-size: 1.35rem;
@@ -49,7 +40,6 @@ import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 export class HelpArticleHeaderComponent
 {
 
-	/** Name of the section the article sits in; empty hides the line. */
 	@Input() public category = '';
 
 	@Input({required: true}) public title = '';

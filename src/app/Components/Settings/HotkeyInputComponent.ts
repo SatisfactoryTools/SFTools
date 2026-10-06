@@ -4,13 +4,7 @@ import {HotkeyFormatter} from '@src/Model/Hotkeys/HotkeyFormatter';
 import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
-/**
- * The key field of the hotkey settings: click it, press the combination you
- * want, and that becomes the key. Escape leaves it as it was.
- *
- * Every hotkey is parked while it records - otherwise pressing Del here would
- * also try to delete something on the canvas behind the settings page.
- */
+/** Every hotkey is parked while this records - otherwise pressing Del here would also delete something on the canvas behind the settings page. */
 @Component({
 	selector: 'hotkey-input',
 	templateUrl: './HotkeyInputComponent.html',
@@ -42,10 +36,8 @@ export class HotkeyInputComponent implements OnDestroy
 
 	@Input() public binding: HotkeyBinding | null = null;
 
-	/** Marks the field red - another action already uses this combination. */
 	@Input() public conflict = false;
 
-	/** What the field says while it holds no combination. */
 	@Input() public emptyLabel = 'No key';
 
 	@Output() public readonly changed = new EventEmitter<HotkeyBinding>();
@@ -94,8 +86,7 @@ export class HotkeyInputComponent implements OnDestroy
 		if (!this.recording) {
 			return;
 		}
-		// Nothing here reaches the rest of the app while recording - not even
-		// Tab, which would otherwise move focus away mid-capture.
+		// Nothing reaches the rest of the app while recording - not even Tab, which would move focus away mid-capture.
 		event.preventDefault();
 		event.stopPropagation();
 		if (event.key === 'Escape') {

@@ -22,13 +22,7 @@ export class SolverService implements OnDestroy
 		this.worker = this.createWorker();
 	}
 
-	/**
-	 * Unsubscribing while the solve is still running cancels it: highs runs
-	 * synchronously inside the worker, so the only way to stop it is to
-	 * terminate the worker and spawn a fresh one (the WASM lib reloads on the
-	 * next solve). This also reaps a stuck worker when the timeout fires.
-	 * MIP solves (sloops) pass their gap and a longer timeout via options.
-	 */
+	/** Cancelling means terminating the worker and spawning a fresh one: highs runs synchronously inside it, so nothing else can stop it. */
 	public solve(problem: string, options: {workerOptions?: SolverWorkerOptions; timeoutMs?: number} = {}): Observable<HighsSolution>
 	{
 		const timeoutMs = options.timeoutMs ?? SOLVE_TIMEOUT_MS;

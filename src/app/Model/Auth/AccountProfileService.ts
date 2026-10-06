@@ -5,12 +5,6 @@ import {AccountApiService} from '@src/Model/API/AccountApiService';
 import {AccountProfile} from '@src/Model/API/Schema/Account/AccountProfile';
 import {AuthService} from '@src/Model/Auth/AuthService';
 
-/**
- * The signed-in user's profile, fetched once per session and after every
- * display-name change. `name` is what the UI greets the user with: the
- * server's resolved name (display name → login → provider nickname), falling
- * back to the locally stored login while the profile is still loading.
- */
 @Injectable({providedIn: 'root'})
 export class AccountProfileService
 {
@@ -21,7 +15,6 @@ export class AccountProfileService
 	public readonly name: Signal<string | null> = computed(() => this.profile()?.name ?? this.auth.displayName());
 	public readonly avatarUrl: Signal<string | null> = computed(() => this.profile()?.avatarUrl ?? null);
 
-	/** Whether the signed-in user may write help articles; false while the profile loads. */
 	public readonly helpEditor: Signal<boolean> = computed(() => this.profile()?.helpEditor ?? false);
 
 	public constructor(

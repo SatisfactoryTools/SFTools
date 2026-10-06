@@ -35,7 +35,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 	public rows: ProductionRequest[] = [];
 
 	private loadedPlanId: string | null = null;
-	/** JSON of the requests the rows were last built from or synced to - external changes rebuild the rows. */
 	private loadedRequests: string | null = null;
 	private readonly subscription = new Subscription();
 
@@ -54,8 +53,7 @@ export class CalculatorProductionTabComponent implements OnDestroy
 
 		this.subscription.add(
 			toObservable(this.planManager.activePlan).subscribe(plan => {
-				// Skip echoes of this tab's own sync(); anything else (plan
-				// switch, context-menu removal, undo) replaces the row drafts.
+				// Skip echoes of this tab's own sync(); anything else replaces the row drafts.
 				if (!plan || (plan.id === this.loadedPlanId && JSON.stringify(plan.requests) === this.loadedRequests)) return;
 				this.loadedPlanId = plan.id;
 				this.loadRows(plan);
@@ -63,7 +61,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		);
 	}
 
-	/** Show the plan's requests, or a single blank row so there's always one ready to fill. */
 	private loadRows(plan: Plan): void
 	{
 		this.loadedRequests = JSON.stringify(plan.requests);
@@ -82,11 +79,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		return [...(this.versionManager.activeVersionData()?.getAutomatableItems() ?? [])].sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	/**
-	 * Picker choices: the two special targets first (never filtered), then
-	 * every automatable item, struck through or hidden per the unmakeable-items
-	 * display setting.
-	 */
 	public get itemOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();
@@ -113,12 +105,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		this.autoFillNameAndIcon();
 	}
 
-	/**
-	 * The first time a real item is added to a still-unnamed plan, save its name
-	 * as "[Item] factory" and (if the icon was never chosen) its icon to match.
-	 * Runs off the first requested item; a plan named or "none"-iconed by the
-	 * user is left untouched.
-	 */
 	private autoFillNameAndIcon(): void
 	{
 		const plan = this.planManager.activePlan();
@@ -152,9 +138,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		this.sync();
 	}
 
-	// ── Power rows: MW/GW/TW input units ────────────────────────────────────
-
-	/** The rate in the row's chosen unit - power rows may edit in GW/TW while storage stays MW. */
 	public powerRateOf(row: ProductionRequest): number | null
 	{
 		// null passes through so a cleared input stays empty mid-edit.
@@ -168,7 +151,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		this.sync();
 	}
 
-	/** The power row's combined select value: the input unit, or 'maximise'. */
 	public powerSelectionOf(row: ProductionRequest): string
 	{
 		return this.modeOf(row) === 'maximise' ? 'maximise' : row.powerUnit ?? 'MW';
@@ -195,17 +177,12 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		}
 	}
 
-	/**
-	 * Only one category may be maximised at a time - rows of any other
-	 * category get their maximise option disabled while one is active.
-	 */
 	public maximiseDisabled(row: ProductionRequest): boolean
 	{
 		const active = this.maximisedCategory();
 		return active !== null && active !== this.categoryOf(row.itemClassName) && this.modeOf(row) !== 'maximise';
 	}
 
-	/** Total rate the last solve achieved for a maximised row, formatted - or null before the first solve. */
 	public achievedFor(row: ProductionRequest): string | null
 	{
 		const achieved = this.planManager.activePlan()?.metadata?.achievedMaximums?.[row.itemClassName];
@@ -222,7 +199,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 		return this.rateFormatter.rate(achieved, item);
 	}
 
-	/** Maximise with somersloops runs several exact solves in a row - warn like the power+sloops combination does. */
 	public get showSloopWarning(): boolean
 	{
 		return this.rows.some(row => this.modeOf(row) === 'maximise')

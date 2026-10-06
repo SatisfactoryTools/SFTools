@@ -6,11 +6,7 @@ import {CodexLink} from '@src/Components/Codex/CodexLink';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * Codex navigation for the fullscreen page: the codex path is the URL after
- * `/[version]/codex` (the route matcher consumes all of it, so the first URL
- * segment here is always 'codex').
- */
+// The route matcher consumes the whole URL, so the first segment is always 'codex'.
 @Injectable()
 export class PageCodexNavigation extends CodexNavigation
 {

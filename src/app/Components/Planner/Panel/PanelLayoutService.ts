@@ -19,9 +19,9 @@ const FLOAT_MIN_WIDTH = 220;
 const FLOAT_MIN_HEIGHT = 140;
 const TAB_BAR_HEIGHT = 36;
 
-export const RAIL_WIDTH = 40;        // px
-export const STATUS_BAR_HEIGHT = 32; // px
-export const MOBILE_NAV_HEIGHT = 56; // px
+export const RAIL_WIDTH = 40;
+export const STATUS_BAR_HEIGHT = 32;
+export const MOBILE_NAV_HEIGHT = 56;
 
 @Injectable()
 export class PanelLayoutService implements OnDestroy
@@ -36,7 +36,6 @@ export class PanelLayoutService implements OnDestroy
 
 	private readonly statesSignal = signal<Map<string, PanelRuntimeState>>(new Map());
 
-	// Membership mirrors open+docked panel states.
 	private readonly sideTabsSignal = signal<Record<PanelSide, string[]>>({
 		left: [], right: [], top: [],
 	});
@@ -121,7 +120,7 @@ export class PanelLayoutService implements OnDestroy
 		};
 	}
 
-	/** Unknown panel ids are dropped and new panels keep their defaults, so the layout self-heals. Call once, after every panel is registered. */
+	/** Call once, after every panel is registered: unknown panel ids are dropped. */
 	public applyLayout(state: PanelLayoutState | null): void
 	{
 		if (state && state.states && state.sideTabs && state.sizes) {
@@ -394,11 +393,11 @@ export class PanelLayoutService implements OnDestroy
 		}));
 	}
 
-	public dragFloatingTo(panelId: string, contentX: number, contentY: number): void
+	public dragFloatingTo(panelId: string, contentX: number, contentY: number, grabX: number, grabY: number): void
 	{
 		const group = this.groupOf(panelId);
 		if (group) {
-			this.moveGroup(group.id, contentX - group.width / 2, contentY - TAB_BAR_HEIGHT / 2);
+			this.moveGroup(group.id, contentX - grabX, contentY - grabY);
 		}
 	}
 
@@ -428,7 +427,7 @@ export class PanelLayoutService implements OnDestroy
 		}
 		this.mergePreviewSignal.set(null);
 
-		// An occupied side gets a wider edge strip (merges in as a tab) but never the whole panel, so floating windows can hover over docked panels without snapping. Left and right claim the full height; top takes the middle.
+		// An occupied side gets a wider edge strip (merges in as a tab) but never the whole panel, so floating windows can hover over docked panels without snapping.
 		const leftZone = this.activeDockedPanel('left') !== null ? OCCUPIED_DOCK_ZONE : DOCK_ZONE;
 		const rightZone = this.activeDockedPanel('right') !== null ? OCCUPIED_DOCK_ZONE : DOCK_ZONE;
 		const topZone = this.activeDockedPanel('top') !== null ? OCCUPIED_DOCK_ZONE : DOCK_ZONE;

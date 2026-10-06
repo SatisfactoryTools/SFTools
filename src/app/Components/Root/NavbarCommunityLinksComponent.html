@@ -7,7 +7,6 @@
 	</li>
 }
 
-<!-- Desktop: the heart opens a dropdown. -->
 <li class="nav-item dropdown d-none d-lg-block" dropdown container="body" placement="bottom right">
 	<a class="nav-link support-toggle" dropdownToggle href="javascript: void(0);" aria-label="Support the project" tooltip="Support the project" placement="bottom" container="body">
 		<fa-icon [icon]="faHeart" [fixedWidth]="true"></fa-icon>
@@ -31,7 +30,7 @@
 	</div>
 </li>
 
-<!-- Collapsed phone menu: no floating dropdown (it can open off-screen); a tap-to-expand group instead, like the user menu. -->
+<!-- No floating dropdown in the collapsed phone menu: it can open off-screen. -->
 <li class="nav-item d-lg-none support-inline">
 	<button type="button" class="nav-link support-inline-head" [attr.aria-expanded]="inlineOpen" (click)="inlineOpen = !inlineOpen">
 		<fa-icon [icon]="faHeart" [fixedWidth]="true"></fa-icon>

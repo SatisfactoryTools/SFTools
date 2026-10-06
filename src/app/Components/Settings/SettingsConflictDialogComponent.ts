@@ -99,13 +99,6 @@ const NODE_COLOR_LABELS: Record<keyof NodeColors, string> = {
 	subplan: 'Subplan colour',
 };
 
-/**
- * Login-time settings clash: shows the differing preferences side by side -
- * the account's and this device's - grouped by settings section, and lets
- * the user keep one set. Every field of every section is compared; a field
- * the label tables do not know (e.g. one added server-side) still shows up
- * under a humanised key name rather than being dropped.
- */
 @Component({
 	selector: 'settings-conflict-dialog',
 	templateUrl: './SettingsConflictDialogComponent.html',
@@ -211,7 +204,6 @@ export class SettingsConflictDialogComponent
 		];
 	}
 
-	/** Groups in display order, each with its rows - the template renders a heading per group. */
 	public get groups(): {name: string; rows: SettingsDiffRow[]}[]
 	{
 		const groups: {name: string; rows: SettingsDiffRow[]}[] = [];
@@ -236,12 +228,7 @@ export class SettingsConflictDialogComponent
 		this.conflictService.acceptLocal();
 	}
 
-	/**
-	 * Hotkeys are compared by the key each action ends up with, not by the
-	 * stored overrides: one side leaving an action at its factory key and the
-	 * other setting that same key explicitly is not a difference worth asking
-	 * about.
-	 */
+	// Compared by the key each action ends up with, not the stored overrides: a factory key on one side and the same key set explicitly on the other is not a real difference.
 	private diffHotkeys(remote: HotkeyOverrides, local: HotkeyOverrides): SettingsDiffRow[]
 	{
 		const rows: SettingsDiffRow[] = [];
@@ -310,7 +297,6 @@ export class SettingsConflictDialogComponent
 		return rows;
 	}
 
-	/** camelCase key → "Camel case", for fields without a label entry. */
 	private static humanize(key: string): string
 	{
 		const spaced = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2').toLowerCase();

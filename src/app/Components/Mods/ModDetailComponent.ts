@@ -7,12 +7,6 @@ import {Mod} from '@src/Model/API/Schema/Mods/Mod';
 import {ModVersion} from '@src/Model/API/Schema/Mods/ModVersion';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 
-/**
- * One mod: rename / visibility / deletion for the owner, plus its version
- * list - creating versions, renaming them, clearing their data and jumping
- * into the mod editor to edit the data itself. Read-only for public mods of
- * other users.
- */
 @Component({
 	templateUrl: './ModDetailComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -33,7 +27,6 @@ export class ModDetailComponent
 	public newVersionName = '';
 	public creatingVersion = false;
 
-	/** Id of the version whose name is being edited inline. */
 	public renamingVersionId: string | null = null;
 	public renameDraft = '';
 

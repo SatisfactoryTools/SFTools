@@ -95,7 +95,7 @@
 							class="btn btn-sm btn-outline-primary py-0"
 							[disabled]="startingProvider !== null"
 							(click)="connect(provider)"
-						>{{ startingProvider === provider.key ? 'Redirecting…' : 'Connect' }}</button>
+						>{{ startingProvider === provider.key ? (desktopOAuth.available ? 'Continue in your browser…' : 'Redirecting…') : 'Connect' }}</button>
 					}
 				</div>
 			}

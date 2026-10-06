@@ -8,12 +8,6 @@ import {ItemAmountSchema} from '@src/Model/API/Schema/Data/Parts/ItemAmountSchem
 import {ModEntryDescriptor} from '@src/Model/ModEditor/ModEntryDescriptor';
 import {ModFieldDescriptor} from '@src/Model/ModEditor/ModFieldDescriptor';
 
-/**
- * Metadata-driven form for one mod entry: renders every field of the entry's
- * descriptor by kind, the required ones up front and the rest behind "More
- * fields". Edits mutate the entry object in place - the editor's JSON view
- * reads the same object.
- */
 @Component({
 	selector: 'mod-entry-form',
 	templateUrl: './ModEntryFormComponent.html',
@@ -28,13 +22,8 @@ export class ModEntryFormComponent implements OnChanges
 
 	public showOptional = false;
 
-	/**
-	 * Raw text being typed into list/json fields - parsing on every keystroke
-	 * would eat separators mid-typing (", " collapses when re-joined), so the
-	 * field shows the draft and the entry gets the parsed value.
-	 */
+	// Parsing list/json fields on every keystroke would eat separators mid-typing (", " collapses when re-joined), so the field shows the draft and the entry gets the parsed value.
 	private readonly drafts = new Map<string, string>();
-	/** Json fields whose current draft does not parse. */
 	private readonly brokenJson = new Set<string>();
 
 	public ngOnChanges(): void
@@ -140,7 +129,6 @@ export class ModEntryFormComponent implements OnChanges
 		this.fuels(field).splice(index, 1);
 	}
 
-	/** Nullable text inside fuel rows: empty input means null. */
 	public setFuelNullable(fuel: FuelSchema, key: 'supplementalItem' | 'byproduct', raw: string): void
 	{
 		fuel[key] = raw === '' ? null : raw;

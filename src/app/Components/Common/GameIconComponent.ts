@@ -1,12 +1,6 @@
 import {Component, Input, ChangeDetectionStrategy} from '@angular/core';
 import {IconUrlService} from '@src/Model/Data/IconUrlService';
 
-/**
- * Renders a game icon (item, building, …) from its hash. Nothing is rendered
- * when the hash is missing, so it is safe to drop in beside any name. The
- * display size drives which asset is fetched: 64px for anything up to 64,
- * the crisp 256px asset above that.
- */
 @Component({
 	selector: 'game-icon',
 	templateUrl: './GameIconComponent.html',

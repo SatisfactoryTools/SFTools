@@ -5,11 +5,6 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * Modal for choosing any item or building icon. Emits the chosen class name on
- * `pick` and `close` on dismissal (backdrop click, ✕, or Escape). Self-contained
- * - it reads the pickable set (everything with an icon) from the active version.
- */
 @Component({
 	selector: 'icon-picker-dialog',
 	templateUrl: './IconPickerDialogComponent.html',
@@ -29,7 +24,6 @@ export class IconPickerDialogComponent
 	@Output() public readonly none = new EventEmitter<void>();
 	@Output() public readonly close = new EventEmitter<void>();
 
-	/** Escape leaves the dialog, like clicking outside it does. */
 	@HostListener('document:keydown.escape')
 	public onEscape(): void
 	{

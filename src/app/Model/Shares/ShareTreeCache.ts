@@ -1,35 +1,32 @@
-import {Injectable, Signal, computed, signal} from '@angular/core';
+import {Injectable, Signal, WritableSignal, computed, signal} from '@angular/core';
 import {SharesApiService} from '@src/Model/API/SharesApiService';
 import {SharedFolderNode} from '@src/Model/API/Schema/Shares/SharedFolderNode';
 import {SharedPlanNode} from '@src/Model/API/Schema/Shares/SharedPlanNode';
 import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
 import {SharedPlanData} from '@src/Model/Shares/SharedPlanData';
 import {ShareTreeNode} from '@src/Model/Shares/ShareTreeNode';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 
 const STORAGE_KEY = 'sftools.shareTrees';
 /** More than the visited list can hold, so evictions only hit shares that already left it. */
 const CAP = 60;
 
-/**
- * Tree snapshots of shares, so the "Shared plans" list can show every
- * share's plans and subplans without opening it. The visited list itself
- * only carries metadata; the tree comes from the share payload, which is
- * large (it holds every plan's data). Shares are frozen forever, so a
- * snapshot taken from any payload fetch stays valid - it is kept in
- * localStorage per device, and a share visited on another device is fetched
- * once, the first time it is listed here.
- */
 @Injectable({providedIn: 'root'})
 export class ShareTreeCache
 {
 
-	private readonly treesSignal = signal<ReadonlyMap<string, ShareTreeNode>>(this.load());
-	public readonly trees: Signal<ReadonlyMap<string, ShareTreeNode>> = this.treesSignal.asReadonly();
+	private readonly treesSignal: WritableSignal<ReadonlyMap<string, ShareTreeNode>>;
+	public readonly trees: Signal<ReadonlyMap<string, ShareTreeNode>>;
 
 	private readonly inFlight = new Set<string>();
 
-	public constructor(private readonly sharesApi: SharesApiService)
+	public constructor(
+		private readonly sharesApi: SharesApiService,
+		private readonly storage: AppStorage,
+	)
 	{
+		this.treesSignal = signal(this.load());
+		this.trees = this.treesSignal.asReadonly();
 	}
 
 	public treeOf(shareId: string): ShareTreeNode | null
@@ -37,7 +34,6 @@ export class ShareTreeCache
 		return this.treesSignal().get(shareId) ?? null;
 	}
 
-	/** Snapshots the tree of a payload that was fetched anyway (opening, visiting, adding). */
 	public record(payload: SharePayload): void
 	{
 		if (this.treesSignal().has(payload.share)) {
@@ -52,7 +48,6 @@ export class ShareTreeCache
 		this.save(next);
 	}
 
-	/** Fetches the snapshot of a share this device has never seen; a failure is silent (the row just shows no tree). */
 	public ensure(shareId: string): void
 	{
 		if (this.treesSignal().has(shareId) || this.inFlight.has(shareId)) {
@@ -97,7 +92,6 @@ export class ShareTreeCache
 		};
 	}
 
-	/** Resolved like PlanIconResolver does for a plan: the chosen icon, else the first requested item. */
 	private iconClassNameOf(node: SharedPlanNode): string | null
 	{
 		try {
@@ -114,7 +108,7 @@ export class ShareTreeCache
 	private load(): Map<string, ShareTreeNode>
 	{
 		try {
-			const raw = localStorage.getItem(STORAGE_KEY);
+			const raw = this.storage.getItem(STORAGE_KEY);
 			return raw === null ? new Map() : new Map(Object.entries(JSON.parse(raw) as Record<string, ShareTreeNode>));
 		} catch {
 			return new Map();
@@ -124,7 +118,7 @@ export class ShareTreeCache
 	private save(trees: ReadonlyMap<string, ShareTreeNode>): void
 	{
 		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(trees)));
+			this.storage.setItem(STORAGE_KEY, JSON.stringify(Object.fromEntries(trees)));
 		} catch {
 			// storage full or unavailable - the snapshot lives in memory for this session only
 		}

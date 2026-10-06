@@ -13,16 +13,6 @@ import {HotkeyFormatter} from '@src/Model/Hotkeys/HotkeyFormatter';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
-/**
- * The hotkey list: every action of the app with the key that runs it, grouped
- * by where it lives. Keys are unique across the whole list, so an action is
- * never picked by "what is in focus" - which also means a key used twice is a
- * real problem, and the list says so.
- *
- * The list can be searched two ways, and they can be used together: by typing
- * a word, which looks at the action's name, its note and its key text, and by
- * pressing a key combination, which shows whatever that combination runs.
- */
 @Component({
 	selector: 'settings-hotkeys',
 	templateUrl: './SettingsHotkeysComponent.html',
@@ -122,22 +112,18 @@ export class SettingsHotkeysComponent
 
 	public readonly clearIcon = faXmark;
 
-	/** What was typed into the search box - matched against names, notes and key text. */
 	private readonly querySignal = signal('');
 
 	public readonly query = this.querySignal.asReadonly();
 
-	/** The combination pressed into the key field - shows what it runs, if anything. */
 	private readonly keyQuerySignal = signal<HotkeyBinding | null>(null);
 
 	public readonly keyQuery = this.keyQuerySignal.asReadonly();
 
 	public readonly searching = computed(() => this.querySignal().trim() !== '' || this.keyQuerySignal() !== null);
 
-	/** Actions whose key another action also uses - both rows are flagged. */
 	public readonly conflicts = computed(() => this.hotkeys.conflicts());
 
-	/** The headings to show, each with the actions the search left in it. */
 	public readonly groups = computed<HotkeyGroupMatches[]>(() => {
 		const terms = this.searchTerms();
 		const key = this.keyQuerySignal();
@@ -155,7 +141,6 @@ export class SettingsHotkeysComponent
 	public readonly matchCount = computed(() =>
 		this.groups().reduce((count, group) => count + group.definitions.length, 0));
 
-	/** How many actions the user has moved off their factory key. */
 	public readonly changedCount = computed(() =>
 		HotkeyCatalog.DEFINITIONS.filter(definition => this.isChanged(definition)).length);
 
@@ -198,7 +183,6 @@ export class SettingsHotkeysComponent
 		return this.conflicts().has(action);
 	}
 
-	/** Which other actions share this one's key - named, so the clash can be fixed. */
 	public conflictingWith(action: HotkeyAction): string
 	{
 		const binding = this.binding(action);
@@ -221,13 +205,11 @@ export class SettingsHotkeysComponent
 		this.store(action, binding);
 	}
 
-	/** Leaves the action with no key at all - remembered, so it stays cleared. */
 	public clear(action: HotkeyAction): void
 	{
 		this.store(action, null);
 	}
 
-	/** Drops the override so the action is back on the key it shipped with. */
 	public reset(action: HotkeyAction): void
 	{
 		const overrides = {...this.settings.hotkeys()};
@@ -245,7 +227,6 @@ export class SettingsHotkeysComponent
 		this.settings.updateHotkeys({...this.settings.hotkeys(), [action]: binding});
 	}
 
-	/** Every word typed has to be found somewhere in the row, in any order. */
 	private searchTerms(): string[]
 	{
 		return this.querySignal().toLowerCase().split(/\s+/).filter(term => term !== '');

@@ -1,11 +1,6 @@
 import {faDiscord, faGithub, faPatreon, faPaypal} from '@fortawesome/free-brands-svg-icons';
 import {CommunityLink} from '@src/Model/CommunityLink';
 
-/**
- * The project's external links, shown in the navbar, the home hero and the
- * About page. Donation links exist so people who want to can, not to push -
- * the tools are free; keep their presentation quiet wherever they appear.
- */
 export class CommunityLinks
 {
 

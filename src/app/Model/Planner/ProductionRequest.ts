@@ -4,10 +4,10 @@ import {ProductionRequestMode} from '@src/Model/Planner/ProductionRequestMode';
 export interface ProductionRequest
 {
 	itemClassName: string;
-	/** Ignored (and preserved) while mode is 'maximise'. */
+	/** Kept, but ignored, while mode is 'maximise'. */
 	ratePerMinute: number;
-	/** Absent = 'rate'; covers requests saved before maximise existed. */
+	/** Absent on requests saved before maximise existed. */
 	mode?: ProductionRequestMode;
-	/** Input unit for power rows - the stored rate stays MW. Absent = 'MW'. */
+	/** Input unit only: ratePerMinute stays in MW. */
 	powerUnit?: PowerUnit;
 }

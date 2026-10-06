@@ -1,7 +1,5 @@
 @if (activeShare.payload(); as share) {
 
-	<!-- A shared plan has no production request to edit - the whole panel
-	     becomes the "make it yours" call to action. -->
 	<div class="p-3">
 		<div class="d-flex align-items-center gap-2 mb-1">
 			<span class="fw-semibold">{{ share.type === 'plan' ? planNames.displayNameOf(share.root.name) : share.root.name }}</span>
@@ -23,8 +21,6 @@
 
 } @else if (planLink.payload(); as link) {
 
-	<!-- Someone else's plan, opened from its own link: live, read-only, and the
-	     owner can change or close it at any time - so the panel offers a copy. -->
 	<div class="p-3">
 		<div class="d-flex align-items-center gap-2 mb-1">
 			<span class="fw-semibold">{{ planNames.displayNameOf(link.root.name) }}</span>
@@ -46,8 +42,6 @@
 
 } @else if (activePlanLocal() && activePlan(); as plan) {
 
-	<!-- A plan left on this device while signed in: read-only until it is
-	     moved into the account, so the panel is the "move it" call to action. -->
 	<div class="p-3">
 		<div class="d-flex align-items-center gap-2 mb-1">
 			<span class="fw-semibold">{{ planNames.displayName(plan) }}</span>
@@ -57,7 +51,7 @@
 			<div class="text-secondary mb-2">{{ description }}</div>
 		}
 		<info-note class="mb-3">
-			This plan was made while you were signed out and is saved only in this browser. It is read-only here.
+			This plan was made while you were signed out and is saved only on {{ platform.device }}. It is read-only here.
 			Add it to your plans to move it into your account and edit it.
 		</info-note>
 		<button
@@ -71,8 +65,7 @@
 
 	<div class="req-controls">
 		@if (!allGroupsFixed()) {
-			<!-- container="body" so the menu overlays the planner instead of being
-			     clipped (and scrolled) by the panel's overflow container. -->
+			<!-- container="body": the panel's overflow container would clip the menu. -->
 			<div class="btn-group" dropdown container="body" placement="bottom left">
 				<button
 					class="btn btn-sm btn-outline-secondary dropdown-toggle"
@@ -103,7 +96,6 @@
 
 		<span class="flex-grow-1"></span>
 
-		<!-- The question mark follows the open tab, so it always explains what is on screen. -->
 		<help-button [topic]="activeTabHelpTopic()"/>
 
 		<button
@@ -114,8 +106,6 @@
 			(click)="relayout()"
 		><fa-icon [icon]="faSitemap"></fa-icon> Rearrange</button>
 
-		<!-- The same window as the rail button and the context menus: people look for
-		     sharing here, next to the plan they are working on. -->
 		<button
 			class="btn btn-sm btn-blue"
 			type="button"
@@ -124,8 +114,7 @@
 			(click)="shareDialog.openActive()"
 		><fa-icon [icon]="faShareNodes"></fa-icon> Share</button>
 
-		<!-- container="body" so the menu overlays the planner instead of being
-		     clipped (and scrolled) by the panel's overflow container. -->
+		<!-- container="body": the panel's overflow container would clip the menu. -->
 		<div class="btn-group" dropdown container="body" placement="bottom right">
 			<button
 				class="btn btn-sm btn-primary"
@@ -181,8 +170,6 @@
 		</div>
 	}
 
-	<!-- Automatic mode stops on its own once the graph is edited by hand: settings
-	     changed here are saved but not applied until the user asks for a rebuild. -->
 	@if (automaticPaused() && hasGraph()) {
 		<div class="px-2 pt-2">
 			<info-note kind="warning">
@@ -456,8 +443,6 @@
 	<load-from-save-dialog [targetName]="target.name" [baseSettings]="target.baseSettings" (apply)="onLoadFromSaveApply($event)" (close)="closeLoadFromSave()"></load-from-save-dialog>
 }
 
-<!-- The tab strip adapts to the panel width (see tabsMode): labels, icons with
-     the active label only, or a single dropdown on narrow panels. -->
 <ng-template #tabStrip let-locks="locks">
 	<div class="calc-tabs-wrap" [class.menu]="tabsMode() === 'menu'" #tabsWrap>
 		@if (tabsMode() === 'menu') {

@@ -9,14 +9,6 @@ import {AuthApiService} from '@src/Model/API/AuthApiService';
 import {AuthReturnUrlService} from '@src/Model/Auth/AuthReturnUrlService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 
-/**
- * Sign-in page. Third-party providers are the primary option; the
- * username/password form is kept as a secondary, folded-away path. Steam
- * cannot create accounts, so its button carries a warning. An optional
- * `returnUrl` query parameter says where to go afterwards - and where
- * "continue without signing in" leads; `method=password` opens the password
- * form straight away (links that already say "username & password" use it).
- */
 @Component({
 	selector: 'auth-login',
 	templateUrl: './LoginComponent.html',

@@ -48,7 +48,9 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 		.tab {
 			display: flex;
 			align-items: center;
-			flex: none;
+			/* Shrinkable: the one tab that is always kept may be wider than the strip, and then its label truncates rather than its close button being cut off. */
+			flex: 0 1 auto;
+			min-width: 0;
 			gap: 5px;
 			padding: 0 7px 0 12px;
 			border-right: 1px solid #1a2030;
@@ -68,7 +70,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 			box-shadow: inset 0 2px 0 rgba(100,150,255,0.7);
 		}
 		.tab-icon { font-size: 14px; opacity: 0.75; flex: none; }
-		.tab-label { overflow: hidden; text-overflow: ellipsis; }
+		.tab-label { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 		.tab-close {
 			width: 18px;
 			height: 18px;
@@ -107,6 +109,7 @@ const OVERFLOW_BUTTON_WIDTH = 30;
 		}
 		.tab-more:hover { background: rgba(255,255,255,0.05); color: #ccd6ee; }
 		.tab-more.active { color: #fff; box-shadow: inset 0 2px 0 rgba(100,150,255,0.7); }
+		.tab-measure .tab { flex: none; }
 		.tab-measure {
 			position: absolute;
 			top: -9999px;
@@ -153,6 +156,7 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 
 	@ViewChild('tabbarEl') private tabbarRef?: ElementRef<HTMLElement>;
 	@ViewChild('measureEl') private measureRef?: ElementRef<HTMLElement>;
+	@ViewChild('helpEl', {read: ElementRef}) private helpRef?: ElementRef<HTMLElement>;
 
 	private readonly measurer = new TabOverflowMeasurer();
 	private resizeObserver: ResizeObserver | null = null;
@@ -173,7 +177,6 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 		this.recomputeTabOverflow();
 	}
 
-	/** Re-measures after every render so newly opened/closed tabs are picked up. */
 	public ngAfterViewChecked(): void
 	{
 		this.recomputeTabOverflow();
@@ -213,7 +216,9 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 		const measure = this.measureRef?.nativeElement;
 		if (!bar || !measure) return;
 		const widths = Array.from(measure.children).map(child => child.getBoundingClientRect().width);
-		const count = this.measurer.fit(bar.clientWidth, widths, OVERFLOW_BUTTON_WIDTH);
+		// The help button takes a fixed slice of the bar, so only the rest is for tabs.
+		const available = bar.clientWidth - (this.helpRef?.nativeElement.offsetWidth ?? 0);
+		const count = this.measurer.fit(available, widths, OVERFLOW_BUTTON_WIDTH);
 		if (count !== this.visibleTabCountSignal()) {
 			this.visibleTabCountSignal.set(count);
 		}
@@ -251,12 +256,6 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 		}
 	}
 
-	/**
-	 * A tab is both a selector and a drag handle: releasing without crossing
-	 * the drag threshold selects it; dragging past the threshold unpins that
-	 * panel into a floating one following the cursor, and releasing over an
-	 * edge drop zone docks it there as a tab.
-	 */
 	public onTabPointerDown(event: PointerEvent, panelId: string): void
 	{
 		event.preventDefault();
@@ -264,6 +263,10 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 		const pointerId = event.pointerId;
 		const startClientX = event.clientX;
 		const startClientY = event.clientY;
+		// The unpinned window puts this tab at its top-left, so the pointer's offset inside the tab keeps the grab point under the pointer.
+		const tabRect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+		const grabX = startClientX - tabRect.left;
+		const grabY = startClientY - tabRect.top;
 		let unpinned = false;
 
 		const onMove = (e: PointerEvent): void => {
@@ -274,13 +277,11 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 				this.layout.floatPanel(panelId);
 			}
 			const point = this.layout.pointerToContent(e.clientX, e.clientY);
-			this.layout.dragFloatingTo(panelId, point.x, point.y);
+			this.layout.dragFloatingTo(panelId, point.x, point.y, grabX, grabY);
 			this.layout.updateDragPreview(point.x, point.y, this.layout.groupIdOf(panelId));
 		};
 
-		// A cancelled pointer (the browser claimed the touch for a gesture of
-		// its own) ends the drag where it stands instead of leaving the
-		// listeners - and the panel - hanging.
+		// A cancelled pointer (the browser claimed the touch for its own gesture) ends the drag here instead of leaving the listeners hanging.
 		const onUp = (e: PointerEvent): void => {
 			if (e.pointerId !== pointerId) return;
 			document.removeEventListener('pointermove', onMove);

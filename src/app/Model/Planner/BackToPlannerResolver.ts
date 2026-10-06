@@ -5,16 +5,6 @@ import {filter, map} from 'rxjs/operators';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
 
-/**
- * Where "Back to planner" goes: the last visited planner, down to the plan
- * that was open. Offered outside a version context (while the remembered
- * version still exists), and on the fullscreen codex - there it targets the
- * current version's planner directly. Null when the planner is already what
- * is on screen.
- *
- * Shared, because both the navbar link and the Escape hotkey need the same
- * answer.
- */
 @Injectable({providedIn: 'root'})
 export class BackToPlannerResolver
 {

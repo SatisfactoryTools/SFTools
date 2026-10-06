@@ -1,4 +1,3 @@
-/** How a mod entry field is edited and validated. */
 export type ModFieldKind =
 	| 'text'
 	| 'multiline'

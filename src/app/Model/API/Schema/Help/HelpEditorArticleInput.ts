@@ -1,4 +1,3 @@
-/** The fields a save sends; anything left out keeps its stored value. */
 export interface HelpEditorArticleInput
 {
 

@@ -6,18 +6,11 @@ import {ModSchemaDescriptors} from '@src/Model/ModEditor/ModSchemaDescriptors';
 /** Reporting stops here - a systematically broken paste would otherwise produce thousands of lines. */
 const MAX_ERRORS = 50;
 
-/**
- * Structural validation of pasted mod data against the Data schema, driven
- * by the same field descriptors the forms use. Collections may be omitted
- * (a mod rarely touches all of them), but every entry present must be
- * complete and carry only known fields - the API overwrites whole entries
- * by className, so partial entries would wipe fields on the server.
- */
+/** Every entry present must be complete: the API overwrites whole entries by className, so a partial entry would wipe fields on the server. */
 @Injectable({providedIn: 'root'})
 export class ModDataValidator
 {
 
-	/** Returns the list of problems; an empty list means the value fits the schema. */
 	public validate(value: unknown): string[]
 	{
 		const errors: string[] = [];
@@ -174,7 +167,6 @@ export class ModDataValidator
 		}
 	}
 
-	/** Checks the value is an object with exactly the given keys and primitive types; returns whether it passed. */
 	private validateShape(value: unknown, path: string, shape: Record<string, string>, errors: string[]): boolean
 	{
 		if (!this.isPlainObject(value)) {

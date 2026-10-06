@@ -1,43 +1,52 @@
-import {Injectable} from '@angular/core';
+import {Injectable, Optional, effect, untracked} from '@angular/core';
 import {NavigationEnd, Router} from '@angular/router';
 import {filter} from 'rxjs/operators';
 import {env} from '@env/env';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 
-/** Matomo's command queue; the tracker script drains it once loaded. */
 type MatomoQueue = unknown[][];
 
-/**
- * Page-view and event tracking through the self-hosted Matomo the old tools
- * already report to. The migration to the new tools is measured with it
- * (arrivals from the old site, imports of old plans), so both sites must feed
- * the same instance. Nothing is loaded, and every call is a no-op, until a
- * site id is configured - local builds stay silent.
- *
- * Respects the browser's Do Not Track, like the old site does.
- */
 @Injectable({providedIn: 'root'})
 export class AnalyticsService
 {
 
 	private readonly enabled: boolean;
+	/** The website's URLs even in the desktop app, so a page counts the same wherever it was opened. */
+	private readonly pageOrigin: string;
+	/** The webview's user agent alone does not tell the desktop app from a browser. */
+	private readonly platform: 'web' | 'desktop';
+	private loaded = false;
 
-	public constructor(router: Router)
+	public constructor(
+		router: Router,
+		private readonly connectivity: ConnectivityService,
+		@Optional() desktop: DesktopBridge | null,
+	)
 	{
 		this.enabled = env.matomo.siteId !== null;
+		this.pageOrigin = desktop === null ? window.location.origin : env.webUrl;
+		this.platform = desktop === null ? 'web' : 'desktop';
 		if (!this.enabled) {
 			return;
 		}
-		this.load(env.matomo.url, env.matomo.siteId!);
+		this.configure(env.matomo.url, env.matomo.siteId!, env.matomo.platformDimensionId);
 
-		// A single-page app never reloads, so page views are the router's
-		// navigations. The first one also carries a ?from= marker when the
-		// user arrived through one of the old site's links.
+		// The host is not reachable offline, so the script is fetched on the first online moment (and again if that failed).
+		effect(() => {
+			if (this.connectivity.online() && !this.loaded) {
+				untracked(() => this.load(env.matomo.url));
+			}
+		});
+
 		let first = true;
 		router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe(event => {
-			const url = new URL(event.urlAfterRedirects, window.location.origin);
-			this.queue().push(['setCustomUrl', url.href]);
-			this.queue().push(['setDocumentTitle', document.title]);
-			this.queue().push(['trackPageView']);
+			const url = new URL(event.urlAfterRedirects, this.pageOrigin);
+			if (this.connectivity.online()) {
+				this.queue().push(['setCustomUrl', url.href]);
+				this.queue().push(['setDocumentTitle', document.title]);
+				this.queue().push(['trackPageView']);
+			}
 			if (first) {
 				first = false;
 				const from = url.searchParams.get('from');
@@ -50,7 +59,7 @@ export class AnalyticsService
 
 	public trackEvent(category: string, action: string, name?: string, value?: number): void
 	{
-		if (!this.enabled) {
+		if (!this.enabled || !this.connectivity.online()) {
 			return;
 		}
 		this.queue().push(['trackEvent', category, action, name, value]);
@@ -63,16 +72,32 @@ export class AnalyticsService
 		return holder._paq;
 	}
 
-	private load(url: string, siteId: number): void
+	/** Matomo applies commands queued before the script exists once it runs. */
+	private configure(url: string, siteId: number, platformDimensionId: number | null): void
 	{
 		const queue = this.queue();
+		queue.push(['disableCookies']);
 		queue.push(['setDoNotTrack', true]);
 		queue.push(['enableLinkTracking']);
 		queue.push(['setTrackerUrl', `${url}matomo.php`]);
 		queue.push(['setSiteId', String(siteId)]);
+		// Set once on the tracker, it rides along with every page view and event after it.
+		if (platformDimensionId !== null) {
+			queue.push(['setCustomDimension', platformDimensionId, this.platform]);
+		}
+	}
+
+	private load(url: string): void
+	{
+		this.loaded = true;
 		const script = document.createElement('script');
 		script.async = true;
 		script.src = `${url}matomo.js`;
+		// A failed fetch lets the next online moment try again; the queued commands wait meanwhile.
+		script.addEventListener('error', () => {
+			script.remove();
+			this.loaded = false;
+		});
 		document.head.appendChild(script);
 	}
 

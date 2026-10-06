@@ -1,4 +1,3 @@
-/** Accent colour (hex) per graph node type; the node fill is derived from it. */
 export interface NodeColors
 {
 

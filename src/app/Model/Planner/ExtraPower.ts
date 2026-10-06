@@ -2,25 +2,19 @@ import {AlienPowerAugmenters} from '@src/Model/Planner/AlienPowerAugmenters';
 import {GeothermalGenerators} from '@src/Model/Planner/GeothermalGenerators';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 
-/** Average MW per generator, by geyser purity. */
 const GEOTHERMAL_AVERAGE: GeothermalGenerators = {impure: 100, normal: 200, pure: 400};
 
-/** A geyser swings between 0.5× and 1.5× its average. */
 const GEOTHERMAL_SWING = 0.5;
 
-/** MW per augmenter, added before any percentage is applied. */
 const AUGMENTER_FLAT = 500;
 
-/** Of all generated power, per augmenter. */
 const AUGMENTER_SHARE = 0.1;
 const BOOSTED_SHARE = 0.3;
 
 const AUGMENTER_SLOOPS = 10;
 
-/** Per minute. */
 const BOOSTED_MATRIX_RATE = 5;
 
-/** Fixed by the plan's settings, not chosen by the solver. Flat parts (geysers and the augmenters' own MW) are added first, then the augmenters raise the whole sum by their percentage. */
 export class ExtraPower
 {
 
@@ -38,7 +32,6 @@ export class ExtraPower
 		return new ExtraPower(geysers, {count: 0, boosted: 0});
 	}
 
-	/** `oneOffs` off: the geysers, flat MW and matrix fuel are already accounted for elsewhere - see `percentageOnly()`. */
 	public constructor(
 		public readonly geysers: GeothermalGenerators,
 		public readonly augmenters: AlienPowerAugmenters,
@@ -89,19 +82,16 @@ export class ExtraPower
 		return this.augmenters.count * AUGMENTER_SLOOPS;
 	}
 
-	/** Per minute. */
 	public get matrixDemand(): number
 	{
 		return this.oneOffs ? this.augmenters.boosted * BOOSTED_MATRIX_RATE : 0;
 	}
 
-	/** On top of `generated` MW of ordinary generators. */
 	public bonus(generated: number): PowerDraw
 	{
 		return this.geothermalPower.add(this.augmenterBonus(generated));
 	}
 
-	/** Excludes the geysers' own output (that is `geothermalPower`), but includes the percentage applied to it. */
 	public augmenterBonus(generated: number): PowerDraw
 	{
 		if (this.augmenters.count === 0) {

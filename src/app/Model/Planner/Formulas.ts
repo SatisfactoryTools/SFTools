@@ -5,44 +5,27 @@ import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 
-/**
- * THE single home of the game's math - clocking, power draw, somersloop
- * boosts, generator fuel rates, power shards and sink points. Every node,
- * panel and the solver's LP derive their numbers from here, so a game update
- * changing a rule is a change in exactly one place.
- */
 export class Formulas
 {
 
-	/**
-	 * Percent of overclock covered by one power shard: 100.0001–150% is one
-	 * shard, 150.0001–200% two, and so on, per machine. The game data carries
-	 * no usable clockChangePerShard, so the game rule is fixed here.
-	 */
+	/** One shard per 50% over 100%; the game data carries no usable clockChangePerShard, so the rule is fixed here. */
 	public static readonly CLOCK_PER_SHARD = 50;
 
-	/** Recipe cycles per minute of ONE machine at 100% clock. */
 	public static referenceCycles(recipe: Recipe, machine: Building): number
 	{
 		return (60 / recipe.time) * machine.manufacturingSpeed;
 	}
 
-	/** Somersloop output multiplier of one machine (1 without sloops). */
 	public static sloopOutputMultiplier(machine: Building, sloops: number): number
 	{
 		return 1 + machine.sloopBoost * sloops;
 	}
 
-	/** Machine-equivalents at 100% clock the machine groups can run. */
 	public static groupCapacity(groups: MachineGroup[]): number
 	{
 		return groups.reduce((sum, group) => sum + group.machines * (group.clockSpeed / 100), 0);
 	}
 
-	/**
-	 * Output boost from somersloops: boosted cycles per plain cycle, weighted
-	 * by each group's share of the capacity. 1 when no sloops are slotted.
-	 */
 	public static outputBoostRatio(machine: Building, groups: MachineGroup[]): number
 	{
 		let capacityCycles = 0;
@@ -55,20 +38,12 @@ export class Formulas
 		return capacityCycles > 0 ? boostedCycles / capacityCycles : 1;
 	}
 
-	/**
-	 * Whether the recipe runs with its own oscillating draw. The game honours a
-	 * recipe's variable power only in variable-power machines (Converter,
-	 * Particle Accelerator, Quantum Encoder). The data carries no machine flag,
-	 * but exactly those machines report powerUsage 0 - a plain machine keeps
-	 * its fixed draw even for a recipe carrying variable figures (Biochemical
-	 * Sculptor in a Blender draws the Blender's 75 MW).
-	 */
+	/** The game honours variable power only in variable-power machines; the data has no flag, but exactly those report powerUsage 0 (a Blender keeps its 75 MW even for Biochemical Sculptor). */
 	public static usesVariablePower(recipe: Recipe, machine: Building): boolean
 	{
 		return recipe.variablePowerDraw && machine.powerUsage === 0;
 	}
 
-	/** The oscillation band of a variable-draw recipe at 100% clock: constant to constant + factor. */
 	public static variablePowerBand(recipe: Recipe): PowerDraw
 	{
 		return PowerDraw.between(
@@ -77,10 +52,6 @@ export class Formulas
 		);
 	}
 
-	/**
-	 * Per-machine draw at 100% clock with no sloops: the machine's fixed figure,
-	 * or the recipe's oscillation band in a variable-power machine.
-	 */
 	public static basePowerDraw(recipe: Recipe, machine: Building): PowerDraw
 	{
 		return Formulas.usesVariablePower(recipe, machine)
@@ -88,12 +59,7 @@ export class Formulas
 			: PowerDraw.fixed(machine.powerUsage);
 	}
 
-	/**
-	 * Draw of ONE machine at the given clock speed and sloop count: clocking
-	 * scales by the machine's power exponent, somersloops square their output
-	 * multiplier (a fully slooped machine draws 4× at 2× output). Both apply to
-	 * the whole band, so min and max clock independently.
-	 */
+	/** Somersloops square their output multiplier: a fully slooped machine draws 4x at 2x output. */
 	public static machinePowerDraw(recipe: Recipe, machine: Building, clockSpeed: number, sloops: number): PowerDraw
 	{
 		return Formulas.basePowerDraw(recipe, machine).scale(
@@ -102,19 +68,16 @@ export class Formulas
 		);
 	}
 
-	/** Average draw in MW of ONE machine - what the solver and the totals count. */
 	public static machinePowerUsage(recipe: Recipe, machine: Building, clockSpeed: number, sloops: number): number
 	{
 		return Formulas.machinePowerDraw(recipe, machine, clockSpeed, sloops).average;
 	}
 
-	/** Clamps a clock speed to the game's 1–250% range at 4-decimal precision. */
 	public static clampClock(value: number): number
 	{
 		return Math.min(250, Math.max(1, Math.round(value * 10000) / 10000));
 	}
 
-	/** Whole power shards ONE machine needs to run at the given clock speed. */
 	public static powerShards(clockSpeed: number): number
 	{
 		if (clockSpeed <= 100 + 1e-9) {
@@ -123,30 +86,21 @@ export class Formulas
 		return Math.ceil((clockSpeed - 100) / Formulas.CLOCK_PER_SHARD - 1e-9);
 	}
 
-	/**
-	 * Fuel items (m³ for fluids) burned per minute by ONE generator at the
-	 * given clock speed. A generator's power and its fuel draw both scale
-	 * straight with the clock, so overclocking one buys nothing but fewer
-	 * buildings (paid for in power shards).
-	 */
 	public static generatorBurnRate(generator: Building, fuel: Fuel, clockSpeed: number = 100): number
 	{
 		return generator.powerProduction * 60 / fuel.item.energy * (clockSpeed / 100);
 	}
 
-	/** Supplemental fluid m³ per minute for ONE generator at the given clock speed. */
 	public static generatorSupplementalRate(generator: Building, clockSpeed: number = 100): number
 	{
 		return generator.powerProduction * generator.supplementalToPowerRatio * 0.06 * (clockSpeed / 100);
 	}
 
-	/** MW produced by the given (fractional) number of generators at the given clock speed. */
 	public static generatorPowerProduction(generator: Building, count: number, clockSpeed: number = 100): number
 	{
 		return generator.powerProduction * count * (clockSpeed / 100);
 	}
 
-	/** Sink points per minute for sinking the item at the given rate. */
 	public static sinkPoints(item: Item, ratePerMinute: number): number
 	{
 		return item.sinkPoints * ratePerMinute;

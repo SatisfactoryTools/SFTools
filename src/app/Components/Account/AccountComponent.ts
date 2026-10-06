@@ -9,17 +9,11 @@ import {OAuthApiService} from '@src/Model/API/OAuthApiService';
 import {OAuthConnection} from '@src/Model/API/Schema/Auth/OAuthConnection';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {AuthService} from '@src/Model/Auth/AuthService';
+import {DesktopOAuthFlow} from '@src/Model/Auth/DesktopOAuthFlow';
 import {OAuthProviderInfo} from '@src/Model/Auth/OAuthProviderInfo';
 import {OAuthProviders} from '@src/Model/Auth/OAuthProviders';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 
-/**
- * Account settings: the profile (avatar, resolved name, self-chosen display
- * name - see account-and-plan-counts.md) and the user's sign-in methods. Lists all supported
- * providers with connect (link flow - same OAuth redirect, started with the
- * Bearer token) and disconnect; the backend refuses to remove the last
- * sign-in method, mirrored here through the canDisconnect flag.
- */
 @Component({
 	templateUrl: './AccountComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -52,7 +46,6 @@ export class AccountComponent
 	public readonly allProviders = OAuthProviders.ALL;
 	public readonly faCircleUser = faCircleUser;
 
-	/** The display-name field; seeded from the profile until the user types. */
 	public displayNameDraft = '';
 	private draftTouched = false;
 	public savingName = false;
@@ -64,7 +57,6 @@ export class AccountComponent
 	public loading = true;
 	public loadError = false;
 	public error: string | null = null;
-	/** Label of the provider that was just linked (from the callback redirect). */
 	public justLinked: string | null = null;
 	public startingProvider: string | null = null;
 
@@ -72,6 +64,7 @@ export class AccountComponent
 		private readonly oauthApiService: OAuthApiService,
 		protected readonly authService: AuthService,
 		protected readonly account: AccountProfileService,
+		protected readonly desktopOAuth: DesktopOAuthFlow,
 		route: ActivatedRoute,
 	)
 	{
@@ -107,7 +100,6 @@ export class AccountComponent
 		this.nameSaved = false;
 	}
 
-	/** What the greeting falls back to without a display name - shown as the field's placeholder. */
 	public get fallbackName(): string
 	{
 		const profile = this.account.profile();
@@ -165,6 +157,20 @@ export class AccountComponent
 		}
 		this.error = null;
 		this.startingProvider = provider.key;
+		if (this.desktopOAuth.available) {
+			this.desktopOAuth.run(provider.key, true).subscribe({
+				next: () => {
+					this.justLinked = provider.label;
+					this.startingProvider = null;
+					this.reload();
+				},
+				error: (err: Error) => {
+					this.error = err.message;
+					this.startingProvider = null;
+				},
+			});
+			return;
+		}
 		this.oauthApiService.start(provider.key, true).subscribe({
 			next: response => window.location.href = response.authorizationUrl,
 			error: () => {

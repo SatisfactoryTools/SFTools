@@ -13,16 +13,6 @@ import {ModSchemaDescriptors} from '@src/Model/ModEditor/ModSchemaDescriptors';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
-/**
- * Editor for one mod version's data: builds a JSON document in the Data
- * schema format whose entries the API merges into a base version by
- * className. Two ways in - the clickable entry forms, or pasting JSON
- * (validated against the schema before it replaces the working data).
- *
- * Routed two ways: bound to a mod version (/mods/:modId/versions/:id/data),
- * where it loads the uploaded data and saves back through the API, or
- * standalone at /mod-editor as a scratchpad that only produces JSON.
- */
 @Component({
 	templateUrl: './ModEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -36,22 +26,14 @@ export class ModEditorComponent
 	public readonly descriptors = ModSchemaDescriptors.ALL;
 
 	public data: DataSchema = ModSchemaDescriptors.emptyData();
-	/**
-	 * The wrapper metadata of the version file. Mod data files use the FULL
-	 * game-version file format `{data, metadata}` - the server merges from
-	 * the `data` key and merges `metadata` shallowly; a bare data document
-	 * would silently merge nothing. The editor doesn't edit metadata, it just
-	 * round-trips whatever was loaded.
-	 */
+	/** Mod data files use the full version-file format {data, metadata}: the server merges from `data`, and a bare data document would silently merge nothing. */
 	public metadata: Record<string, unknown> = {};
 
 	public activeTab: 'editor' | 'json' = 'editor';
-	/** A collection key, or the two special sections. */
 	public activeSection: string = 'items';
 
 	public newClassName = '';
 	public addError: string | null = null;
-	/** `${collection}:${className}` of the expanded entry; only one open at a time. */
 	public expandedEntry: string | null = null;
 
 	public newResource = '';
@@ -60,7 +42,6 @@ export class ModEditorComponent
 	public pasteErrors: string[] = [];
 	public pasteMessage: string | null = null;
 
-	/** Set when the editor is bound to a mod version (loaded from and saved to the API). */
 	public readonly modId: string | null;
 	public readonly modVersionId: string | null;
 	public mod: Mod | null = null;
@@ -68,7 +49,6 @@ export class ModEditorComponent
 	public loadState: 'loading' | 'ready' | 'error' = 'ready';
 	public saveState: 'idle' | 'saving' | 'saved' | 'error' = 'idle';
 	public saveError: string | null = null;
-	/** Problems found in data loaded from the server (kept editable regardless). */
 	public loadWarnings: string[] = [];
 
 	public constructor(
@@ -125,10 +105,6 @@ export class ModEditorComponent
 		});
 	}
 
-	/**
-	 * Splits a loaded/pasted document into data + metadata, accepting both
-	 * the full version-file format and a bare data document.
-	 */
 	private unwrapVersionFile(parsed: unknown): {data: unknown; metadata: Record<string, unknown>}
 	{
 		if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
@@ -261,7 +237,6 @@ export class ModEditorComponent
 		input.value = '';
 	}
 
-	/** The full document as saved/uploaded: the version-file wrapper around the edited data. */
 	public get generatedJson(): string
 	{
 		return JSON.stringify({data: this.data, metadata: this.metadata}, null, '\t');
@@ -283,7 +258,6 @@ export class ModEditorComponent
 		URL.revokeObjectURL(url);
 	}
 
-	/** Accepts both the full version-file format and a bare data document. */
 	public validatePasted(): {data: unknown; metadata: Record<string, unknown>} | null
 	{
 		this.pasteMessage = null;
@@ -303,7 +277,6 @@ export class ModEditorComponent
 		return null;
 	}
 
-	/** Replaces the working data with the pasted document (missing collections become empty). */
 	public loadPasted(): void
 	{
 		const file = this.validatePasted();

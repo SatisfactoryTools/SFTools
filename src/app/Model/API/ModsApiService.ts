@@ -15,7 +15,6 @@ export class ModsApiService
 	{
 	}
 
-	/** Public mods, plus the requesting user's own when authenticated. */
 	public listMods(): Observable<Mod[]>
 	{
 		return this.http.get<Mod[]>(this.base);
@@ -26,7 +25,6 @@ export class ModsApiService
 		return this.http.get<Mod>(`${this.base}/${id}`);
 	}
 
-	/** Mods are created private; the public flag is admin-managed and never sent from here. */
 	public createMod(name: string): Observable<Mod>
 	{
 		return this.http.post<Mod>(this.base, {name});
@@ -47,7 +45,6 @@ export class ModsApiService
 		return this.http.post<ModVersion>(`${this.base}/${modId}/versions`, {name, data});
 	}
 
-	/** `data: null` clears the uploaded data; omitting `data` leaves it unchanged. */
 	public updateModVersion(modId: string, versionId: string, fields: {name?: string; data?: object | null}): Observable<ModVersion>
 	{
 		return this.http.put<ModVersion>(`${this.base}/${modId}/versions/${versionId}`, fields);
@@ -58,10 +55,7 @@ export class ModsApiService
 		return this.http.delete<void>(`${this.base}/${modId}/versions/${versionId}`);
 	}
 
-	/**
-	 * The version's uploaded data file. Served statically and regenerated in
-	 * place on updates, so a cache-busting parameter keeps edits fresh.
-	 */
+	/** The file is regenerated in place, so the timestamp parameter defeats caching. */
 	public getModVersionData(versionId: string): Observable<unknown>
 	{
 		return this.http.get<unknown>(`${env.apiUrl}/data/mods/${versionId}.json`, {params: {t: Date.now().toString()}});

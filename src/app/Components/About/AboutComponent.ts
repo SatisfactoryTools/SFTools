@@ -5,7 +5,6 @@ import {CommunityLinks} from '@src/Model/CommunityLinks';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HomeFeature} from '@src/Components/Home/HomeFeature';
 
-/** What the site is, what is in it, and who made it. Help and tutorials will join it later. */
 @Component({
 	templateUrl: './AboutComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,

@@ -12,32 +12,18 @@ import {SearchResultType} from '@src/Model/Search/SearchResultType';
 
 const MAX_RESULTS_PER_GROUP = 5;
 const ALL_TYPES: SearchResultType[] = ['item', 'recipe', 'building', 'schematic', 'plan', 'folder', 'article'];
-// Characters of description context shown before/after a matched part.
 const SNIPPET_CONTEXT = 36;
 
-// Match quality - an exact name always beats a prefix, a prefix beats a
-// substring, initials ("hmf" → Heavy Modular Frame) rank just below any
-// direct name hit, and a description hit ranks below everything.
 const SCORE_NAME_EXACT = 100;
 const SCORE_NAME_PREFIX = 80;
 const SCORE_NAME_SUBSTRING = 60;
 const SCORE_NAME_INITIALS = 50;
 const SCORE_DESCRIPTION = 30;
 
-/**
- * Searches everything reachable in the current version: the codex (items,
- * recipes, buildings, schematics - by name and description), the user's plans
- * and folders (by name) and the help articles (title, summary, keywords and
- * section headings). Results come back in fixed groups (codex types first,
- * then plans, folders and help), each sorted by match quality.
- * Callers may narrow the searched types (the codex panel searches only the
- * codex, or only its current section) and lift the per-group cap.
- */
 @Injectable({providedIn: 'root'})
 export class SearchService
 {
 
-	/** Shorter than this and a query matches far too much to be worth showing. */
 	public static readonly MIN_QUERY_LENGTH = 2;
 
 	public constructor(
@@ -109,12 +95,6 @@ export class SearchService
 		return match !== null ? {type, id, name, icons, ...match} : null;
 	}
 
-	/**
-	 * An article matches on its title and summary like anything else, and
-	 * additionally on the keywords its author gave it and on its section
-	 * headings - "sloops" should find the article whose section explains them,
-	 * even when the title says nothing about it.
-	 */
 	private articleResult(slug: string, article: HelpArticleSummary, query: string): SearchResult | null
 	{
 		const direct = this.result('article', slug, article.title, [], article.summary, query);
@@ -186,15 +166,6 @@ export class SearchService
 		return null;
 	}
 
-	/**
-	 * Matches the query against the name's word initials, so usual shortcuts
-	 * work: "hmf" → Heavy Modular Frame, "cg" → Coal-Powered Generator. The
-	 * first letter must match the first word; later letters may skip words
-	 * (the "P" in Coal-Powered). Names, not descriptions - and only
-	 * multi-word names, where initials are a meaningful shorthand. Returns
-	 * the string positions of the matched initials (for highlighting), or
-	 * null when there is no match.
-	 */
 	private matchInitials(query: string, name: string): number[] | null
 	{
 		const words = [...name.matchAll(/[a-z0-9]+/gi)];
@@ -225,7 +196,6 @@ export class SearchService
 		return positions;
 	}
 
-	/** Splits text into fragments with every occurrence of the query marked. */
 	private highlight(text: string, query: string): SearchFragment[]
 	{
 		const lower = text.toLowerCase();
@@ -244,7 +214,6 @@ export class SearchService
 		return fragments;
 	}
 
-	/** Splits text into fragments with the single characters at `positions` marked. */
 	private highlightPositions(text: string, positions: number[]): SearchFragment[]
 	{
 		const fragments: SearchFragment[] = [];
@@ -262,7 +231,6 @@ export class SearchService
 		return fragments;
 	}
 
-	/** Context around a description hit, ellipsized at cut edges, newlines flattened. */
 	private snippet(description: string, index: number, length: number): SearchFragment[]
 	{
 		const start = Math.max(0, index - SNIPPET_CONTEXT);

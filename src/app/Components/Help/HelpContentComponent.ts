@@ -9,19 +9,9 @@ import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 import {HelpImageViewerService} from '@src/Model/Help/HelpImageViewerService';
 import {HelpMarkdownRenderer} from '@src/Model/Help/HelpMarkdownRenderer';
 
-/** An alternative text that is only the uploaded file's name tells a reader nothing. */
 const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 
-/**
- * Renders an article's Markdown and keeps its links inside the app: article
- * and route links go through the router, `panel:` links bring up the planner
- * panel they name, and everything external opens in a new tab. Pictures open
- * at full size in the app's own viewer.
- *
- * The rendered HTML is built by HelpMarkdownRenderer, which drops raw HTML and
- * only ever emits the markup and attributes below - hence the bypass, without
- * which Angular would strip the data attributes the click handler needs.
- */
+/** HelpMarkdownRenderer drops raw HTML and emits only known markup - hence the sanitizer bypass, without which Angular would strip the data attributes the click handler needs. */
 @Component({
 	selector: 'help-content',
 	templateUrl: './HelpContentComponent.html',
@@ -38,8 +28,6 @@ const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 		:host ::ng-deep .help-content > *:first-child {
 			margin-top: 0;
 		}
-		/* Sections are the landmarks of a long article: a rule above each one
-		   breaks the page into blocks the eye can find its way back to. */
 		:host ::ng-deep .help-content h2 {
 			font-size: 1.3rem;
 			margin: 2rem 0 0.6rem;
@@ -51,14 +39,11 @@ const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 			margin: 1.5rem 0 0.4rem;
 			color: #dfe7ef;
 		}
-		/* Deep links land under the fixed navbar otherwise; the host page says
-		   how much of the top is covered. */
+		/* Deep links land under the fixed navbar otherwise; the host page says how much of the top is covered. */
 		:host ::ng-deep .help-content h2,
 		:host ::ng-deep .help-content h3 {
 			scroll-margin-top: calc(var(--help-sticky-top, 0.75rem) + 0.5rem);
 		}
-		/* The '#' in front of a heading: quiet until pointed at, and the way to
-		   copy the address of one section. */
 		:host ::ng-deep .help-content .help-anchor {
 			margin-right: 0.35rem;
 			color: #4a566b;
@@ -68,12 +53,7 @@ const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 		:host ::ng-deep .help-content .help-anchor:hover {
 			color: var(--bs-primary);
 		}
-		/* The section the current address names, for a reader who followed a
-		   link to one part of a long article. */
 		:host ::ng-deep .help-content .help-current-section {
-			/* The tinted box needs room above the text as well, or the heading
-			   looks stuck to its top edge; headings carry no top padding of
-			   their own and h3 carries none at the bottom either. */
 			padding: 0.3rem 0 0.3rem 0.55rem;
 			border-left: 3px solid var(--bs-primary);
 			background: linear-gradient(90deg, color-mix(in srgb, var(--bs-primary) 16%, transparent), transparent 70%);
@@ -93,8 +73,7 @@ const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 		:host ::ng-deep .help-content li + li {
 			margin-top: 0.3rem;
 		}
-		/* Bootstrap's own kbd is inverted (dark text on light), which disappears
-		   in this theme, so the colour is set here as well. */
+		/* Bootstrap's own kbd is inverted (dark on light), which disappears in this theme. */
 		:host ::ng-deep .help-content kbd {
 			color: #e9eef5;
 			background: #2b3444;
@@ -174,7 +153,6 @@ const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 		:host ::ng-deep .help-figure {
 			margin: 1.25rem 0;
 		}
-		/* Clicking a screenshot opens it at full size, hence the lens cursor. */
 		:host ::ng-deep .help-figure img {
 			max-width: 100%;
 			border: 1px solid #2b3444;
@@ -220,13 +198,10 @@ export class HelpContentComponent implements HelpLinkResolver
 		@Optional() private readonly panelLayout: PanelLayoutService | null,
 	)
 	{
-		// Mark the section the address points at, so a reader arriving through
-		// someone's link sees where they were meant to start.
 		effect(() => {
 			const anchor = this.navigation.anchor();
 			this.html();
-			// One frame later: the headings only exist once the rendered
-			// Markdown has been written through innerHTML.
+			// The headings only exist once the rendered Markdown has been written through innerHTML.
 			requestAnimationFrame(() => this.markCurrentSection(anchor));
 		});
 	}
@@ -242,20 +217,11 @@ export class HelpContentComponent implements HelpLinkResolver
 		return this.router.serializeUrl(this.navigation.urlTree(HelpNavigation.pathFor(slug, anchor)));
 	}
 
-	/** The '#' of a heading points at the section within the article being read. */
 	public sectionHref(anchor: string): string
 	{
 		return this.articleHref(this.navigation.slug(), anchor);
 	}
 
-	/**
-	 * Inside the planner the link opens the panel where the reader already is,
-	 * so it points at the current URL; on the fullscreen page it leads back
-	 * into the planner with the wanted panel in `?panel=`, which the planner
-	 * brings up on arrival. Empty when there is no planner to go back to - a
-	 * reader who has not opened one yet - and the name is then left as plain
-	 * text rather than a link that goes nowhere useful.
-	 */
 	public panelHref(panelId: string): string
 	{
 		if (this.panelLayout !== null) {
@@ -267,7 +233,6 @@ export class HelpContentComponent implements HelpLinkResolver
 			: this.router.serializeUrl(this.router.createUrlTree(planner, {queryParams: {panel: panelId}}));
 	}
 
-	/** Where "back to the planner" goes: the last one visited, or the active version's. */
 	private plannerLink(): string[] | null
 	{
 		const remembered = this.backToPlanner.link();
@@ -281,13 +246,11 @@ export class HelpContentComponent implements HelpLinkResolver
 	@HostListener('click', ['$event'])
 	protected onClick(event: MouseEvent): boolean
 	{
-		// Modified or non-primary clicks fall through to the browser (new tab etc.).
 		if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
 			return true;
 		}
 
 		const target = event.target as HTMLElement | null;
-		// A picture that is not itself a link opens at full size instead.
 		if (target instanceof HTMLImageElement && target.closest('a') === null) {
 			event.preventDefault();
 			this.openImage(target);
@@ -320,8 +283,6 @@ export class HelpContentComponent implements HelpLinkResolver
 				this.panelLayout.focusPanel(panel);
 				return false;
 			}
-			// The fullscreen page: back into the planner, which opens the panel
-			// named in the link's own `?panel=`.
 			const target = anchor.getAttribute('href') ?? '';
 			if (target !== '') {
 				event.preventDefault();
@@ -340,7 +301,6 @@ export class HelpContentComponent implements HelpLinkResolver
 		return true;
 	}
 
-	/** Pictures are focusable, so the keyboard opens them the way a click does. */
 	@HostListener('keydown', ['$event'])
 	protected onKeyDown(event: KeyboardEvent): void
 	{
@@ -352,11 +312,6 @@ export class HelpContentComponent implements HelpLinkResolver
 		this.openImage(target);
 	}
 
-	/**
-	 * Shows a picture at full size. Its caption is the description to show with
-	 * it; without one the alternative text does the job, unless that is just
-	 * the name of the uploaded file.
-	 */
 	private openImage(image: HTMLImageElement): void
 	{
 		const alt = image.alt.trim();

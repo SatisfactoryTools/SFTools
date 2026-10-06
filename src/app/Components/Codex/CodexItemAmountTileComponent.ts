@@ -4,19 +4,12 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 import {ItemAmount} from '@src/Model/Data/Entities/Parts/ItemAmount';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * The "amount × icon" tile every codex listing uses for an item amount -
- * cross-linked to the item, its name as tooltip, an optional caption (e.g.
- * a per-minute rate) underneath. Renders nothing for dangling references.
- */
 @Component({
 	selector: 'codex-item-amount-tile',
 	templateUrl: './CodexItemAmountTileComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [CodexLinkDirective, GameIconComponent],
-	// display:contents lets the anchor participate directly in the parent's
-	// flex row; the :not(.btn) qualifiers out-rank the theme's
-	// ".table a:not(.btn)" white-underlined-link styling inside tables.
+	// display:contents lets the anchor join the parent's flex row; :not(.btn) out-ranks the theme's ".table a:not(.btn)" link styling inside tables.
 	styles: `
 		:host {
 			display: contents;

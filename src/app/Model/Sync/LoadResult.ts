@@ -1,9 +1,4 @@
-/**
- * The outcome of a backend load. A failure and an empty store both arrive as
- * "no data", but they must not be treated alike: reading a failure as "nothing
- * stored" is what lets client-side defaults overwrite what the server still
- * holds.
- */
+/** A failure and an empty store both arrive as "no data" but must stay distinct: reading a failure as "nothing stored" lets client defaults overwrite the server. */
 export interface LoadResult<T>
 {
 	ok: boolean;

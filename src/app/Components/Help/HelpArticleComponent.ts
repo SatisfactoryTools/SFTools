@@ -12,16 +12,6 @@ import {HelpArticleSection} from '@src/Model/API/Schema/Help/HelpArticleSection'
 import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 
-/**
- * One article: its body, the contents of the article beside it, and the ways
- * on - "see also" and the neighbours in its category. The body is fetched per
- * article (the manifest carries only metadata) from the static file the
- * backend writes, cache-busted by the manifest's timestamp.
- *
- * The host is its own container, so whether the contents list fits next to
- * the text depends on the width the article itself got - not on the panel's,
- * which may already be spending part of itself on the article list.
- */
 @Component({
 	selector: 'help-article',
 	templateUrl: './HelpArticleComponent.html',
@@ -38,8 +28,6 @@ import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 			grid-template-columns: minmax(0, 1fr);
 			gap: 1.75rem;
 		}
-		/* The reading measure: headings, text and the lists below it all line
-		   up on the same column. */
 		.article-main {
 			max-width: 74ch;
 		}
@@ -62,10 +50,6 @@ import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 			gap: 0.6rem;
 		}
 
-		/* ── Previous / next ────────────────────────────────────────────── */
-
-		/* Two fixed halves, so the one that exists keeps its side of the page
-		   instead of stretching across it when there is no other. */
 		.steps {
 			display: grid;
 			grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -86,7 +70,6 @@ import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 			}
 		}
 		a.step {
-			/* .card lays its content out in a column - these two read as a row. */
 			display: flex;
 			flex-direction: row;
 			align-items: center;
@@ -130,15 +113,10 @@ import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 			margin-bottom: 0;
 		}
 
-		/* ── Contents ───────────────────────────────────────────────────── */
-
 		.toc {
 			display: none;
 		}
 		@container article (min-width: 760px) {
-			/* Text and contents keep their own widths and share whatever is
-			   left over evenly, instead of the contents drifting off to the
-			   far edge of a wide screen. */
 			.article-layout {
 				grid-template-columns: minmax(0, 74ch) 200px;
 				justify-content: center;
@@ -206,22 +184,18 @@ export class HelpArticleComponent
 
 	protected readonly file = computed<HelpArticleFile | null>(() => this.article.value() ?? null);
 
-	/** The category the article is filed under, shown above its title. */
 	protected readonly categoryName = computed(() => {
 		const category = this.help.summary(this.slugSignal())?.category ?? '';
 		return this.help.categories().find(entry => entry.id === category)?.name ?? '';
 	});
 
-	/** The article's own headings - a single one is the title again, so it is not worth a list. */
 	protected readonly sections = computed<HelpArticleSection[]>(() => {
 		const sections = this.file()?.sections ?? [];
 		return sections.length > 1 ? sections : [];
 	});
 
-	/** The section being read, to mark it in the contents. */
 	protected readonly currentAnchor = computed(() => this.navigation.anchor());
 
-	/** Related articles that actually exist and are published; the rest are skipped. */
 	protected readonly relatedArticles = computed<HelpRelatedArticle[]>(() => {
 		const related: HelpRelatedArticle[] = [];
 		for (const slug of this.file()?.seeAlso ?? []) {
@@ -233,7 +207,6 @@ export class HelpArticleComponent
 		return related;
 	});
 
-	/** The articles before and after this one in its category - reading it as a chapter. */
 	protected readonly previousArticle = computed<HelpRelatedArticle | null>(() => this.neighbour(-1));
 	protected readonly nextArticle = computed<HelpRelatedArticle | null>(() => this.neighbour(1));
 
@@ -248,26 +221,21 @@ export class HelpArticleComponent
 		private readonly host: ElementRef<HTMLElement>,
 	)
 	{
-		// Jump to the section a question-mark button or a link pointed at, once
-		// the body it lives in is on the page.
 		effect(() => {
 			const anchor = this.navigation.anchor();
 			if (this.file() === null || anchor === '') {
 				return;
 			}
-			// One frame later: the rendered Markdown is written through
-			// innerHTML, so the heading only exists after this change detection.
+			// The rendered Markdown is written through innerHTML, so the heading only exists after this change detection.
 			requestAnimationFrame(() => this.scrollTo(anchor));
 		});
 	}
 
-	/** A help path to one of this article's own sections, for the contents list. */
 	protected sectionPath(anchor: string): string
 	{
 		return HelpNavigation.pathFor(this.slugSignal(), anchor);
 	}
 
-	/** The article `offset` places away in the same category, if there is one. */
 	private neighbour(offset: number): HelpRelatedArticle | null
 	{
 		const slug = this.slugSignal();

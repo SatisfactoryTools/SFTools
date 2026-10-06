@@ -24,7 +24,6 @@ export class PlannerActionsService
 	private readonly cancelSubject = new Subject<void>();
 	public readonly cancelRequests: Observable<void> = this.cancelSubject.asObservable();
 
-	/** A replacement node with the same id. */
 	private readonly nodeUpdateSubject = new Subject<Node>();
 	public readonly nodeUpdateRequests: Observable<Node> = this.nodeUpdateSubject.asObservable();
 
@@ -37,7 +36,6 @@ export class PlannerActionsService
 	private readonly relayoutSubject = new Subject<void>();
 	public readonly relayoutRequests: Observable<void> = this.relayoutSubject.asObservable();
 
-	/** Graph-local position. */
 	private readonly nodeAddSubject = new Subject<GraphPoint>();
 	public readonly nodeAddRequests: Observable<GraphPoint> = this.nodeAddSubject.asObservable();
 
@@ -56,19 +54,15 @@ export class PlannerActionsService
 	private readonly nodeSplitSubject = new Subject<NodeSplitRequest>();
 	public readonly nodeSplitRequests: Observable<NodeSplitRequest> = this.nodeSplitSubject.asObservable();
 
-	/** Node ids; their edges go too. */
 	private readonly nodeDeleteSubject = new Subject<string[]>();
 	public readonly nodeDeleteRequests: Observable<string[]> = this.nodeDeleteSubject.asObservable();
 
-	/** Graph-local position. */
 	private readonly subplanCreateSubject = new Subject<GraphPoint>();
 	public readonly subplanCreateRequests: Observable<GraphPoint> = this.subplanCreateSubject.asObservable();
 
-	/** Node ids. */
 	private readonly subplanConvertSubject = new Subject<string[]>();
 	public readonly subplanConvertRequests: Observable<string[]> = this.subplanConvertSubject.asObservable();
 
-	/** Plan id. */
 	private readonly subplanOpenSubject = new Subject<string>();
 	public readonly subplanOpenRequests: Observable<string> = this.subplanOpenSubject.asObservable();
 
@@ -78,36 +72,27 @@ export class PlannerActionsService
 	private readonly subplanBuildCountSubject = new Subject<SubplanBuildCountRequest>();
 	public readonly subplanBuildCountRequests: Observable<SubplanBuildCountRequest> = this.subplanBuildCountSubject.asObservable();
 
-	// Node context menu shortcuts that edit the solver inputs; automatic mode then recalculates on its own.
-
-	/** Recipe class name. */
 	private readonly recipeDisableSubject = new Subject<string>();
 	public readonly recipeDisableRequests: Observable<string> = this.recipeDisableSubject.asObservable();
 
-	/** Machine class name. */
 	private readonly machineDisableSubject = new Subject<string>();
 	public readonly machineDisableRequests: Observable<string> = this.machineDisableSubject.asObservable();
 
-	/** Item class name. */
 	private readonly byproductDisableSubject = new Subject<string>();
 	public readonly byproductDisableRequests: Observable<string> = this.byproductDisableSubject.asObservable();
 
 	private readonly fuelDisableSubject = new Subject<FuelDisableRequest>();
 	public readonly fuelDisableRequests: Observable<FuelDisableRequest> = this.fuelDisableSubject.asObservable();
 
-	/** Generator class name. */
 	private readonly generatorDisableSubject = new Subject<string>();
 	public readonly generatorDisableRequests: Observable<string> = this.generatorDisableSubject.asObservable();
 
-	/** Item class name. */
 	private readonly productRemoveSubject = new Subject<string>();
 	public readonly productRemoveRequests: Observable<string> = this.productRemoveSubject.asObservable();
 
-	/** Raw resource class name. */
 	private readonly resourceDisableSubject = new Subject<string>();
 	public readonly resourceDisableRequests: Observable<string> = this.resourceDisableSubject.asObservable();
 
-	/** Item class name. */
 	private readonly inputRemoveSubject = new Subject<string>();
 	public readonly inputRemoveRequests: Observable<string> = this.inputRemoveSubject.asObservable();
 

@@ -5,12 +5,6 @@ import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver'
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 
-/**
- * The small count shown on each production request tab: how much is set up
- * behind it (items requested, recipes enabled of all, overrides…). Null means
- * no badge - either nothing to count for that tab, or the value is the
- * value has nothing to count (folders have no request or inputs).
- */
 @Injectable({providedIn: 'root'})
 export class CalculatorTabBadgeResolver
 {
@@ -49,7 +43,6 @@ export class CalculatorTabBadgeResolver
 			}
 			case 'resources': {
 				if (!data) return null;
-				// Available = switched on and not capped at zero (unlimited counts).
 				const limits = settings.resourceLimits ?? {};
 				const disabled = new Set(settings.disabledResources ?? []);
 				const available = data.resources.filter(className =>

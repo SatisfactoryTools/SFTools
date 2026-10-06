@@ -1,10 +1,6 @@
 import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 
-/**
- * A manually added item source: the elastic counterpart of ByproductNode.
- * Graph reconciliation grows and shrinks it to match connected demand.
- */
 export class InputNode extends ItemAmountNode
 {
 

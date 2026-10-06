@@ -1,5 +1,8 @@
 import {Injectable, Signal, WritableSignal, computed, signal} from '@angular/core';
 import {TokenResponse} from '@src/Model/API/Schema/Auth/TokenResponse';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
+import {UnsyncedPlanRescue} from '@src/Model/Planner/UnsyncedPlanRescue';
+import {OfflineMirrorBackend} from '@src/Model/Sync/OfflineMirrorBackend';
 
 @Injectable({providedIn: 'root'})
 export class AuthService
@@ -11,17 +14,13 @@ export class AuthService
 	public readonly accessToken: Signal<string | null>;
 	public readonly currentLogin: Signal<string | null>;
 	public readonly isAuthenticated: Signal<boolean>;
-	/**
-	 * A name fit for greeting the user. Third-party sign-ins have no username
-	 * (the API offers none yet - see backend-requests.md), so their stored login
-	 * is a "via Discord" placeholder and this is null for them.
-	 */
+	/** Third-party sign-ins have no username: their stored login is a "via Discord" placeholder, so this is null for them. */
 	public readonly displayName: Signal<string | null>;
 
-	public constructor()
+	public constructor(private readonly storage: AppStorage)
 	{
-		this.accessTokenSignal = signal(localStorage.getItem('auth.accessToken'));
-		this.loginSignal = signal(localStorage.getItem('auth.login'));
+		this.accessTokenSignal = signal(this.storage.getItem('auth.accessToken'));
+		this.loginSignal = signal(this.storage.getItem('auth.login'));
 		this.accessToken = this.accessTokenSignal.asReadonly();
 		this.currentLogin = this.loginSignal.asReadonly();
 		this.isAuthenticated = computed(() => this.accessToken() !== null);
@@ -34,32 +33,36 @@ export class AuthService
 	public storeSession(login: string, response: TokenResponse): void
 	{
 		const expiresAt = Date.now() + response.expiresIn * 1000;
-		localStorage.setItem('auth.accessToken', response.accessToken);
-		localStorage.setItem('auth.refreshToken', response.refreshToken);
-		localStorage.setItem('auth.expiresAt', String(expiresAt));
-		localStorage.setItem('auth.login', login);
+		this.storage.setItem('auth.accessToken', response.accessToken);
+		this.storage.setItem('auth.refreshToken', response.refreshToken);
+		this.storage.setItem('auth.expiresAt', String(expiresAt));
+		this.storage.setItem('auth.login', login);
 		this.accessTokenSignal.set(response.accessToken);
 		this.loginSignal.set(login);
 	}
 
-	public clearSession(): void
+	public clearSession(): number
 	{
-		localStorage.removeItem('auth.accessToken');
-		localStorage.removeItem('auth.refreshToken');
-		localStorage.removeItem('auth.expiresAt');
-		localStorage.removeItem('auth.login');
+		this.storage.removeItem('auth.accessToken');
+		this.storage.removeItem('auth.refreshToken');
+		this.storage.removeItem('auth.expiresAt');
+		this.storage.removeItem('auth.login');
+		// Offline copies of the account data leave with it, except edits that never reached the account.
+		const rescued = new UnsyncedPlanRescue(this.storage).run();
+		this.storage.keys(OfflineMirrorBackend.KEY_PREFIX).forEach(key => this.storage.removeItem(key));
 		this.accessTokenSignal.set(null);
 		this.loginSignal.set(null);
+		return rescued;
 	}
 
 	public getRefreshToken(): string | null
 	{
-		return localStorage.getItem('auth.refreshToken');
+		return this.storage.getItem('auth.refreshToken');
 	}
 
 	public isExpired(): boolean
 	{
-		const expiresAt = localStorage.getItem('auth.expiresAt');
+		const expiresAt = this.storage.getItem('auth.expiresAt');
 		if (!expiresAt) return true;
 		return Date.now() >= parseInt(expiresAt) - 30_000;
 	}

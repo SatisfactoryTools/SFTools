@@ -16,14 +16,17 @@
 				</a>
 			</li>
 			<li>
-				<button class="dropdown-item" type="button" (click)="logout()">
+				<button class="dropdown-item" type="button" [disabled]="!connectivity.online()" (click)="logout()">
 					<fa-icon [icon]="faRightFromBracket"></fa-icon>
 					Logout
 				</button>
 			</li>
+			@if (!connectivity.online()) {
+				<li><span class="dropdown-item-text small text-secondary">Offline - your changes are saved to your account once you are back online.</span></li>
+			}
 		</ul>
 	</li>
-} @else {
+} @else if (connectivity.online()) {
 	<li class="nav-item">
 		<a class="nav-link" routerLink="/auth/login" [queryParams]="{returnUrl: router.url}" routerLinkActive="active">
 			<fa-icon [icon]="faRightToBracket"></fa-icon>

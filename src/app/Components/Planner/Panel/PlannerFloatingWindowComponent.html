@@ -40,7 +40,7 @@
 		</div>
 	}
 	@if (activePanel?.helpTopic; as topic) {
-		<help-button class="tab-help" [topic]="topic" placement="bottom"/>
+		<help-button #helpEl class="tab-help" [topic]="topic" placement="bottom"/>
 	}
 	<div class="fw-grab"></div>
 	<!-- Invisible copy of every tab at natural width, used to decide how many fit -->

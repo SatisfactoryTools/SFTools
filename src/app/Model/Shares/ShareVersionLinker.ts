@@ -5,13 +5,7 @@ import {VersionsApiService} from '@src/Model/API/VersionsApiService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * Puts the game version of something opened from a link into the viewer's own list.
- * Versions are shared, deduplicated objects, so this is only a link - but without it a
- * custom version someone else made is unknown to the viewer and its planner URL cannot
- * even resolve. Used by every "opened from a link" entry point: shares, plan links and
- * the version route itself.
- */
+/** Without this link a custom version someone else made is unknown to the viewer and its planner URL cannot resolve. */
 @Injectable({providedIn: 'root'})
 export class ShareVersionLinker
 {
@@ -24,13 +18,6 @@ export class ShareVersionLinker
 	{
 	}
 
-	/**
-	 * Makes sure the version is in the viewer's list, fetching it publicly when it is
-	 * not. Takes the version's id or its URL slug - a plan link carries only the slug,
-	 * and GET /v1/versions/{uuid} accepts both. Authenticated viewers get a server-side
-	 * link too; a failed link is tolerated (the version still works this session and
-	 * the next visit retries).
-	 */
 	public ensure(idOrSlug: string): Observable<void>
 	{
 		if (this.versionManager.versions().some(v => v.id === idOrSlug || this.versionManager.urlSlug(v) === idOrSlug)) {
@@ -42,6 +29,7 @@ export class ShareVersionLinker
 					return of(version);
 				}
 				return this.versionsApi.linkVersions([version.id]).pipe(
+					// A failed link is tolerated: the version still works this session and the next visit retries.
 					catchError(() => of(null)),
 					map(() => version),
 				);

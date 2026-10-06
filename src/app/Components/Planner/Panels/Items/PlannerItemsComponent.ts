@@ -9,11 +9,6 @@ import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownSe
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * Item flows of the plan, grouped by item. Each row sums the item's sources
- * (produced or brought in) and targets (consumed or shipped out) and expands
- * into the individual producers and consumers; subplans appear by name.
- */
 @Component({
 	selector: 'planner-items',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -31,7 +26,6 @@ export class PlannerItemsComponent
 
 	private readonly expandedKeysSignal = signal<ReadonlySet<string>>(new Set());
 
-	/** Folder selected: each plan's outside interface; plan selected: every node's flows. */
 	public readonly isFolderView = computed(() => this.planManager.activeFolder() !== null);
 
 	private readonly allRows: Signal<ItemRow[]> = computed(() => {
@@ -59,17 +53,12 @@ export class PlannerItemsComponent
 		this.searchTermSignal.set(value);
 	}
 
-	/** An active search auto-expands rows, so matched sources/targets are visible. */
 	public isExpanded(row: ItemRow): boolean
 	{
 		return this.searchTerm().trim() !== '' || this.expandedKeysSignal().has(row.item.className);
 	}
 
-	/**
-	 * The unit part of a rate, rendered after a <wbr> so that a long figure like
-	 * "14366.67/min" may break before its unit in a narrow panel instead of
-	 * widening the table. Matches RateFormatter.rate() spacing.
-	 */
+	/** Rendered after a <wbr>, so the spacing must match RateFormatter.rate(). */
 	public unitText(item: Item): string
 	{
 		const unit = this.rateFormatter.unit(item);

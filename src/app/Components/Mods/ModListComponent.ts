@@ -7,7 +7,6 @@ import {Mod} from '@src/Model/API/Schema/Mods/Mod';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
-/** All mods visible to the user - their own (manageable) and public ones - plus the create form. */
 @Component({
 	templateUrl: './ModListComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,

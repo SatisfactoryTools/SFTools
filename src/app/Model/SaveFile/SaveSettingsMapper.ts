@@ -4,15 +4,6 @@ import {Building} from '@src/Model/Data/Entities/Building';
 import {SaveFileUnlocks} from '@src/Model/SaveFile/SaveFileUnlocks';
 import {SaveSettingsMapResult} from '@src/Model/SaveFile/SaveSettingsMapResult';
 
-/**
- * Turns a save file's unlock progression into plan-settings pieces: machines
- * whose build recipe is not unlocked get disabled, the enabled recipes become
- * exactly the unlocked machine recipes, and every unlocked generator gets the
- * fuels the plan can actually source (a raw resource, or produced by an
- * unlocked recipe - hand-gathered fuels like leaves stay off). Save entries
- * unknown to the dataset (unlocks from mods not part of the active version)
- * are ignored and only surface as a count in the summary.
- */
 @Injectable({providedIn: 'root'})
 export class SaveSettingsMapper
 {
@@ -30,9 +21,7 @@ export class SaveSettingsMapper
 			}
 		});
 
-		// The recipe manager already lists everything the schematics unlocked,
-		// but resolving the schematics too keeps the result complete when a
-		// save carries only one of the two managers.
+		// The recipe manager already lists what the schematics unlocked, but a save may carry only one of the two managers.
 		unlocks.schematics.forEach(className => {
 			const schematic = data.searchSchematicByClassName(className);
 			if (!schematic) {
@@ -98,7 +87,6 @@ export class SaveSettingsMapper
 		return buildRecipe === undefined || unlockedRecipes.has(buildRecipe.className);
 	}
 
-	/** Items the solver can source: raw resources plus products of the unlocked machine recipes. */
 	private resolveSourceableItems(data: Data, unlockedRecipes: Set<string>): Set<string>
 	{
 		const sourceable = new Set<string>(data.resources);

@@ -2,11 +2,7 @@ import {Injectable, Signal, signal} from '@angular/core';
 import {ContextMenuPosition} from '@src/Components/Planner/ContextMenu/ContextMenuPosition';
 import {NodeTooltipContent} from '@src/Components/Planner/Tooltip/NodeTooltipContent';
 
-/**
- * Hover tooltips for canvas elements: the graph is x6-rendered SVG, which
- * ngx-bootstrap tooltips cannot attach to, so this mirrors the context menu's
- * signal-driven fixed overlay instead.
- */
+/** The graph is x6-rendered SVG, which ngx-bootstrap tooltips cannot attach to, so this mirrors the context menu's fixed overlay. */
 @Injectable()
 export class PlannerNodeTooltipService
 {

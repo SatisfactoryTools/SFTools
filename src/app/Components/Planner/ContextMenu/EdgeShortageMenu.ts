@@ -2,11 +2,6 @@ import {faArrowUp, faCheck} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 
-/**
- * Decision dropdown shown when a drawn connection asks for more than the
- * source has free: grow the source to cover the edge, or keep it as is and
- * connect only the free amount. Dismissing the menu creates no edge at all.
- */
 export class EdgeShortageMenu extends PlannerContextMenu
 {
 

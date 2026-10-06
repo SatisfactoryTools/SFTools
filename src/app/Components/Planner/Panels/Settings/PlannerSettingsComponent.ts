@@ -31,29 +31,19 @@ export class PlannerSettingsComponent
 
 	public readonly activePlan: Signal<Plan | null>;
 
-	/**
-	 * A folder edits the same settings as a plan, and they are the starting
-	 * values for the plans and subfolders made inside it - the folder holds a
-	 * whole PlanSettings, of which these are the keys no settings group owns.
-	 */
 	public readonly activeFolder: Signal<Folder | null>;
 
-	/** What the panel edits: the plan's settings, or the folder's custom ones. Null while a folder inherits. */
 	public readonly editedSettings: Signal<PlanSettings | null>;
 
 	public readonly graphSettings: Signal<GraphLayoutSettings>;
 
-	/** Where a folder without custom settings takes its values from today. */
 	public readonly parentLabel: Signal<string>;
 
-	/** Why the active folder cannot get its own settings (an ancestor fixes them), or null. */
 	public readonly customSettingsBlocker: Signal<string | null>;
 
-	/** A shared plan's settings are shown but locked (the write paths are guarded anyway). */
 	public readonly readOnly: Signal<boolean>;
 	public readonly readOnlyNote: Signal<string>;
 
-	/** Which cards are folded; shared, so a fold survives closing the panel. */
 	public readonly foldState: CollapsibleSections;
 
 	public constructor(
@@ -85,7 +75,6 @@ export class PlannerSettingsComponent
 		});
 	}
 
-	/** Machines used by at least one recipe in the active version, sorted by name. */
 	public get machines(): Building[]
 	{
 		const data = this.versionManager.activeVersionData();
@@ -113,7 +102,6 @@ export class PlannerSettingsComponent
 		return this.graphSettings().machineColors[machine.className] ?? this.appSettings.graph().nodeColors.recipe;
 	}
 
-	/** Adds the machine (seeded with the default recipe colour) or removes its override. */
 	public setMachineEnabled(machine: Building, enabled: boolean): void
 	{
 		const machineColors = {...this.graphSettings().machineColors};
@@ -135,7 +123,6 @@ export class PlannerSettingsComponent
 		return this.groupingModes.resolve(this.editedSettings());
 	}
 
-	/** New nodes (manual or solver-built) start with this machine-group arrangement. */
 	public setDefaultGroupingMode(mode: GroupingMode): void
 	{
 		const settings = this.editedSettings();
@@ -144,7 +131,6 @@ export class PlannerSettingsComponent
 		}
 	}
 
-	/** Gives the folder its own settings to edit, copied from what it inherits today. */
 	public enableFolderSettings(): void
 	{
 		const folder = this.activeFolder();

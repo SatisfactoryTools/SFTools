@@ -16,8 +16,8 @@ import {PlannerZoomControlsComponent} from '@src/Components/Planner/ZoomControls
 const RAIL = RAIL_WIDTH;
 const STATUS = STATUS_BAR_HEIGHT;
 const MOBILE_NAV = MOBILE_NAV_HEIGHT;
-const MOBILE_HEAD = 44; // px - title bar above a full-screen mobile panel view
-const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activates
+const MOBILE_HEAD = 44;
+const MOBILE_BREAKPOINT = 768;
 
 @Component({
 	selector: 'planner-panel-container',
@@ -49,7 +49,6 @@ const MOBILE_BREAKPOINT = 768; // px - below this width the mobile layout activa
 			z-index: 10;
 		}
 
-		/* ── Mobile ── */
 		.mob-nav-wrap {
 			position: absolute;
 			left: 0; right: 0; bottom: 0;
@@ -236,7 +235,6 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	private readonly drawerOpenSignal = signal(false);
 	public readonly drawerOpen = this.drawerOpenSignal.asReadonly();
 
-	/** Bottom-bar entries: every panel but the plan tree, which lives in the drawer. */
 	public readonly mobilePanels = computed<PanelDefinition[]>(() =>
 		this.layout.registered().filter(panel => panel.id !== 'plans'));
 
@@ -281,8 +279,6 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		}
 	}
 
-	// ── Mobile ───────────────────────────────────────────────────────────────
-
 	public openDrawer(): void
 	{
 		this.drawerOpenSignal.set(true);
@@ -293,13 +289,11 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		this.drawerOpenSignal.set(false);
 	}
 
-	/** A tab opens its panel; tapping the active tab again closes it, showing the graph. */
 	public toggleMobilePanel(id: string): void
 	{
 		this.layout.setMobilePanel(this.layout.mobileActivePanel()?.id === id ? null : id);
 	}
 
-	/** Which ends of the bottom bar hide more tabs (drives the fade hints). */
 	public updateNavScroll(): void
 	{
 		const nav = this.navElement;
@@ -312,7 +306,6 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		this.navCanScrollRightSignal.set(nav.scrollLeft + nav.clientWidth < nav.scrollWidth - 2);
 	}
 
-	/** Picking a plan or folder in the drawer closes it; taps on controls (toggles, menus, inputs) keep it open. */
 	public onDrawerClick(event: MouseEvent): void
 	{
 		const target = event.target instanceof Element ? event.target : null;
@@ -320,8 +313,6 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 			this.closeDrawer();
 		}
 	}
-
-	// ── Desktop computed styles ──────────────────────────────────────────────
 
 	public readonly leftOpen  = computed(() => this.layout.activeLeft()  !== null);
 	public readonly rightOpen = computed(() => this.layout.activeRight() !== null);

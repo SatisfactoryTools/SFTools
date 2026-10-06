@@ -1,5 +1,4 @@
-<!-- container="body" so the menu overlays the planner instead of being clipped
-     by the panel's overflow container; insideClick keeps it open while typing. -->
+<!-- container="body": the panel's overflow container would clip the menu; insideClick keeps it open while typing. -->
 <div class="dropdown w-100" dropdown container="body" [insideClick]="true" (onShown)="onShown()" #dropdown="bs-dropdown">
 	<button
 		type="button"
@@ -28,8 +27,7 @@
 				(keydown)="onSearchKeyDown($event, dropdown)"
 			/>
 		</div>
-		<!-- fitViewport, not a fixed height: with a phone keyboard up there is
-		     far less room than the window claims. -->
+		<!-- fitViewport, not a fixed height: with a phone keyboard up there is far less room than the window claims. -->
 		<div fitViewport [fitViewportReserve]="180" [fitViewportMax]="320">
 			@for (option of filtered; track option.value; let index = $index) {
 				<button

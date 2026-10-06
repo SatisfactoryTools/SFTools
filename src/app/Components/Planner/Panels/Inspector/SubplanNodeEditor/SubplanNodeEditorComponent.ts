@@ -18,7 +18,6 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 
 const APPLY_DEBOUNCE_MS = 400;
 
-/** A typed rate resizes the whole subplan (graph, machines, requests) by that ratio; the build count instead builds it that many times over, and the rates shown are always one build's. */
 @Component({
 	selector: 'subplan-node-editor',
 	templateUrl: './SubplanNodeEditorComponent.html',
@@ -66,7 +65,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 
 	@Input({required: true}) public node!: SubplanNode;
 
-	/** Only the fields lock - opening the subplan stays possible. */
 	@Input() public readOnly = false;
 
 	public inputRates: SubplanIORateDraft[] = [];
@@ -74,7 +72,7 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 
 	public buildCount = 1;
 
-	/** A still-pending resize is measured against the node the user actually typed into, even when the selection has already moved on. */
+	/** A pending resize must apply to the node the user typed into, even after the selection moved on. */
 	private loadedNode: SubplanNode | null = null;
 
 	private pendingFactor: number | null = null;
@@ -102,7 +100,7 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 	{
 		if (this.loadedNode?.id === this.node.id) {
 			this.loadedNode = this.node;
-			// A resize coming back - show the rates it actually landed on, unless the user has kept typing in the meantime.
+			// A resize coming back: show the rates it landed on unless the user kept typing.
 			if (this.pendingFactor === null) {
 				this.refreshRates();
 			}
@@ -117,7 +115,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.refreshRates();
 	}
 
-	/** A rate typed just before deselecting the node must still reach the subplan. */
 	public ngOnDestroy(): void
 	{
 		this.flushPendingApply();
@@ -192,7 +189,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.scheduleScale(this.perBuild(this.editedNode.outputs[index]?.maxAmount), this.outputRates[index]?.rate, {kind: 'output', index});
 	}
 
-	/** The node's rates cover all its builds; the fields show (and take) one build's. */
 	private perBuild(amount: number | undefined): number | undefined
 	{
 		return amount === undefined ? undefined : amount / this.editedNode.buildCount;
@@ -260,7 +256,6 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.actions.requestSubplanScale({nodeId: node.id, subplanId: node.subplanId, factor});
 	}
 
-	/** Re-derived values get readable rounding; typed ones stay verbatim. */
 	private roundRate(rate: number): number
 	{
 		return Math.round(rate * 10000) / 10000;

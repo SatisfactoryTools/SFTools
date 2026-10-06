@@ -4,13 +4,6 @@ import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 
-/**
- * The head of every codex detail page: a back link to the entity's section,
- * then the entity's icon(s) - a recipe shows its products - and name with the
- * projected content (description, badges, …) beside them. The icons shrink in
- * a narrow panel. Pass `name = null` for the "not found" state, which renders
- * just the back link.
- */
 @Component({
 	selector: 'codex-detail-header',
 	templateUrl: './CodexDetailHeaderComponent.html',
@@ -42,7 +35,6 @@ export class CodexDetailHeaderComponent
 
 	public readonly faChevronLeft = faChevronLeft;
 
-	/** Codex path of the section to go back to, e.g. 'items'. */
 	@Input({required: true}) public backLink = '';
 	@Input({required: true}) public backLabel = '';
 	@Input() public icons: (string | null)[] = [];

@@ -46,7 +46,6 @@ export class CodexSchematicDetailComponent
 		return this.versionManager.activeVersionData()?.searchSchematicByClassName(className) ?? null;
 	});
 
-	/** Production recipes this schematic unlocks (build-gun recipes appear as buildings instead). */
 	protected readonly unlockedRecipes = computed<Recipe[]>(() =>
 		this.unlockRecipes().filter(recipe => !recipe.inBuildGun),
 	);

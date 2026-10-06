@@ -4,11 +4,6 @@ import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerCon
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
 import {Plan} from '@src/Model/Planner/Plan';
 
-/**
- * Context menu shown when right-clicking a plan or subplan row in the Plans
- * tree. A subplan lives inside its parent's graph, so cloning it adds the
- * copy's node there and deleting it removes its node from there.
- */
 export class PlanContextMenu extends PlannerContextMenu
 {
 
@@ -52,8 +47,6 @@ export class PlanContextMenu extends PlannerContextMenu
 			});
 		}
 
-		// Cloning a subplan copies it into the same parent plan, which also
-		// gets a node for the copy (see PlanManager.clonePlan).
 		items.push({
 			label: this.plan.parentPlanId !== null ? 'Clone subplan' : 'Clone plan',
 			icon: faClone,
@@ -61,8 +54,7 @@ export class PlanContextMenu extends PlannerContextMenu
 			action: () => this.host.clonePlan(this.plan, this.displayName),
 		});
 
-		// Always offered - sharing needs an account, and sharePlan() says so
-		// (and offers to sign in) rather than the entry quietly disappearing.
+		// Always offered: sharePlan() explains the account requirement rather than the entry quietly disappearing.
 		items.push({
 			label: 'Share…',
 			icon: faShareNodes,
@@ -70,8 +62,6 @@ export class PlanContextMenu extends PlannerContextMenu
 			action: () => this.host.sharePlan(this.plan),
 		});
 
-		// Deleting a subplan also removes its node from the parent plan's graph
-		// (see PlanManager.deletePlan).
 		items.push({
 			label: this.plan.parentPlanId !== null ? 'Delete subplan' : 'Delete plan',
 			icon: faXmark,

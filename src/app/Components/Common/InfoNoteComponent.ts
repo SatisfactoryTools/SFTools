@@ -3,11 +3,6 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {IconDefinition, faCircleInfo, faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
 import {InfoNoteKind} from '@src/Components/Common/InfoNoteKind';
 
-/**
- * The one style for "how this works" text across the app: a quiet tinted box
- * with an icon in front of the projected content. `info` explains, `warning`
- * points out a consequence the user should know about before continuing.
- */
 @Component({
 	selector: 'info-note',
 	templateUrl: './InfoNoteComponent.html',

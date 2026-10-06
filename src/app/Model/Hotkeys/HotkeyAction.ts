@@ -1,10 +1,5 @@
-/**
- * Every action a hotkey can trigger. Ids are globally unique and so are the
- * key combinations bound to them: no action is ever chosen by "which part of
- * the screen is active", so a hotkey always does exactly one thing.
- */
+/** Ids and the keys bound to them are globally unique: no action is chosen by "which part of the screen is active", so a hotkey always does one thing. */
 export type HotkeyAction =
-	// Canvas - blank and node context menus.
 	| 'graph.addNode'
 	| 'graph.createSubplan'
 	| 'graph.inspectNode'
@@ -26,7 +21,6 @@ export type HotkeyAction =
 	| 'graph.removeProduct'
 	| 'graph.disableResource'
 	| 'graph.removeInput'
-	// Planner - the canvas as a whole.
 	| 'planner.calculate'
 	| 'planner.rearrange'
 	| 'planner.undo'
@@ -34,8 +28,7 @@ export type HotkeyAction =
 	| 'planner.zoomIn'
 	| 'planner.zoomOut'
 	| 'planner.zoomFit'
-	// Production request - one per tab of the panel, which is opened and
-	// brought to the front first.
+	| 'planner.export'
 	| 'calculator.request'
 	| 'calculator.resources'
 	| 'calculator.recipes'
@@ -47,7 +40,6 @@ export type HotkeyAction =
 	| 'calculator.sloops'
 	| 'calculator.overclocking'
 	| 'calculator.optimisation'
-	// Panels - each one opens, or comes to the front, or closes.
 	| 'panel.plans'
 	| 'panel.calculator'
 	| 'panel.overview'
@@ -58,7 +50,6 @@ export type HotkeyAction =
 	| 'panel.plannerSettings'
 	| 'panel.codex'
 	| 'panel.help'
-	// Plans tree - these act on the open plan (or its folder).
 	| 'plans.newPlan'
 	| 'plans.newFolder'
 	| 'plans.renamePlan'
@@ -72,7 +63,6 @@ export type HotkeyAction =
 	| 'plans.shareFolder'
 	| 'plans.deleteFolder'
 	| 'plans.importOldTools'
-	// Anywhere in the app.
 	| 'app.search'
 	| 'app.settings'
 	| 'app.home'

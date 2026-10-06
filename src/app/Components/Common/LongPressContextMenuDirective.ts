@@ -3,14 +3,7 @@ import {Directive, ElementRef, HostListener, OnDestroy} from '@angular/core';
 const LONG_PRESS_MS = 500;
 const MOVE_TOLERANCE = 10;
 
-/**
- * Touch-screen stand-in for right click: holding a finger on the host for
- * half a second dispatches a `contextmenu` MouseEvent on it, so the host's
- * existing (contextmenu) handler opens its menu. Browsers that already turn
- * a long press into a native contextmenu (Android) win - their event cancels
- * the pending timer. Either way the touchend is cancelled so the synthesized
- * click does not immediately close the menu that just opened.
- */
+/** Android already turns a long press into a native contextmenu, which cancels the timer; touchend is cancelled either way so the synthesized click does not close the menu just opened. */
 @Directive({
 	selector: '[longPressContextMenu]',
 })

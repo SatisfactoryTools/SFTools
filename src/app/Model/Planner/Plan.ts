@@ -14,30 +14,17 @@ export interface Plan
 	readonly parentPlanId: string | null;
 	readonly settings: PlanSettings;
 	readonly requests: ProductionRequest[];
-	/** User-supplied item sources the solver may draw from (see PlanInput). */
 	readonly inputs: PlanInput[];
 	readonly graph: Graph | null;
 	readonly metadata: PlanMetadata;
 	readonly revision: number | null;
 
-	/**
-	 * Plan icon selection, three states:
-	 *  - undefined: not chosen yet - auto-filled from the first product added,
-	 *    and derived (product/subplan-output) for display until then;
-	 *  - null: explicitly "none" - always the generic plan icon, never auto-filled;
-	 *  - string: an explicit item/building class name.
-	 */
+	/** undefined = not chosen yet (auto-filled from the first product); null = explicitly none, never auto-filled. */
 	readonly iconClassName?: string | null;
 
-	/** Manual position among siblings; absent = alphabetical after the ordered ones (see PlanManager.buildTree). */
 	readonly order?: number;
 
-	/**
-	 * Whether anyone holding the plan's URL may open it read-only (people paste that
-	 * link far more often than a share link). Undefined means the server default, which
-	 * is "yes" - the flag is younger than the plans that predate it. Meaningless for
-	 * plans that live only in a browser: they have no URL anyone else can open.
-	 */
+	/** Undefined = the server default (true): the flag is younger than most plans. */
 	readonly linkAccess?: boolean;
 
 }

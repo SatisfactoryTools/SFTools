@@ -45,6 +45,7 @@ import {SettingsGroups} from '@src/Model/Planner/SettingsGroups';
 import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
+import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 
 @Component({
 	selector: 'planner-calculator',
@@ -79,12 +80,9 @@ import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager'
 			gap: 8px;
 			padding: 8px 10px 0;
 		}
-		/* Buttons keep their label on one line; the row wraps as a whole instead. */
 		.req-controls .btn {
 			white-space: nowrap;
 		}
-		/* Narrow panels (a phone above all): the longest label in the row goes,
-		   leaving the icon - the tooltip and the dialog still name the thing. */
 		@container panel (max-width: 560px) {
 			.load-save-label {
 				display: none;
@@ -93,8 +91,6 @@ import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager'
 		.calc-tabs-wrap {
 			padding: 8px 10px 0;
 		}
-		/* The tabs are the panel's main navigation - lifted like the other
-		   controls, with the active one carrying the accent. */
 		.calc-tabs {
 			--bs-nav-tabs-border-color: #5d7189;
 			--bs-nav-tabs-link-active-bg: #2a4661;
@@ -150,8 +146,6 @@ import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager'
 			background: rgba(76, 155, 232, 0.35);
 			color: #fff;
 		}
-		/* Narrow panels: the section picker is the main navigation - set it
-		   apart from the toolbar above and make it read as the current place. */
 		.calc-tabs-wrap.menu {
 			margin-top: 6px;
 			padding-top: 8px;
@@ -178,11 +172,6 @@ import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager'
 export class CalculatorComponent implements OnDestroy
 {
 
-	/**
-	 * Tab strip mode, decided from real measurements: invisible copies of the
-	 * full and the icon strip report their natural widths, and the widest
-	 * one that fits the panel wins (subject to the tab-labels setting).
-	 */
 	private tabsResizeObserver: ResizeObserver | null = null;
 	private tabsWrapElement: HTMLElement | null = null;
 	private measureFullElement: HTMLElement | null = null;
@@ -203,7 +192,6 @@ export class CalculatorComponent implements OnDestroy
 
 	public readonly activeTab: Signal<CalculatorTab>;
 
-	/** Badge text per tab (null = none), or an empty map while the setting is off. */
 	public readonly badges: Signal<ReadonlyMap<CalculatorTab, string | null>>;
 
 	public readonly tabs: CalculatorTabDefinition[] = [
@@ -228,57 +216,46 @@ export class CalculatorComponent implements OnDestroy
 	];
 
 	public readonly activePlan: Signal<Plan | null>;
-	/** The active plan is one left on this device while signed in - read-only until moved into the account. */
 	public readonly activePlanLocal: Signal<boolean>;
 	public readonly activeFolder: Signal<Folder | null>;
 	public readonly mode: Signal<CalculationMode>;
 	public readonly graphDirty: Signal<boolean>;
 	public readonly buttonLabel: Signal<string>;
-	/** Automatic mode holding still because the graph was edited by hand. */
 	public readonly automaticPaused: Signal<boolean>;
 	public readonly calculateHint: Signal<string>;
 	public readonly hasGraph: Signal<boolean>;
 
-	/** Custom settings enabled on the active folder - its tabs are editable. */
 	public readonly folderHasCustomSettings: Signal<boolean>;
 
-	/** Display name of whatever the active plan/folder would inherit settings from. */
 	public readonly parentLabel: Signal<string>;
 
 	public readonly modeLabel: Signal<string>;
 
-	/** The folder fixing settings groups for the active plan, or null. */
 	public readonly fixedFolder: Signal<Folder | null>;
 
-	/** Settings groups the active plan cannot edit - fixed by fixedFolder. */
 	public readonly fixedGroups: Signal<readonly SettingsGroup[]>;
 
-	/** Every group is fixed - the plan-level Reset / Inherit / Load buttons would change nothing. */
 	public readonly allGroupsFixed: Signal<boolean>;
 
-	/** Why the active folder cannot get custom settings (an ancestor fixes them), or null. */
 	public readonly customSettingsBlocker: Signal<string | null>;
 
-	/** Why the active folder cannot fix groups (a nested folder has custom settings), or null. */
 	public readonly fixGroupsBlocker: Signal<string | null>;
 
-	/** Plans inside the active folder, tree order - the recalculation order. */
 	public readonly innerPlans: Signal<Plan[]>;
 
 	public readonly outdatedPlans: Signal<Plan[]>;
 
-	/** Outdated plans the batch skips: manual mode or a hand-modified graph. */
 	public readonly skippedOutdatedPlans: Signal<Plan[]>;
 
 	public readonly recalculationProgress: Signal<FolderRecalculationProgress | null>;
 
-	/** The "Load settings from save" dialog's target, or null when closed. */
 	private readonly loadFromSaveSignal = signal<{name: string; baseSettings: PlanSettings} | null>(null);
 	public readonly loadFromSave = this.loadFromSaveSignal.asReadonly();
 
 	public constructor(
 		private readonly planManager: PlanManager,
 		public readonly planNames: PlanNameResolver,
+		protected readonly platform: AppPlatform,
 		private readonly notifications: NotificationService,
 		public readonly actions: PlannerActionsService,
 		public readonly hotkeys: HotkeyService,
@@ -293,8 +270,7 @@ export class CalculatorComponent implements OnDestroy
 	)
 	{
 		this.activeTab = tabState.activeTab;
-		// The preference is read inside updateTabsMode; a change must re-run it
-		// even when nothing resized.
+		// Reading the preference here re-runs updateTabsMode on a change even when nothing resized.
 		effect(() => {
 			this.settingsManager.planner().tabLabels;
 			this.updateTabsMode();
@@ -374,11 +350,7 @@ export class CalculatorComponent implements OnDestroy
 		});
 	}
 
-	/**
-	 * The tab strip exists only while a plan or folder is selected, so the
-	 * observers follow the elements as they come and go. The measuring copies
-	 * are observed too: their width changes with the badges and the active tab.
-	 */
+	/** The strip exists only while a plan or folder is selected, so the observers re-attach as the elements come and go. */
 	@ViewChild('tabsWrap')
 	private set tabsWrap(element: ElementRef<HTMLElement> | undefined)
 	{
@@ -426,13 +398,11 @@ export class CalculatorComponent implements OnDestroy
 		if (!wrap || !full || !icons) {
 			return;
 		}
-		// The strips lay out inside the wrap's padding; a couple of pixels of
-		// slack keep sub-pixel rounding from wrapping the last tab.
+		// A couple of pixels of slack keep sub-pixel rounding from wrapping the last tab.
 		const style = getComputedStyle(wrap);
 		const available = wrap.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 2;
 		const preference = this.settingsManager.planner().tabLabels;
-		// Where not even the icon strip fits (phones, slim docked panels) every
-		// preference ends in the dropdown - labels wrapped over four rows help no one.
+		// When not even the icon strip fits, every preference ends in the dropdown.
 		if (icons.scrollWidth > available) {
 			this.tabsModeSignal.set('menu');
 			return;
@@ -458,10 +428,6 @@ export class CalculatorComponent implements OnDestroy
 		optimisation: 'request.optimisation',
 	};
 
-	/**
-	 * Help topic of the open tab. The ids follow the tab ids, except the first
-	 * tab, whose id is 'request' while the article is about production.
-	 */
 	public activeTabHelpTopic(): HelpTopicId
 	{
 		return CalculatorComponent.TAB_HELP_TOPICS[this.activeTab()];
@@ -477,14 +443,12 @@ export class CalculatorComponent implements OnDestroy
 		this.tabState.setActiveTab(tab);
 	}
 
-	/** Moves a plan left on this device (with its subplans) into the account, where it turns editable. */
 	public addLocalPlanToMyPlans(plan: Plan): void
 	{
 		this.planManager.moveLocalToAccount(plan.id, 'plan');
 		this.notifications.showSuccess('Moved to your plans.');
 	}
 
-	/** The "move" of the open share into the viewer's own plans (see ActiveShareManager). */
 	public addShareToMyPlans(): void
 	{
 		const share = this.activeShare.payload();
@@ -510,10 +474,8 @@ export class CalculatorComponent implements OnDestroy
 	{
 		const plan = this.activePlan();
 		if (!plan) return;
-		// Pressing the button is the confirmation - the note above it and the
-		// button's own tooltip say what a rebuild does to hand edits, and undo
-		// puts the old graph back. The dirty flag is cleared by the solve
-		// completing, not here: a failed or cancelled solve stays paused.
+		// No confirmation: the note and tooltip explain the rebuild, and undo restores the graph.
+		// The dirty flag is cleared by the solve completing, so a failed or cancelled solve stays paused.
 		this.actions.requestCalculate();
 	}
 
@@ -538,7 +500,6 @@ export class CalculatorComponent implements OnDestroy
 		this.planManager.updateActiveSettings(this.parentSettings());
 	}
 
-	/** Turns on custom settings, starting from what the folder currently inherits. */
 	public enableFolderSettings(): void
 	{
 		const folder = this.activeFolder();
@@ -556,8 +517,6 @@ export class CalculatorComponent implements OnDestroy
 		this.planManager.setFolderSettings(folder.id, null);
 	}
 
-	// ── Load settings from a save file ──────────────────────────────────────
-
 	public openLoadFromSave(): void
 	{
 		const plan = this.activePlan();
@@ -568,8 +527,7 @@ export class CalculatorComponent implements OnDestroy
 				baseSettings: this.planManager.cloneSettings(plan.settings),
 			});
 		} else if (folder) {
-			// effectiveFolderSettings covers a folder still inheriting - applying
-			// the save then gives it custom settings based on the inherited ones.
+			// effectiveFolderSettings covers a folder still inheriting; applying the save then gives it custom settings.
 			this.loadFromSaveSignal.set({
 				name: folder.name,
 				baseSettings: this.planManager.effectiveFolderSettings(folder.id),
@@ -598,9 +556,6 @@ export class CalculatorComponent implements OnDestroy
 		this.loadFromSaveSignal.set(null);
 	}
 
-	// ── Fixed settings groups ───────────────────────────────────────────────
-
-	/** Whether the tab shows a settings group (request and input are per plan by nature). */
 	public isGroupTab(tab: CalculatorTab): tab is SettingsGroup
 	{
 		return (SettingsGroups.all as readonly string[]).includes(tab);
@@ -616,14 +571,7 @@ export class CalculatorComponent implements OnDestroy
 		return SettingsGroups.labelOf(group);
 	}
 
-	/**
-	 * One tooltip per tab: the label when only the icon shows, plus the lock
-	 * note for a fixed group (the tab content explains the details).
-	 */
-	/**
-	 * The name is repeated here even when the tab already shows it - that is
-	 * what carries the tab's key, which has nowhere else to be seen.
-	 */
+	/** The name is repeated even when the tab shows it: the tooltip is what carries the tab's hotkey. */
 	public tabTooltip(tab: CalculatorTabDefinition, locks: boolean): string
 	{
 		const parts: string[] = [tab.label + this.hotkeys.suffix(CalculatorTabHotkeys.actionFor(tab.id))];
@@ -633,7 +581,6 @@ export class CalculatorComponent implements OnDestroy
 		return parts.join(' - ');
 	}
 
-	/** Short lock note for a fixed tab: which folder fixes the group. */
 	public fixedTabTooltip(tab: CalculatorTab): string
 	{
 		const folder = this.fixedFolder();
@@ -650,7 +597,6 @@ export class CalculatorComponent implements OnDestroy
 		return folder ? this.planManager.folderGroupMode(folder, group) : 'default';
 	}
 
-	/** Fixing a group with plans inside overwrites their values - confirmed once here. */
 	public setGroupMode(group: SettingsGroup, mode: FolderGroupMode): void
 	{
 		const folder = this.activeFolder();
@@ -670,7 +616,6 @@ export class CalculatorComponent implements OnDestroy
 		this.planManager.setFolderGroupMode(folder.id, group, mode);
 	}
 
-	/** Fixed groups of the active folder, as "Recipes, Resources (shared pool)". */
 	public fixedGroupsSummary(): string
 	{
 		const folder = this.activeFolder();
@@ -712,7 +657,6 @@ export class CalculatorComponent implements OnDestroy
 		}
 	}
 
-	/** What the active plan/folder would inherit: parent plan, else the folder chain. */
 	private parentSettings(): PlanSettings
 	{
 		const plan = this.activePlan();

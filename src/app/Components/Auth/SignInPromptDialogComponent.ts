@@ -5,13 +5,8 @@ import {faCloudArrowUp, faPuzzlePiece, faShareNodes} from '@fortawesome/free-sol
 import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
 import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
+import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 
-/**
- * The sign-in nudge shown over the planner to signed-out users (see
- * SignInPromptService for when): what an account buys them, the provider
- * buttons right there, and two ways out - continue without an account for
- * now, or turn the reminders off for good.
- */
 @Component({
 	selector: 'sign-in-prompt-dialog',
 	templateUrl: './SignInPromptDialogComponent.html',
@@ -88,12 +83,12 @@ export class SignInPromptDialogComponent
 
 	public constructor(
 		protected readonly signInPrompt: SignInPromptService,
+		protected readonly platform: AppPlatform,
 		private readonly router: Router,
 	)
 	{
 	}
 
-	/** After signing in the user should land back on the page the prompt interrupted. */
 	public get returnUrl(): string
 	{
 		return this.router.url;

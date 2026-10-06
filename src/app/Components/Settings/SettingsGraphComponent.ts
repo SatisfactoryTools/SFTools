@@ -9,7 +9,6 @@ import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSection
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 
-/** "Graph" settings section - icons, the sloop glow, machine display and node colours. */
 @Component({
 	selector: 'settings-graph',
 	templateUrl: './SettingsGraphComponent.html',
@@ -35,7 +34,6 @@ export class SettingsGraphComponent
 
 	public readonly sectionIcon = faDiagramProject;
 
-	/** Icon-visibility toggles, in the order they appear on a node/edge. */
 	public readonly iconToggles: {key: keyof GraphSettings; label: string}[] = [
 		{key: 'showEdgeItemIcons', label: 'Item icons on connections'},
 		{key: 'showNodeItemIcons', label: 'Item icons on nodes'},
@@ -79,7 +77,6 @@ export class SettingsGraphComponent
 		},
 	];
 
-	/** Node/edge size multipliers offered; 1 is the original size. */
 	public readonly scaleOptions: {value: number; label: string}[] = [
 		{value: 0.75, label: '75%'},
 		{value: 1, label: '100% (default)'},
@@ -121,7 +118,6 @@ export class SettingsGraphComponent
 		return this.machineDisplayOptions.find(option => option.value === this.graph.machineDisplay)?.description ?? '';
 	}
 
-	/** Preview node bold line - an example of 3 @ 150% + 1 @ 127.5% Constructors. */
 	public get previewBoldLine(): string
 	{
 		switch (this.graph.machineDisplay) {
@@ -136,7 +132,6 @@ export class SettingsGraphComponent
 		}
 	}
 
-	/** Preview node machine-group lines; none in the single-line (decimal, percent) displays. */
 	public get previewGroupLines(): string[]
 	{
 		if (this.graph.machineDisplay === 'decimal' || this.graph.machineDisplay === 'percent') {

@@ -12,23 +12,9 @@ import {OldToolsShareService} from '@src/Model/OldTools/OldToolsShareService';
 const OLD_VERSIONS: ReadonlyArray<OldGameVersion> = ['0.8', '1.0', '1.0-ficsmas'];
 const CODEX_SECTIONS: ReadonlyArray<string> = ['items', 'buildings', 'schematics'];
 
-/** How long a codex link waits for the version data before settling for the section list. */
 const DATA_WAIT_MS = 8000;
 
-/**
- * Keeps the old Satisfactory Tools' URLs working now that this app answers on
- * its domain. The old site's addresses were `/{0.8|1.0|1.0-ficsmas}/…`
- * (production, codex/items/{slug}, …), every share link it ever handed out
- * is `/{version}/production?share=KEY`, and its "take my plans" button sends
- * people to `/import?old=k1,k2&ficsmas=k3`. None of those segments is a
- * version slug here, so without this they would all bounce to the home page
- * with the query string lost.
- *
- * Old versions map to the current public release of the same flavour
- * (FICSMAS or regular): the old data versions no longer exist, and a plan is
- * more useful in the live version than nowhere. Update 8 links land in the
- * regular release.
- */
+/** Old versions map to the current public release of the same flavour (FICSMAS or regular), since the old data versions no longer exist. Hashbang links are unwrapped in main.ts before the router runs. */
 @Component({
 	changeDetection: ChangeDetectionStrategy.Eager,
 	template: `
@@ -68,11 +54,6 @@ export class LegacyUrlRedirectComponent implements OnDestroy
 	{
 		this.analytics.trackEvent('OldTools', 'legacy-url', [oldVersion ?? '', ...path].join('/'));
 
-		if (path[0] === 'import') {
-			this.redirectImportLink(query);
-			return;
-		}
-
 		const version = this.versionManager.defaultPublicVersion(oldVersion === '1.0-ficsmas');
 		if (version === null) {
 			this.go(['/']);
@@ -82,7 +63,7 @@ export class LegacyUrlRedirectComponent implements OnDestroy
 
 		const shareKey = typeof query['share'] === 'string' ? this.shareService.extractShareKey(query['share']) : null;
 		if (shareKey !== null) {
-			this.go(['/', slug, 'planner'], {importOld: shareKey});
+			this.go(['/', slug, 'planner'], {importOld: shareKey, importOldVersion: oldVersion});
 			return;
 		}
 
@@ -96,51 +77,15 @@ export class LegacyUrlRedirectComponent implements OnDestroy
 			case 'codex':
 				this.redirectCodexLink(slug, path[1] ?? null, path[2] ?? null);
 				return;
+			case 'items':
+				this.redirectCodexLink(slug, 'items', path[1] ?? null);
+				return;
 			default:
 				this.go(['/', slug, 'planner']);
 		}
 	}
 
-	/**
-	 * The old site's "Switch and take my plans": it shared every saved line
-	 * and put the keys in the link, FICSMAS lines separately. Regular lines
-	 * open first; the FICSMAS keys ride along so the dialog can offer them in
-	 * the FICSMAS version afterwards. Only FICSMAS lines go straight there.
-	 */
-	private redirectImportLink(query: Params): void
-	{
-		const regularKeys = this.shareService.parseShareKeyList(typeof query['old'] === 'string' ? query['old'] : null);
-		const ficsmasKeys = this.shareService.parseShareKeyList(typeof query['ficsmas'] === 'string' ? query['ficsmas'] : null);
-		this.analytics.trackEvent('OldTools', 'import-link', undefined, regularKeys.length + ficsmasKeys.length);
-
-		const onlyFicsmas = regularKeys.length === 0 && ficsmasKeys.length > 0;
-		const version = this.versionManager.defaultPublicVersion(onlyFicsmas) ?? this.versionManager.defaultPublicVersion(!onlyFicsmas);
-		if (version === null) {
-			this.go(['/']);
-			return;
-		}
-		const slug = this.versionManager.urlSlug(version);
-		if (regularKeys.length === 0 && ficsmasKeys.length === 0) {
-			this.go(['/', slug, 'planner']);
-			return;
-		}
-		if (onlyFicsmas) {
-			this.go(['/', slug, 'planner'], {importOld: ficsmasKeys.join(',')});
-			return;
-		}
-		this.go(['/', slug, 'planner'], {
-			importOld: regularKeys.join(','),
-			importOldOther: ficsmasKeys.length > 0 ? ficsmasKeys.join(',') : null,
-		});
-	}
-
-	/**
-	 * Old codex links name entries by a slug of their display name
-	 * (`codex/items/iron-plate`); this codex uses class names. Matching needs
-	 * the version's data, which only loads once a version is active - so the
-	 * target version is activated here and the data waited for. A slug that
-	 * matches nothing (or data that does not arrive) opens the section list.
-	 */
+	// Old codex links use display-name slugs; matching needs the version's data, which only loads once a version is active - so it is activated here and the data waited for.
 	private redirectCodexLink(slug: string, section: string | null, entrySlug: string | null): void
 	{
 		if (section === null || !CODEX_SECTIONS.includes(section)) {
@@ -170,7 +115,7 @@ export class LegacyUrlRedirectComponent implements OnDestroy
 		return entries.find(entry => LegacyUrlRedirectComponent.webalize(entry.name) === entrySlug)?.className ?? null;
 	}
 
-	/** The old site's slug rule, so its links can be matched against names here. */
+	// The old site's slug rule, replicated so its links can be matched against names here.
 	private static webalize(name: string): string
 	{
 		return name.replace(/[\s|.]+/gi, '-').replace(/[™:]/gi, '').toLowerCase();

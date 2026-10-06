@@ -1,6 +1,5 @@
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
 
-/** The layout used before these settings existed - the fallback everywhere. */
 export class GraphLayoutDefaults
 {
 
@@ -12,7 +11,6 @@ export class GraphLayoutDefaults
 		machineColors: {},
 	};
 
-	/** Fills gaps in a (possibly missing or partial) stored settings object. */
 	public static resolve(settings: Partial<GraphLayoutSettings> | undefined): GraphLayoutSettings
 	{
 		return {

@@ -1,11 +1,9 @@
 import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
 import {Settings} from '@src/Model/Settings/Settings';
 
-/** Factory defaults and normalisation for the global settings object. */
 export class SettingsDefaults
 {
 
-	/** Every field falls back to these when unset or unsaved. */
 	public static readonly SETTINGS: Settings = {
 		numbers: {
 			decimalSeparator: 'dot',
@@ -61,7 +59,6 @@ export class SettingsDefaults
 		panels: null,
 	};
 
-	/** Fills in any missing field so callers always get a complete object. */
 	public static normalize(data: Settings | null): Settings
 	{
 		return {

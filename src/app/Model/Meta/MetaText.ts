@@ -1,10 +1,6 @@
 /**
- * Text rules for page titles and link preview descriptions. The API applies
- * the same rules to the tags bots see (tools-api:
- * app/Model/Services/Meta/MetaText.php) - keep the two in sync; both run the
- * fixtures in meta-text-fixtures.json (`npm run test:meta-text`).
- * Code points are counted, not UTF-16 units, so an emoji is one character
- * here as in PHP's mb_ functions.
+ * Mirrors tools-api app/Model/Services/Meta/MetaText.php and shares its fixtures (meta-text-fixtures.json,
+ * `npm run test:meta-text`): keep them in sync. Code points are counted, not UTF-16 units, to match PHP mb_ functions.
  */
 export class MetaText
 {
@@ -18,18 +14,12 @@ export class MetaText
 	/** Tag-like markup only (`<b>`, `</color>`, `<img src=…/>`), so a bare "<" in text survives. */
 	private static readonly TAG_PATTERN = /<\/?[A-Za-z][^<>]*>/gu;
 
-	/** "Cable" → "Cable · Satisfactory Tools". */
 	public static title(title: string): string
 	{
 		const collapsed = MetaText.collapse(title);
 		return collapsed === '' ? MetaText.SITE_NAME : collapsed + MetaText.TITLE_SUFFIX;
 	}
 
-	/**
-	 * Strips markup, collapses whitespace and line breaks to single spaces,
-	 * and cuts to DESCRIPTION_MAX_LENGTH characters (the ellipsis included)
-	 * at a word boundary.
-	 */
 	public static description(text: string): string
 	{
 		const collapsed = MetaText.collapse(text.replace(MetaText.TAG_PATTERN, ' '));

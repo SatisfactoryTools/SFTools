@@ -1,6 +1,4 @@
-<!-- user-select/dragstart: shift+rubberband must not start a text selection over
-     the SVG labels - dragging afterwards would trigger the browser's native
-     drag-of-selection instead of moving the nodes. -->
+<!-- user-select/dragstart: a shift+rubberband over the SVG labels would otherwise start a text selection, and the next drag would move that instead of the nodes. -->
 <div
 	#graphContainer
 	style="position: absolute; inset: 0; user-select: none;"
@@ -23,6 +21,10 @@
 
 @if (shareDialog.target(); as target) {
 	<plan-share-dialog [shareTarget]="target"></plan-share-dialog>
+}
+
+@if (exportDialog.visible()) {
+	<graph-export-dialog></graph-export-dialog>
 }
 
 @if (planLink.unavailable()) {

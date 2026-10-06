@@ -1,11 +1,6 @@
 import {AfterViewInit, Directive, ElementRef} from '@angular/core';
 
-/**
- * Focuses the host element once it is created. Unlike a @ViewChild-driven
- * focus, this fires every time the element is instantiated - so it keeps
- * working for content that is destroyed and recreated (e.g. a dropdown menu
- * rendered with container="body" each time it opens).
- */
+/** Unlike a @ViewChild focus this fires every time the element is instantiated, e.g. a container="body" menu. */
 @Directive({
 	selector: '[focusOnInit]',
 })

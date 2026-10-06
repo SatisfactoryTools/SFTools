@@ -12,17 +12,6 @@ import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {HelpManager} from '@src/Model/Help/HelpManager';
 
-/**
- * The help reader itself, driven entirely by the host's HelpNavigation - the
- * same component backs the planner panel and the fullscreen help page. The
- * root path lists every article by category, with a filter box; a slug opens
- * that article.
- *
- * Both views are laid out against the `panel` container rather than the
- * viewport, since the reader is as often a 400px panel as a whole screen:
- * narrow it is one column, and once there is room the article gains a list of
- * every article beside it, the way a manual has its contents in the margin.
- */
 @Component({
 	selector: 'help-browser',
 	templateUrl: './HelpBrowserComponent.html',
@@ -40,8 +29,6 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 		:host {
 			display: block;
 		}
-		/* Reading measure plus the margins around it - the reader is centered
-		   rather than stretched, however wide the screen is. */
 		.help-shell {
 			max-width: 1180px;
 			margin: 0 auto;
@@ -49,8 +36,6 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 		.help-shell-article {
 			max-width: 1200px;
 		}
-
-		/* ── Index ──────────────────────────────────────────────────────── */
 
 		.index-head {
 			display: flex;
@@ -101,8 +86,6 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 			gap: 0.6rem;
 		}
 
-		/* ── Article ────────────────────────────────────────────────────── */
-
 		.article-shell {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr);
@@ -118,8 +101,6 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 			margin-bottom: 0.75rem;
 		}
 
-		/* Wide enough for a margin: the contents list moves out of the article
-		   and the inline back link is no longer needed. */
 		@container panel (min-width: 1040px) {
 			.article-shell {
 				grid-template-columns: 230px minmax(0, 1fr);
@@ -148,8 +129,6 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 		.nav-group + .nav-group {
 			margin-top: 0.25rem;
 		}
-		/* A whole-width row rather than a label: the categories are folded, and
-		   the row is what unfolds them. */
 		.nav-group-name {
 			display: flex;
 			align-items: center;
@@ -218,23 +197,14 @@ export class HelpBrowserComponent
 
 	public readonly slug = computed(() => this.navigation.slug());
 
-	/** Only the accounts allowed to write articles see the way into the editor. */
 	public readonly canEdit = computed(() => this.profile.helpEditor());
 
-	/** The index, narrowed to what the filter box matches. */
 	public readonly groups = computed<HelpArticleGroup[]>(() => this.buildGroups(this.filter().trim().toLowerCase()));
 
-	/** Every article, for the list beside an open one - the filter is the index's own. */
 	public readonly navGroups = computed<HelpArticleGroup[]>(() => this.buildGroups(''));
 
-	/**
-	 * Which categories the reader unfolded, and in which article - the list is
-	 * far too long to show whole, so it starts folded down to the category the
-	 * open article belongs to, and unfolding is forgotten on the way out of it.
-	 */
 	private readonly unfoldedSignal = signal<{slug: string; ids: ReadonlySet<string>} | null>(null);
 
-	/** The category of the article being read, '' on the index. */
 	private readonly currentCategory = computed(() => this.help.summary(this.slug())?.category ?? '');
 
 	public readonly unfoldedCategories = computed<ReadonlySet<string>>(() => {
@@ -253,15 +223,11 @@ export class HelpBrowserComponent
 		private readonly host: ElementRef<HTMLElement>,
 	)
 	{
-		// Inside a panel the reader swaps its content within one scroll
-		// container, which would otherwise keep its offset - opening an article
-		// from far down the list would land mid-page. The fullscreen page
-		// scrolls the window, which the router's scroll restoration resets.
+		// In a panel the reader swaps content inside one scroll container, which would keep its offset; the fullscreen page scrolls the window, which the router's scroll restoration resets.
 		effect(() => {
 			this.navigation.slug();
 			this.scrollContainerToTop();
-			// One frame later: the list only marks the new article as the
-			// current one after this change detection.
+			// The list marks the new article as current only after this change detection.
 			requestAnimationFrame(() => this.scrollNavToCurrent());
 		});
 	}
@@ -294,7 +260,6 @@ export class HelpBrowserComponent
 		return groups;
 	}
 
-	/** Title, summary and the article's own keywords - the same fields the navbar search uses. */
 	private matches(slug: string, query: string): boolean
 	{
 		if (query === '') {
@@ -305,11 +270,6 @@ export class HelpBrowserComponent
 			.some(text => text.toLowerCase().includes(query));
 	}
 
-	/**
-	 * Keeps the open article visible in the list beside it - it is a long list
-	 * with its own scrollbar, and an article near the end of it would
-	 * otherwise be highlighted somewhere out of sight.
-	 */
 	private scrollNavToCurrent(): void
 	{
 		const nav = this.host.nativeElement.querySelector<HTMLElement>('.article-nav');
@@ -317,8 +277,7 @@ export class HelpBrowserComponent
 		if (nav === null || nav === undefined || current === null || current === undefined) {
 			return;
 		}
-		// offsetTop is measured against the nav itself, which is positioned
-		// (sticky) whenever the list is on screen at all.
+		// offsetTop is measured against the nav itself, which is positioned (sticky) whenever the list is on screen at all.
 		nav.scrollTop = Math.max(0, current.offsetTop - nav.clientHeight / 2);
 	}
 

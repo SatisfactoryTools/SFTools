@@ -6,16 +6,6 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 
-/**
- * Computes a subplan's outside interface - the items it requires (its input
- * nodes) and provides (its product and byproduct nodes) - from the subplan's
- * stored graph. Works on both hydrated graphs and raw JSON ones (a subplan
- * never opened this session), so no recursive graph revival is needed.
- *
- * A node that builds its subplan several times (`buildCount`) carries the
- * interface multiplied by that count, so everything downstream - the
- * calculation, the edges, the panels - works with the full amounts.
- */
 @Injectable({providedIn: 'root'})
 export class SubplanIOResolver
 {
@@ -27,28 +17,16 @@ export class SubplanIOResolver
 	{
 	}
 
-	/**
-	 * Rebuilds the node against the subplan's current name and graph; returns
-	 * the same instance when nothing changed, or the node itself when the
-	 * subplan no longer exists (dangling references are handled later).
-	 */
 	public refresh(node: SubplanNode): SubplanNode
 	{
 		return this.rebuild(node, node.buildCount);
 	}
 
-	/**
-	 * The same node built a different number of times - its interface is
-	 * re-read from the subplan and multiplied by the new count. The subplan
-	 * itself is left untouched: building it twice does not change what is
-	 * inside it.
-	 */
 	public withBuildCount(node: SubplanNode, buildCount: number): SubplanNode
 	{
 		return this.rebuild(node, buildCount);
 	}
 
-	/** Build counts are whole blueprints - never a fraction, never less than one. */
 	public normalizeBuildCount(buildCount: number): number
 	{
 		if (!isFinite(buildCount)) {

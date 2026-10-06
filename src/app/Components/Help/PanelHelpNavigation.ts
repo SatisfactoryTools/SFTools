@@ -5,11 +5,6 @@ import {map} from 'rxjs/operators';
 import {HelpLink} from '@src/Components/Help/HelpLink';
 import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 
-/**
- * Help navigation for the planner panel: the whole help path (article and
- * section alike) lives in the `?help=` query param of the current planner URL,
- * so reading help never leaves the plan and a refresh restores the panel.
- */
 @Injectable()
 export class PanelHelpNavigation extends HelpNavigation
 {

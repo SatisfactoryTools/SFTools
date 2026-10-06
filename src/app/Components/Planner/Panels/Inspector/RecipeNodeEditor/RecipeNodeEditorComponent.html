@@ -30,7 +30,7 @@
 					</select>
 				</div>
 			} @else if (selectedMachine; as machine) {
-				<div class="d-flex align-items-center gap-2">
+				<div class="d-flex flex-wrap align-items-center gap-2">
 					<span class="text-secondary">Machine</span>
 					<span class="d-inline-flex align-items-center gap-1">
 						<game-icon [hash]="machine.icon" [size]="18" [alt]="machine.name"></game-icon>
@@ -95,8 +95,7 @@
 	<div class="card">
 		<div class="card-header d-flex align-items-center gap-2 py-1 px-2">
 			<span class="fw-semibold flex-grow-1 text-truncate d-inline-flex align-items-center gap-2">Machine groups <help-button topic="planner.machine-groups"/></span>
-			<!-- container="body" so the menu overlays the planner instead of
-			     being clipped by the panel's overflow container. -->
+			<!-- container="body": the panel's overflow container would clip the menu. -->
 			<div class="btn-group flex-shrink-0" dropdown container="body" placement="bottom right">
 				<button
 					class="btn btn-sm btn-outline-primary py-0"
@@ -125,15 +124,8 @@
 					}
 				</div>
 			</div>
-			<button
-				class="btn btn-sm btn-outline-success py-0 px-1 flex-shrink-0"
-				type="button"
-				tooltip="Add machine group" container="body" placement="bottom"
-				(click)="addGroup()"
-			><fa-icon [icon]="faPlus"></fa-icon></button>
 		</div>
 
-		<!-- Wraps to its own line in a narrow panel - the presets need ~240px. -->
 		<div class="d-flex flex-wrap align-items-center gap-2 p-2 pb-0">
 			<label
 				class="form-label text-secondary mb-0 text-nowrap"
@@ -158,7 +150,7 @@
 			></clock-speed-input>
 		</div>
 
-		<table class="table table-dark table-sm align-middle mb-0">
+		<table class="table table-dark table-sm align-middle mb-0 table-stack-sm groups-table">
 			<thead>
 				<tr>
 					<th>Machines</th>
@@ -172,7 +164,7 @@
 			<tbody>
 				@for (group of groups; track $index) {
 					<tr>
-						<td>
+						<td class="stack-grow" data-label="Machines">
 							<input
 								type="number"
 								class="form-control form-control-sm bg-dark text-light border-secondary"
@@ -182,7 +174,7 @@
 								step="1"
 							>
 						</td>
-						<td>
+						<td class="stack-grow" data-label="Clock %">
 							<input
 								type="number"
 								class="form-control form-control-sm bg-dark text-light border-secondary"
@@ -194,7 +186,7 @@
 							>
 						</td>
 						@if ((selectedMachine?.sloopSlots ?? 0) > 0) {
-							<td>
+							<td class="stack-grow" data-label="Sloops">
 								<input
 									type="number"
 									class="form-control form-control-sm bg-dark text-light border-secondary"
@@ -227,8 +219,11 @@
 			</tfoot>
 		</table>
 
-		@if (hasCapacityShortage) {
-			<div class="card-footer p-2 d-flex flex-column gap-2">
+		<div class="card-footer p-2 d-flex flex-column gap-2">
+			<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addGroup()">
+				+ Add machine group
+			</button>
+			@if (hasCapacityShortage) {
 				<info-note kind="warning">
 					Not enough machines to reach the target. Use Autofill, add machines or raise the clock speeds.
 				</info-note>
@@ -238,8 +233,8 @@
 					[tooltip]="'Add the missing machines, arranged per the grouping mode - ' + groupingLabel" container="body" placement="bottom"
 					(click)="autofill()"
 				>Autofill</button>
-			</div>
-		}
+			}
+		</div>
 	</div>
 
 </div>

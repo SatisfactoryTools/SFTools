@@ -20,7 +20,7 @@
 				@if (auth.isAuthenticated()) {
 					Changes are saved automatically and follow your account to every device.
 				} @else {
-					Changes are saved automatically in this browser. Sign in to use them on other devices.
+					Changes are saved automatically on {{ platform.device }}. Sign in to use them on other devices.
 				}
 			</info-note>
 		</div>
@@ -44,6 +44,9 @@
 				}
 				@case ('account') {
 					<settings-account></settings-account>
+				}
+				@case ('desktop') {
+					<settings-desktop></settings-desktop>
 				}
 			}
 		</div>

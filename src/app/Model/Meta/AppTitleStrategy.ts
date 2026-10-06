@@ -4,13 +4,8 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 
 /**
- * Applies the route's `title` (and `data.description`) on navigation; a route
- * without one gets the site defaults. "{V}" in either is the active game
- * version's name. Pages that know better once their data is in (codex, help,
- * shares) override it from an effect, which runs after this.
- *
- * Only a change of the URL path retitles: query and fragment changes (the
- * planner's codex panel, a help section) keep whatever the page has set.
+ * Only a change of the URL path retitles: query/fragment changes (codex panel, help section) keep
+ * what the page set, and pages that know better override from an effect that runs after this.
  */
 @Injectable()
 export class AppTitleStrategy extends TitleStrategy

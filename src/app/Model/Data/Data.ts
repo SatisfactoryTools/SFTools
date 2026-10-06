@@ -16,12 +16,6 @@ export class Data
 	public readonly buildings: Building[];
 	public readonly materials: Material[];
 	public readonly resources: string[];
-	/**
-	 * Per-minute resource caps from metadata.world.limits, falling back to the
-	 * caps passed by the caller (the version record's worldData.limits - data
-	 * files of official versions carry the generator's raw world output without
-	 * limits); null when neither has any.
-	 */
 	public readonly worldLimits: Record<string, number> | null;
 
 	private readonly itemMap: Map<string, Item>;
@@ -31,7 +25,6 @@ export class Data
 	private readonly materialMap: Map<string, Material>;
 	private readonly buildingRecipeMap: Map<string, Recipe>;
 
-	// Reverse-lookup indexes for the codex, built lazily on first use.
 	private recipesByProduct: Map<string, Recipe[]> | null = null;
 	private recipesByIngredient: Map<string, Recipe[]> | null = null;
 	private buildingsByCostItem: Map<string, Building[]> | null = null;
@@ -44,23 +37,18 @@ export class Data
 	{
 		this.worldLimits = metadata?.world?.limits ?? fallbackWorldLimits;
 
-		// Items have no entity dependencies - build first
 		this.items = Object.values(schema.items).map(s => new Item(s));
 		this.itemMap = new Map(this.items.map(i => [i.className, i]));
 
-		// Materials and buildings both depend only on items
 		this.materials = Object.values(schema.materials).map(s => new Material(s, this.itemMap));
 		this.materialMap = new Map(this.materials.map(m => [m.className, m]));
 		this.buildings = Object.values(schema.buildings).map(s => new Building(s, this.itemMap));
 		this.buildingMap = new Map(this.buildings.map(b => [b.className, b]));
 
-		// Recipes depend on items and buildings
 		this.recipes = Object.values(schema.recipes).map(s => new Recipe(s, this.itemMap, this.buildingMap));
 		this.recipeMap = new Map(this.recipes.map(r => [r.className, r]));
 
-		// Build-gun recipes produce buildings, which are not items - the
-		// hydrated product references are useless, so index build recipes by
-		// building from the schema while it is still at hand.
+		// Build-gun recipes produce buildings, not items, so their hydrated products are useless: index them from the schema instead.
 		this.buildingRecipeMap = new Map();
 		Object.values(schema.recipes).forEach(s => {
 			if (!s.inBuildGun) {
@@ -73,9 +61,7 @@ export class Data
 			});
 		});
 
-		// Schematics reference each other (unlock/dependency lists).
-		// Pass a shared map by reference - it is populated in the next line,
-		// but schematic getters are lazy so they only read it when first accessed.
+		// Schematics reference each other: the shared map is filled on the next line, and the lazy getters only read it later.
 		this.schematicMap = new Map<string, Schematic>();
 		this.schematics = Object.values(schema.schematics).map(s => new Schematic(s, this.itemMap, this.recipeMap, this.schematicMap));
 		this.schematics.forEach(s => this.schematicMap.set(s.className, s));
@@ -160,7 +146,6 @@ export class Data
 		return building;
 	}
 
-	/** Icon hash for an item or building by class name, whichever exists; null if neither has one. */
 	public iconForClassName(className: string): string | null
 	{
 		return this.searchItemByClassName(className)?.icon
@@ -187,7 +172,6 @@ export class Data
 		return this.recipes.filter(r => r.producedIn.length > 0);
 	}
 
-	/** Buildings running at least one manufacturing recipe, sorted by name. */
 	public getProductionMachines(): Building[]
 	{
 		const classNames = new Set<string>();
@@ -202,35 +186,29 @@ export class Data
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	/** The build-gun recipe constructing the given building; its ingredients are the build cost. */
 	public searchBuildRecipeForBuilding(buildingClassName: string): Recipe|undefined
 	{
 		return this.buildingRecipeMap.get(buildingClassName);
 	}
 
-	/** Fuel-burning power generators (geothermal has no fuel and is excluded). */
+	/** Geothermal has no fuel and is excluded. */
 	public getPowerGenerators(): Building[]
 	{
 		return this.buildings.filter(b => b.powerProduction > 0 && b.fuel.length > 0);
 	}
 
-	// ── Codex reverse lookups ─────────────────────────────────────────────
-
-	/** Recipes with the item among their products (build-gun recipes excluded). */
 	public getRecipesProducingItem(className: string): Recipe[]
 	{
 		this.recipesByProduct ??= this.buildRecipeItemIndex(recipe => recipe.products);
 		return this.recipesByProduct.get(className) ?? [];
 	}
 
-	/** Recipes with the item among their ingredients (build-gun recipes excluded - see getBuildingsCostingItem). */
 	public getRecipesUsingItem(className: string): Recipe[]
 	{
 		this.recipesByIngredient ??= this.buildRecipeItemIndex(recipe => recipe.ingredients);
 		return this.recipesByIngredient.get(className) ?? [];
 	}
 
-	/** Buildings whose build cost includes the item. */
 	public getBuildingsCostingItem(className: string): Building[]
 	{
 		if (this.buildingsByCostItem === null) {
@@ -246,7 +224,6 @@ export class Data
 		return this.buildingsByCostItem.get(className) ?? [];
 	}
 
-	/** Schematics whose research cost includes the item. */
 	public getSchematicsCostingItem(className: string): Schematic[]
 	{
 		if (this.schematicsByCostItem === null) {
@@ -262,7 +239,6 @@ export class Data
 		return this.schematicsByCostItem.get(className) ?? [];
 	}
 
-	/** Schematics that unlock the recipe. */
 	public getSchematicsUnlockingRecipe(recipeClassName: string): Schematic[]
 	{
 		if (this.schematicsByUnlockedRecipe === null) {
@@ -278,14 +254,12 @@ export class Data
 		return this.schematicsByUnlockedRecipe.get(recipeClassName) ?? [];
 	}
 
-	/** Schematics that unlock the building (via its build-gun recipe). */
 	public getSchematicsUnlockingBuilding(buildingClassName: string): Schematic[]
 	{
 		const recipe = this.searchBuildRecipeForBuilding(buildingClassName);
 		return recipe ? this.getSchematicsUnlockingRecipe(recipe.className) : [];
 	}
 
-	/** Manufacturing recipes the building can run. */
 	public getRecipesForBuilding(buildingClassName: string): Recipe[]
 	{
 		if (this.recipesByBuilding === null) {
@@ -301,7 +275,6 @@ export class Data
 		return this.recipesByBuilding.get(buildingClassName) ?? [];
 	}
 
-	/** The building a build-gun recipe constructs, if any. */
 	public searchBuildingForBuildRecipe(recipeClassName: string): Building|undefined
 	{
 		if (this.buildingsByBuildRecipe === null) {

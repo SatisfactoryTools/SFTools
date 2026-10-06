@@ -6,20 +6,12 @@ import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerCon
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
-/**
- * The fixed overlay for the graph's context menus. The menu opens at the
- * pointer, but is kept inside the viewport: it is rendered hidden first,
- * measured, and only then placed - shifted up or left as far as needed, and
- * scrolling internally if it is taller than the viewport itself.
- */
 @Component({
 	selector: 'planner-context-menu',
 	templateUrl: './PlannerContextMenuComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FaIconComponent],
 	styles: [`
-		/* The key sits at the far end of the row, quiet enough not to compete
-		   with the label but readable while the eye runs down the list. */
 		.menu-hotkey {
 			margin-left: auto;
 			padding-left: 1.5rem;
@@ -33,16 +25,13 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 export class PlannerContextMenuComponent implements AfterViewChecked
 {
 
-	/** Gap kept between the menu and the viewport edge. */
 	private static readonly MARGIN = 4;
 
 	@ViewChild('menuElement') private menuElement?: ElementRef<HTMLElement>;
 
-	/** Size of the currently open menu; null until measured (the menu stays invisible meanwhile). */
 	private readonly sizeSignal = signal<ContextMenuSize | null>(null);
 	public readonly size = this.sizeSignal.asReadonly();
 
-	/** The menu the size was measured for - a different menu needs measuring again. */
 	private measuredMenu: PlannerContextMenu | null = null;
 
 	public constructor(
@@ -63,17 +52,12 @@ export class PlannerContextMenuComponent implements AfterViewChecked
 		return this.clamp(this.contextMenu.position().y, this.size()?.height ?? 0, window.innerHeight);
 	}
 
-	/** Never taller than the viewport - long menus scroll instead of overflowing. */
 	public get maxHeight(): number
 	{
 		return window.innerHeight - 2 * PlannerContextMenuComponent.MARGIN;
 	}
 
-	/**
-	 * Measures the menu once it is in the DOM. Setting the size signal
-	 * schedules one more check, in which the measurement matches and nothing
-	 * changes - no loop.
-	 */
+	/** Setting the size signal schedules one more check, in which the measurement matches and nothing changes - no loop. */
 	public ngAfterViewChecked(): void
 	{
 		const menu = this.contextMenu.menu();
@@ -102,11 +86,7 @@ export class PlannerContextMenuComponent implements AfterViewChecked
 		item.action();
 	}
 
-	/**
-	 * A touch never reaches the mousedown above while the finger is still
-	 * down (and a finger that scrolls the page away from the menu produces no
-	 * mouse event at all), so a touch anywhere outside closes the menu too.
-	 */
+	/** A touch never reaches the mousedown above while the finger is down, so a touch anywhere outside closes the menu too. */
 	@HostListener('document:mousedown', ['$event'])
 	@HostListener('document:touchstart', ['$event'])
 	public onDocumentMouseDown(event: MouseEvent | TouchEvent): void
@@ -120,18 +100,13 @@ export class PlannerContextMenuComponent implements AfterViewChecked
 		this.contextMenu.close();
 	}
 
-	/**
-	 * Any key closes the menu, not just Escape: the hotkeys work on what is
-	 * selected, which need not be what was right-clicked, so leaving the menu
-	 * standing while a key changes something else would only mislead.
-	 */
+	/** Any key closes the menu, not just Escape: hotkeys act on the selection, which need not be what was right-clicked. */
 	@HostListener('document:keydown')
 	public onKeyDown(): void
 	{
 		this.contextMenu.close();
 	}
 
-	/** The pointer position, pulled back so the menu ends before the viewport edge, never past the start. */
 	private clamp(position: number, extent: number, viewport: number): number
 	{
 		const margin = PlannerContextMenuComponent.MARGIN;

@@ -1,7 +1,4 @@
-/**
- * One key combination. `key` is the browser's `KeyboardEvent.key`, with
- * letters folded to lower case so "A" and "a" are the same binding.
- */
+/** `key` is the browser KeyboardEvent.key with letters folded to lower case, so "A" and "a" are the same binding. */
 export interface HotkeyBinding
 {
 

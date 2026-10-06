@@ -1,4 +1,3 @@
-/** One plan's share of a folder-wide figure. */
 export interface PlanAmount
 {
 

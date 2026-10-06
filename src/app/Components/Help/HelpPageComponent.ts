@@ -5,13 +5,6 @@ import {PageHelpNavigation} from '@src/Components/Help/PageHelpNavigation';
 import {HelpManager} from '@src/Model/Help/HelpManager';
 import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 
-/**
- * Fullscreen help at /help/…, reached from the navbar, a search result or by
- * popping the panel out. The host is a `panel` container like the planner's
- * panel scroll wrappers, so the reader lays itself out against the width it
- * actually has - one column on a phone, article list and contents beside the
- * text on a desktop. The tab title names the open article.
- */
 @Component({
 	templateUrl: './HelpPageComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -22,8 +15,7 @@ import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 			display: block;
 			container-type: inline-size;
 			container-name: panel;
-			/* The page scrolls the window under the fixed navbar, so that is
-			   where anything sticky - and a heading scrolled to - has to stop. */
+			/* The window scrolls under the fixed navbar, so sticky elements and scrolled-to headings stop there. */
 			--help-sticky-top: 4.25rem;
 		}
 	`,

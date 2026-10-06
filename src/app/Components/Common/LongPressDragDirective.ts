@@ -3,7 +3,7 @@ import {Directive, EventEmitter, HostListener, Input, OnDestroy, Output} from '@
 const HOLD_MS = 500;
 const MOVE_TOLERANCE = 10;
 
-/** A finger starts no native HTML drag, so holding the host picks it up instead. Shares the hold with LongPressContextMenuDirective: lifting leaves the menu, moving drags (the host closes the menu on the first move). */
+/** A finger starts no native HTML drag, so holding the host picks it up. Shares the hold with LongPressContextMenuDirective: lifting leaves the menu, moving drags. */
 @Directive({
 	selector: '[longPressDrag]',
 })

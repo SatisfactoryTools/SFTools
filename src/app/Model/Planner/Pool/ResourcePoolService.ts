@@ -7,18 +7,10 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PoolResourceStatus} from '@src/Model/Planner/Pool/PoolResourceStatus';
 import {SubplanBuildCounter} from '@src/Model/Planner/SubplanBuildCounter';
 
-/**
- * The shared raw-resource pool of a folder whose Resources group is pooled:
- * the folder's limits are one budget for every inner plan, and a plan may
- * only mine what the others have left. Usage comes from the mine nodes of
- * each plan's stored graph - locked and hand-edited mines included - so the
- * pool reflects what the plans actually extract, not what they were allowed.
- */
 @Injectable({providedIn: 'root'})
 export class ResourcePoolService
 {
 
-	/** Usage beyond this fraction of a unit counts as over the share, not float noise. */
 	private static readonly EPSILON = 1e-6;
 
 	public constructor(
@@ -29,12 +21,6 @@ export class ResourcePoolService
 	{
 	}
 
-	/**
-	 * The raw-resource caps the solver must respect for this plan: its own
-	 * limits, reduced by the other inner plans' extraction when pooled, and
-	 * zero for every resource switched off. A plan variant without limits and
-	 * disabled resources stays unlimited (the failure diagnosis relies on that).
-	 */
 	public effectiveLimits(plan: Plan): Record<string, number>
 	{
 		const own = plan.settings.resourceLimits ?? {};
@@ -50,13 +36,11 @@ export class ResourcePoolService
 		return limits;
 	}
 
-	/** Name of the folder pooling the plan's resources, or null. */
 	public poolFolderName(plan: Plan): string | null
 	{
 		return this.planManager.poolFolderOf(plan)?.name ?? null;
 	}
 
-	/** Per-resource pool figures for the plan, or null when the plan's resources are not pooled. */
 	public status(plan: Plan): PoolResourceStatus[] | null
 	{
 		const folder = this.planManager.poolFolderOf(plan);
@@ -90,7 +74,6 @@ export class ResourcePoolService
 			});
 	}
 
-	/** Total extraction per resource across every plan inside the folder (the folder's pool view). */
 	public usageInFolder(folderId: string): Map<string, number>
 	{
 		const total = new Map<string, number>();
@@ -100,7 +83,6 @@ export class ResourcePoolService
 		return total;
 	}
 
-	/** The pooled resources this plan mines beyond its available share. */
 	public overUsed(plan: Plan): PoolResourceStatus[]
 	{
 		return (this.status(plan) ?? []).filter(status => status.overUse);
@@ -117,12 +99,7 @@ export class ResourcePoolService
 		return total;
 	}
 
-	/**
-	 * Per-resource extraction of the plan's stored graph. Stored graphs are
-	 * either revived node instances or raw JSON straight from storage - both
-	 * carry the type, and the item is reachable either way. A subplan built
-	 * several times by its parent extracts that many times as much.
-	 */
+	/** Stored graphs are revived node instances or raw JSON straight from storage, hence the duck typing. */
 	private mineUsage(plan: Plan): Map<string, number>
 	{
 		const builds = this.subplanBuildCounter.totalBuildsOf(plan);

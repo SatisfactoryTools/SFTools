@@ -1,4 +1,3 @@
-/** "2 hours ago"-style wording for timestamps, coarse on purpose. */
 export class RelativeTimeFormatter
 {
 

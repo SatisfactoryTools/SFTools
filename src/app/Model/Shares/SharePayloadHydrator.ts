@@ -7,21 +7,13 @@ import {Plan} from '@src/Model/Planner/Plan';
 import {ShareHydration} from '@src/Model/Shares/ShareHydration';
 import {SharedPlanData} from '@src/Model/Shares/SharedPlanData';
 
-/**
- * Converts a frozen share payload into plan-store entities. Every folder and
- * plan gets a fresh UUID (the payload carries the sharer's originals), and
- * subplan references inside saved graphs are remapped so hydrated parent
- * plans keep pointing at their hydrated subplans. Fresh ids are used even
- * for read-only viewing: keeping the originals would collide with the live,
- * editable plans when the sharer opens their own link.
- */
+/** Fresh ids even for read-only viewing: the originals would collide with the live plans when the sharer opens their own link. */
 @Injectable({providedIn: 'root'})
 export class SharePayloadHydrator
 {
 
 	public hydrate(payload: SharePayload): ShareHydration
 	{
-		// Pass 1: a fresh id for every node, so graphs can be remapped in pass 2.
 		const idMap = new Map<string, string>();
 		if (payload.type === 'folder') {
 			this.mapFolderIds(payload.root as SharedFolderNode, idMap);
@@ -40,13 +32,7 @@ export class SharePayloadHydrator
 		return {folders, plans, idMap};
 	}
 
-	/**
-	 * A plan opened by its own URL (see ActivePlanLinkManager), hydrated under its
-	 * ORIGINAL ids. Unlike a share this is the one live plan the URL names: keeping the
-	 * ids means the address bar, the active plan and the store all agree, and nothing
-	 * can collide - the viewer either owns the plan (and then never gets here) or does
-	 * not have it at all.
-	 */
+	/** Hydrated under its ORIGINAL ids: the address bar, the active plan and the store must agree, and nothing can collide (an owner never gets here). */
 	public hydrateLivePlan(root: SharedPlanNode): ShareHydration
 	{
 		const idMap = new Map<string, string>();
@@ -58,7 +44,6 @@ export class SharePayloadHydrator
 		return {folders: [], plans, idMap};
 	}
 
-	/** A plan node copied into plans of the viewer's own, under fresh ids. */
 	public hydratePlanCopy(root: SharedPlanNode): ShareHydration
 	{
 		const idMap = new Map<string, string>();
@@ -147,7 +132,6 @@ export class SharePayloadHydrator
 		node.subplans.forEach(sub => this.copyPlan(sub, null, id, idMap, plans));
 	}
 
-	/** Points subplan nodes of a saved (raw JSON) graph at the copied plan ids. */
 	private remapGraph(graph: Plan['graph'], idMap: Map<string, string>): Plan['graph']
 	{
 		if (graph === null || !Array.isArray(graph.nodes)) {

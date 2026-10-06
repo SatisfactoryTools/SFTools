@@ -9,15 +9,6 @@ import {ItemAmount} from '@src/Model/Data/Entities/Parts/ItemAmount';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * One full recipe as a table row (host: `<tr codex-recipe>` inside a
- * codex-recipe-list table, so the columns align across recipes): name,
- * "amount × icon" tiles (per-minute rate underneath, item name as tooltip)
- * with ingredients → products, and the machine with cycle time and cycles
- * per minute as its caption - every entity in it cross-linked. A machine
- * recipe that is also handcraftable gets an "also: …" note instead of extra
- * tiles.
- */
 @Component({
 	selector: 'tr[codex-recipe]',
 	templateUrl: './CodexRecipeComponent.html',
@@ -46,7 +37,6 @@ export class CodexRecipeComponent
 {
 
 	@Input({required: true}) public recipe!: Recipe;
-	/** Off on the recipe's own detail page, where the name is the page title. */
 	@Input() public showName = true;
 
 	public readonly faChevronRight = faChevronRight;
@@ -65,7 +55,6 @@ export class CodexRecipeComponent
 		return this.formatter.amount(60 / recipe.time);
 	}
 
-	/** "Craft Bench", "Equipment Workshop" - empty when not handcraftable. */
 	protected handcraftPlaces(recipe: Recipe): string[]
 	{
 		const places: string[] = [];

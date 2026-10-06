@@ -50,20 +50,14 @@ export class PlanSerializer
 			folderId: null,
 			parentPlanId: null,
 			revision: null,
-			// Fallback covers plans exported before metadata existed.
 			metadata: {graphDirty: (raw['metadata'] as PlanMetadata | undefined)?.graphDirty ?? false},
-			// Preserve all three states (undefined "unset" / null "none" / string).
+			// undefined ("unset") and null ("none") are distinct states.
 			iconClassName: raw['iconClassName'] as string | null | undefined,
-			// Fallback covers plans saved before user inputs existed.
 			inputs: (raw['inputs'] as PlanInput[] | undefined) ?? [],
 			graph: raw['graph'] ? this.deserializeGraph(raw['graph'] as Record<string, unknown>, data) : null,
 		};
 	}
 
-	/**
-	 * Rebuilds node class instances for a graph parsed straight from JSON
-	 * (localStorage / API); returns the same graph if already hydrated.
-	 */
 	public reviveGraph(graph: Graph): Graph
 	{
 		if (graph.nodes.every(node => node instanceof Node)) {
@@ -97,10 +91,8 @@ export class PlanSerializer
 
 		switch (raw['type']) {
 			case 'recipe': {
-				// Three save formats: {target, groups} (current), {groups}
-				// (groups predate targets - target falls back to capacity),
-				// and {amount, clockSpeed, sloops} (pre-groups - the fractional
-				// amount at that clock IS the exact target).
+				// Three save formats: {target, groups}, {groups} (target falls back to capacity)
+				// and the pre-groups {amount, clockSpeed, sloops} (the fractional amount IS the target).
 				const groups = (raw['groups'] as MachineGroup[] | undefined)
 					?? this.normalizer.fromFractionalAmount(
 						amount,
@@ -118,7 +110,6 @@ export class PlanSerializer
 					data.getBuildingByClassName(raw['machineClassName'] as string),
 					data.getRecipeByClassName(raw['recipeClassName'] as string),
 				);
-				// Fallback covers nodes saved before grouping modes existed.
 				recipeNode.groupingMode = (raw['groupingMode'] as GroupingMode | undefined) ?? 'underclock-last';
 				node = recipeNode;
 				break;
@@ -141,7 +132,6 @@ export class PlanSerializer
 				if (!fuel) {
 					throw new Error(`Generator ${generator.className} has no fuel ${raw['fuelItemClassName']}`);
 				}
-				// Absent on plans saved before generators could be overclocked.
 				node = new GeneratorNode(id, amount, generator, fuel, (raw['clockSpeed'] as number | undefined) ?? 100);
 				break;
 			}
@@ -161,13 +151,11 @@ export class PlanSerializer
 					raw['name'] as string,
 					this.deserializeNodeIO(raw['inputs'], data),
 					this.deserializeNodeIO(raw['outputs'], data),
-					// Absent on plans saved before subplans could be built more than once.
 					(raw['buildCount'] as number | undefined) ?? 1,
 				);
 				break;
 			case 'sink': {
-				// Current format is one item per sink node; the pre-rework
-				// aggregate stored an `items` array - take its first entry.
+				// The pre-rework aggregate sink node stored an `items` array.
 				const sinkItem = (raw['itemClassName'] as string | undefined)
 					?? (raw['items'] as {itemClassName: string}[] | undefined)?.[0]?.itemClassName;
 				const sinkAmount = (raw['amount'] as number | undefined)
@@ -181,9 +169,8 @@ export class PlanSerializer
 
 		node.x = x;
 		node.y = y;
-		// Subplan nodes are user-owned by definition and stay locked forever.
-		// Augmenter nodes are the opposite: the solver restates them from the
-		// plan's settings every time, so a lock would only ever duplicate them.
+		// Subplan nodes are always locked; augmenter nodes never, since the solver
+		// restates them from the settings every time and a lock would duplicate them.
 		node.locked = !(node instanceof AugmenterNode)
 			&& (raw['locked'] === true || node instanceof SubplanNode);
 		node.done = raw['done'] === true;

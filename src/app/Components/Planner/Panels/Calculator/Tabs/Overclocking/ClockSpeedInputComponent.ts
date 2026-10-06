@@ -1,15 +1,33 @@
 import {Component, Input, Output, EventEmitter, ChangeDetectionStrategy} from '@angular/core';
 import {Formulas} from '@src/Model/Planner/Formulas';
 
-/**
- * A clock-speed field (1–250%, 4-decimal precision) with the common presets
- * appended as one-click buttons. step="any" keeps the browser's up/down
- * arrows at ±1 while still allowing fractional values to be typed.
- */
+/** step="any" keeps the browser's arrows at ±1 while still allowing fractional values. */
 @Component({
 	selector: 'clock-speed-input',
 	templateUrl: './ClockSpeedInputComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
+	styles: [`
+		:host { display: block; min-width: 0; }
+		/* Plain nowrap rather than the .flex-nowrap utility: its !important
+		   would also beat the narrow-panel override below. */
+		.input-group { flex-wrap: nowrap; }
+		@container panel (max-width: 300px) {
+			.input-group {
+				flex-wrap: wrap;
+				gap: 0.25rem;
+			}
+			.input-group > .form-control {
+				flex: 1 1 100%;
+				width: 100%;
+				border-radius: var(--bs-border-radius-sm) !important;
+			}
+			.input-group > .btn {
+				flex: 1 1 auto;
+				margin-left: 0 !important;
+				border-radius: var(--bs-border-radius-sm) !important;
+			}
+		}
+	`],
 })
 export class ClockSpeedInputComponent
 {

@@ -4,12 +4,6 @@ import {SearchFragmentsComponent} from '@src/Components/Common/SearchFragmentsCo
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 import {CodexSearchState} from '@src/Components/Codex/CodexSearchState';
 
-/**
- * The codex panel's search results, grouped by section, shown in place of
- * the browsed content while a query is typed. Rows are real codex links in
- * the same row style as the narrow entry list; the keyboard cursor from the
- * search box highlights one of them.
- */
 @Component({
 	selector: 'codex-search-results',
 	templateUrl: './CodexSearchResultsComponent.html',

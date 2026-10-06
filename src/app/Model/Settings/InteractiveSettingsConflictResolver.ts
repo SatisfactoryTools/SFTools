@@ -5,12 +5,7 @@ import {Settings} from '@src/Model/Settings/Settings';
 import {SettingsConflictService} from '@src/Model/Settings/SettingsConflictService';
 import {SettingsDefaults} from '@src/Model/Settings/SettingsDefaults';
 
-/**
- * On login, if this device's preferences differ from the account's, ask the
- * user which to keep. Only the visible preferences (numbers, graph, planner,
- * plan defaults, account) count - the panel layout is device-specific and never
- * triggers a prompt.
- */
+/** Only the visible preferences are compared: the panel layout is device-specific and never triggers a prompt. */
 export class InteractiveSettingsConflictResolver implements ConflictResolver<Settings>
 {
 

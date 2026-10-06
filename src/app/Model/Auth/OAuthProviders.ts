@@ -1,7 +1,6 @@
 import {faDiscord, faGithub, faGoogle, faSteam} from '@fortawesome/free-brands-svg-icons';
 import {OAuthProviderInfo} from '@src/Model/Auth/OAuthProviderInfo';
 
-/** The supported third-party providers, in the order they are offered (password login comes last). */
 export class OAuthProviders
 {
 

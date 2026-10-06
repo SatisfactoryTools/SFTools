@@ -1,0 +1,30 @@
+@if (updates.available(); as update) {
+	@if (!updates.dismissed()) {
+		<div class="update-banner alert alert-info shadow mb-0 py-2 px-3" role="status">
+			<div class="d-flex align-items-start gap-2">
+				<div class="flex-grow-1">
+					<strong>Version {{ update.version }} is available.</strong>
+					<div class="small">You have {{ update.currentVersion }}. The app restarts to finish the update.</div>
+					@if (update.notes) {
+						<div class="small mt-1 notes">{{ update.notes }}</div>
+					}
+				</div>
+				@if (updates.progress() === undefined) {
+					<button type="button" class="btn btn-link btn-sm p-0 text-reset flex-shrink-0" aria-label="Later" (click)="updates.dismiss()">
+						<fa-icon [icon]="faXmark"></fa-icon>
+					</button>
+				}
+			</div>
+			@if (updates.error(); as error) {
+				<div class="small text-danger mt-1">{{ error }}</div>
+			}
+			<div class="mt-2">
+				@if (updates.progress() === undefined) {
+					<button type="button" class="btn btn-sm btn-primary" (click)="updates.install()">Update now</button>
+				} @else {
+					<span class="small"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Downloading{{ percent(updates.progress()) }}…</span>
+				}
+			</div>
+		</div>
+	}
+}

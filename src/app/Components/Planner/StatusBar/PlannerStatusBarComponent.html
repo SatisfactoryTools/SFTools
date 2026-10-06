@@ -12,10 +12,7 @@
 
 <span class="right">
 	@if (warningCount() > 0) {
-		<!-- container="body" so the dropup overlays the canvas instead of being
-		     clipped by the status bar's own box. insideClick keeps it open while
-		     the kind chips are used; the node buttons close it themselves once
-		     they have focused their node. -->
+		<!-- container="body": the status bar's own box would clip the dropup. insideClick keeps it open while the kind chips are used. -->
 		<span dropdown container="body" placement="top right" [dropup]="true" [insideClick]="true" #warnings="bs-dropdown">
 			<button
 				class="warnings-toggle"
@@ -95,9 +92,7 @@
 		</span>
 	}
 
-	<!-- The state text is dropped first when the bar narrows, so its tooltip is
-	     often the only explanation left - container="body" keeps it out of the
-	     bar's own overflow: hidden box. -->
+	<!-- container="body" keeps the tooltip out of the bar's overflow: hidden box. -->
 	@if (actions.isCalculating()) {
 		<span class="state state-busy" tooltip="calculating…" container="body" placement="top"><span class="dot"></span><span class="state-text">calculating…</span></span>
 	} @else if (actions.solveError(); as error) {

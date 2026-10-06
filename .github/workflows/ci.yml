@@ -5,13 +5,15 @@ on:
     pull_request:
 
 concurrency:
-    group: ci-${{ github.ref }}
+    group: ci-${{ github.ref }}-${{ github.ref == 'refs/heads/master' && github.sha || 'branch' }}
     cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+env:
+    DESKTOP_VERSION: 1.0.${{ github.run_number }}
 
 jobs:
     build:
         runs-on: ubuntu-latest
-        # Skip duplicate runs for PRs from branches in this repo (the push event already builds them)
         if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
         steps:
             -   uses: actions/checkout@v5
@@ -32,14 +34,6 @@ jobs:
             -   name: Lint web layer
                 run: php -l deploy/web/index.php
 
-            # Link previews (docs/link-previews.md): index.php prints page-specific
-            # meta tags into index.html. Only once the vhost runs PHP - set the
-            # repository variable WEB_LAYER_ENABLED=true then. Without it the
-            # build stays a plain static bundle, served exactly as before.
-            -   name: Add web layer
-                if: vars.WEB_LAYER_ENABLED == 'true'
-                run: cp -a deploy/web/. dist/
-
             -   name: Upload build artifact
                 if: github.event_name == 'push' && github.ref == 'refs/heads/master'
                 uses: actions/upload-artifact@v4
@@ -57,11 +51,19 @@ jobs:
             group: production-deploy
             cancel-in-progress: false
         steps:
+            -   uses: actions/checkout@v5
+                with:
+                    sparse-checkout: deploy/web
+
             -   name: Download build artifact
                 uses: actions/download-artifact@v4
                 with:
                     name: dist
                     path: dist
+
+            -   name: Add web layer
+                if: vars.WEB_LAYER_ENABLED == 'true'
+                run: cp -a deploy/web/. dist/
 
             -   name: Set up SSH
                 env:
@@ -99,3 +101,194 @@ jobs:
                 if: vars.WEB_LAYER_ENABLED == 'true'
                 continue-on-error: true
                 run: curl -fsS -A Discordbot "https://new.satisfactorytools.com/help?v=${GITHUB_SHA:0:7}" | grep -q 'og:title" content="Help'
+
+    desktop:
+        needs: build
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        concurrency:
+            group: desktop-build-${{ matrix.os }}
+            cancel-in-progress: true
+        strategy:
+            fail-fast: true
+            matrix:
+                include:
+                    -   os: windows-latest
+                        bundles: nsis
+                    -   os: ubuntu-22.04
+                        bundles: appimage
+        runs-on: ${{ matrix.os }}
+        env:
+            HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
+            SIGN_WITH_SIGNPATH: ${{ matrix.bundles == 'nsis' && vars.SIGNPATH_ORGANIZATION_ID != '' }}
+        steps:
+            -   uses: actions/checkout@v5
+
+            -   uses: actions/setup-node@v5
+                with:
+                    node-version: 24
+                    cache: npm
+
+            -   run: npm ci
+
+            -   name: Download build artifact
+                uses: actions/download-artifact@v4
+                with:
+                    name: dist
+                    path: dist
+
+            -   uses: dtolnay/rust-toolchain@stable
+
+            -   uses: Swatinem/rust-cache@v2
+                with:
+                    workspaces: desktop
+
+            -   name: Install Linux build dependencies
+                if: runner.os == 'Linux'
+                run: |
+                    sudo apt-get update
+                    sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+            # Code signing for Windows is optional: without a certificate the
+            # installer is unsigned (SmartScreen warns once). With one, add the
+            # secrets WINDOWS_CERTIFICATE (base64 of the .pfx) and
+            # WINDOWS_CERTIFICATE_PASSWORD - see docs/desktop-app.md.
+            -   name: Import Windows signing certificate
+                id: windows-certificate
+                if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE == 'true'
+                shell: pwsh
+                env:
+                    WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+                    WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+                run: |
+                    New-Item -ItemType Directory -Path certificate | Out-Null
+                    Set-Content -Path certificate/certificate.txt -Value $env:WINDOWS_CERTIFICATE
+                    certutil -decode certificate/certificate.txt certificate/certificate.pfx | Out-Null
+                    $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+                    $certificate = Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password $password
+                    Remove-Item -Recurse -Force certificate
+                    "thumbprint=$($certificate.Thumbprint)" >> $env:GITHUB_OUTPUT
+
+            -   name: Build the desktop app
+                shell: bash
+                env:
+                    TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                    TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+                    THUMBPRINT: ${{ steps.windows-certificate.outputs.thumbprint }}
+                run: |
+                    CONFIG=$(node -e '
+                      const config = {version: process.env.DESKTOP_VERSION, build: {beforeBuildCommand: ""}};
+                      if (process.env.THUMBPRINT) {
+                        config.bundle = {windows: {certificateThumbprint: process.env.THUMBPRINT, timestampUrl: "http://timestamp.digicert.com"}};
+                      }
+                      console.log(JSON.stringify(config));
+                    ')
+                    npx tauri build --bundles ${{ matrix.bundles }} --config "$CONFIG"
+
+            -   name: Upload the unsigned installer
+                id: unsigned-installer
+                if: env.SIGN_WITH_SIGNPATH == 'true'
+                uses: actions/upload-artifact@v4
+                with:
+                    name: unsigned-installer
+                    path: desktop/target/release/bundle/nsis/*-setup.exe
+                    if-no-files-found: error
+                    retention-days: 1
+
+            # Waits for the approval in SignPath - every release is approved by hand (see docs/desktop-app.md)
+            -   name: Sign the installer
+                if: env.SIGN_WITH_SIGNPATH == 'true'
+                uses: signpath/github-action-submit-signing-request@v3
+                with:
+                    api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+                    organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+                    project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+                    signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+                    github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
+                    wait-for-completion: true
+                    wait-for-completion-timeout-in-seconds: 18000
+                    output-artifact-directory: signed-installer
+                    parameters: |
+                        version: "${{ env.DESKTOP_VERSION }}"
+
+            # Signing changed the file, so the updater signature is redone
+            -   name: Use the signed installer
+                if: env.SIGN_WITH_SIGNPATH == 'true'
+                shell: bash
+                env:
+                    TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                    TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+                run: |
+                    cp signed-installer/*-setup.exe desktop/target/release/bundle/nsis/
+                    npx tauri signer sign --app-version "$DESKTOP_VERSION" desktop/target/release/bundle/nsis/*-setup.exe
+
+            -   name: Upload bundles
+                uses: actions/upload-artifact@v4
+                with:
+                    name: bundle-${{ matrix.bundles }}
+                    path: |
+                        desktop/target/release/bundle/nsis/*-setup.exe
+                        desktop/target/release/bundle/nsis/*-setup.exe.sig
+                        desktop/target/release/bundle/appimage/*.AppImage
+                        desktop/target/release/bundle/appimage/*.AppImage.sig
+                    if-no-files-found: error
+                    retention-days: 7
+
+    desktop-publish:
+        needs: desktop
+        runs-on: ubuntu-latest
+        concurrency:
+            group: desktop-release
+            cancel-in-progress: false
+        env:
+            DOWNLOAD_URL: ${{ vars.DESKTOP_DOWNLOAD_URL || 'https://api.new.satisfactorytools.com/desktop' }}
+        steps:
+            -   uses: actions/checkout@v5
+                with:
+                    sparse-checkout: scripts
+
+            -   uses: actions/setup-node@v5
+                with:
+                    node-version: 24
+
+            -   name: Download bundles
+                uses: actions/download-artifact@v4
+                with:
+                    pattern: bundle-*
+                    path: bundles
+
+            -   name: Build the update manifest
+                run: node scripts/desktop-manifest.mjs "$DESKTOP_VERSION" bundles release "$DOWNLOAD_URL"
+
+            -   name: Set up SSH
+                env:
+                    SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+                    SSH_HOST: ${{ secrets.DEPLOY_HOST }}
+                    SSH_USER: ${{ secrets.DEPLOY_USER }}
+                run: |
+                    mkdir -p ~/.ssh
+                    printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
+                    chmod 600 ~/.ssh/id_deploy
+                    ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+                    printf 'Host deploy-target\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n' \
+                      "$SSH_HOST" "$SSH_USER" >> ~/.ssh/config
+
+            -   name: Upload release
+                env:
+                    DEPLOY_PATH: ${{ secrets.DESKTOP_DEPLOY_PATH }}
+                run: |
+                    ssh deploy-target "mkdir -p '$DEPLOY_PATH/$DESKTOP_VERSION'"
+                    rsync -az "release/$DESKTOP_VERSION/" "deploy-target:$DEPLOY_PATH/$DESKTOP_VERSION/"
+                    rsync -az release/latest.json "deploy-target:$DEPLOY_PATH/latest.json"
+
+            -   name: Prune old versions
+                env:
+                    DEPLOY_PATH: ${{ secrets.DESKTOP_DEPLOY_PATH }}
+                run: |
+                    ssh deploy-target "
+                      cd '$DEPLOY_PATH' &&
+                      ls -1dt */ | tail -n +4 | xargs -r rm -rf
+                    "
+
+            -   name: Check the manifest
+                run: |
+                    curl -fsS "$DOWNLOAD_URL/latest.json" | grep -q "\"version\": \"$DESKTOP_VERSION\""

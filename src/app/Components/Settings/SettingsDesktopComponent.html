@@ -1,0 +1,126 @@
+<settings-section title="Desktop app" [icon]="sectionIcon" [description]="desktop ? 'Updates, links, offline use and where your data is saved.' : 'Get the desktop app and open links in it.'">
+	@if (!desktop) {
+		<div class="subsection-title">Get the app</div>
+		<p class="mb-2">
+			The desktop app is the same planner, but it also works offline: download the game versions you play,
+			and keep planning without a connection. Plans are saved in files on your computer, or in your account
+			when you are signed in - changes made offline are saved to it once you are back online.
+		</p>
+		@if (release(); as manifest) {
+			<div class="d-flex flex-wrap gap-2 mb-1">
+				@if (downloadUrl('windows-x86_64'); as url) {
+					<a class="btn btn-sm btn-primary" [href]="url">Download for Windows</a>
+				}
+				@if (downloadUrl('linux-x86_64'); as url) {
+					<a class="btn btn-sm btn-outline-primary" [href]="url">Download for Linux (AppImage)</a>
+				}
+			</div>
+			<div class="form-text">Version {{ manifest.version }}. The app updates itself.</div>
+		} @else if (releaseMissing()) {
+			<info-note class="mb-2">The desktop app is not available for download yet.</info-note>
+		}
+
+		<div class="subsection-title">Links</div>
+		<div class="form-check">
+			<input class="form-check-input" type="checkbox" id="open-in-desktop" [ngModel]="handoff.enabled()" (ngModelChange)="handoff.setEnabled($event)"/>
+			<label class="form-check-label" for="open-in-desktop">Open shared plans and plan links in the desktop app</label>
+			<div class="form-text">
+				Only in this browser. When a link to a shared plan or a plan opens the website here, it is passed on to the
+				desktop app instead - with a button to stay in the browser.
+			</div>
+		</div>
+	} @else {
+		<div class="subsection-title">Updates</div>
+		<p class="mb-2">
+			Version {{ updates.currentVersion }}.
+			@if (updates.available(); as update) {
+				Version {{ update.version }} is available.
+			} @else if (updates.upToDate()) {
+				This is the latest version.
+			}
+		</p>
+		@if (updates.error(); as error) {
+			<info-note kind="warning" class="mb-2">{{ error }}</info-note>
+		}
+		<div class="d-flex flex-wrap gap-2 mb-2">
+			@if (updates.available()) {
+				<button type="button" class="btn btn-sm btn-primary" [disabled]="updates.progress() !== undefined" (click)="updates.install()">
+					{{ updates.progress() === undefined ? 'Update and restart' : 'Updating…' }}
+				</button>
+			} @else {
+				<button type="button" class="btn btn-sm btn-outline-primary" [disabled]="updates.checking() || !connectivity.online()" (click)="updates.check()">
+					{{ updates.checking() ? 'Checking…' : 'Check for updates' }}
+				</button>
+			}
+		</div>
+		<div class="form-check">
+			<input class="form-check-input" type="checkbox" id="check-updates" [ngModel]="preferences.preferences().checkForUpdates" (ngModelChange)="preferences.update({checkForUpdates: $event})"/>
+			<label class="form-check-label" for="check-updates">Check for updates when the app starts</label>
+		</div>
+
+		<div class="subsection-title">Links</div>
+		<div class="form-check mb-2">
+			<input class="form-check-input" type="checkbox" id="open-links" [ngModel]="preferences.preferences().openLinks" (ngModelChange)="preferences.update({openLinks: $event})"/>
+			<label class="form-check-label" for="open-links">Open Satisfactory Tools links in this app</label>
+			<div class="form-text">
+				Shared plans and plan links open here when the website hands them over (turn on "Open shared plans and
+				plan links in the desktop app" in the website's settings, in each browser you use). Links to other
+				sites always open in your browser.
+			</div>
+		</div>
+		<form class="d-flex gap-2" (ngSubmit)="openLink()">
+			<input type="text" class="form-control form-control-sm" name="link" placeholder="Paste a shared plan or plan link" [(ngModel)]="linkDraft"/>
+			<button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0" [disabled]="linkDraft.trim() === ''">Open</button>
+		</form>
+
+		<div class="subsection-title">Offline</div>
+		<p class="mb-2">
+			Download the game versions you want to use without a connection. Versions you open are kept for offline
+			use too, but only the parts you looked at.
+		</p>
+		<div class="mb-2">
+			@for (version of versions(); track version.id) {
+				<div class="offline-row">
+					<span class="offline-name">
+						{{ version.name }}
+						@if (offlineVersions.isOffline(version)) {
+							<span class="badge text-bg-success ms-1">Offline</span>
+						} @else if (offlineVersions.isOutdated(version)) {
+							<span class="badge text-bg-warning ms-1">Outdated</span>
+						}
+					</span>
+					@if (offlineVersions.download(); as progress) {
+						@if (progress.versionId === version.id) {
+							<span class="small text-secondary">
+								<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+								{{ progress.total === 0 ? 'Downloading data…' : 'Icons ' + progress.done + ' / ' + progress.total }}
+							</span>
+						}
+					} @else {
+						@if (!offlineVersions.isOffline(version)) {
+							<button type="button" class="btn btn-sm btn-outline-primary py-0" [disabled]="!connectivity.online()" (click)="download(version)">
+								{{ offlineVersions.isOutdated(version) ? 'Update' : 'Download' }}
+							</button>
+						}
+						@if (offlineVersions.isOffline(version) || offlineVersions.isOutdated(version)) {
+							<button type="button" class="btn btn-sm btn-outline-secondary py-0" (click)="offlineVersions.remove(version)">Remove</button>
+						}
+					}
+				</div>
+			}
+		</div>
+
+		<div class="subsection-title">Your data</div>
+		<p class="mb-1">
+			Plans and settings made without signing in are saved in this folder. Back it up to keep them safe; signed-in
+			plans are in your account.
+		</p>
+		<p class="small data-path mb-2"><code>{{ dataDir }}</code></p>
+		<div class="d-flex flex-wrap align-items-center gap-2">
+			<button type="button" class="btn btn-sm btn-outline-primary" (click)="openDataDir()">Open folder</button>
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="clearCache()">
+				Clear downloaded data{{ cacheBytes() === null ? '' : ' (' + formatBytes(cacheBytes()!) + ')' }}
+			</button>
+		</div>
+	}
+</settings-section>

@@ -17,11 +17,6 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HelpTopicCoverage} from '@src/Model/Help/HelpTopicCoverage';
 import {NotificationService} from '@src/Model/NotificationService';
 
-/**
- * The help editor's home: every article (drafts included) and the sections
- * they are grouped into. Writing itself happens in HelpArticleEditorComponent;
- * this page only creates, deletes and reorders.
- */
 @Component({
 	templateUrl: './HelpEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -41,7 +36,6 @@ export class HelpEditorComponent
 
 	public readonly faTrash = faTrash;
 
-	/** Which cards are folded; both start folded, the article list is what the page is for. */
 	public readonly foldState: CollapsibleSections;
 	public newCategoryName = '';
 	public newCategorySlug = '';
@@ -52,10 +46,8 @@ export class HelpEditorComponent
 	private readonly categoriesSignal = signal<HelpEditorCategory[]>([]);
 	public readonly categories = this.categoriesSignal.asReadonly();
 
-	/** Every topic a question-mark button can ask for, with the article that answers it. */
 	public readonly topicGroups = computed(() => this.coverage.groups(this.articles()));
 
-	/** Ids articles claim that no button asks for - typos and leftovers. */
 	public readonly unknownTopics = computed(() => this.coverage.unknown(this.articles()));
 
 	public readonly answeredTopics = computed(() => this.coverage.answered(this.articles()));
@@ -135,7 +127,6 @@ export class HelpEditorComponent
 		});
 	}
 
-	/** For when the files on disk got out of step with the database. */
 	public republish(): void
 	{
 		this.api.publish().subscribe({
@@ -159,7 +150,7 @@ export class HelpEditorComponent
 		});
 	}
 
-	/** Every write rebuilds the snapshot, so the reader's index is stale too. */
+	// Every write rebuilds the snapshot, so the reader's index is stale too.
 	private reload(): void
 	{
 		this.load();

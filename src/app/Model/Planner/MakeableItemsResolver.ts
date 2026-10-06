@@ -8,14 +8,7 @@ import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {UnmakeableItemsDisplay} from '@src/Model/Settings/UnmakeableItemsDisplay';
 
-/**
- * Resolves which items a plan can currently obtain with its enabled
- * selections: raw resources, products of enabled recipes (not disabled by
- * machine), and burn byproducts of enabled generator fuels. Used by the item
- * pickers to strike through or hide everything else (spoiler protection) -
- * a one-step producer check, deliberately shallower than the solver's full
- * reachability analysis.
- */
+/** A one-step producer check, deliberately shallower than the solver's full reachability analysis. */
 @Injectable({providedIn: 'root'})
 export class MakeableItemsResolver
 {
@@ -29,11 +22,6 @@ export class MakeableItemsResolver
 	{
 	}
 
-	/**
-	 * Convenience for the item pickers: applies the user's unmakeable-items
-	 * display mode against the active plan's settings. Options pass through
-	 * untouched while the mode is 'show' or no plan context is active.
-	 */
 	public applyToActivePlan(options: ItemPickerOption[]): ItemPickerOption[]
 	{
 		const display = this.settingsManager.planner().unmakeableItems;
@@ -77,13 +65,6 @@ export class MakeableItemsResolver
 		return makeable;
 	}
 
-	/**
-	 * Applies the user's unmakeable-items display mode to picker options:
-	 * 'show' returns them untouched, 'strike' marks unmakeable options and
-	 * moves them to the end, 'hide' drops them. Options that must always be
-	 * offered (special targets like Power) are the caller's business - only
-	 * pass what may be filtered.
-	 */
 	public applyDisplay(options: ItemPickerOption[], makeable: Set<string>, display: UnmakeableItemsDisplay): ItemPickerOption[]
 	{
 		if (display === 'show') {

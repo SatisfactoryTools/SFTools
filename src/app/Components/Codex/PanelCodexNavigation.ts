@@ -5,11 +5,6 @@ import {map} from 'rxjs/operators';
 import {CodexLink} from '@src/Components/Codex/CodexLink';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 
-/**
- * Codex navigation for the planner panel: the codex path lives in the
- * `?codex=` query param of the current (planner) URL, so browsing the codex
- * never leaves the plan and a refresh restores the panel content.
- */
 @Injectable()
 export class PanelCodexNavigation extends CodexNavigation
 {

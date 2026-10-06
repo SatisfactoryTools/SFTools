@@ -41,13 +41,6 @@ import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * Aggregates a plan's graph into the summary panels' row models: power per
- * building type and recipe, item flows per item, and build cost per building.
- * Each subplan node contributes a single row summing the subplan's own graph
- * recursively - the subplan itself is where its details live. A subplan node
- * built several times counts that many times everywhere.
- */
 @Injectable({providedIn: 'root'})
 export class PlanBreakdownService
 {
@@ -154,9 +147,7 @@ export class PlanBreakdownService
 				})),
 		}));
 
-		// Geothermal generators and alien power augmenters are settings rather
-		// than graph nodes; the augmenters' percentage applies to what this
-		// plan's own generators make, so the rows come after them.
+		// After the generator rows: the augmenters' percentage applies to what this plan's own generators make.
 		const extraRows = this.extraPowerRows(plan, production.average);
 		rows.push(...extraRows.rows);
 		production = production.add(extraRows.production);
@@ -235,8 +226,7 @@ export class PlanBreakdownService
 			return {rows: [], machines: 0, shards: 0, sloops: 0, materials: []};
 		}
 
-		// Build cost only counts buildings, so what the generators make (the
-		// augmenters' percentage base) does not matter here.
+		// Only buildings are counted, so the generated MW the augmenters scale does not matter here.
 		const own: ProductionNodes = {recipes: [], generators: [], mines: [], extraPower: this.extraPowerEntries(plan, 0)};
 		const subplanNodes: SubplanNode[] = [];
 		graph.nodes.forEach(node => {
@@ -276,12 +266,6 @@ export class PlanBreakdownService
 		};
 	}
 
-	/**
-	 * Overview: every raw resource of the version alphabetically - used or not -
-	 * with the plan's extraction rate (nested subplans included) and its own
-	 * mining cap. Resources are extracted at the plan's mine nodes, so an
-	 * unsolved plan simply reads as unused.
-	 */
 	public resources(plan: Plan | null): ResourceUsageRow[]
 	{
 		const data = this.versionManager.activeVersionData();
@@ -309,7 +293,6 @@ export class PlanBreakdownService
 			}));
 	}
 
-	/** Overview: what leaves the plan - requested products first, then byproducts, each alphabetical. */
 	public production(plan: Plan | null): ProductionRow[]
 	{
 		const graph = this.reviveGraph(plan?.graph ?? null);
@@ -331,7 +314,6 @@ export class PlanBreakdownService
 			(a.kind === b.kind ? 0 : a.kind === 'product' ? -1 : 1) || a.item.name.localeCompare(b.item.name));
 	}
 
-	/** Overview: recipes in use with their machine counts, nested subplans included. */
 	public recipes(plan: Plan | null): RecipeUsageRow[]
 	{
 		if (!plan) {
@@ -348,7 +330,6 @@ export class PlanBreakdownService
 		return [...rows.values()].sort((a, b) => a.recipe.name.localeCompare(b.recipe.name));
 	}
 
-	/** Folder overview: one row per plan in the folder, each summed like a subplan row. */
 	public powerForFolder(folderId: string): PowerBreakdown
 	{
 		const rows: PowerRow[] = [];
@@ -375,7 +356,6 @@ export class PlanBreakdownService
 		return {rows, consumption, production: production.average, net: production.subtract(consumption)};
 	}
 
-	/** Folder overview: each plan's outside interface (inputs needed, products/byproducts provided). */
 	public itemsForFolder(folderId: string): ItemRow[]
 	{
 		const rows = new Map<string, {
@@ -419,7 +399,6 @@ export class PlanBreakdownService
 			});
 	}
 
-	/** Folder overview: one row per plan in the folder, expandable to its total materials. */
 	public buildCostForFolder(folderId: string): BuildCostBreakdown
 	{
 		const rows: BuildCostRow[] = this.folderPlans(folderId).map(plan => {
@@ -446,18 +425,12 @@ export class PlanBreakdownService
 		};
 	}
 
-	/**
-	 * Per-building-type rows of everything the plan builds, nested subplans
-	 * folded into the building rows instead of one summary row each - for
-	 * views that sum several plans by building.
-	 */
 	public buildingsRecursive(plan: Plan): BuildCostRow[]
 	{
 		const nodes = this.collectProductionNodes(plan.id, new Set());
 		return this.machineCostRows(nodes);
 	}
 
-	/** Recursive power totals of a subplan, e.g. for the solver's factory-power balance. */
 	public subplanPower(subplanId: string): {consumption: number; production: number}
 	{
 		const nodes = this.collectProductionNodes(subplanId, new Set());
@@ -472,10 +445,6 @@ export class PlanBreakdownService
 		return PowerDraw.sum(recipes.map(entry => entry.node.powerDraw().scale(entry.count)));
 	}
 
-	/**
-	 * Everything a collection generates: its generator nodes plus, per plan
-	 * on the way down, that plan's geothermal power and augmenter bonus.
-	 */
 	private productionOf(nodes: ProductionNodes): PowerDraw
 	{
 		const generators = nodes.generators.reduce((sum, entry) => sum + entry.node.powerProduction() * entry.count, 0);
@@ -483,7 +452,6 @@ export class PlanBreakdownService
 		return PowerDraw.sum([PowerDraw.fixed(generators), ...extra]);
 	}
 
-	/** The folder's own plans (subplans belong to their parent plan's rows, not the folder). */
 	private folderPlans(folderId: string): Plan[]
 	{
 		return this.planManager.plans()
@@ -514,9 +482,6 @@ export class PlanBreakdownService
 			row.shards += entry.node.powerShards() * entry.count;
 		});
 
-		// Geothermal generators and augmenters cost buildings like any other.
-		// The augmenters' somersloops join the plan's somersloop total as
-		// well as their build materials - the plan really does need that many.
 		nodes.extraPower.forEach(entry => {
 			this.addExtraBuilding(map, SpecialClasses.GeothermalGeneratorBuilding,
 				entry.extraPower.geothermalCount * entry.count, 0);
@@ -536,11 +501,6 @@ export class PlanBreakdownService
 		}));
 	}
 
-	/**
-	 * Power panel rows for the buildings that are settings rather than nodes:
-	 * one for the geothermal generators, one for the augmenters. `generated`
-	 * is what the plan's own generators make - the augmenters raise it.
-	 */
 	private extraPowerRows(plan: Plan, generated: number): {rows: PowerRow[]; production: PowerDraw}
 	{
 		const extra = this.extraPower.resolve(plan.settings);
@@ -582,11 +542,6 @@ export class PlanBreakdownService
 		return {rows, production: geothermal.add(augmenters)};
 	}
 
-	/**
-	 * One row per augmenter mode. Each augmenter brings its own fixed MW
-	 * (raised by the shared percentage) plus its own share of that percentage
-	 * on `base` - everything the plan generates before the augmenters.
-	 */
 	private augmenterEntries(extra: ExtraPower, base: PowerDraw): PowerEntryRow[]
 	{
 		const plain = ExtraPower.forAugmenters(1, 0);
@@ -611,7 +566,6 @@ export class PlanBreakdownService
 			});
 	}
 
-	/** One row per geyser purity the plan uses, each with what those generators make. */
 	private geothermalEntries(extra: ExtraPower): PowerEntryRow[]
 	{
 		const purities: {key: keyof GeothermalGenerators; name: string}[] = [
@@ -669,12 +623,7 @@ export class PlanBreakdownService
 		return [...merged.values()].sort((a, b) => a.item.name.localeCompare(b.item.name));
 	}
 
-	/**
-	 * All machine, generator and mine nodes reachable from the given plan, nested
-	 * subplans included. The ancestors set carries the plan ids on the current
-	 * path, so a corrupted cyclic reference terminates instead of recursing
-	 * forever - while the same subplan used twice as siblings still counts twice.
-	 */
+	/** `ancestors` is the current path, not a visited set: a corrupt cycle terminates while the same subplan used twice as siblings still counts twice. */
 	private collectProductionNodes(planId: string, ancestors: ReadonlySet<string>): ProductionNodes
 	{
 		const result: ProductionNodes = {recipes: [], generators: [], mines: [], extraPower: []};
@@ -687,8 +636,7 @@ export class PlanBreakdownService
 			return result;
 		}
 
-		// The augmenters' percentage applies to what this plan's own
-		// generators make - a subplan brings its own entry for its own.
+		// Only this plan's own generators - a subplan brings its own entry.
 		let generated = 0;
 		const path = new Set([...ancestors, planId]);
 		graph.nodes.forEach(node => {
@@ -700,7 +648,6 @@ export class PlanBreakdownService
 			} else if (node instanceof MineNode) {
 				result.mines.push({node, count: 1});
 			} else if (node instanceof SubplanNode) {
-				// A subplan built several times brings everything inside it that many times.
 				const builds = Math.max(1, node.buildCount);
 				const nested = this.collectProductionNodes(node.subplanId, path);
 				result.recipes.push(...this.multiplied(nested.recipes, builds));
@@ -713,7 +660,6 @@ export class PlanBreakdownService
 		return result;
 	}
 
-	/** The plan's own geothermal and augmenter setup, or nothing when it has none. */
 	private extraPowerEntries(plan: Plan | null | undefined, generated: number): CountedExtraPower[]
 	{
 		const extraPower = this.extraPower.resolve(plan?.settings);
@@ -733,10 +679,6 @@ export class PlanBreakdownService
 				sum + (entry.extraPower.geothermalCount + entry.extraPower.augmenters.count) * entry.count, 0);
 	}
 
-	/**
-	 * Multiple nodes may reference the same subplan - one row each, scaled by
-	 * how many times the subplan is built across all of them.
-	 */
 	private groupSubplans(nodes: SubplanNode[]): {subplanId: string; name: string; count: number}[]
 	{
 		const groups = new Map<string, {subplanId: string; name: string; count: number}>();
@@ -748,7 +690,6 @@ export class PlanBreakdownService
 		return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
 	}
 
-	/** A subplan counted more than once says so in its row: "Blueprint A (built 3×)". */
 	private subplanRowName(group: {name: string; count: number}): string
 	{
 		return group.count > 1 ? `${group.name} (built ${group.count}×)` : group.name;
@@ -763,8 +704,7 @@ export class PlanBreakdownService
 			return {key: `generator:${node.generator.className}`, name: node.generator.name};
 		}
 		if (node instanceof SubplanNode) {
-			// Several nodes of one subplan share a row - the amounts already
-			// carry their build counts, so the name stays the plain one.
+			// The amounts already carry build counts, so no "(built N×)" suffix here.
 			return {key: `subplan:${node.subplanId}`, name: `Subplan: ${node.name}`};
 		}
 		if (node instanceof SinkNode) {
@@ -792,7 +732,6 @@ export class PlanBreakdownService
 			.sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
 	}
 
-	/** Machine group summary like "2@100% + 1@50%+1S"; identical groups merge first. */
 	private groupsSummary(groups: MachineGroup[]): string
 	{
 		const merged = new Map<string, {machines: number; clockSpeed: number; sloops: number}>();

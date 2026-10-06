@@ -7,7 +7,6 @@ import {Directive, ElementRef, Input, OnDestroy, OnInit} from '@angular/core';
 export class FitViewportDirective implements OnInit, OnDestroy
 {
 
-	/** In px, like the min and max: room to leave for whatever sits above and below the list. */
 	@Input() public fitViewportReserve = 180;
 
 	@Input() public fitViewportMax = 320;

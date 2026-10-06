@@ -3,18 +3,11 @@ import {Building} from '@src/Model/Data/Entities/Building';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 
-/**
- * Converts fractional machine counts (solver output, pre-groups saved plans)
- * into explicit integer machine groups, and normalizes user-entered values.
- */
 @Injectable({providedIn: 'root'})
 export class MachineGroupNormalizer
 {
 
-	/**
-	 * Clamps to the game's 1–250% range and rounds up to 4 decimal digits, so
-	 * a normalized group never produces less than the fraction it replaces.
-	 */
+	/** Rounds UP so a normalized group never produces less than the fraction it replaces. */
 	public roundClock(value: number): number
 	{
 		return Math.min(250, Math.max(1, Math.ceil(value * 10000 - 1e-7) / 10000));
@@ -25,12 +18,6 @@ export class MachineGroupNormalizer
 		return Math.max(0, Math.min(machine.sloopSlots, Math.round(sloops)));
 	}
 
-	/**
-	 * Turns a fractional machine count at one clock speed into integer groups
-	 * arranged per the grouping mode, all with the given sloop count. Every
-	 * mode rounds machine counts (and, for underclock-last, the last clock) UP,
-	 * so the groups' capacity never undershoots the amount.
-	 */
 	public generate(amount: number, clockSpeed: number, sloops: number, mode: GroupingMode): MachineGroup[]
 	{
 		switch (mode) {
@@ -45,29 +32,14 @@ export class MachineGroupNormalizer
 		}
 	}
 
-	/**
-	 * Groups covering a target given in machine-equivalents at 100% clock,
-	 * built from machines running at `clockSpeed`. 600% of target at a 250%
-	 * clock is 2.4 such machines, which "same clock for all" turns into
-	 * 3 × 200% - the fewest machines that can do it, none over the clock asked
-	 * for.
-	 */
 	public generateForTarget(target: number, clockSpeed: number, sloops: number, mode: GroupingMode): MachineGroup[]
 	{
-		// The same rounded clock on both sides, or the division and the groups'
-		// own rounding could disagree and leave the capacity a hair short.
+		// Same rounded clock on both sides, or the division and the groups' own rounding could leave the capacity a hair short.
 		const clock = this.roundClock(clockSpeed);
 		return this.generate(target * 100 / clock, clock, sloops, mode);
 	}
 
-	/**
-	 * Regenerates machine groups for a target (machine-equivalents at 100%)
-	 * while keeping the somersloop distribution: groups are bucketed by sloop
-	 * count, each bucket keeps its share of the capacity and is arranged
-	 * separately, so the node's boost - and with it the input/output ratio -
-	 * is preserved instead of mixed sloops being reset. Machines are built at
-	 * `clockSpeed` (the plan's clock for this recipe).
-	 */
+	/** Bucketed by sloop count so the node's boost (and with it the input/output ratio) is preserved instead of mixed sloops being reset. */
 	public recalculated(groups: MachineGroup[], target: number, mode: GroupingMode, clockSpeed: number = 100): MachineGroup[]
 	{
 		const buckets = new Map<number, number>();
@@ -85,21 +57,13 @@ export class MachineGroupNormalizer
 			this.generateForTarget(target * capacity / totalCapacity, clockSpeed, sloops, mode));
 	}
 
-	/** Machines needed to cover the amount whole, ignoring sub-snap-grid dust; never less than one. */
+	/** 1e-9 is the solver's snap grid: smaller remainders are dust. */
 	private wholeMachines(amount: number): number
 	{
 		return Math.max(1, Math.ceil(amount - 1e-9));
 	}
 
-	/**
-	 * Turns a fractional machine count at one clock speed into integer groups:
-	 * 5.4 @ 100% becomes 5 @ 100% plus 1 @ 40%. A remainder too small for the
-	 * minimum 1% clock is folded into the whole group's clock speed when
-	 * possible, otherwise clamped to a lone machine at 1%. Only remainders
-	 * below the solver's 1e-9 snap grid are dropped as dust - anything real
-	 * folds in, so the groups' capacity never undershoots the amount (the
-	 * capacity warning compares near-exactly).
-	 */
+	/** A remainder below the 1% minimum clock folds into the whole group's clock, else becomes a lone 1% machine; only sub-1e-9 dust is dropped, since the capacity warning compares near-exactly. */
 	public fromFractionalAmount(amount: number, clockSpeed: number, sloops: number): MachineGroup[]
 	{
 		const whole = Math.floor(amount + 1e-9);

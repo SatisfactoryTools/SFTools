@@ -1,7 +1,6 @@
 import {Injectable} from '@angular/core';
 import {HotkeyBinding} from '@src/Model/Hotkeys/HotkeyBinding';
 
-/** Named keys shown with a shorter, friendlier word than the browser's own. */
 const KEY_NAMES: Record<string, string> = {
 	' ': 'Space',
 	'Escape': 'Esc',
@@ -15,19 +14,13 @@ const KEY_NAMES: Record<string, string> = {
 };
 
 /**
- * Turns a key combination into the text shown to the user, reads one back out
- * of a key event, and reduces both to one comparable signature.
- *
- * Shift needs care: for a printable character that is not a letter the
- * browser already bakes Shift into the character itself ("+" is Shift and "="
- * on most layouts), so comparing Shift separately would never match. The
- * signature therefore drops Shift for those keys and keeps it everywhere else.
+ * For a printable non-letter the browser bakes Shift into the character itself ("+" is Shift and "=" on most
+ * layouts), so comparing Shift separately would never match: the signature drops Shift for those keys only.
  */
 @Injectable({providedIn: 'root'})
 export class HotkeyFormatter
 {
 
-	/** "Ctrl+Shift+D", "Del", "F2" - empty for a missing binding. */
 	public format(binding: HotkeyBinding | null): string
 	{
 		if (!binding) {
@@ -42,10 +35,6 @@ export class HotkeyFormatter
 		return parts.join('+');
 	}
 
-	/**
-	 * The combination the event stands for; null for a press that is only a
-	 * modifier (holding Ctrl is not a hotkey on its own).
-	 */
 	public fromEvent(event: KeyboardEvent): HotkeyBinding | null
 	{
 		if (['Control', 'Shift', 'Alt', 'Meta', 'CapsLock', 'Dead'].includes(event.key)) {
@@ -58,12 +47,10 @@ export class HotkeyFormatter
 			alt: event.altKey,
 			meta: event.metaKey,
 		};
-		// Store only the modifiers that are actually held, so two bindings
-		// written differently still compare equal as plain objects.
+		// Only the modifiers actually held are stored, so two bindings written differently compare equal as plain objects.
 		return this.compact(binding);
 	}
 
-	/** Canonical text two bindings can be compared by, and looked up with. */
 	public signature(binding: HotkeyBinding): string
 	{
 		const key = this.normalizeKey(binding.key);
@@ -85,13 +72,11 @@ export class HotkeyFormatter
 		return this.signature(a) === this.signature(b);
 	}
 
-	/** Letters fold to lower case; everything else is the browser's own name. */
 	private normalizeKey(key: string): string
 	{
 		return key.length === 1 ? key.toLowerCase() : key;
 	}
 
-	/** Whether Shift is a separate part of this key rather than part of the character. */
 	private usesShift(key: string): boolean
 	{
 		const normalized = this.normalizeKey(key);

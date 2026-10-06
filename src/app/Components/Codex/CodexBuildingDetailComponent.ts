@@ -15,8 +15,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-// Every overclockable machine has three power shard slots - a game rule, not
-// carried in the data (see Formulas.CLOCK_PER_SHARD).
+// Game rule, not in the data: every overclockable machine has three shard slots (see Formulas.CLOCK_PER_SHARD).
 const SHARD_SLOTS = 3;
 
 @Component({
@@ -78,11 +77,6 @@ export class CodexBuildingDetailComponent
 		return this.versionManager.activeVersionData()?.getRecipesForBuilding(className) ?? [];
 	});
 
-	/**
-	 * Variable-power machines (Converter, Particle Accelerator, …) draw per
-	 * recipe: the span from the lowest to the highest band over their recipes,
-	 * or null for a fixed-draw machine.
-	 */
 	protected readonly variablePowerRange = computed<string | null>(() => {
 		const building = this.building();
 		if (building === null) {
@@ -100,7 +94,6 @@ export class CodexBuildingDetailComponent
 		);
 	});
 
-	/** Overclock range in percent, including the three power shard slots ("1% – 250%"). */
 	protected overclockRange(building: Building): string
 	{
 		const min = building.minOverclock * 100;

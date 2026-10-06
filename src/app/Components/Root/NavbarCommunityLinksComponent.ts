@@ -5,13 +5,7 @@ import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {CommunityLinks} from '@src/Model/CommunityLinks';
 
-/**
- * Discord and GitHub as icon links (labelled inside the collapsed phone
- * menu), plus the donation links: a quiet heart dropdown on desktop, and an
- * inline labelled group in the collapsed phone menu - a floating dropdown
- * there could open off-screen (small or landscape phones). Reachable from
- * the planner too, since the navbar is everywhere.
- */
+/** The phone menu gets an inline donation group: a floating dropdown there could open off-screen. */
 @Component({
 	selector: 'navbar-community-links',
 	templateUrl: './NavbarCommunityLinksComponent.html',
@@ -21,7 +15,6 @@ import {CommunityLinks} from '@src/Model/CommunityLinks';
 		:host {
 			display: contents;
 		}
-		/* The heart gets a tint of its own so the support entry is noticed - but stays a plain nav-link. */
 		.support-toggle fa-icon {
 			color: #ffb3c6;
 			transition: color 0.15s, transform 0.15s;
@@ -88,7 +81,6 @@ import {CommunityLinks} from '@src/Model/CommunityLinks';
 			color: #9fb0c0;
 		}
 
-		/* Phone menu variant: a fold-out group instead of a floating dropdown. */
 		.support-inline-head {
 			display: flex;
 			align-items: center;
@@ -134,7 +126,6 @@ export class NavbarCommunityLinksComponent
 	public readonly faCaretDown = faCaretDown;
 	public readonly faCaretUp = faCaretUp;
 
-	/** The phone-menu support group, folded by default. */
 	public inlineOpen = false;
 	public readonly community = CommunityLinks.COMMUNITY;
 	public readonly donations = CommunityLinks.DONATIONS;

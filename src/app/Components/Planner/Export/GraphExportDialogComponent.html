@@ -1,0 +1,91 @@
+<div class="export-backdrop" hotkeyBlock (click)="close()">
+	<div class="export-dialog card" (click)="$event.stopPropagation()">
+		<div class="card-header d-flex align-items-center gap-2">
+			<fa-icon [icon]="faImage" class="opacity-75"></fa-icon>
+			<span class="fw-semibold flex-grow-1">Export the graph as an image</span>
+			<button type="button" class="btn-close" aria-label="Close" (click)="close()"></button>
+		</div>
+		<div class="card-body">
+			@if (loading()) {
+				<div class="text-secondary py-2">
+					<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+					Preparing the graph…
+				</div>
+			} @else if (snapshot() === null && error() === null) {
+				<info-note kind="info">There is nothing to export - the graph is empty.</info-note>
+			} @else if (snapshot(); as snapshot) {
+
+				<div class="mb-3">
+					<div class="fw-semibold mb-1">Format</div>
+					<div class="btn-group w-100" role="group" aria-label="Format">
+						<button type="button" class="btn btn-sm btn-outline-secondary" [class.active]="format() === 'svg'" (click)="setFormat('svg')">SVG</button>
+						<button type="button" class="btn btn-sm btn-outline-secondary" [class.active]="format() === 'png'" (click)="setFormat('png')">PNG</button>
+					</div>
+					<div class="form-text">
+						@if (format() === 'svg') {
+							Stays sharp at any size and can be edited in a vector editor.
+						} @else {
+							A plain picture that opens anywhere. Pick how large it should be below.
+						}
+					</div>
+				</div>
+
+				<div class="form-check form-switch mb-3">
+					<input class="form-check-input" type="checkbox" role="switch" id="graph-export-background" [checked]="background()" (change)="toggleBackground()">
+					<label class="form-check-label" for="graph-export-background">Include the background</label>
+					<div class="form-text">The same dark colour as the website. Without it the picture is transparent.</div>
+				</div>
+
+				@if (format() === 'png') {
+					<div class="mb-3">
+						<div class="fw-semibold mb-1">Size</div>
+						<div class="btn-group w-100" role="group" aria-label="Size">
+							@for (option of scaleOptions(); track option.scale) {
+								<button
+									type="button"
+									class="btn btn-sm btn-outline-secondary"
+									[class.active]="option.scale === scale()"
+									[disabled]="!option.fits"
+									(click)="setScale(option)"
+								>{{ option.label }}</button>
+							}
+						</div>
+						<div class="form-text">
+							@if (selectedOption(); as option) {
+								{{ sizeText(option.size) }}.
+							}
+							100&nbsp;% is the graph at normal zoom.
+							@if (someSizeTooLarge()) {
+								Greyed-out sizes are too large for the browser to draw.
+							}
+						</div>
+					</div>
+
+					<div class="small text-secondary mb-1">One node at this size, as an image viewer shows it at 100&nbsp;%:</div>
+					<div class="preview-box">
+						@if (preview(); as url) {
+							<img [src]="url" alt="Preview of one node" [style.width.px]="previewCssWidth()">
+						} @else {
+							<div class="preview-wait d-flex align-items-center justify-content-center text-secondary">
+								<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+							</div>
+						}
+					</div>
+				}
+			}
+
+			@if (error(); as message) {
+				<div class="alert alert-danger py-2 mb-0 mt-3">{{ message }}</div>
+			}
+		</div>
+		<div class="card-footer d-flex justify-content-end gap-2">
+			<button type="button" class="btn btn-sm btn-secondary" (click)="close()">Cancel</button>
+			<button type="button" class="btn btn-sm btn-primary" [disabled]="!canExport()" (click)="export()">
+				@if (exporting()) {
+					<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+				}
+				Download {{ format() === 'svg' ? 'SVG' : 'PNG' }}
+			</button>
+		</div>
+	</div>
+</div>

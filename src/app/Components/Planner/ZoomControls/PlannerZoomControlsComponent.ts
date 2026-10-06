@@ -1,7 +1,8 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faArrowRotateLeft, faArrowRotateRight, faExpand, faMinus, faPlus} from '@fortawesome/free-solid-svg-icons';
+import {faArrowRotateLeft, faArrowRotateRight, faExpand, faImage, faMinus, faPlus} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
+import {GraphExportDialogService} from '@src/Components/Planner/Export/GraphExportDialogService';
 import {GraphHistoryService} from '@src/Components/Planner/GraphHistoryService';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
@@ -48,12 +49,14 @@ export class PlannerZoomControlsComponent
 	public readonly faExpand = faExpand;
 	public readonly faArrowRotateLeft = faArrowRotateLeft;
 	public readonly faArrowRotateRight = faArrowRotateRight;
+	public readonly faImage = faImage;
 
 	public constructor(
 		private readonly plannerGraph: PlannerGraphService,
 		private readonly actions: PlannerActionsService,
 		public readonly history: GraphHistoryService,
 		public readonly hotkeys: HotkeyService,
+		private readonly exportDialog: GraphExportDialogService,
 	)
 	{
 	}
@@ -81,6 +84,11 @@ export class PlannerZoomControlsComponent
 	public zoomFit(): void
 	{
 		this.plannerGraph.zoomFit();
+	}
+
+	public exportImage(): void
+	{
+		this.exportDialog.open();
 	}
 
 }

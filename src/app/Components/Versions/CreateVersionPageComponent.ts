@@ -29,13 +29,11 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
-/** One editable row of the world resource table. */
 interface WorldResourceRow
 {
 	readonly className: string;
 	readonly name: string;
 	readonly iconHash: string | null;
-	/** Solid resources use miner/belt rates, fluids extractor/pipe rates. */
 	readonly solid: boolean;
 	readonly hasNodes: boolean;
 	readonly nodes: PurityCounts;
@@ -45,7 +43,6 @@ interface WorldResourceRow
 	limit: number;
 }
 
-/** The seed/mode/purity that produced the current table. */
 interface LoadedWorldSettings
 {
 	readonly seed: number;
@@ -57,14 +54,6 @@ const SEED_MIN = -2147483648;
 const SEED_MAX = 2147483647;
 const EMPTY_COUNTS: PurityCounts = {impure: 0, normal: 0, pure: 0};
 
-/**
- * Page for deriving a custom version from a public one: base version,
- * gameplay modifiers, mods, and world resource-node settings. Node counts
- * are loaded from the API for a seed/mode/purity and shown in an editable
- * table - editing counts recomputes the limit, editing a limit directly
- * just flags the mismatch. Whatever the table holds is echoed on create and
- * stored by the server under metadata.world.
- */
 @Component({
 	templateUrl: './CreateVersionPageComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -128,7 +117,6 @@ export class CreateVersionPageComponent
 	public readonly faGlobe = faGlobe;
 	public readonly faTag = faTag;
 
-	/** The multiplier sets the server accepts (see custom-versions.md). */
 	public readonly recipeCostOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 	public readonly powerCostOptions = [0.25, 0.5, 0.75, 1, 2, 5];
 
@@ -156,33 +144,26 @@ export class CreateVersionPageComponent
 	public saving = false;
 	public error: string | null = null;
 
-	/** All mods visible to the user that have at least one version to merge. */
 	public mods: Mod[] = [];
 
-	/** The mod list could not be fetched - told apart from there being no mods. */
 	public modsFailed = false;
 	public picked: PickedMod[] = [];
 
-	// World settings. Changing them does NOT clear the table - the table
-	// keeps the counts of the settings it was loaded from (loadedSettings),
-	// and those are what get echoed on create.
+	// Changing these does NOT clear the table: it keeps the counts of the settings it was loaded from (loadedSettings), which are what get echoed on create.
 	public worldSeed = 0;
 	public worldMode: WorldDataMode = 'none';
 	public worldPurity: WorldDataPurity = 'no-change';
 	public worldLoading = false;
 	public worldError: string | null = null;
 
-	/** Checked = the table's counts and limits become directly editable. */
 	public worldCustomise = false;
 
 	public worldRows: WorldResourceRow[] = [];
 	public worldGeysers: PurityCounts | null = null;
 	private worldGameVersion = '';
 	private loadedSettings: LoadedWorldSettings | null = null;
-	/** Manual table edits since the last load - reloading asks before replacing them. */
 	private worldDirty = false;
 
-	/** The base version's game data, fetched for resource names/forms/icons; cached by dataPath. */
 	private baseData: Data | null = null;
 	private baseDataPath: string | null = null;
 
@@ -202,8 +183,7 @@ export class CreateVersionPageComponent
 			next: mods => {
 				this.mods = mods.filter(mod => mod.versions.length > 0);
 			},
-			// The mod list is one optional section of the form; the rest of the
-			// page still works, so this stays quiet rather than blocking it.
+			// The mod list is optional; the rest of the page still works, so the failure stays quiet.
 			error: () => this.modsFailed = true,
 		});
 	}
@@ -214,7 +194,6 @@ export class CreateVersionPageComponent
 		return this.versionManager.versions().filter(version => !version.custom);
 	}
 
-	/** Mods still addable (one version per mod, so picked ones drop out); non-public ones are labelled custom. */
 	public get availableModOptions(): ItemPickerOption[]
 	{
 		const pickedIds = new Set(this.picked.map(entry => entry.mod.id));
@@ -243,14 +222,11 @@ export class CreateVersionPageComponent
 		return mod.versions.reduce((latest, candidate) => candidate.createdAt >= latest.createdAt ? candidate : latest);
 	}
 
-	// ── World data ──────────────────────────────────────────────────────────
-
 	public get worldSeedValid(): boolean
 	{
 		return Number.isInteger(this.worldSeed) && this.worldSeed >= SEED_MIN && this.worldSeed <= SEED_MAX;
 	}
 
-	/** A different base means different game data - the loaded table no longer applies. */
 	public onBaseChanged(): void
 	{
 		this.baseData = null;
@@ -325,14 +301,12 @@ export class CreateVersionPageComponent
 		});
 	}
 
-	/** Editing node counts recomputes the row's limit. */
 	public onCountChange(row: WorldResourceRow): void
 	{
 		row.limit = this.computedLimit(row);
 		this.worldDirty = true;
 	}
 
-	/** Editing a limit directly leaves the counts alone; the mismatch is flagged in the UI. */
 	public onLimitChange(): void
 	{
 		this.worldDirty = true;
@@ -362,9 +336,6 @@ export class CreateVersionPageComponent
 		return this.worldGeysers !== null ? this.countsText(this.worldGeysers) : null;
 	}
 
-	// ── Create ──────────────────────────────────────────────────────────────
-
-	/** Whatever the (possibly edited) table holds is echoed to the server. */
 	private worldDataPayload(): WorldDataPayload
 	{
 		const settings = this.loadedSettings ?? {seed: this.worldSeed, mode: this.worldMode, purity: this.worldPurity};
@@ -404,7 +375,6 @@ export class CreateVersionPageComponent
 		return this.baseVersions.find(version => version.id === this.baseId) ?? null;
 	}
 
-	/** The non-default choices, as the server words them in the default name. */
 	public get changes(): string[]
 	{
 		const parts: string[] = [];
@@ -434,7 +404,6 @@ export class CreateVersionPageComponent
 		return parts.length > 0 ? `${base.name} (${parts.join(', ')})` : base.name;
 	}
 
-	/** What the world section contributes, for the summary. */
 	public get worldSummary(): string
 	{
 		if (this.worldRows.length === 0) {

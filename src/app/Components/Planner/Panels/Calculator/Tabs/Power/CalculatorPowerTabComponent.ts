@@ -20,16 +20,6 @@ import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 
-/**
- * Everything the plan may make power with. Enabling a fuel enables its
- * generator; every enabled fuel becomes a burnable option in the solve
- * (fuel + supplemental fluid in, power + burn byproduct out).
- *
- * Geothermal generators and alien power augmenters work differently: the
- * solver never places them, the user says how many the plan builds and the
- * solve takes their power as given. Both cards only show when the active
- * version actually has the building.
- */
 @Component({
 	selector: 'calculator-power-tab',
 	templateUrl: './CalculatorPowerTabComponent.html',
@@ -41,10 +31,8 @@ export class CalculatorPowerTabComponent
 
 	public readonly faChevronRight = faChevronRight;
 
-	/** No geysers - the starting point for both the "per one augmenter" figures and a cleared card. */
 	private static readonly NO_GEYSERS: GeothermalGenerators = {impure: 0, normal: 0, pure: 0};
 
-	/** What a single augmenter does, so the card's text follows the model instead of repeating it. */
 	private static readonly ONE_AUGMENTER = new ExtraPower(CalculatorPowerTabComponent.NO_GEYSERS, {count: 1, boosted: 0});
 	private static readonly ONE_BOOSTED = new ExtraPower(CalculatorPowerTabComponent.NO_GEYSERS, {count: 1, boosted: 1});
 
@@ -54,7 +42,6 @@ export class CalculatorPowerTabComponent
 		{key: 'pure', label: 'Pure geysers'},
 	];
 
-	/** Which cards are folded; shared, so a fold survives leaving the tab. */
 	public readonly foldState: CollapsibleSections;
 
 	public constructor(
@@ -68,13 +55,11 @@ export class CalculatorPowerTabComponent
 		this.foldState = new CollapsibleSections(collapsedSections, 'power');
 	}
 
-	/** The fold key of one generator's card. */
 	public sectionOf(generator: Building): string
 	{
 		return 'generator:' + generator.className;
 	}
 
-	/** Fuels switched on for this generator - the folded card says so instead of showing them. */
 	public enabledFuelCount(generator: Building): number
 	{
 		return (this.enabledFuels()[generator.className] ?? []).length;
@@ -85,7 +70,6 @@ export class CalculatorPowerTabComponent
 		return this.planManager.activeSettings()?.producePowerForFactory ?? false;
 	}
 
-	/** Somersloop budget (Sloops tab) - with factory power it makes the MIP much harder. */
 	public get maxSloops(): number
 	{
 		return this.planManager.activeSettings()?.maxSloops ?? 0;
@@ -113,9 +97,6 @@ export class CalculatorPowerTabComponent
 		this.planManager.updateActiveSettings({...settings, excessPowerPercent: value});
 	}
 
-	// ── Geothermal generators ─────────────────────────────────────────────
-
-	/** The version's geothermal generator, or null when it has none - then the card stays hidden. */
 	public get geothermalBuilding(): Building | null
 	{
 		return this.extraPower.geothermalBuilding(this.versionManager.activeVersionData());
@@ -134,7 +115,6 @@ export class CalculatorPowerTabComponent
 		}));
 	}
 
-	/** Whether the map's geyser counts are known - they cap the inputs and enable "All". */
 	public get hasGeyserCaps(): boolean
 	{
 		return this.availableGeysers !== null;
@@ -156,7 +136,6 @@ export class CalculatorPowerTabComponent
 		});
 	}
 
-	/** Every geyser the map has goes to power - only offered when the counts are known. */
 	public useAllGeysers(): void
 	{
 		const available = this.availableGeysers;
@@ -170,9 +149,6 @@ export class CalculatorPowerTabComponent
 		this.persistGeysers(CalculatorPowerTabComponent.NO_GEYSERS);
 	}
 
-	// ── Alien power augmenters ────────────────────────────────────────────
-
-	/** The version's alien power augmenter, or null when it has none - then the card stays hidden. */
 	public get augmenterBuilding(): Building | null
 	{
 		return this.extraPower.augmenterBuilding(this.versionManager.activeVersionData());
@@ -200,7 +176,6 @@ export class CalculatorPowerTabComponent
 		this.persistAugmenters({count, boosted: Math.min(count, this.wholeCount(value))});
 	}
 
-	/** What one augmenter adds on its own, for the card's explanation. */
 	public get flatPerAugmenterText(): string
 	{
 		return this.rateFormatter.power(CalculatorPowerTabComponent.ONE_AUGMENTER.flatBonus);
@@ -226,13 +201,11 @@ export class CalculatorPowerTabComponent
 		return this.rateFormatter.rate(CalculatorPowerTabComponent.ONE_BOOSTED.matrixDemand, this.matrixItem);
 	}
 
-	/** What a boosted augmenter burns, named for the card's text. */
 	public get matrixName(): string
 	{
 		return this.matrixItem?.name ?? 'Alien Power Matrix';
 	}
 
-	/** Alien Power Matrix, when the version has it - the card shows its icon. */
 	public get matrixItem(): Item | null
 	{
 		return this.versionManager.activeVersionData()?.searchItemByClassName(SpecialClasses.AlienPowerMatrixItem) ?? null;
@@ -253,13 +226,11 @@ export class CalculatorPowerTabComponent
 		return this.rateFormatter.rate(this.currentExtraPower.matrixDemand, this.matrixItem);
 	}
 
-	/** Somersloops the augmenters take out of the plan's budget. */
 	public get sloopCost(): number
 	{
 		return this.currentExtraPower.sloopCost;
 	}
 
-	/** The augmenters cost more somersloops than the plan has - the solve would refuse. */
 	public get sloopsOverBudget(): boolean
 	{
 		return this.sloopCost > this.maxSloops;

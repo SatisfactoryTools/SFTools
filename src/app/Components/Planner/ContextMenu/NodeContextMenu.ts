@@ -17,9 +17,6 @@ import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 
-/**
- * Context menu shown when right-clicking a single node.
- */
 export class NodeContextMenu extends PlannerContextMenu
 {
 
@@ -49,8 +46,7 @@ export class NodeContextMenu extends PlannerContextMenu
 				hotkey: 'graph.inspectNode',
 				action: () => {
 					this.plannerGraph.selectNodeById(this.node.id);
-					// focusPanel, not openPanel: an already-open inspector hidden
-					// behind another tab on its side must still come to the front.
+					// focusPanel, not openPanel: an inspector hidden behind another tab must come to the front.
 					this.panelLayout.focusPanel('inspector');
 				},
 			},
@@ -82,7 +78,6 @@ export class NodeContextMenu extends PlannerContextMenu
 			});
 		}
 
-		// "Done" marks the node as built in the game - any node type can be.
 		items.push({
 			label: this.node.done ? 'Mark as not done' : 'Mark as done',
 			icon: this.node.done ? faRotateLeft : faCheck,
@@ -92,8 +87,6 @@ export class NodeContextMenu extends PlannerContextMenu
 
 		items.push(...this.requestItems());
 
-		// Splitting turns a node fed from (or feeding) several places into one
-		// node per place; subplans are resized as a whole instead.
 		if (!(this.node instanceof SubplanNode)) {
 			items.push(this.splitItem('inputs', 'graph.splitByInputs', 'Split by inputs', this.splits.inputs,
 				'one for each incoming connection',
@@ -106,13 +99,9 @@ export class NodeContextMenu extends PlannerContextMenu
 				'Nothing to split: no item here comes from, or goes to, more than one place.'));
 		}
 
-		// Resize the node to the smallest/largest size its connected edges
-		// imply; grayed when there is nothing to change.
 		items.push(this.resizeItem('graph.shrinkToConnections', 'Shrink to connections', faCompress, this.resize.minimise));
 		items.push(this.resizeItem('graph.growToConnections', 'Grow to connections', faExpand, this.resize.maximise));
 
-		// Deleting a subplan node deletes the subplan from the plans tree too
-		// (the planner confirms first).
 		items.push({
 			label: 'Delete node',
 			icon: faTrashCan,
@@ -123,11 +112,6 @@ export class NodeContextMenu extends PlannerContextMenu
 		return items;
 	}
 
-	/**
-	 * Shortcuts editing the production request the node came from - what the
-	 * matching calculator tab (Recipes, Machines, Byproducts, Power, Request,
-	 * Resources, Input) would do; automatic mode then recalculates.
-	 */
 	private requestItems(): ContextMenuItem[]
 	{
 		const node = this.node;
@@ -208,10 +192,6 @@ export class NodeContextMenu extends PlannerContextMenu
 		return [];
 	}
 
-	/**
-	 * One split entry, grayed out with an explanation when that split would
-	 * leave the node as it is (a `count` of one).
-	 */
 	private splitItem(mode: NodeSplitMode, hotkey: HotkeyAction, label: string, count: number, description: string, nothingToSplit: string): ContextMenuItem
 	{
 		return {

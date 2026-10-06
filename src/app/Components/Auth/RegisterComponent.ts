@@ -7,12 +7,6 @@ import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderB
 import {AuthApiService} from '@src/Model/API/AuthApiService';
 import {AuthReturnUrlService} from '@src/Model/Auth/AuthReturnUrlService';
 
-/**
- * Account creation. Signing up through a third-party provider is the primary
- * path (the sign-in flow creates unknown accounts on the fly; Steam is
- * excluded because it reports no email); the classic username/password form
- * is kept as a secondary, folded-away option.
- */
 @Component({
 	selector: 'auth-register',
 	templateUrl: './RegisterComponent.html',

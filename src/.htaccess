@@ -1,16 +1,11 @@
-# Apache configuration file (see https://httpd.apache.org/docs/current/mod/quickreference.html)
 Require all granted
 
-# disable directory listing
 <IfModule mod_autoindex.c>
 	Options -Indexes
 </IfModule>
 
-# Page requests go through index.php when the deploy added it (deploy/web/, see
-# docs/link-previews.md): it prints page-specific link preview tags into
-# index.html. A plain `npm run build` has no index.php and serves index.html as
-# before. "/" is a directory, so the front controller below never sees it -
-# DirectoryIndex picks the same file for it.
+# index.php exists only when the deploy added it (see docs/link-previews.md); a plain build serves
+# index.html. "/" is a directory, so the front controller below never sees it - DirectoryIndex does.
 DirectoryIndex index.php index.html
 
 # Where index.php asks for the metadata (GET /v1/meta).
@@ -18,33 +13,19 @@ DirectoryIndex index.php index.html
 	SetEnv SFTOOLS_API_URL https://api.new.satisfactorytools.com
 </IfModule>
 
-# The beta host must not compete with the real site in search results: the
-# same pages under new.satisfactorytools.com are marked noindex. After the
-# move this is moot (everything redirects), so it can stay.
+# The beta host is marked noindex so it does not compete with the real site; moot after the move.
 <IfModule mod_setenvif.c>
 	SetEnvIf Host ^new\. SFTOOLS_BETA_HOST
 </IfModule>
 
-# enable cool URL
 <IfModule mod_rewrite.c>
 	RewriteEngine On
-	# RewriteBase /
 
-	# PHASE 2 CUTOVER (see docs/migration-phase-2.md) - uncomment once the
-	# www vhost serves this app, never before (it would send the beta host to
-	# the old site). Everything on the beta host moves to www, path and query
-	# intact, so share and plan links made during the beta keep working. The
-	# handoff page is the one exception: the www app loads it in an iframe to
-	# bring beta users' browser data over, and it must stay on this origin.
+	# RELEASE (see docs/migration-phases.md): uncomment once the www vhost serves this app, never
+	# before - it would send the beta host to the old site.
 	# RewriteCond %{HTTP_HOST} ^new\.satisfactorytools\.com$ [NC]
-	# RewriteCond %{REQUEST_URI} !^/handoff\.html$
 	# RewriteRule ^(.*)$ https://www.satisfactorytools.com/$1 [R=301,L,QSA]
 
-	# use HTTPS
-	# RewriteCond %{HTTPS} !on
-	# RewriteRule .? https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-
-	# prevents files starting with dot to be viewed by browser
 	RewriteRule /\.|^\.(?!well-known/) - [F]
 
 	# front controller: index.php when deployed (link previews), else index.html
@@ -58,18 +39,10 @@ DirectoryIndex index.php index.html
 	RewriteRule !\.(pdf|js|mjs|ico|gif|jpg|jpeg|png|webp|svg|css|rar|zip|7z|tar\.gz|map|eot|ttf|otf|woff|woff2)$ index.html [L]
 </IfModule>
 
-# caching: index.html must always be revalidated, otherwise a cached copy keeps
-# pointing at hashed bundles a later deploy has replaced (blank page, 404 on
-# main-*.js). The hashed bundles themselves never change and can be cached forever.
+# index.html must always be revalidated, otherwise a cached copy keeps pointing at hashed bundles a
+# later deploy has replaced (blank page). The hashed bundles never change.
 <IfModule mod_headers.c>
 	Header set X-Robots-Tag "noindex, nofollow" env=SFTOOLS_BETA_HOST
-
-	# The handoff page answers with the visitor's own browser data, so only
-	# the real site may frame it (the page checks the caller's origin too).
-	<Files "handoff.html">
-		Header set Content-Security-Policy "frame-ancestors https://www.satisfactorytools.com https://satisfactorytools.com"
-		Header set Cache-Control "no-cache, no-store, must-revalidate"
-	</Files>
 
 	<Files "index.html">
 		Header set Cache-Control "no-cache, no-store, must-revalidate"
@@ -81,7 +54,6 @@ DirectoryIndex index.php index.html
 	</FilesMatch>
 </IfModule>
 
-# enable gzip compression
 <IfModule mod_deflate.c>
 	<IfModule mod_filter.c>
 		AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json application/xml image/svg+xml

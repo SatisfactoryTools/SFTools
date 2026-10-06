@@ -1,12 +1,6 @@
 import {Injectable} from '@angular/core';
 import {OldProductionData} from '@src/Model/OldTools/OldProductionData';
 
-/**
- * Parses .sft export files of the old Satisfactory Tools. The format is a
- * text file of `#` comment lines plus one data line: a version character
- * ('0') followed by base64-encoded, zlib-deflated JSON of the shape
- * {type: 'tabs', tabs: OldProductionData[]}.
- */
 @Injectable({providedIn: 'root'})
 export class SftFileParser
 {

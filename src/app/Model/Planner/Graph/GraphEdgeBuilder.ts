@@ -7,15 +7,7 @@ import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
 export class GraphEdgeBuilder
 {
 
-	/**
-	 * Derives item-flow edges from the nodes' IO. When prior edges are given
-	 * (recomposing an existing graph), their source→target pairings are
-	 * satisfied first so unchanged parts of the graph keep their connections
-	 * (and thus their carried-over routing); only the remaining flow is
-	 * matched greedily, largest outputs to largest inputs per item. Resets
-	 * each node's IO bookkeeping first, so it is safe to call on nodes whose
-	 * edges were already built once.
-	 */
+	/** Resets the IO bookkeeping first: the nodes may already have had their edges built once. */
 	public build(nodes: Node[], priorEdges: GraphEdge[] = []): GraphEdge[]
 	{
 		nodes.forEach(node => {
@@ -46,7 +38,6 @@ export class GraphEdgeBuilder
 
 		const edges: GraphEdge[] = [];
 
-		// Stable phase: re-establish prior pairings up to the current flow.
 		priorEdges.forEach(prior => {
 			const outputs = (outputsByItem.get(prior.itemClassName) ?? []).filter(o => o.nodeId === prior.sourceId);
 			const inputs = (inputsByItem.get(prior.itemClassName) ?? []).filter(i => i.nodeId === prior.targetId);
@@ -64,7 +55,6 @@ export class GraphEdgeBuilder
 			}
 		});
 
-		// Greedy phase: match whatever flow the stable phase left over.
 		for (const [itemClassName, outputs] of outputsByItem) {
 			const inputs = inputsByItem.get(itemClassName);
 			if (!inputs) continue;

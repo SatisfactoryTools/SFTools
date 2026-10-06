@@ -13,12 +13,6 @@ import {SaveSettingsMapResult} from '@src/Model/SaveFile/SaveSettingsMapResult';
 
 type LoadFromSaveState = 'idle' | 'parsing' | 'ready' | 'error';
 
-/**
- * Modal loading a Satisfactory save file and previewing the machine, recipe
- * and generator-fuel selections its unlock progression implies. Each of the
- * three categories can be unchecked to keep the target's current selection;
- * the host applies the emitted settings to the active plan or folder.
- */
 @Component({
 	selector: 'load-from-save-dialog',
 	templateUrl: './LoadFromSaveDialogComponent.html',
@@ -52,7 +46,6 @@ export class LoadFromSaveDialogComponent implements OnDestroy
 	@Output() public readonly apply = new EventEmitter<PlanSettings>();
 	@Output() public readonly close = new EventEmitter<void>();
 
-	/** Escape leaves the dialog, like clicking outside it does. */
 	@HostListener('document:keydown.escape')
 	public onEscape(): void
 	{
@@ -122,7 +115,6 @@ export class LoadFromSaveDialogComponent implements OnDestroy
 		return this.state() === 'ready' && (this.loadMachines || this.loadRecipes || this.loadGenerators);
 	}
 
-	/** Unchecked categories keep the base settings' current selection. */
 	public applySettings(): void
 	{
 		const result = this.result();
@@ -137,7 +129,6 @@ export class LoadFromSaveDialogComponent implements OnDestroy
 		});
 	}
 
-	/** The dialog is destroyed on close - a parse still running is cancelled with it. */
 	public ngOnDestroy(): void
 	{
 		this.parseSubscription?.unsubscribe();

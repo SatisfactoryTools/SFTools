@@ -1,7 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faArrowRight, faBookOpen, faCircleInfo, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faUser, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faArrowRight, faBookOpen, faCircleInfo, faCircleQuestion, faDesktop, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faUser, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {HomeFeature} from '@src/Components/Home/HomeFeature';
@@ -15,6 +15,10 @@ import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 import {CommunityLinks} from '@src/Model/CommunityLinks';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {LocalPlanStoreBackend} from '@src/Model/Planner/LocalPlanStoreBackend';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
+import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
+import {OfflineVersionsService} from '@src/Model/Desktop/OfflineVersionsService';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 import {PlanCountsService} from '@src/Model/Planner/PlanCountsService';
 import {RelativeTimeFormatter} from '@src/Model/RelativeTimeFormatter';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
@@ -38,12 +42,6 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 	'all-random': 'random purity',
 };
 
-/**
- * The landing page: hero with the way back into the last planner (or into
- * the current release), a sign-in panel for signed-out users, the feature
- * tiles, and the game version picker (public + own custom). Share links the
- * user has opened are listed only in the planner's Plans panel.
- */
 @Component({
 	templateUrl: './HomeComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
@@ -57,7 +55,6 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			padding: 0 calc(var(--bs-gutter-x, 1.5rem) * 0.5);
 			overflow: hidden;
 		}
-		/* Backdrop: two soft glows plus a faint blueprint grid fading out downwards. */
 		:host::before {
 			content: '';
 			position: absolute;
@@ -82,13 +79,11 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			gap: 2.75rem;
 		}
 
-		/* ── Hero ─────────────────────────────────────────────────────── */
 		.hero {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr);
 			gap: 2rem;
-			/* Top-aligned on purpose: the side card changes height (dismissing
-			   the sign-in panel) and the copy must not jump with it. */
+			/* Top-aligned on purpose: the side card changes height (dismissing the sign-in panel) and the copy must not jump with it. */
 			align-items: start;
 		}
 		@media (min-width: 900px) {
@@ -138,17 +133,31 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			gap: 0.75rem;
 			align-items: stretch;
 		}
+		.hero-actions.with-wide {
+			display: grid;
+			grid-template-columns: repeat(2, minmax(0, max-content));
+		}
+		.hero-actions .btn-outline-light.hero-wide {
+			grid-column: 1 / -1;
+			padding-top: 0.5rem;
+			padding-bottom: 0.5rem;
+			--bs-btn-color: #dde4ef;
+			--bs-btn-border-color: rgba(255, 255, 255, 0.3);
+		}
 		.hero-actions .btn-lg {
 			display: inline-flex;
 			align-items: center;
 			gap: 0.6rem;
 			padding: 0.65rem 1.4rem;
+			text-align: left;
 		}
-		/* Once the two buttons no longer fit side by side they stack as equal full-width rows. */
 		@media (max-width: 575.98px) {
 			.hero-actions {
 				flex-direction: column;
 				align-items: stretch;
+			}
+			.hero-actions.with-wide {
+				grid-template-columns: minmax(0, 1fr);
 			}
 			.hero-actions .btn-lg {
 				justify-content: center;
@@ -196,6 +205,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			align-items: center;
 			gap: 0.35rem;
 			flex-wrap: wrap;
+			flex-basis: 100%;
 		}
 		.hero-donate fa-icon {
 			color: #e05c8a;
@@ -207,7 +217,6 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			font-size: 0.8rem;
 		}
 
-		/* Sign-in / welcome side card */
 		.side-card {
 			box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.35);
 		}
@@ -248,15 +257,16 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			border-color: #4c9be8;
 		}
 
-		/* ── Feature tiles ─────────────────────────────────────────────── */
 		.features {
 			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+			grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 			gap: 0.75rem;
 		}
 		.feature {
-			display: block;
-			padding: 1rem 1.1rem;
+			display: flex;
+			align-items: flex-start;
+			gap: 0.75rem;
+			padding: 0.75rem 0.9rem;
 			background: rgba(32, 55, 76, 0.7);
 			border: 1px solid rgba(78, 93, 108, 0.7);
 			color: inherit;
@@ -269,34 +279,45 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.35);
 		}
 		.feature-icon {
-			width: 2.25rem;
-			height: 2.25rem;
+			width: 2rem;
+			height: 2rem;
+			flex-shrink: 0;
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
 			background: rgba(76, 155, 232, 0.16);
 			color: #4c9be8;
-			font-size: 1.05rem;
-			margin-bottom: 0.6rem;
+			font-size: 0.95rem;
 		}
 		.feature-title {
 			font-weight: 600;
-			margin-bottom: 0.2rem;
+			margin-bottom: 0.1rem;
 		}
 		.feature-text {
-			font-size: 0.85rem;
+			font-size: 0.8rem;
 			color: #9fb0c0;
 			margin: 0;
 		}
 
-		/* ── Version cards ─────────────────────────────────────────────── */
 		.section-head {
+			position: relative;
 			display: flex;
 			flex-wrap: wrap;
 			align-items: flex-end;
 			justify-content: space-between;
 			gap: 0.5rem 1rem;
-			margin-bottom: 0.9rem;
+			padding-bottom: 0.6rem;
+			margin-bottom: 1rem;
+			border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		}
+		.section-head::after {
+			content: '';
+			position: absolute;
+			left: 0;
+			bottom: -1px;
+			width: 3rem;
+			height: 2px;
+			background: #4c9be8;
 		}
 		.section-head h2 {
 			font-size: 1.35rem;
@@ -369,6 +390,12 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			color: #fff;
 			background: rgba(76, 155, 232, 0.08);
 		}
+		.version-card-new .new-hint {
+			display: block;
+			font-size: 0.78rem;
+			color: #7f90a0;
+			font-weight: 400;
+		}
 		.version-link {
 			color: inherit;
 			text-decoration: none;
@@ -415,6 +442,8 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 		.tag-custom { background: rgba(91, 192, 222, 0.22); color: #a6e3f2; }
 		.tag-mods { background: rgba(156, 39, 176, 0.28); color: #d9a3e6; }
 		.tag-world { background: rgba(92, 184, 92, 0.22); color: #a8dea8; }
+		.tag-offline { background: rgba(32, 201, 151, 0.22); color: #8fe3c8; }
+		.tag-unavailable { background: rgba(134, 142, 150, 0.25); color: #c3c9cf; }
 		.plan-meta {
 			display: flex;
 			flex-direction: column;
@@ -448,12 +477,18 @@ export class HomeComponent
 	public readonly faSliders = faSliders;
 	public readonly faUser = faUser;
 	public readonly faCircleInfo = faCircleInfo;
+	public readonly faDesktop = faDesktop;
+	public readonly faCircleQuestion = faCircleQuestion;
 	public readonly faHeart = faHeart;
 	public readonly faRightFromBracket = faRightFromBracket;
 	public readonly communityLinks = CommunityLinks.COMMUNITY;
 	public readonly donationLinks = CommunityLinks.DONATIONS;
 	public readonly faDiagramProject = faDiagramProject;
 	public readonly faShareNodes = faShareNodes;
+
+	public readonly desktopAppLink: boolean;
+
+	private readonly localPlanStore: LocalPlanStoreBackend;
 
 	public constructor(
 		protected readonly versionManager: VersionManager,
@@ -463,9 +498,14 @@ export class HomeComponent
 		private readonly planCounts: PlanCountsService,
 		private readonly logoutService: LogoutService,
 		private readonly plannerLocation: PlannerLocationService,
+		storage: AppStorage,
+		private readonly offlineVersions: OfflineVersionsService,
+		protected readonly connectivity: ConnectivityService,
+		protected readonly platform: AppPlatform,
 	)
 	{
-		// Cheap one-call summary; refetched on every home visit so counts are current.
+		this.localPlanStore = new LocalPlanStoreBackend(storage, versionManager, plannerLocation);
+		this.desktopAppLink = !platform.desktop && platform.desktopAppPublic;
 		this.planCounts.refresh();
 	}
 
@@ -479,11 +519,6 @@ export class HomeComponent
 		return this.versionManager.versions().filter(version => version.custom);
 	}
 
-	/**
-	 * True when the version list could not be fetched at all. Without this the
-	 * page would simply render an empty picker, which reads as "there is
-	 * nothing here" rather than "the server did not answer".
-	 */
 	public get versionsFailed(): boolean
 	{
 		return this.versionManager.versionsResource.error() !== undefined;
@@ -499,7 +534,6 @@ export class HomeComponent
 		this.versionManager.versionsResource.reload();
 	}
 
-	/** The release to open by default: the official non-experimental one, else the first public version. */
 	public get featuredVersion(): Version | null
 	{
 		const publics = this.publicVersions;
@@ -509,14 +543,12 @@ export class HomeComponent
 			?? null;
 	}
 
-	/** The version of the last planner the user had open, while it still exists. */
 	public get lastVisitedVersion(): Version | null
 	{
 		const location = this.plannerLocation.location();
 		return location === null ? null : this.versionManager.findByUrlSlug(location.versionSlug);
 	}
 
-	/** Router commands back into the last planner (with its plan), or null when there is none to return to. */
 	public get continueLink(): string[] | null
 	{
 		const location = this.plannerLocation.location();
@@ -559,23 +591,25 @@ export class HomeComponent
 				text: 'Your own rules: recipe and power cost multipliers, mods, changed resource nodes.',
 				link: ['/create-version'],
 			},
-			{
-				icon: faPuzzlePiece,
-				title: 'Mods',
-				text: 'Create sets of changes to the game data - new or changed items, recipes and buildings - and share them.',
-				link: ['/mods'],
-			},
+			this.desktopAppLink
+				? {
+					icon: faDesktop,
+					title: 'Desktop app',
+					text: 'The same planner as an app for Windows and Linux. Works offline, keeps your plans in files on your computer.',
+					link: ['/settings', 'desktop'],
+				}
+				: {
+					icon: faPuzzlePiece,
+					title: 'Mods',
+					text: 'Create sets of changes to the game data - new or changed items, recipes and buildings - and share them.',
+					link: ['/mods'],
+				},
 		];
 	}
 
-	/**
-	 * "3 plans" for the version. Signed in: the account's plans (from the
-	 * plan-counts API) plus any stranded local ones ("· 1 on this device");
-	 * signed out: the plans this browser holds. Null when there is nothing.
-	 */
 	public planCountLabel(version: Version): string | null
 	{
-		const local = LocalPlanStoreBackend.countPlans(version.id);
+		const local = this.localPlanStore.countPlans(version.id);
 		if (!this.auth.isAuthenticated()) {
 			return local === 0 ? null : `${local} plan${local === 1 ? '' : 's'}`;
 		}
@@ -590,7 +624,6 @@ export class HomeComponent
 		return parts.length === 0 ? null : parts.join(' · ');
 	}
 
-	/** "edited 2 days ago" for the account's plans in the version; null when unknown. */
 	public lastEditedLabel(version: Version): string | null
 	{
 		const count = this.planCounts.countFor(version.id);
@@ -611,7 +644,6 @@ export class HomeComponent
 		return this.lastVisitedVersion?.id === version.id;
 	}
 
-	/** Public versions state what they are; custom versions list their base and every non-default modifier. */
 	public tags(version: Version): VersionTag[]
 	{
 		const tags: VersionTag[] = [];
@@ -644,15 +676,17 @@ export class HomeComponent
 		if (version.worldData) {
 			tags.push(...this.worldTags(version.worldData, version.custom));
 		}
+		if (this.offlineVersions.available) {
+			if (this.offlineVersions.isOffline(version)) {
+				tags.push({label: 'Offline', tone: 'offline'});
+			} else if (!this.connectivity.online()) {
+				tags.push({label: 'Not downloaded', tone: 'unavailable'});
+			}
+		}
 		return tags;
 	}
 
-	/**
-	 * The world-generation changes: node mode, purity, and the seed they ran
-	 * with. Vanilla generation settings on a custom version mean the counts
-	 * were edited by hand; on a public version they are simply the default
-	 * world and say nothing.
-	 */
+	// Vanilla generation settings on a custom version mean the counts were edited by hand; on a public version they are just the default world.
 	private worldTags(world: WorldDataPayload, custom: boolean): VersionTag[]
 	{
 		const vanilla = (world.mode ?? 'none') === 'none' && (world.purity ?? 'no-change') === 'no-change';

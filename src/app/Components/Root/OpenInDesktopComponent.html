@@ -1,0 +1,15 @@
+@if (handoff.pending()) {
+	<div class="handoff">
+		<div class="handoff-card">
+			<h1 class="h5 mb-2">Opening in the desktop app…</h1>
+			<p class="mb-3">
+				This link opens in the Satisfactory Tools desktop app, as set in this browser's settings.
+				If nothing happened, the app may not be installed on this computer.
+			</p>
+			<div class="d-flex flex-wrap gap-2">
+				<button type="button" class="btn btn-sm btn-primary" (click)="handoff.openInApp()">Open in the app</button>
+				<button type="button" class="btn btn-sm btn-outline-secondary" (click)="handoff.stayHere()">Continue in the browser</button>
+			</div>
+		</div>
+	</div>
+}

@@ -13,11 +13,8 @@ export class AuthInterceptor implements HttpInterceptor
 {
 
 	/**
-	 * The refresh call currently in flight, shared by every request that needs
-	 * it. Sharing the observable (rather than a token subject) matters for the
-	 * failure path: when the refresh is rejected, every waiting request errors
-	 * too instead of hanging forever - a hung request at boot (settings or the
-	 * version list) leaves the root resolvers pending and the page blank.
+	 * Shared observable rather than a token subject: when the refresh is rejected every waiting
+	 * request errors instead of hanging forever (a hung boot request leaves the page blank).
 	 */
 	private refreshInFlight: Observable<string> | null = null;
 	private readonly bypassHttp: HttpClient;
@@ -37,11 +34,8 @@ export class AuthInterceptor implements HttpInterceptor
 			return next.handle(req);
 		}
 
-		// The auth endpoints themselves (login, refresh, callbacks...) are left
-		// alone: no Bearer, and a 401 there is a credentials problem rather
-		// than an expired token. The few that act on the signed-in user opt
-		// back in via AuthenticatedRequest, so they get the same refresh
-		// handling as every other API call.
+		// Auth endpoints get no Bearer: a 401 there is a credentials problem, not an expired token.
+		// The few acting on the signed-in user opt back in via AuthenticatedRequest.
 		if (req.url.includes('/v1/auth/') && !AuthenticatedRequest.isMarked(req)) {
 			return next.handle(req);
 		}
@@ -76,12 +70,11 @@ export class AuthInterceptor implements HttpInterceptor
 			switchMap(newToken => next.handle(this.withToken(req, newToken))),
 			catchError(err => {
 				if (this.isSessionRejected(err)) {
-					// Only an explicit rejection (invalid/revoked/missing refresh
-					// token) ends the session. A network hiccup or a 5xx from the
-					// auth server must not log the user out - the token is still
-					// good and the next request simply retries the refresh.
-					this.authService.clearSession();
-					this.notificationService.show('You were signed out. Please sign in again.', 10_000);
+					// Only an explicit rejection ends the session; a network hiccup or a 5xx must not log the user out.
+					const rescued = this.authService.clearSession();
+					this.notificationService.show(rescued === 0
+						? 'You were signed out. Please sign in again.'
+						: `You were signed out. ${rescued} plan${rescued === 1 ? '' : 's'} changed offline had not been saved to your account yet - they are kept on this computer.`, 10_000);
 				}
 				return throwError(() => err);
 			}),

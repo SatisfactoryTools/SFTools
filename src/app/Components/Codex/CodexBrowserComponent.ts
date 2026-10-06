@@ -14,12 +14,6 @@ import {CodexSchematicsComponent} from '@src/Components/Codex/CodexSchematicsCom
 import {CodexSectionEntry} from '@src/Components/Codex/CodexSectionEntry';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * The codex content itself, driven entirely by the host's CodexNavigation -
- * the same component backs the planner panel and the fullscreen codex page.
- * The root path shows the section menu: one tile per section, in the same
- * card style as the section lists, with the entry count.
- */
 @Component({
 	selector: 'codex-browser',
 	templateUrl: './CodexBrowserComponent.html',
@@ -80,7 +74,6 @@ export class CodexBrowserComponent
 
 	public readonly section = computed(() => this.navigation.path().split('/')[0]);
 
-	/** The path remainder after the section, e.g. an entity class name - null on list pages. */
 	public readonly detail = computed(() => {
 		const segments = this.navigation.path().split('/');
 		return segments.length > 1 ? segments.slice(1).join('/') : null;
@@ -108,10 +101,7 @@ export class CodexBrowserComponent
 		private readonly host: ElementRef<HTMLElement>,
 	)
 	{
-		// Inside a panel the codex swaps its content within one scroll
-		// container, which would otherwise keep its offset - opening a detail
-		// from far down a list would land mid-page. The fullscreen page
-		// scrolls the window, which the router's scroll restoration resets.
+		// In a panel the codex swaps content inside one scroll container, which would keep its offset; the fullscreen page scrolls the window, which the router's scroll restoration resets.
 		effect(() => {
 			this.navigation.path();
 			this.scrollContainerToTop();

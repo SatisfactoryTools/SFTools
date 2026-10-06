@@ -2,13 +2,6 @@ import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * A per-minute rate for right-aligned table columns: the amount and the unit
- * are separate spans and the unit has a fixed width, so "120/min" and
- * "300 m³/min" stacked in one column keep their digits aligned. A null
- * amount renders "∞" over the same unit width. Formatting comes from
- * RateFormatter - this only lays the parts out.
- */
 @Component({
 	selector: 'item-rate',
 	templateUrl: './ItemRateComponent.html',
@@ -33,7 +26,6 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 export class ItemRateComponent
 {
 
-	/** Per-minute amount; null shows as unlimited. */
 	@Input() public amount: number | null = null;
 
 	@Input() public item: Item | null = null;

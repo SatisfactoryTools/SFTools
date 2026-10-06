@@ -1,9 +1,7 @@
 <navbar/>
 
 @if (notifications.message()) {
-	<!-- Drops below the "server is not responding" banner while that is up. The
-	     banner lives in the root component, so it can show before the boot
-	     resolvers have finished and this one has been created. -->
+	<!-- Drops below the root component's "server is not responding" banner while that is up. -->
 	<div
 		class="position-fixed top-0 start-50 translate-middle-x"
 		[style.margin-top]="serverStatus.retrying() ? '108px' : '60px'"

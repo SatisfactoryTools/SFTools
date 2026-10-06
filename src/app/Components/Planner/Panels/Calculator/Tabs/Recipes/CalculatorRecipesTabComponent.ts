@@ -16,12 +16,6 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConversionRecipeResolver';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * Recipe selection for the solver: alternate recipes on the left (disabled
- * by default), standard recipes on the right (enabled by default). One
- * filter searches both lists - recipe-name matches rank before product-name
- * matches.
- */
 @Component({
 	selector: 'calculator-recipes-tab',
 	templateUrl: './CalculatorRecipesTabComponent.html',
@@ -46,7 +40,6 @@ export class CalculatorRecipesTabComponent
 	public readonly faRecycle = faRecycle;
 
 	public filter = '';
-	/** Which cards are folded; shared, so a fold survives leaving the tab. */
 	public readonly foldState: CollapsibleSections;
 
 	public constructor(
@@ -71,14 +64,12 @@ export class CalculatorRecipesTabComponent
 		return this.filterAndRank(this.machineRecipes().filter(recipe => !recipe.alternate));
 	}
 
-	/** The Converter's raw-resource conversion recipes of this version; empty hides the group button. */
 	public get conversionRecipes(): Recipe[]
 	{
 		const data = this.data();
 		return data ? this.conversions.resolve(data) : [];
 	}
 
-	/** Every conversion recipe is off - the group button offers to switch them back on. */
 	public get conversionsAllDisabled(): boolean
 	{
 		const enabled = this.enabledSet();
@@ -91,7 +82,6 @@ export class CalculatorRecipesTabComponent
 		return `${count} standard Converter recipe${count === 1 ? '' : 's'} turning one raw resource plus Reanimated SAM into another raw resource`;
 	}
 
-	/** Switches the whole conversion group off, or back on once every recipe of it is off. */
 	public toggleConversions(): void
 	{
 		this.setAll(this.conversionRecipes, this.conversionsAllDisabled);
@@ -107,7 +97,6 @@ export class CalculatorRecipesTabComponent
 		return this.enabledSet()?.has(recipe.className) ?? false;
 	}
 
-	/** The recipe's every machine is disabled in the Machines tab - the solver ignores it. */
 	public isMachineDisabled(recipe: Recipe): boolean
 	{
 		const settings = this.planManager.activeSettings();
@@ -131,7 +120,6 @@ export class CalculatorRecipesTabComponent
 		this.persist(enabled);
 	}
 
-	/** All/None act on the currently filtered (visible) list. */
 	public setAll(recipes: Recipe[], value: boolean): void
 	{
 		const enabled = this.enabledSet();
@@ -149,10 +137,6 @@ export class CalculatorRecipesTabComponent
 			.sort((a, b) => this.displayName(a).localeCompare(this.displayName(b)));
 	}
 
-	/**
-	 * With a filter, recipes matched by their own name come first, followed
-	 * by recipes matched only through a product name.
-	 */
 	private filterAndRank(recipes: Recipe[]): Recipe[]
 	{
 		const query = this.filter.trim().toLowerCase();

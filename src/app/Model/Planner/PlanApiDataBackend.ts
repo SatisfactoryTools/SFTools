@@ -1,3 +1,4 @@
+import {HttpErrorResponse} from '@angular/common/http';
 import {concat, Observable, of, Subject, Subscription} from 'rxjs';
 import {catchError, concatMap, debounceTime, map, tap, toArray} from 'rxjs/operators';
 import {FoldersApiService} from '@src/Model/API/FoldersApiService';
@@ -12,17 +13,14 @@ import {PlanSettingsNormalizer} from '@src/Model/Planner/PlanSettingsNormalizer'
 import {PlanStore} from '@src/Model/Planner/PlanStore';
 import {NotificationService} from '@src/Model/NotificationService';
 import {DataBackend} from '@src/Model/Sync/DataBackend';
+import {SyncReporter} from '@src/Model/Sync/SyncReporter';
+import {SyncedStore} from '@src/Model/Sync/SyncedStore';
 
-export class PlanApiDataBackend implements DataBackend<PlanStore>
+export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<PlanStore>
 {
 
 	private lastSynced: PlanStore = {folders: [], plans: []};
-	/**
-	 * Serialized plan data as of the last successful sync. Canvas gestures
-	 * (node drags, edge corner edits) mutate the graph IN PLACE, so lastSynced
-	 * aliases those changes and object comparison would miss them - only a
-	 * string frozen at sync time detects them reliably.
-	 */
+	/** Canvas gestures mutate the graph in place, so lastSynced aliases them; only strings frozen at sync time detect the change. */
 	private readonly lastSyncedData = new Map<string, string>();
 	private readonly lastSyncedFolderData = new Map<string, string>();
 	/** Server revision counters for plans AND folders (UUIDs never collide). */
@@ -30,11 +28,16 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 	private readonly saveSubject = new Subject<PlanStore>();
 	private readonly subscription: Subscription;
 
+	private readonly syncedSubject = new Subject<SyncedStore<PlanStore>>();
+	public readonly synced: Observable<SyncedStore<PlanStore>> = this.syncedSubject.asObservable();
+
 	public constructor(
 		private readonly plansApi: PlansApiService,
 		private readonly foldersApi: FoldersApiService,
 		private readonly versionManager: VersionManager,
 		private readonly notifications: NotificationService,
+		/** In the desktop app an offline mirror keeps unsaved edits, so a lost connection is not worth a warning. */
+		private readonly connectionLossExpected = false,
 	)
 	{
 		this.subscription = this.saveSubject.pipe(
@@ -42,6 +45,9 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			concatMap(store => this.syncToApi(store).pipe(
 				catchError(err => {
 					console.error('Plan API sync failed:', err);
+					if (this.connectionLossExpected && err instanceof HttpErrorResponse && err.status === 0) {
+						return of(void 0);
+					}
 					this.notifications.show('Could not save your plans to your account. They are still open here, but they will be lost if you close the page.', 10_000);
 					return of(void 0);
 				}),
@@ -101,8 +107,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 
 	private syncToApi(newStore: PlanStore): Observable<void>
 	{
-		// Every plan/folder route is version-scoped; without an active version
-		// nothing can sync. lastSynced is left untouched so the diff retries.
+		// lastSynced is left untouched so the diff retries once a version is active.
 		const versionId = this.versionManager.activeVersion()?.id;
 		if (!versionId) {
 			console.error('Cannot sync plans without an active version');
@@ -110,8 +115,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 		}
 
 		const old = this.lastSynced;
-		// Frozen now, compared against the last synced strings, and committed
-		// as the new baseline once the sync succeeds.
 		const serializedData = new Map(newStore.plans.map(p => [p.id, PlanDataSerializer.plan(p)]));
 		const serializedFolderData = new Map(newStore.folders.map(f => [f.id, PlanDataSerializer.folder(f)]));
 		const oldFolderIds = new Set(old.folders.map(f => f.id));
@@ -120,7 +123,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 
 		const ops: Observable<unknown>[] = [];
 
-		// New folders, sorted by depth so parents are created before children
+		// Depth order: parents must exist before their children.
 		newStore.folders
 			.filter(f => !oldFolderIds.has(f.id))
 			.sort((a, b) => this.folderDepth(a.id, newStore.folders) - this.folderDepth(b.id, newStore.folders))
@@ -129,7 +132,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 					.pipe(tap(res => this.serverRevisions.set(f.id, res.revision))),
 			));
 
-		// Renamed, data-changed or moved folders
 		newStore.folders.forEach(f => {
 			if (!oldFolderIds.has(f.id)) return;
 			const oldF = old.folders.find(x => x.id === f.id)!;
@@ -148,18 +150,19 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			}
 		});
 
-		// Deleted folders - only top-level ones (server cascades to children)
+		// Only top-level folders (the server cascades to children), sent last: a plan moved out of a folder in the same sync must leave before the cascade would take it along.
+		const folderDeletes: Observable<unknown>[] = [];
 		old.folders
 			.filter(f => !newFolderIds.has(f.id))
 			.filter(f => f.parentId === null || newFolderIds.has(f.parentId))
-			.forEach(f => ops.push(this.foldersApi.deleteFolder(versionId, f.id).pipe(
+			.forEach(f => folderDeletes.push(this.foldersApi.deleteFolder(versionId, f.id).pipe(
 				tap(() => {
 					this.serverRevisions.delete(f.id);
 					this.lastSyncedFolderData.delete(f.id);
 				}),
 			)));
 
-		// New plans, sorted by subplan depth so parents are created before children
+		// Depth order: parents must exist before their children.
 		newStore.plans
 			.filter(p => !oldPlanIds.has(p.id))
 			.sort((a, b) => this.planDepth(a.id, newStore.plans) - this.planDepth(b.id, newStore.plans))
@@ -172,7 +175,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 				).pipe(tap(res => this.serverRevisions.set(p.id, res.revision))),
 			));
 
-		// Updated or moved plans
 		newStore.plans
 			.filter(p => oldPlanIds.has(p.id))
 			.forEach(p => {
@@ -202,7 +204,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 				}
 			});
 
-		// Deleted plans - skip those covered by a folder or parent-plan cascade
+		// Skip plans a folder or parent-plan cascade already deletes.
 		const newPlanIds = new Set(newStore.plans.map(p => p.id));
 		old.plans
 			.filter(p => !newPlanIds.has(p.id))
@@ -215,8 +217,11 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 				}),
 			)));
 
+		ops.push(...folderDeletes);
+
 		if (ops.length === 0) {
 			this.lastSynced = newStore;
+			this.syncedSubject.next({scope: versionId, data: newStore});
 			return of(void 0);
 		}
 
@@ -226,6 +231,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 				this.lastSynced = newStore;
 				serializedData.forEach((data, id) => this.lastSyncedData.set(id, data));
 				serializedFolderData.forEach((data, id) => this.lastSyncedFolderData.set(id, data));
+				this.syncedSubject.next({scope: versionId, data: newStore});
 			}),
 			map(() => void 0),
 		);
@@ -251,7 +257,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 		};
 	}
 
-	/** Namespaced keys ("settings", "fixedGroups", …) so more can join later. */
 	private hydratePlan(schema: PlanSchema): Plan
 	{
 		let data: {settings?: Plan['settings']; requests?: Plan['requests']; inputs?: Plan['inputs']; graph?: Plan['graph']; metadata?: Plan['metadata']; iconClassName?: Plan['iconClassName']; order?: number} = {};
@@ -267,7 +272,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			description: schema.description ?? '',
 			folderId: schema.folder,
 			parentPlanId: schema.parent,
-			// Fallback covers plans saved before calculationMode existed.
 			settings: PlanSettingsNormalizer.normalize({
 				calculationMode: data.settings?.calculationMode ?? 'automatic',
 				graph: data.settings?.graph,
@@ -293,7 +297,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>
 			requests: data.requests ?? [],
 			inputs: data.inputs ?? [],
 			graph: data.graph ?? null,
-			// Fallback covers plans saved before metadata existed.
 			metadata: {
 				graphDirty: data.metadata?.graphDirty ?? false,
 				achievedMaximums: data.metadata?.achievedMaximums,

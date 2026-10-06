@@ -4,13 +4,6 @@ import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerCon
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 
-/**
- * Context menu of a "Shared plans" row. Shares are read-only; "Add to my
- * plans" copies the share into the user's own plans of its game version -
- * switching the planner to that version first when another one is active
- * (plans are version-scoped). Removal is non-destructive - reopening the
- * link brings the entry back.
- */
 export class VisitedShareContextMenu extends PlannerContextMenu
 {
 

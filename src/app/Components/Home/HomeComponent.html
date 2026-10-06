@@ -1,6 +1,5 @@
 <div class="home">
 
-	<!-- ── Hero ────────────────────────────────────────────────────────── -->
 	<section class="hero" [class.with-side]="signInPrompt.enabled() || auth.isAuthenticated()">
 		<div>
 			<div class="hero-brand">
@@ -12,7 +11,7 @@
 				A production planner for Satisfactory that finds the best setup for you. It works for every factory,
 				from your first smelter to a 1 TW nuclear grid.
 			</p>
-			<div class="hero-actions">
+			<div class="hero-actions" [class.with-wide]="desktopAppLink">
 				@if (continueLink; as link) {
 					<a class="btn btn-primary btn-lg" [routerLink]="link">
 						<fa-icon [icon]="faPlay"></fa-icon>
@@ -24,16 +23,30 @@
 						<span>Open the planner <span class="hero-sub">{{ featured.name }}</span></span>
 					</a>
 				}
-				<a routerLink="/create-version" class="btn btn-outline-light btn-lg">
+				@if (desktopAppLink) {
+					<a routerLink="/settings/desktop" class="btn btn-outline-light btn-lg">
+						<fa-icon [icon]="faDesktop"></fa-icon>
+						<span>Get the desktop app <span class="hero-sub">Windows &amp; Linux, works offline</span></span>
+					</a>
+				}
+				<a routerLink="/create-version" class="btn btn-outline-light btn-lg" [class.hero-wide]="desktopAppLink">
 					<fa-icon [icon]="faSliders"></fa-icon>
-					<span>Create custom version <span class="hero-sub">cost multipliers, mods, modded worlds</span></span>
+					<span>
+						Create custom version
+						@if (!desktopAppLink) {
+							<span class="hero-sub">recipe and power costs, mods, modded worlds</span>
+						} @else {
+							<span class="hero-sub">play with game modifiers: recipe and power costs, custom nodes, and mods</span>
+						}
+					</span>
 				</a>
 			</div>
 			<div class="hero-links">
-				<a routerLink="/about"><fa-icon [icon]="faCircleInfo" [fixedWidth]="true"></fa-icon>About</a>
 				@for (link of communityLinks; track link.key) {
 					<a [href]="link.url" target="_blank" rel="noopener"><fa-icon [icon]="link.icon" [fixedWidth]="true"></fa-icon>{{ link.label }}</a>
 				}
+				<a routerLink="/help"><fa-icon [icon]="faCircleQuestion" [fixedWidth]="true"></fa-icon>Help</a>
+				<a routerLink="/about"><fa-icon [icon]="faCircleInfo" [fixedWidth]="true"></fa-icon>About</a>
 				<span class="hero-donate">
 					<fa-icon [icon]="faHeart" [fixedWidth]="true"></fa-icon>Free to use - support it via
 					@for (link of donationLinks; track link.key; let last = $last) {
@@ -88,26 +101,6 @@
 		}
 	</section>
 
-	<!-- ── Feature tiles ───────────────────────────────────────────────── -->
-	<section class="features">
-		@for (feature of features; track feature.title) {
-			@if (feature.link; as link) {
-				<a class="feature" [routerLink]="link">
-					<div class="feature-icon"><fa-icon [icon]="feature.icon"></fa-icon></div>
-					<div class="feature-title">{{ feature.title }}</div>
-					<p class="feature-text">{{ feature.text }}</p>
-				</a>
-			} @else {
-				<div class="feature">
-					<div class="feature-icon"><fa-icon [icon]="feature.icon"></fa-icon></div>
-					<div class="feature-title">{{ feature.title }}</div>
-					<p class="feature-text">{{ feature.text }}</p>
-				</div>
-			}
-		}
-	</section>
-
-	<!-- ── Game versions ───────────────────────────────────────────────── -->
 	<section>
 		<div class="section-head">
 			<h2 class="d-inline-flex align-items-center gap-2">Game versions <help-button topic="versions.game"/></h2>
@@ -160,18 +153,11 @@
 		</div>
 	</section>
 
-	<!-- ── Custom versions ─────────────────────────────────────────────── -->
 	<section>
 		<div class="section-head">
 			<h2 class="d-inline-flex align-items-center gap-2">Your custom versions <help-button topic="versions.custom"/></h2>
-			<p>Based on a public version, with your own cost multipliers, mods or world.</p>
+			<p>Based on a public version, with your own cost multipliers, custom nodes, and mods.</p>
 		</div>
-		@if (customVersions.length === 0) {
-			<info-note class="mb-3">
-				A custom version starts from a public one and adds recipe and power cost multipliers,
-				mods, or a changed set of resource nodes. The planner then treats it like any other version.
-			</info-note>
-		}
 		<div class="version-grid">
 			@for (version of customVersions; track version.id) {
 				<div class="version-card custom">
@@ -205,8 +191,41 @@
 			}
 			<a class="version-card version-card-new" routerLink="/create-version">
 				<fa-icon [icon]="faPlus"></fa-icon>
-				<span>Create custom version</span>
+				<span>
+					Create custom version
+					@if (customVersions.length === 0) {
+						<span class="new-hint">Starts from a public version and adds your cost multipliers, custom nodes, and mods.</span>
+					}
+				</span>
 			</a>
+		</div>
+	</section>
+
+	<section>
+		<div class="section-head">
+			<h2>What's inside</h2>
+			<p>The four main parts of the tools.</p>
+		</div>
+		<div class="features">
+		@for (feature of features; track feature.title) {
+			@if (feature.link; as link) {
+				<a class="feature" [routerLink]="link">
+					<div class="feature-icon"><fa-icon [icon]="feature.icon"></fa-icon></div>
+					<div>
+						<div class="feature-title">{{ feature.title }}</div>
+						<p class="feature-text">{{ feature.text }}</p>
+					</div>
+				</a>
+			} @else {
+				<div class="feature">
+					<div class="feature-icon"><fa-icon [icon]="feature.icon"></fa-icon></div>
+					<div>
+						<div class="feature-title">{{ feature.title }}</div>
+						<p class="feature-text">{{ feature.text }}</p>
+					</div>
+				</div>
+			}
+		}
 		</div>
 	</section>
 

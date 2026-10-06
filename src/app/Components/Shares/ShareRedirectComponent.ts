@@ -6,12 +6,6 @@ import {ShareMetaResolver} from '@src/Model/Meta/ShareMetaResolver';
 import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 
-/**
- * The public share-link entry point (/shared/:shareId), kept working
- * forever. It resolves the share, silently adds its game version to the
- * viewer's list and records the visit (both via ActiveShareManager.prepare),
- * then forwards into the normal planner, which opens the share read-only.
- */
 @Component({
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [RouterLink],

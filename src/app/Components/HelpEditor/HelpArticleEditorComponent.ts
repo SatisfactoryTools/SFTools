@@ -27,16 +27,10 @@ import {HelpTopicStatus} from '@src/Model/Help/HelpTopicStatus';
 import {HelpMarkdownRenderer} from '@src/Model/Help/HelpMarkdownRenderer';
 import {NotificationService} from '@src/Model/NotificationService';
 
-/**
- * Writes one article: the metadata on the left, the Markdown and its live
- * preview on the right. The preview is the reader's own component, so what is
- * written here is exactly what readers get.
- */
 @Component({
 	templateUrl: './HelpArticleEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	// The preview renders article links, which need a host to resolve against;
-	// on this page they lead to the fullscreen reader.
+	// The preview renders article links, which need a HelpNavigation host; here they lead to the fullscreen reader.
 	providers: [{provide: HelpNavigation, useClass: PageHelpNavigation}],
 	imports: [
 		FormsModule,
@@ -49,8 +43,6 @@ import {NotificationService} from '@src/Model/NotificationService';
 		HelpContentComponent,
 	],
 	styles: `
-		/* Both panes are as tall as the screen allows and scroll on their own,
-		   so the text and its preview stay side by side while writing. */
 		textarea.body,
 		.preview {
 			height: calc(100vh - 19rem);
@@ -66,16 +58,13 @@ import {NotificationService} from '@src/Model/NotificationService';
 			border-radius: 4px;
 			padding: 1rem 1.1rem;
 			overflow-y: auto;
-			/* The reader names this container too - the title shrinks with the
-			   column, exactly as it does in a docked help panel. */
+			/* The reader's header queries this container, so the title shrinks here as in a docked panel. */
 			container-type: inline-size;
 			container-name: article;
 		}
-		/* The reading measure the reader gives an article. */
 		.preview > * {
 			max-width: 74ch;
 		}
-		/* The id is the longer of the two, so it gets the larger share. */
 		.topic-row select {
 			min-width: 0;
 		}
@@ -106,7 +95,6 @@ export class HelpArticleEditorComponent
 	public readonly faTrash = faTrash;
 	public readonly faUpRightFromSquare = faUpRightFromSquare;
 
-	/** Null until an existing article is loaded; stays null for a new one. */
 	private readonly articleSignal = signal<HelpEditorArticle | null>(null);
 
 	public title = '';
@@ -124,29 +112,20 @@ export class HelpArticleEditorComponent
 	public readonly images = signal<HelpEditorImage[]>([]);
 	public readonly saving = signal(false);
 
-	/**
-	 * Fold state of the details card, reached through `detailsOpen` below
-	 * because the default depends on whether the article is new.
-	 */
 	private readonly foldState: CollapsibleSections;
 
-	/** Whether the slug still follows the title, as it does until it is edited by hand. */
 	private slugTouched = false;
 
 	@ViewChild('bodyInput') private bodyInput: ElementRef<HTMLTextAreaElement> | undefined;
 
 	public readonly isNew = computed(() => this.articleSignal() === null);
 
-	/** Headings of the current body, offered as targets for help topics. */
 	public readonly sections = computed<HelpArticleSection[]>(() => this.renderer.sections(this.body()));
 
-	/** Every article, so the topic list can say which topics are already taken. */
 	private readonly allArticles = signal<HelpEditorArticle[]>([]);
 
-	/** Slugs of every other article, for the see-also autocomplete. */
 	public readonly knownSlugs = computed<string[]>(() => this.allArticles().map(article => article.slug));
 
-	/** Every topic a button can ask for, grouped, with the article that answers it. */
 	public readonly topicGroups = computed(() => this.coverage.groups(this.allArticles()));
 
 	public constructor(
@@ -181,11 +160,6 @@ export class HelpArticleEditorComponent
 		}
 	}
 
-	/**
-	 * A new article opens with its details showing; an existing one starts
-	 * folded away, because the text is what the writer came for. Either way
-	 * the writer's own choice wins once they make one.
-	 */
 	public get detailsOpen(): boolean
 	{
 		return this.foldState.isOpen('details', this.isNew());
@@ -196,7 +170,6 @@ export class HelpArticleEditorComponent
 		this.foldState.toggle('details', this.isNew());
 	}
 
-	/** Section name for the preview's header and the folded card's summary. */
 	public categoryName(): string
 	{
 		return this.categories().find(option => option.id === this.category)?.name ?? '';
@@ -231,19 +204,16 @@ export class HelpArticleEditorComponent
 		this.topics.update(topics => topics.map((entry, i) => i === index ? {...entry, anchor} : entry));
 	}
 
-	/** Whether another article already answers this topic - the backend refuses a second claim. */
 	public takenElsewhere(status: HelpTopicStatus): boolean
 	{
 		return status.claim !== null && status.claim.id !== this.articleSignal()?.id;
 	}
 
-	/** Where the button for a topic sits, shown under the picked one. */
 	public topicWhere(topic: string): string
 	{
 		return HelpTopicCatalog.definition(topic)?.where ?? '';
 	}
 
-	/** An id no button asks for - kept as an option so an old claim stays visible. */
 	public isUnknownTopic(topic: string): boolean
 	{
 		return topic !== '' && !HelpTopicCatalog.knows(topic);
@@ -318,18 +288,11 @@ export class HelpArticleEditorComponent
 		this.insert('`hotkey:', '`', 'planner.calculate');
 	}
 
-	/** The uploaded file itself, for the media list's thumbnails. */
 	public imageUrl(image: HelpEditorImage): string
 	{
 		return this.files.assetUrl(image.path);
 	}
 
-	/**
-	 * Inserts a snippet at the caret - the toolbar's one job. Whatever is
-	 * selected is kept and ends up between `before` and `after`, so a button
-	 * wraps the highlighted text instead of throwing it away; with nothing
-	 * selected the placeholder goes in and stays selected, ready to type over.
-	 */
 	public insert(before: string, after: string = '', placeholder: string = ''): void
 	{
 		const input = this.bodyInput?.nativeElement;
@@ -344,8 +307,7 @@ export class HelpArticleEditorComponent
 			return;
 		}
 
-		// Once Angular has written the value back: the caret goes behind text
-		// that was already there, and a placeholder is left selected.
+		// Deferred until Angular has written the value back; the caret goes behind existing text and a placeholder stays selected.
 		const caret = start + before.length + inner.length;
 		const from = selected === '' ? start + before.length : caret;
 		requestAnimationFrame(() => {
@@ -391,7 +353,6 @@ export class HelpArticleEditorComponent
 		});
 	}
 
-	/** Where the reader shows this article, for the "open" button. */
 	public readerLink(): string[]
 	{
 		return ['/help', this.slug];

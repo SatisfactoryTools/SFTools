@@ -1,11 +1,12 @@
-import {Component, ChangeDetectionStrategy, OnDestroy, signal, Signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, OnDestroy, signal, Signal, WritableSignal} from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router';
 import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faHashtag, faDiagramProject, faFileCirclePlus, faKeyboard, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
+import {faHashtag, faDesktop, faDiagramProject, faFileCirclePlus, faKeyboard, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {SettingsAccountComponent} from '@src/Components/Settings/SettingsAccountComponent';
+import {SettingsDesktopComponent} from '@src/Components/Settings/SettingsDesktopComponent';
 import {SettingsGraphComponent} from '@src/Components/Settings/SettingsGraphComponent';
 import {SettingsHotkeysComponent} from '@src/Components/Settings/SettingsHotkeysComponent';
 import {SettingsNumbersComponent} from '@src/Components/Settings/SettingsNumbersComponent';
@@ -13,15 +14,12 @@ import {SettingsPlanDefaultsComponent} from '@src/Components/Settings/SettingsPl
 import {SettingsPlannerComponent} from '@src/Components/Settings/SettingsPlannerComponent';
 import {SettingsSection} from '@src/Components/Settings/SettingsSection';
 import {AuthService} from '@src/Model/Auth/AuthService';
+import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 
-/**
- * The global settings screen: a left panel listing sections and a wider right
- * panel showing the selected section's controls (standard Bootstrap columns).
- */
 @Component({
 	templateUrl: './SettingsComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, BackLinkComponent, InfoNoteComponent, SettingsNumbersComponent, SettingsGraphComponent, SettingsPlannerComponent, SettingsPlanDefaultsComponent, SettingsAccountComponent, SettingsHotkeysComponent],
+	imports: [FaIconComponent, BackLinkComponent, InfoNoteComponent, SettingsNumbersComponent, SettingsGraphComponent, SettingsPlannerComponent, SettingsPlanDefaultsComponent, SettingsAccountComponent, SettingsHotkeysComponent, SettingsDesktopComponent],
 	styles: [`
 		.settings-nav {
 			display: flex;
@@ -77,29 +75,34 @@ import {AuthService} from '@src/Model/Auth/AuthService';
 export class SettingsComponent implements OnDestroy
 {
 
-	public readonly sections: SettingsSection[] = [
-		{id: 'numbers', label: 'Numbers', icon: faHashtag},
-		{id: 'graph', label: 'Graph', icon: faDiagramProject},
-		{id: 'planner', label: 'Planner', icon: faTableColumns},
-		{id: 'plan-defaults', label: 'Plan defaults', icon: faFileCirclePlus},
-		{id: 'hotkeys', label: 'Hotkeys', icon: faKeyboard},
-		{id: 'account', label: 'Account', icon: faUser},
-	];
+	public readonly sections: SettingsSection[];
 
-	private readonly activeSectionSignal = signal<string>(this.sections[0].id);
-	public readonly activeSection: Signal<string> = this.activeSectionSignal.asReadonly();
+	private readonly activeSectionSignal: WritableSignal<string>;
+	public readonly activeSection: Signal<string>;
 
 	private readonly subscription: Subscription;
 
 	public constructor(
 		protected readonly auth: AuthService,
+		protected readonly platform: AppPlatform,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
 	)
 	{
-		// The open section lives in the URL, so a section can be linked to and
-		// survives a reload. A bare /settings (or one naming a section that no
-		// longer exists) rewrites itself to the first one rather than 404ing.
+		this.sections = [
+			{id: 'numbers', label: 'Numbers', icon: faHashtag},
+			{id: 'graph', label: 'Graph', icon: faDiagramProject},
+			{id: 'planner', label: 'Planner', icon: faTableColumns},
+			{id: 'plan-defaults', label: 'Plan defaults', icon: faFileCirclePlus},
+			{id: 'hotkeys', label: 'Hotkeys', icon: faKeyboard},
+			{id: 'account', label: 'Account', icon: faUser},
+		];
+		if (platform.desktop || platform.desktopAppPublic) {
+			this.sections.push({id: 'desktop', label: 'Desktop app', icon: faDesktop});
+		}
+		this.activeSectionSignal = signal<string>(this.sections[0].id);
+		this.activeSection = this.activeSectionSignal.asReadonly();
+
 		this.subscription = route.paramMap.subscribe(params => {
 			const section = params.get('section');
 			if (section !== null && this.sections.some(candidate => candidate.id === section)) {

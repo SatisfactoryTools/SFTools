@@ -7,12 +7,6 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
 
-/**
- * Sinkable-item selection for the solver: checked items may be fed into the
- * AWESOME Sink to earn sink points (nothing is sinkable by default). Only
- * solid items worth points qualify - fluids and zero-point items (nuclear
- * waste) cannot be sinked.
- */
 @Component({
 	selector: 'calculator-sink-tab',
 	templateUrl: './CalculatorSinkTabComponent.html',
@@ -33,7 +27,6 @@ export class CalculatorSinkTabComponent
 	{
 	}
 
-	/** Sinkable items matching the filter, in the selected order. */
 	public get items(): Item[]
 	{
 		const query = this.filter.trim().toLowerCase();
@@ -61,7 +54,6 @@ export class CalculatorSinkTabComponent
 		this.persist(enabled);
 	}
 
-	/** All/None act on the currently filtered (visible) list. */
 	public setAll(items: Item[], value: boolean): void
 	{
 		const enabled = this.enabledSet();

@@ -1,11 +1,5 @@
 import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 
-/**
- * The shared frame of every auth page (sign in, register, password reset,
- * OAuth callback): a centred card with the logo mark, a title and an optional
- * subtitle above the projected content. A footer strip can be projected as
- * `[auth-footer]` (rendered as the card footer).
- */
 @Component({
 	selector: 'auth-layout',
 	templateUrl: './AuthLayoutComponent.html',

@@ -1,7 +1,14 @@
-import {Injectable, Signal, computed} from '@angular/core';
+import {Injectable, Optional, Signal, computed} from '@angular/core';
+import {toObservable} from '@angular/core/rxjs-interop';
+import {filter, skip} from 'rxjs/operators';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {SettingsApiService} from '@src/Model/API/SettingsApiService';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 import {NotificationService} from '@src/Model/NotificationService';
+import {DataBackend} from '@src/Model/Sync/DataBackend';
+import {OfflineMirrorBackend} from '@src/Model/Sync/OfflineMirrorBackend';
+import {PreferLocalOfflineMerger} from '@src/Model/Sync/PreferLocalOfflineMerger';
 import {LocalStorageDataBackend} from '@src/Model/Sync/LocalStorageDataBackend';
 import {SyncableService} from '@src/Model/Sync/SyncableService';
 import {PanelLayoutState} from '@src/Components/Planner/Panel/PanelLayoutState';
@@ -16,8 +23,8 @@ import {Settings} from '@src/Model/Settings/Settings';
 import {SettingsApiDataBackend} from '@src/Model/Settings/SettingsApiDataBackend';
 import {SettingsConflictService} from '@src/Model/Settings/SettingsConflictService';
 import {SettingsDefaults} from '@src/Model/Settings/SettingsDefaults';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 
-/** Persisted like plans (localStorage when logged out, the API once authenticated); every field is defaulted on read so partial or legacy payloads never surface undefined. */
 @Injectable({providedIn: 'root'})
 export class SettingsManager extends SyncableService<Settings>
 {
@@ -36,17 +43,42 @@ export class SettingsManager extends SyncableService<Settings>
 		settingsApiService: SettingsApiService,
 		notifications: NotificationService,
 		conflictService: SettingsConflictService,
+		storage: AppStorage,
+		connectivity: ConnectivityService,
+		@Optional() desktop: DesktopBridge | null,
 	)
 	{
+		const apiBackend = new SettingsApiDataBackend(settingsApiService, notifications, desktop !== null);
+		// The desktop app keeps the account's settings while offline.
+		const remoteBackend: DataBackend<Settings> = desktop === null ? apiBackend : new OfflineMirrorBackend<Settings>(
+			apiBackend,
+			apiBackend,
+			storage,
+			'settings',
+			() => '',
+			new PreferLocalOfflineMerger<Settings>(),
+			connectivity,
+			notifications,
+			'settings',
+		);
 		super(
 			authService,
-			new LocalStorageDataBackend<Settings>('sftools.settings'),
-			new SettingsApiDataBackend(settingsApiService, notifications),
+			new LocalStorageDataBackend<Settings>(storage, 'sftools.settings'),
+			remoteBackend,
 			new InteractiveSettingsConflictResolver(conflictService),
 			SettingsDefaults.SETTINGS,
 			notifications,
 			'settings',
 		);
+
+		// Back online: the reload is what sends the edits made offline.
+		if (desktop !== null) {
+			toObservable(connectivity.online).pipe(skip(1), filter(online => online)).subscribe(() => {
+				if (authService.isAuthenticated()) {
+					this.reload();
+				}
+			});
+		}
 	}
 
 	public updateNumbers(patch: Partial<NumberSettings>): void
@@ -74,7 +106,7 @@ export class SettingsManager extends SyncableService<Settings>
 		this.persist({...this.settings(), account: {...this.account(), ...patch}});
 	}
 
-	/** Replaces all overrides - the caller decides, since a dropped entry (factory key) and null (no key) mean different things. */
+	/** Replaces rather than merges: a dropped entry (factory key) and null (no key) mean different things. */
 	public updateHotkeys(hotkeys: HotkeyOverrides): void
 	{
 		this.persist({...this.settings(), hotkeys});

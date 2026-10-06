@@ -34,29 +34,21 @@ export class PlansApiService
 		return this.http.put<PlanSchema>(`${this.plansBase(versionId)}/${id}`, {...fields, revision});
 	}
 
-	/**
-	 * The live, read-only view of any plan by its UUID - public, no auth needed, and 404
-	 * when the plan does not exist or its owner turned link access off. This is what makes
-	 * a copy-pasted planner URL work for the person receiving it.
-	 */
 	public getPlanByLink(id: string): Observable<PlanLinkPayload>
 	{
 		return this.http.get<PlanLinkPayload>(`${env.apiUrl}/v1/plans/${id}`);
 	}
 
-	/** Makes the plan top-level, placed in the given folder (null for root). */
 	public movePlan(versionId: string, id: string, folder: string | null): Observable<PlanSchema>
 	{
 		return this.http.post<PlanSchema>(`${this.plansBase(versionId)}/${id}/move`, {folder});
 	}
 
-	/** Makes the plan a subplan of the given plan. */
 	public movePlanToParent(versionId: string, id: string, parent: string): Observable<PlanSchema>
 	{
 		return this.http.post<PlanSchema>(`${this.plansBase(versionId)}/${id}/move`, {parent});
 	}
 
-	/** Deletes the plan and, recursively, all its subplans. */
 	public deletePlan(versionId: string, id: string): Observable<void>
 	{
 		return this.http.delete<void>(`${this.plansBase(versionId)}/${id}`);

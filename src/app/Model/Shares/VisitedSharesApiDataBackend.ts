@@ -5,18 +5,9 @@ import {NotificationService} from '@src/Model/NotificationService';
 import {DataBackend} from '@src/Model/Sync/DataBackend';
 import {VisitedShareStore} from '@src/Model/Shares/VisitedShareStore';
 
-/**
- * Syncs the visited-shares list through the per-entry API: save() diffs the
- * store against the last-synced state - new entries become PUTs (oldest
- * first, so server-stamped timestamps preserve relative order), missing ones
- * become DELETEs. The server owns visitedAt and the cap. Repeat visits do
- * not touch visitedAt (see VisitedSharesManager.recordVisit), so they never
- * PUT and never reorder the server's list.
- */
 export class VisitedSharesApiDataBackend implements DataBackend<VisitedShareStore>
 {
 
-	/** Share uuid → visitedAt as of the last successful load/save. */
 	private lastSynced = new Map<string, string>();
 
 	public constructor(
@@ -44,6 +35,7 @@ export class VisitedSharesApiDataBackend implements DataBackend<VisitedShareStor
 		const deletes = [...this.lastSynced.keys()]
 			.filter(uuid => !current.has(uuid))
 			.map(uuid => this.sharesApi.removeVisit(uuid));
+		// Oldest first, so the server-stamped visitedAt keep their relative order.
 		const puts = data.shares
 			.filter(share => this.lastSynced.get(share.share) !== share.visitedAt)
 			.sort((a, b) => a.visitedAt.localeCompare(b.visitedAt))

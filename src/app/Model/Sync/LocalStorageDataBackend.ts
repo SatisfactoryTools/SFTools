@@ -1,16 +1,20 @@
 import {Observable, of} from 'rxjs';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 import {DataBackend} from '@src/Model/Sync/DataBackend';
 
 export class LocalStorageDataBackend<T> implements DataBackend<T>
 {
 
-	public constructor(private readonly key: string)
+	public constructor(
+		private readonly storage: AppStorage,
+		private readonly key: string,
+	)
 	{
 	}
 
 	public load(): Observable<T | null>
 	{
-		const raw = localStorage.getItem(this.key);
+		const raw = this.storage.getItem(this.key);
 		if (raw === null) return of(null);
 		try {
 			return of(JSON.parse(raw) as T);
@@ -21,13 +25,13 @@ export class LocalStorageDataBackend<T> implements DataBackend<T>
 
 	public save(data: T): Observable<void>
 	{
-		localStorage.setItem(this.key, JSON.stringify(data));
+		this.storage.setItem(this.key, JSON.stringify(data));
 		return of(void 0);
 	}
 
 	public clear(): Observable<void>
 	{
-		localStorage.removeItem(this.key);
+		this.storage.removeItem(this.key);
 		return of(void 0);
 	}
 

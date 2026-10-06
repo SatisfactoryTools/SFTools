@@ -15,14 +15,7 @@ import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 
-/**
- * Builds resized replacements of graph nodes for the manual-editing assists:
- * "increase this node's output to cover a new edge" and the node
- * minimise/maximise actions. A node's size is its single scalar - the recipe
- * target, the generator machine count, or the item node rate. Replacements
- * keep the node's id and position; resizing is a manual edit, so they come
- * back locked (except withAmount, which serves elastic bookkeeping).
- */
+/** Resizing is a manual edit, so replacements come back locked - except withAmount, which serves elastic bookkeeping. */
 @Injectable({providedIn: 'root'})
 export class NodeResizer
 {
@@ -34,17 +27,11 @@ export class NodeResizer
 	{
 	}
 
-	/** Nodes whose size this class can change; subplans and unknown types cannot. */
 	public isResizable(node: Node): boolean
 	{
 		return node instanceof RecipeNode || node instanceof GeneratorNode || node instanceof ItemAmountNode;
 	}
 
-	/**
-	 * Replacement producing `addition` more of the item than the node's
-	 * current configuration; null when it cannot (not resizable, or the node
-	 * does not produce the item).
-	 */
 	public increasedOutput(node: Node, itemClassName: string, addition: number): Node | null
 	{
 		if (node instanceof RecipeNode) {
@@ -75,12 +62,6 @@ export class NodeResizer
 		return null;
 	}
 
-	/**
-	 * Replacement scaled to `factor` times the node's current size. For
-	 * recipes the machine groups are regenerated per the node's grouping mode
-	 * (uniform sloops kept, mixed ones reset to 0), so mixed-sloop nodes scale
-	 * their target exactly but their boosted output only approximately.
-	 */
 	public scaled(node: Node, factor: number): Node | null
 	{
 		if (factor <= 0) {
@@ -98,19 +79,13 @@ export class NodeResizer
 		return null;
 	}
 
-	/** Same item node at a new rate, keeping its lock state - elastic bookkeeping, not a user edit. */
+	/** Elastic bookkeeping, not a user edit: keeps the lock state. */
 	public withAmount(node: ItemAmountNode, amount: number): ItemAmountNode
 	{
 		return this.replacedItemNode(node, amount, node.locked);
 	}
 
-	/**
-	 * Replacement at an absolute size - the item rate or the generator
-	 * machine count. A user edit, so it comes back locked. Null for recipes
-	 * (their own editor handles them) and subplans. Pass `id` to get a
-	 * separate copy instead of a replacement - that is what splitting one
-	 * node into several needs.
-	 */
+	/** Recipes are left to their own editor. Pass another `id` for a separate copy, which node splitting needs. */
 	public withSize(node: Node, size: number, id: string = node.id): Node | null
 	{
 		if (size <= 0) {
@@ -125,12 +100,6 @@ export class NodeResizer
 		return null;
 	}
 
-	/**
-	 * The same generator node at a new machine count and clock speed. A user
-	 * edit, so it comes back locked. Power and fuel follow from the two
-	 * together - a generator's clock only decides how many buildings (and
-	 * power shards) a given generation takes.
-	 */
 	public withGenerator(node: GeneratorNode, amount: number, clockSpeed: number): GeneratorNode | null
 	{
 		if (amount <= 0 || clockSpeed <= 0) {
@@ -139,12 +108,6 @@ export class NodeResizer
 		return this.placed(node, new GeneratorNode(node.id, amount, node.generator, node.fuel, clockSpeed), true);
 	}
 
-	/**
-	 * Utilization ratios the node's connected edges imply: carried flow ÷
-	 * configured flow, one entry per item that has at least one edge (both
-	 * sides). min(ratios) is the smallest size the edges support, max(ratios)
-	 * the largest - the node minimise/maximise targets.
-	 */
 	public edgeRatios(node: Node, edges: GraphEdge[]): number[]
 	{
 		const ratios: number[] = [];
@@ -180,7 +143,7 @@ export class NodeResizer
 		return this.placed(node, replacement, true);
 	}
 
-	/** The shared sloop count when all groups agree; 0 otherwise. */
+	/** Mixed sloops reset to 0: a scaled node then keeps its target exactly but its boosted output only approximately. */
 	private uniformSloops(groups: MachineGroup[]): number
 	{
 		if (groups.length === 0) {

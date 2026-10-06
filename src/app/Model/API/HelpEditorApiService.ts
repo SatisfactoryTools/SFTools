@@ -7,11 +7,6 @@ import {HelpEditorArticleInput} from '@src/Model/API/Schema/Help/HelpEditorArtic
 import {HelpEditorCategory} from '@src/Model/API/Schema/Help/HelpEditorCategory';
 import {HelpEditorImage} from '@src/Model/API/Schema/Help/HelpEditorImage';
 
-/**
- * Writing side of the help API - everything here needs an account with the
- * help-editor flag. Each successful write rebuilds the static snapshot readers
- * load, so nothing else has to be published by hand.
- */
 @Injectable({providedIn: 'root'})
 export class HelpEditorApiService
 {
@@ -22,7 +17,6 @@ export class HelpEditorApiService
 	{
 	}
 
-	/** Every article, drafts included, without bodies. */
 	public listArticles(): Observable<HelpEditorArticle[]>
 	{
 		return this.http.get<HelpEditorArticle[]>(`${this.base}/articles`);
@@ -73,7 +67,6 @@ export class HelpEditorApiService
 		return this.http.get<HelpEditorImage[]>(`${this.base}/images`);
 	}
 
-	/** `data` is the file base64-encoded, or a data: URL as FileReader produces it. */
 	public uploadImage(fileName: string, data: string): Observable<HelpEditorImage>
 	{
 		return this.http.post<HelpEditorImage>(`${this.base}/images`, {fileName, data});
@@ -84,7 +77,6 @@ export class HelpEditorApiService
 		return this.http.delete<void>(`${this.base}/images/${id}`);
 	}
 
-	/** Rebuilds the reader's static files by hand - normally never needed. */
 	public publish(): Observable<void>
 	{
 		return this.http.post<void>(`${this.base}/publish`, {});

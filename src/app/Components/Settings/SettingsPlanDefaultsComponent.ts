@@ -9,11 +9,6 @@ import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {faFileCirclePlus} from '@fortawesome/free-solid-svg-icons';
 
-/**
- * "Plan defaults" settings section - the recipe selection, graph layout and
- * machine grouping a plan uses until it sets its own. The same controls sit
- * in the planner's Settings panel per plan; these are what they start from.
- */
 @Component({
 	selector: 'settings-plan-defaults',
 	templateUrl: './SettingsPlanDefaultsComponent.html',

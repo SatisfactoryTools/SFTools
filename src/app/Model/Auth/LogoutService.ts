@@ -3,11 +3,7 @@ import {Router} from '@angular/router';
 import {AuthApiService} from '@src/Model/API/AuthApiService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 
-/**
- * Signing out, shared by the navbar user menu and the home page welcome card:
- * revokes the refresh token server-side (best effort - a failed call must not
- * keep the user signed in), clears the local session and returns home.
- */
+/** Best effort: a failed revoke call must not keep the user signed in. */
 @Injectable({providedIn: 'root'})
 export class LogoutService
 {

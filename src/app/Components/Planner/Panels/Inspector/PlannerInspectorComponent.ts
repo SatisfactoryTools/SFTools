@@ -24,10 +24,8 @@ export class PlannerInspectorComponent
 	public readonly selectedNodes: Signal<Node[]>;
 	public readonly singleRecipeNode: Signal<RecipeNode | null>;
 	public readonly singleSubplanNode: Signal<SubplanNode | null>;
-	/** A lone selected single-scalar node (item nodes and generators) - edited through the amount editor. */
 	public readonly singleAmountNode: Signal<Node | null>;
 
-	/** A read-only plan (shared, or on this device while signed in) is inspected, never edited - the editors render disabled. */
 	public readonly isAugmenterNode: Signal<boolean>;
 	public readonly readOnly: Signal<boolean>;
 	public readonly readOnlyNote: Signal<string>;
@@ -50,8 +48,7 @@ export class PlannerInspectorComponent
 			const nodes = this.selectedNodes();
 			return nodes.length === 1 && nodes[0] instanceof SubplanNode ? nodes[0] : null;
 		});
-		// Augmenters are a Power tab setting the solver restates as a node, so
-		// there is nothing to edit here - the inspector says where to go.
+		// Augmenters are a Power tab setting the solver restates as a node, so there is nothing to edit here.
 		this.isAugmenterNode = computed(() => {
 			const nodes = this.selectedNodes();
 			return nodes.length === 1 && nodes[0] instanceof AugmenterNode;

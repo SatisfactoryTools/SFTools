@@ -8,19 +8,13 @@ import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 import {PanelHelpNavigation} from '@src/Components/Help/PanelHelpNavigation';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 
-/**
- * Help as a planner panel: the shared reader under a pop-out button that
- * continues at the same article on the fullscreen page.
- */
 @Component({
 	selector: 'planner-help',
 	templateUrl: './PlannerHelpComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	providers: [{provide: HelpNavigation, useClass: PanelHelpNavigation}],
 	imports: [RouterLink, FaIconComponent, AppTooltipDirective, HelpBrowserComponent],
-	// The toolbar sits inside the panel's scroll container, so it needs the
-	// panel background to cover the content scrolling underneath it; the
-	// border matches the panel tab bar's.
+	// The toolbar is sticky inside the panel's scroll container, so it needs an opaque background.
 	styles: `
 		:host {
 			display: block;
@@ -44,7 +38,6 @@ export class PlannerHelpComponent
 		return slug === '' ? ['/', 'help'] : ['/', 'help', slug];
 	});
 
-	/** The section being read carries over to the page as the URL fragment. */
 	public readonly popOutFragment = computed<string | undefined>(() => this.navigation.anchor() || undefined);
 
 	public constructor(

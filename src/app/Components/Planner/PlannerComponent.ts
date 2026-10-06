@@ -54,6 +54,9 @@ import {PlannerPlansComponent} from '@src/Components/Planner/Panels/Plans/Planne
 import {PlannerPowerComponent} from '@src/Components/Planner/Panels/Power/PlannerPowerComponent';
 import {PlannerSettingsComponent} from '@src/Components/Planner/Panels/Settings/PlannerSettingsComponent';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {OldGameVersion} from '@src/Model/OldTools/OldGameVersion';
+import {OldPlanImporter} from '@src/Model/OldTools/OldPlanImporter';
+import {OldToolsAutoImportService} from '@src/Model/OldTools/OldToolsAutoImportService';
 import {OldToolsImportRequestService} from '@src/Model/OldTools/OldToolsImportRequestService';
 import {OldToolsShareService} from '@src/Model/OldTools/OldToolsShareService';
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
@@ -96,6 +99,8 @@ import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager'
 import {PlanLinkUnavailableDialogComponent} from '@src/Components/Planner/Share/PlanLinkUnavailableDialogComponent';
 import {PlanShareDialogComponent} from '@src/Components/Planner/Share/PlanShareDialogComponent';
 import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
+import {GraphExportDialogComponent} from '@src/Components/Planner/Export/GraphExportDialogComponent';
+import {GraphExportDialogService} from '@src/Components/Planner/Export/GraphExportDialogService';
 
 // Matches the reconciler's absolute warning tolerance.
 const FLOW_TOLERANCE = 0.001;
@@ -103,10 +108,13 @@ const RATIO_TOLERANCE = 1e-4;
 
 @Component({
 	templateUrl: './PlannerComponent.html',
-	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent, PlanShareDialogComponent, PlanLinkUnavailableDialogComponent],
+	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent, PlanShareDialogComponent, PlanLinkUnavailableDialogComponent, GraphExportDialogComponent],
 	providers: [
 		FolderRecalculationService,
 		PlannerGraphService,
+		// Component-scoped: both need the planner's graph layout.
+		OldPlanImporter,
+		OldToolsAutoImportService,
 		PanelLayoutService,
 		PlannerActionsService,
 		PlannerContextMenuService,
@@ -177,10 +185,12 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly activeShare: ActiveShareManager,
 		public readonly planLink: ActivePlanLinkManager,
 		public readonly shareDialog: ShareDialogService,
+		public readonly exportDialog: GraphExportDialogService,
 		private readonly folderRecalculation: FolderRecalculationService,
 		private readonly signInPrompt: SignInPromptService,
 		private readonly oldToolsImports: OldToolsImportRequestService,
 		private readonly oldToolsShares: OldToolsShareService,
+		private readonly oldToolsAutoImport: OldToolsAutoImportService,
 		private readonly pageMeta: PageMetaService,
 		private readonly shareMeta: ShareMetaResolver,
 		private readonly route: ActivatedRoute,
@@ -305,12 +315,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			panelLayout.focusPanel('help');
 		}
 
-		// Arrivals from the old Satisfactory Tools (its share links and its
-		// "take my plans" button, both rewritten by LegacyUrlRedirectComponent)
-		// carry the keys to import. The plans panel owns the dialog, so the
-		// request is parked for it; the params leave the URL so a reload or a
-		// copied link does not import the same lines again.
+		// Old share links carry the key to import. The plans panel owns the dialog, so the request is parked for it; the params leave the URL so a reload or copied link does not import the line again.
 		this.acceptOldToolsImportLink();
+
+		this.oldToolsAutoImport.run();
 
 		this.subscription.add(
 			this.actions.calculateRequests.subscribe(() => this.calculate()),
@@ -447,7 +455,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 						// powerUnit is display-only - must not re-solve.
 						requests: plan.requests.map(r => ({itemClassName: r.itemClassName, ratePerMinute: r.ratePerMinute, mode: r.mode})),
 						inputs: plan.inputs,
-						// Without an explicit selection the plan follows the plan defaults.
 						recipes: plan.settings.enabledRecipes ?? [defaults.alternateRecipes, defaults.conversionRecipes],
 						machines: plan.settings.disabledMachines,
 						limits: [plan.settings.resourceLimits, plan.settings.disabledResources, plan.settings.resourceWeightMode, plan.settings.resourceWeights],
@@ -617,8 +624,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}),
 		);
 
-		// An open share names the tab after the shared plan or folder; own plans keep the route's
-		// "Production planner" title (their names stay private, as in link previews).
+		// An open share names the tab after the shared plan or folder; own plans keep the generic route title, since their names stay private (as in link previews).
 		effect(() => {
 			const payload = this.activeShare.payload();
 			if (payload !== null) {
@@ -661,15 +667,16 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (importOld === null) {
 			return;
 		}
+		const sourceVersion = params.get('importOldVersion');
 		this.oldToolsImports.request({
 			shareKeys: importOld === 'local' ? [] : this.oldToolsShares.parseShareKeyList(importOld),
+			sourceVersion: sourceVersion === '0.8' || sourceVersion === '1.0' || sourceVersion === '1.0-ficsmas' ? sourceVersion as OldGameVersion : null,
 			localLines: importOld === 'local',
-			otherFlavourShareKeys: this.oldToolsShares.parseShareKeyList(params.get('importOldOther')),
 		});
 		this.panelLayout.focusPanel('plans');
 		void this.router.navigate([], {
 			relativeTo: this.route,
-			queryParams: {importOld: null, importOldOther: null},
+			queryParams: {importOld: null, importOldVersion: null},
 			queryParamsHandling: 'merge',
 			replaceUrl: true,
 		});
@@ -712,6 +719,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.hotkeys.register('planner.zoomIn', () => this.plannerGraph.zoomIn()),
 			this.hotkeys.register('planner.zoomOut', () => this.plannerGraph.zoomOut()),
 			this.hotkeys.register('planner.zoomFit', () => this.plannerGraph.zoomFit()),
+			this.hotkeys.register('planner.export', () => this.exportDialog.open()),
 		);
 		CalculatorTabHotkeys.ENTRIES.forEach(entry => {
 			this.hotkeyRegistrations.push(this.hotkeys.register(entry.action, () => {

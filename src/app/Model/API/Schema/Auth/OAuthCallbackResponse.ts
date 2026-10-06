@@ -1,8 +1,3 @@
-/**
- * Result of completing an OAuth flow: a token pair for a login/signup flow,
- * or `linked: true` (no tokens) when the flow was started with a Bearer
- * token and the provider was attached to the signed-in account.
- */
 export interface OAuthCallbackResponse
 {
 	readonly provider: string;
@@ -12,4 +7,5 @@ export interface OAuthCallbackResponse
 	readonly expiresIn?: number;
 	readonly linked?: boolean;
 	readonly message?: string;
+	readonly desktop?: boolean;
 }

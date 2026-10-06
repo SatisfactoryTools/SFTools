@@ -4,11 +4,6 @@ import {faArrowRight} from '@fortawesome/free-solid-svg-icons';
 import {HelpLinkDirective} from '@src/Components/Help/HelpLinkDirective';
 import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 
-/**
- * One article as a tile - title, what it is about, and an arrow on hover.
- * Used by the index grid and by an article's "see also" list, so a link to an
- * article looks the same wherever it is offered.
- */
 @Component({
 	selector: 'help-article-card',
 	templateUrl: './HelpArticleCardComponent.html',

@@ -12,11 +12,7 @@ import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 /** Matches the default weight new input rows get in the calculator's Input tab. */
 const INPUT_WEIGHT = 0.001;
 
-/**
- * The old tools' stock resourceMax tables (1.0 and 0.8/U8). A limit equal to
- * one of these is "never touched by the user" and is dropped so the imported
- * plan follows this app's own defaults instead.
- */
+/** The old tools' stock resourceMax tables (1.0 and 0.8/U8): a limit equal to one of these was never touched by the user and is dropped in favour of this app's defaults. */
 const OLD_DEFAULT_LIMITS: ReadonlyArray<Record<string, number>> = [
 	{
 		Desc_OreIron_C: 92100,
@@ -48,11 +44,6 @@ const OLD_DEFAULT_LIMITS: ReadonlyArray<Record<string, number>> = [
 	},
 ];
 
-/**
- * Converts a production line of the old Satisfactory Tools into a plan of
- * this app. Rows referencing items/recipes the active version does not know
- * (e.g. a 0.8 export opened in a 1.0 version) are skipped and reported.
- */
 @Injectable({providedIn: 'root'})
 export class OldPlanConverter
 {
@@ -152,11 +143,7 @@ export class OldPlanConverter
 		};
 	}
 
-	/**
-	 * The old tools stored recipe choices as deltas from their default (all
-	 * standard on, all alternates off): blockedRecipes and
-	 * allowedAlternateRecipes. Untouched defaults stay implicit here too.
-	 */
+	/** The old tools stored recipe choices as deltas from their default; untouched defaults stay implicit here too (null). */
 	private convertRecipes(source: OldProductionData, data: Data, unknown: string[]): string[] | null
 	{
 		const blocked = new Set(source.request.blockedRecipes ?? []);
@@ -176,11 +163,6 @@ export class OldPlanConverter
 		return [...enabled];
 	}
 
-	/**
-	 * This app's defaults win unless the user customised a cap in the old
-	 * tools (a value differing from every stock table). Blocked resources
-	 * become a cap of zero.
-	 */
 	private convertResourceLimits(source: OldProductionData, defaults: Record<string, number> | undefined): Record<string, number> | undefined
 	{
 		const limits = {...(defaults ?? {})};

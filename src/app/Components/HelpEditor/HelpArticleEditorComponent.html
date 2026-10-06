@@ -19,8 +19,6 @@
 		</div>
 	</div>
 
-	<!-- Everything that is not the text itself, folded away once it is filled in
-	     so the writing and its preview get the whole screen. -->
 	<collapsible-card title="Article details" [open]="detailsOpen" (toggle)="toggleDetails()" class="mb-3">
 		<span card-actions class="text-secondary small">
 			@if (!detailsOpen) {
@@ -183,8 +181,6 @@
 				placeholder="Write the article in Markdown…"
 			></textarea>
 		</div>
-		<!-- The reader's own header and body components, so the preview is the
-		     article itself and not an approximation of it. -->
 		<div class="col-12 col-lg-6">
 			<div class="preview">
 				<help-article-header [category]="categoryName()" [title]="title || 'Untitled article'" [summary]="summary"/>

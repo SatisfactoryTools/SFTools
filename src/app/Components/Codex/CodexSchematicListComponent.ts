@@ -3,10 +3,6 @@ import {CodexEntityLinkComponent} from '@src/Components/Codex/CodexEntityLinkCom
 import {CodexItemAmountListComponent} from '@src/Components/Codex/CodexItemAmountListComponent';
 import {Schematic} from '@src/Model/Data/Entities/Schematic';
 
-/**
- * Schematic cross-links as flush list-group rows - drop into a flush
- * codex-section. `showCost` adds each schematic's full research cost.
- */
 @Component({
 	selector: 'codex-schematic-list',
 	templateUrl: './CodexSchematicListComponent.html',

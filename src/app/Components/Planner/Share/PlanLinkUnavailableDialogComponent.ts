@@ -4,12 +4,7 @@ import {faLinkSlash} from '@fortawesome/free-solid-svg-icons';
 import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
 
-/**
- * Shown when a plan link in the address does not open anything: the plan was deleted,
- * it is saved only on its owner's device, or its owner turned link sharing off. Without
- * this the planner silently showed the viewer their own last plan, which looks like the
- * link worked.
- */
+/** Without this a dead plan link silently showed the viewer their own last plan, which looks like the link worked. */
 @Component({
 	selector: 'plan-link-unavailable-dialog',
 	templateUrl: './PlanLinkUnavailableDialogComponent.html',

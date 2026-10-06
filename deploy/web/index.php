@@ -1,16 +1,8 @@
 <?php declare(strict_types = 1);
 
 /**
- * Front controller for page requests on the web host: serves the Angular index.html with
- * a page-specific <title>, description and og:/twitter: tags, so link previews (Discord,
- * Slack, …), whose bots run no JavaScript, show the page they link to. The data comes from
- * the API's GET /v1/meta (tools-api: MetaResolver); in the browser, PageMetaService keeps
- * the same tags current while the user navigates.
- *
- * Not part of the Angular build: CI copies deploy/web/ into dist/ at deploy time, and the
- * .htaccess falls back to plain index.html when this file is absent. Any failure here
- * (API down, slow, in maintenance) serves the generic tags - never a broken page.
- * Lint: php -l deploy/web/index.php
+ * Not part of the Angular build: CI copies deploy/web/ into dist/ and .htaccess falls back to plain
+ * index.html when this file is absent. Any failure here must serve the generic tags, never a broken page.
  */
 
 final class PageHeadInjector
@@ -117,12 +109,10 @@ final class PageHeadInjector
 			$this->tag('name', 'twitter:image', $image),
 		];
 
-		// Drop the managed tags wherever they stand (no markers needed, so it does not
-		// matter what the Angular build does to comments or line breaks)...
+		// Matched by tag rather than by markers: the Angular build may rewrite comments and line breaks.
 		$html = (string) preg_replace('~[ \t]*<title>.*?</title>[ \t]*(?:\r?\n)?~is', '', $html);
 		$html = (string) preg_replace('~[ \t]*<meta\s+(?:name|property)="(?:description|og:[^"]*|twitter:[^"]*)"[^>]*>[ \t]*(?:\r?\n)?~i', '', $html);
 
-		// ...and put the generated block right after the charset.
 		$block = "\n\t" . implode("\n\t", $tags);
 		$count = 0;
 		$html = (string) preg_replace('~<meta\s+charset="[^"]*"\s*/?>~i', '$0' . str_replace(['\\', '$'], ['\\\\', '\\$'], $block), $html, 1, $count);
@@ -140,7 +130,7 @@ final class PageHeadInjector
 		return in_array($host, self::PUBLIC_HOSTS, true) ? $host : self::PUBLIC_HOSTS[0];
 	}
 
-	/** The path without its query string, except a planner's ?codex= (it picks the page). */
+	/** A planner's ?codex= stays: it picks the page. */
 	private function canonicalPath(string $path): string
 	{
 		[$pathPart, $query] = array_pad(explode('?', explode('#', $path, 2)[0], 2), 2, '');

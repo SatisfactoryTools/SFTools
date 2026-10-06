@@ -6,11 +6,6 @@ import {SearchFragmentsComponent} from '@src/Components/Common/SearchFragmentsCo
 import {SearchResult} from '@src/Model/Search/SearchResult';
 import {SearchResultGroup} from '@src/Model/Search/SearchResultGroup';
 
-/**
- * The grouped list of search results - the one rendering shared by the navbar
- * dropdown and the fullscreen search on phones. One row always carries the
- * cursor (`active`), which the pointer moves as well as the keyboard.
- */
 @Component({
 	selector: 'search-result-list',
 	templateUrl: './SearchResultListComponent.html',
@@ -20,8 +15,6 @@ import {SearchResultGroup} from '@src/Model/Search/SearchResultGroup';
 		:host {
 			display: block;
 		}
-		/* The highlight is the keyboard's cursor, shown on hover too so the
-		   pointer and the arrow keys agree on where it is. */
 		.search-result {
 			background: transparent;
 			color: var(--bs-body-color);
@@ -41,10 +34,8 @@ export class SearchResultListComponent
 
 	@Input({required: true}) public groups: SearchResultGroup[] = [];
 
-	/** The row the cursor is on. */
 	@Input() public active: SearchResult | null = null;
 
-	/** Bigger rows and icons, for the fullscreen search on a phone. */
 	@Input() public large = false;
 
 	@Output() public readonly select = new EventEmitter<SearchResult>();

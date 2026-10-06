@@ -1,12 +1,7 @@
 import {Injectable, Signal, signal} from '@angular/core';
 import {ModImage} from '@src/Model/ModEditor/ModImage';
 
-/**
- * Session-local store for images picked in the mod editor. Icon fields in
- * the JSON reference images by id only - the files themselves will be
- * uploaded through a separate endpoint (not available yet), which will
- * replace these local ids with server-issued ones.
- */
+/** The upload endpoint does not exist yet, so picked images live in the session under placeholder ids. */
 @Injectable({providedIn: 'root'})
 export class ModImageStore
 {
@@ -14,7 +9,6 @@ export class ModImageStore
 	private readonly imagesSignal = signal<ModImage[]>([]);
 	public readonly images: Signal<ModImage[]> = this.imagesSignal.asReadonly();
 
-	/** Registers a picked file and returns the placeholder id to put into icon fields. */
 	public add(file: File): string
 	{
 		const id = `local-${crypto.randomUUID()}`;

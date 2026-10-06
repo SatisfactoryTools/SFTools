@@ -3,17 +3,10 @@ import {Data} from '@src/Model/Data/Data';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 
-/**
- * Finds the Converter's resource conversion recipes: the standard (not
- * alternate) recipes that turn one raw resource plus Reanimated SAM into a
- * different raw resource. Players often want those off as a group - they let
- * the solver conjure scarce ores out of common ones.
- */
 @Injectable({providedIn: 'root'})
 export class ResourceConversionRecipeResolver
 {
 
-	/** Empty when the version has no Converter or no recipe matching the definition. */
 	public resolve(data: Data): Recipe[]
 	{
 		if (data.searchBuildingByClassName(SpecialClasses.ConverterBuilding) === undefined) {

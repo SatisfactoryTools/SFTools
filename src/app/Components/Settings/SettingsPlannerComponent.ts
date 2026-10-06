@@ -7,7 +7,6 @@ import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSection
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faTableColumns} from '@fortawesome/free-solid-svg-icons';
 
-/** "Planner" settings section - unmakeable-items display, help buttons and the panel-layout reset. */
 @Component({
 	selector: 'settings-planner',
 	templateUrl: './SettingsPlannerComponent.html',
@@ -97,7 +96,6 @@ export class SettingsPlannerComponent
 		return this.unmakeableItemsOptions.find(option => option.value === this.unmakeableItems)?.description ?? '';
 	}
 
-	/** Clears the remembered layout; the planner rebuilds its defaults on next open. */
 	public resetPanels(): void
 	{
 		if (confirm('Put all planner panels back to their default positions and sizes?')) {

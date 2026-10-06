@@ -3,9 +3,6 @@ import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuIt
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
 
-/**
- * Context menu shown when right-clicking a folder row in the Plans tree.
- */
 export class FolderContextMenu extends PlannerContextMenu
 {
 
@@ -52,8 +49,7 @@ export class FolderContextMenu extends PlannerContextMenu
 			},
 		];
 
-		// Always offered - sharing needs an account, and shareFolder() says so
-		// (and offers to sign in) rather than the entry quietly disappearing.
+		// Always offered: shareFolder() explains the account requirement rather than the entry quietly disappearing.
 		items.push({
 			label: 'Share…',
 			icon: faShareNodes,

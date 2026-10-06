@@ -5,12 +5,6 @@ import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConversionRecipeResolver';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
-/**
- * Resolves which recipes a plan's solver may use. Plans without an explicit
- * selection get the default selection, which the user's plan defaults decide:
- * every standard machine recipe, plus alternate and resource conversion
- * recipes when those are switched on there.
- */
 @Injectable({providedIn: 'root'})
 export class EnabledRecipesResolver
 {
@@ -30,10 +24,6 @@ export class EnabledRecipesResolver
 		return this.defaultSelection(data);
 	}
 
-	/**
-	 * Every machine able to run the recipe is disabled in the Machines tab -
-	 * the solver may not use the recipe regardless of its enabled state.
-	 */
 	public isDisabledByMachine(recipe: Recipe, settings: PlanSettings): boolean
 	{
 		if (!settings.disabledMachines || settings.disabledMachines.length === 0) {

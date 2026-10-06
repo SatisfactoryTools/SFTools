@@ -1,10 +1,5 @@
 import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 
-/**
- * Bootstrap card every codex detail section uses: compact heading (the same
- * as the planner's collapsible cards) + content body. `flush` removes the
- * body padding so list-groups and tables sit edge to edge.
- */
 @Component({
 	selector: 'codex-section',
 	templateUrl: './CodexSectionComponent.html',

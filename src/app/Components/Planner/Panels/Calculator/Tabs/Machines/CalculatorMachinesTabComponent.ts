@@ -6,11 +6,6 @@ import {Building} from '@src/Model/Data/Entities/Building';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 
-/**
- * Machine selection for the solver: all production machines are enabled by
- * default; recipes producible only in disabled machines are excluded from
- * the solver's pool (shown struck through in the Recipes tab).
- */
 @Component({
 	selector: 'calculator-machines-tab',
 	templateUrl: './CalculatorMachinesTabComponent.html',

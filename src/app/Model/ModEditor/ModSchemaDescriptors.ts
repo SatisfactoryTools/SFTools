@@ -40,13 +40,6 @@ const SCHEMATIC_TYPES: ModFieldOption[] = [
 
 const EVENTS_HELP = 'Event tags, comma-separated; the game only knows "ficsmas".';
 
-/**
- * The mod editor's description of the Data schema: one descriptor per entry
- * collection, listing every field with its editing kind. Fields marked
- * required form the main part of the entry form (they are what the site
- * needs to function); everything else folds into "More fields" and gets a
- * sensible default, so the editor always emits complete schema entries.
- */
 export class ModSchemaDescriptors
 {
 
@@ -199,13 +192,11 @@ export class ModSchemaDescriptors
 		ModSchemaDescriptors.MATERIALS,
 	];
 
-	/** An empty mod: all collections present so entries can be added anywhere. */
 	public static emptyData(): DataSchema
 	{
 		return {items: {}, schematics: {}, recipes: {}, buildings: {}, materials: {}, resources: []};
 	}
 
-	/** A complete entry with every schema field at its default. */
 	public static createDefault(descriptor: ModEntryDescriptor, className: string): Record<string, unknown>
 	{
 		const entry: Record<string, unknown> = {className};

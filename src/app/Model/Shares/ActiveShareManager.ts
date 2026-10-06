@@ -19,12 +19,6 @@ import {ShareVersionLinker} from '@src/Model/Shares/ShareVersionLinker';
 import {SharePayloadHydrator} from '@src/Model/Shares/SharePayloadHydrator';
 import {VisitedSharesManager} from '@src/Model/Shares/VisitedSharesManager';
 
-/**
- * The share currently open in the planner (read-only mode). Owns the whole
- * share lifecycle: fetching the payload, silently adding its game version to
- * the viewer's list, recording the visit, hydrating the tree into
- * PlanManager's read-only shared store, and the "Add to my plans" move.
- */
 @Injectable({providedIn: 'root'})
 export class ActiveShareManager
 {
@@ -40,16 +34,13 @@ export class ActiveShareManager
 	private readonly loadErrorSignal = signal<string | null>(null);
 	public readonly loadError: Signal<string | null> = this.loadErrorSignal.asReadonly();
 
-	/** True while a share is open (payload loaded) - drives the planner's read-only surfaces. */
 	public readonly active: Signal<boolean> = computed(() => this.payloadSignal() !== null);
 
-	/** The last successfully fetched share, so redirect → planner does not fetch twice. */
+	/** Cached so the redirect → planner hop does not fetch the share twice. */
 	private cachedPayload: {shareId: string; payload: SharePayload} | null = null;
 
-	/** A plan (by its payload id) chosen from the list before its share was open - selected once hydrated. */
 	private pendingPlan: {shareId: string; payloadPlanId: string} | null = null;
 
-	/** The hydrated root plan of an open plan share (null for folder shares or while closed). */
 	public readonly rootPlan: Signal<Plan | null> = computed(() => {
 		const payload = this.payloadSignal();
 		const hydration = this.hydrationSignal();
@@ -75,12 +66,6 @@ export class ActiveShareManager
 	{
 	}
 
-	/**
-	 * Fetches the share, makes sure its version is in the viewer's list and
-	 * records the visit - everything the redirect entry needs before it can
-	 * navigate into the version context. Cached per share id, so the planner
-	 * route reuses the result instead of fetching again.
-	 */
 	public prepare(shareId: string): Observable<SharePayload>
 	{
 		if (this.cachedPayload?.shareId === shareId) {
@@ -96,7 +81,6 @@ export class ActiveShareManager
 		);
 	}
 
-	/** Activates the share in the planner: hydrates its tree read-only and selects the first plan. */
 	public open(shareId: string): void
 	{
 		if (this.shareIdSignal() === shareId && this.payloadSignal() !== null) {
@@ -128,13 +112,11 @@ export class ActiveShareManager
 		});
 	}
 
-	/** The hydrated id of a payload plan of the open share, or null while the share is not open. */
 	public hydratedPlanId(payloadPlanId: string): string | null
 	{
 		return this.hydrationSignal()?.idMap.get(payloadPlanId) ?? null;
 	}
 
-	/** The payload id of the open share's plan that is currently selected, or null. */
 	public activePayloadPlanId(): string | null
 	{
 		const activeId = this.planManager.activePlanId();
@@ -147,11 +129,6 @@ export class ActiveShareManager
 		return result;
 	}
 
-	/**
-	 * Selects a plan of a share by its payload id: right away when that share
-	 * is open, otherwise once the share (which the caller navigates to) has
-	 * been hydrated.
-	 */
 	public selectPlan(shareId: string, payloadPlanId: string): void
 	{
 		const hydrated = this.shareIdSignal() === shareId ? this.hydratedPlanId(payloadPlanId) : null;
@@ -162,7 +139,6 @@ export class ActiveShareManager
 		this.pendingPlan = {shareId, payloadPlanId};
 	}
 
-	/** Leaves share mode; the cached payload stays so reopening is instant. */
 	public close(): void
 	{
 		if (this.shareIdSignal() === null) {
@@ -175,25 +151,11 @@ export class ActiveShareManager
 		this.planManager.clearSharedStore();
 	}
 
-	/**
-	 * Plans are version-scoped, so a share can only be copied into the plans
-	 * of its own game version. True while that version is active - a drop
-	 * target in the current tree makes sense only then; addToMyPlans itself
-	 * switches versions when needed.
-	 */
 	public isShareVersionActive(shareVersionId: string): boolean
 	{
 		return this.versionManager.activeVersion()?.id === shareVersionId;
 	}
 
-	/**
-	 * The "move" to the viewer's own plans: copies the whole share (fresh
-	 * ids) into the given folder (null = top level) and drops the visited-list
-	 * entry. Works for any visited share, open or not (the payload is fetched
-	 * when needed), and for anonymous users too - their plans live in
-	 * localStorage. When the share is the one open in the planner, the copy
-	 * of whichever shared plan is on screen is opened, which leaves share mode.
-	 */
 	public addToMyPlans(shareId: string, folderId: string | null = null): void
 	{
 		this.prepare(shareId).subscribe({
@@ -232,7 +194,6 @@ export class ActiveShareManager
 		});
 	}
 
-	/** A folder share opens on its first plan in display order (the order the panel lists the tree in). */
 	private firstPlanOf(entries: (PlanTreeFolder | PlanTreePlan)[]): Plan | null
 	{
 		for (const entry of entries) {
@@ -244,13 +205,7 @@ export class ActiveShareManager
 		return null;
 	}
 
-	/**
-	 * A share of another game version: switch the planner to that version
-	 * (prepare() already made sure it is in the viewer's list), wait until
-	 * the plan store has reloaded for it, then copy the share in at the top
-	 * level and open the copy. Importing before the reload settles would be
-	 * overwritten by it.
-	 */
+	/** Waits for the plan store to reload for the switched version: importing before that would be overwritten by the reload. */
 	private addAfterVersionSwitch(payload: SharePayload): void
 	{
 		const version = this.versionManager.versions().find(v => v.id === payload.version.id);

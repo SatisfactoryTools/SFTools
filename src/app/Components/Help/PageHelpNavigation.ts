@@ -6,11 +6,7 @@ import {map} from 'rxjs/operators';
 import {HelpLink} from '@src/Components/Help/HelpLink';
 import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 
-/**
- * Help navigation for the fullscreen page: the article is the URL after
- * `/help` (the route matcher consumes all of it, so the first segment here is
- * always 'help') and the section is the URL fragment.
- */
+// The route matcher consumes the whole URL, so the first segment is always 'help'.
 @Injectable()
 export class PageHelpNavigation extends HelpNavigation
 {

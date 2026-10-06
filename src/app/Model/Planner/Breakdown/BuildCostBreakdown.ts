@@ -12,7 +12,6 @@ export interface BuildCostBreakdown
 
 	readonly sloops: number;
 
-	/** All rows' materials merged per item. */
 	readonly materials: BuildCostMaterialRow[];
 
 }

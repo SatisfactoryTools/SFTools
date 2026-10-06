@@ -33,14 +33,7 @@ import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 		NavbarCommunityLinksComponent,
 		AppTooltipDirective,
 	],
-	// On desktop the search sits between the side groups and shrinks when they
-	// leave too little room; on a phone it is the fullscreen mobile-search
-	// instead, so the box itself is hidden there.
 	styles: `
-		/* Phone shortcuts and the menu button compete with the brand for one
-		   row: the shortcut label goes first (below 420px), then the wordmark
-		   shrinks to the S mark (below 360px). */
-		/* Phone shortcuts and the menu toggler share one look: white glyph, soft white frame. */
 		.navbar-shortcut,
 		.navbar-toggler {
 			--bs-btn-color: #fff;
@@ -74,8 +67,6 @@ import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 				flex-shrink: 0;
 			}
 
-			/* Wider than a plain nav item - it searches everything - but it
-			   gives the room back to the two side groups when they need it. */
 			navbar-search {
 				flex: 0 1 420px;
 				min-width: 0;
@@ -112,7 +103,6 @@ export class NavbarComponent implements OnDestroy
 
 	private readonly subscription: Subscription;
 
-	/** Where the "Back to planner" link goes; null when it does not apply here. */
 	public readonly backToPlannerLink = computed(() => this.backToPlanner.link());
 
 	public ngOnDestroy(): void
@@ -137,12 +127,7 @@ export class NavbarComponent implements OnDestroy
 		}
 	}
 
-	/**
-	 * Search, from the shortcut or the phone's magnifier: the navbar's own box
-	 * where there is room for it, the fullscreen search where there is not.
-	 * The menu is left alone either way - unfolding it on a wide screen made
-	 * the whole navbar grow and snap back.
-	 */
+	/** The menu is left alone either way - unfolding it on a wide screen made the whole navbar grow and snap back. */
 	public openSearch(): void
 	{
 		if (window.innerWidth < NavbarComponent.WIDE_SCREEN) {
@@ -152,16 +137,12 @@ export class NavbarComponent implements OnDestroy
 		this.search?.focus();
 	}
 
-	/**
-	 * The search covers the codex and the user's plans, which need a version -
-	 * but also the help articles, which do not, so it stays available on the
-	 * version-less pages as long as there is help to find.
-	 */
+	/** Help articles need no version, so the search stays available on version-less pages as long as there is help to find. */
 	protected readonly searchAvailable = computed(
 		() => this.versionManager.activeVersion() !== null || this.help.hasArticles(),
 	);
 
-	/** No articles loaded (yet, or the API is down) - a link to an empty help page would be a dead end. */
+	/** No articles loaded (yet, or the API is down): a link to an empty help page would be a dead end. */
 	protected readonly helpAvailable = computed(() => this.help.hasArticles());
 
 	public constructor(

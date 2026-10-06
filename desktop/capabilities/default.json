@@ -1,0 +1,9 @@
+{
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "The bundled app talks to the native side through its own commands and events only.",
+	"windows": ["main"],
+	"permissions": [
+		"core:default"
+	]
+}

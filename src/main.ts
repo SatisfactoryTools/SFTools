@@ -2,14 +2,27 @@ import { provideZoneChangeDetection } from "@angular/core";
 import {bootstrapApplication} from '@angular/platform-browser';
 import {env} from '@env/env';
 import {RootComponent} from '@src/Components/Root/RootComponent';
-import {HandoffReceiver} from '@src/Model/Handoff/HandoffReceiver';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
+import {BrowserAppStorage} from '@src/Model/Storage/BrowserAppStorage';
+import {FileAppStorage} from '@src/Model/Storage/FileAppStorage';
 import {config} from './config';
 
-// The beta origin's browser data has to be in localStorage before the
-// services read it in their constructors - so it is fetched first, once.
-new HandoffReceiver(env.handoffSourceOrigin)
-	.run()
-	.then(() => bootstrapApplication(RootComponent, {...config, providers: [provideZoneChangeDetection(), ...config.providers]}))
+// Old hashbang links (/#!/1.0/production?share=…): the fragment never reaches the router, so it becomes the real path before the legacy matcher sees it.
+if (window.location.hash.startsWith('#!/')) {
+	window.history.replaceState(null, '', window.location.hash.substring(2));
+}
+
+// The desktop app's files are read in one go before the services read storage in their constructors.
+DesktopBridge.connect(env.apiUrl)
+	.then(desktop => {
+		const storage: AppStorage = desktop === null ? new BrowserAppStorage() : new FileAppStorage(desktop);
+		const platformProviders = [
+			{provide: AppStorage, useValue: storage},
+			...(desktop === null ? [] : [{provide: DesktopBridge, useValue: desktop}]),
+		];
+		return bootstrapApplication(RootComponent, {...config, providers: [provideZoneChangeDetection(), ...platformProviders, ...config.providers]});
+	})
 	.catch((err) => {
 		console.error(err);
 		// index.html listens for this and replaces the blank page with an error screen.

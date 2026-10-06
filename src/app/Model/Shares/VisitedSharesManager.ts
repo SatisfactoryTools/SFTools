@@ -1,36 +1,30 @@
-import {Injectable, Signal, computed} from '@angular/core';
+import {Injectable, Optional, Signal, computed} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {filter, take} from 'rxjs/operators';
 import {SharesApiService} from '@src/Model/API/SharesApiService';
 import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
 import {AuthService} from '@src/Model/Auth/AuthService';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
+import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 import {NotificationService} from '@src/Model/NotificationService';
+import {DataBackend} from '@src/Model/Sync/DataBackend';
+import {OfflineMirrorBackend} from '@src/Model/Sync/OfflineMirrorBackend';
+import {PreferRemoteOfflineMerger} from '@src/Model/Sync/PreferRemoteOfflineMerger';
 import {LocalStorageDataBackend} from '@src/Model/Sync/LocalStorageDataBackend';
 import {SyncableService} from '@src/Model/Sync/SyncableService';
 import {MergeVisitedSharesConflictResolver} from '@src/Model/Shares/MergeVisitedSharesConflictResolver';
 import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 import {VisitedSharesApiDataBackend} from '@src/Model/Shares/VisitedSharesApiDataBackend';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 import {VISITED_SHARES_CAP, VisitedShareStore} from '@src/Model/Shares/VisitedShareStore';
 
-/**
- * The "Shared plans" list: every share link the user has opened, most
- * recently ADDED first, capped (oldest evicted). Reopening a listed share
- * leaves it where it is - the order is stable, so rows do not jump around
- * while the user works through the list (visitedAt is the first visit).
- * Entries leave the list when the share is copied into the user's own
- * plans ("move" semantics) or removed by hand - both are non-destructive,
- * shares are permanent and reopening the link brings the entry back.
- * Anonymous users keep the list in localStorage; login merges it into the
- * account.
- */
 @Injectable({providedIn: 'root'})
 export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 {
 
 	public readonly visitedShares: Signal<VisitedShare[]> = computed(() => this.data().shares);
 
-	/** A visit recorded before the initial backend load settled - applied right after it does. */
 	private pendingVisit: SharePayload | null = null;
 
 	public constructor(
@@ -38,23 +32,35 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 		sharesApi: SharesApiService,
 		notifications: NotificationService,
 		private readonly shareTrees: ShareTreeCache,
+		storage: AppStorage,
+		connectivity: ConnectivityService,
+		@Optional() desktop: DesktopBridge | null,
 	)
 	{
+		const apiBackend = new VisitedSharesApiDataBackend(sharesApi, notifications);
+		// Offline the desktop app shows the list as last loaded.
+		const remoteBackend: DataBackend<VisitedShareStore> = desktop === null ? apiBackend : new OfflineMirrorBackend<VisitedShareStore>(
+			apiBackend,
+			null,
+			storage,
+			'visitedShares',
+			() => '',
+			new PreferRemoteOfflineMerger<VisitedShareStore>(),
+			connectivity,
+			notifications,
+			'shared plans',
+		);
 		super(
 			authService,
-			new LocalStorageDataBackend<VisitedShareStore>('sftools.visitedShares'),
-			new VisitedSharesApiDataBackend(sharesApi, notifications),
+			new LocalStorageDataBackend<VisitedShareStore>(storage, 'sftools.visitedShares'),
+			remoteBackend,
 			new MergeVisitedSharesConflictResolver(),
 			{shares: []},
 			notifications,
 			'shared plans',
 		);
-		// Opening a share link is often this service's very first use, so the
-		// visit can arrive while the initial load is still in flight - and the
-		// load result would overwrite it. Held back until the load settles.
-		// The same moment adopts anonymous localStorage entries into the
-		// account: onLogin only covers a login that happens while this
-		// service is alive, not a fresh page load that starts authenticated.
+		// A visit can arrive while the initial load is in flight and would be overwritten by it, so it waits for the load.
+		// Anonymous entries are adopted here too: onLogin does not cover a page load that starts authenticated.
 		toObservable(this.loaded).pipe(filter(Boolean), take(1)).subscribe(() => {
 			if (this.pendingVisit !== null) {
 				const payload = this.pendingVisit;
@@ -67,7 +73,6 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 		});
 	}
 
-	/** Merges leftover anonymous visits into the account list, then clears the local copy. */
 	private adoptLocalEntries(): void
 	{
 		this.localBackend.load().subscribe(local => {
@@ -81,13 +86,7 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 		});
 	}
 
-	/**
-	 * A first visit adds the share at the top of the list, snapshotting its
-	 * metadata from the loaded payload. A repeat visit keeps the entry in
-	 * place and its visitedAt as is (so no re-sync and no reordering - on
-	 * this device, on the server, or after a reload), only filling in an
-	 * icon the entry still lacks.
-	 */
+	/** A repeat visit keeps visitedAt as is, so it neither re-syncs nor reorders the list; it only fills in a missing icon. */
 	public recordVisit(payload: SharePayload): void
 	{
 		if (!this.loaded()) {

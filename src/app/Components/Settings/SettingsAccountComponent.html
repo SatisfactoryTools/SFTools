@@ -12,8 +12,8 @@
 			<a routerLink="/account" class="btn btn-sm btn-outline-primary">Display name &amp; sign-in methods</a>
 		} @else {
 			<info-note kind="warning" class="mb-2">
-				You are not signed in. Plans, custom versions and these settings are saved only in this browser.
-				If you clear the browser data or use another device, they are gone.
+				You are not signed in. Plans, custom versions and these settings are saved only on {{ platform.device }}.
+				If you {{ platform.desktop ? 'lose this computer' : 'clear the browser data' }} or use another device, they are gone.
 			</info-note>
 			<a routerLink="/auth/login" [queryParams]="{returnUrl: '/settings'}" class="btn btn-sm btn-primary">Sign in</a>
 		}

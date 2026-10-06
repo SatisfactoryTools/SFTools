@@ -6,9 +6,6 @@ import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 
-/**
- * Context menu shown when right-clicking a multi-node selection.
- */
 export class MultiNodeContextMenu extends PlannerContextMenu
 {
 
@@ -31,16 +28,14 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 		const lockableIds = lockable.map(node => node.id);
 		// A mixed selection is unified to done first; only a fully done one clears.
 		const allDone = this.nodes.every(node => node.done);
-		// Both rows stay, but the lock hotkey toggles: it unlocks a selection
-		// that is already locked throughout and locks anything else.
+		// Both rows stay, but the lock hotkey toggles: it unlocks a selection locked throughout and locks anything else.
 		const allLocked = lockable.length > 0 && lockable.every(node => node.locked);
 		return [
 			{
 				label: 'Convert to subplan',
 				icon: faDiagramProject,
 				hotkey: 'graph.convertToSubplan',
-				// A subplan node references a plan whose parent is this plan -
-				// nesting it under a new subplan would break that relationship.
+				// A subplan node's plan has this plan as parent - nesting it under a new subplan would break that.
 				disabled: this.nodes.some(node => node instanceof SubplanNode),
 				action: () => this.actions.requestSubplanConvert(this.nodes.map(node => node.id)),
 			},

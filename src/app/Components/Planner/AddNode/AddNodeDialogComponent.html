@@ -56,7 +56,6 @@
 					<div>
 						<label class="form-label small mb-1">Item</label>
 						@if (filter; as connectFilter) {
-							<!-- The connect gesture fixed the item - show it instead of offering a choice. -->
 							<div class="form-control form-control-sm bg-dark text-light border-secondary d-flex align-items-center gap-2">
 								<game-icon [hash]="filterItem?.icon ?? null" [size]="18"></game-icon>
 								<span>{{ filterItem?.name ?? connectFilter.itemClassName }}</span>

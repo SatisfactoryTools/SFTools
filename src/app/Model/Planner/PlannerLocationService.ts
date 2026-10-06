@@ -3,14 +3,10 @@ import {toObservable} from '@angular/core/rxjs-interop';
 import {skip} from 'rxjs/operators';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {PlannerLocation} from '@src/Model/Planner/PlannerLocation';
+import {AppStorage} from '@src/Model/Storage/AppStorage';
 
 const STORAGE_KEY = 'sftools.lastPlanner';
 
-/**
- * Remembers the last planner the user had open (per browser, survives
- * reloads) so non-versioned pages like account or settings can offer a way
- * back into the version context.
- */
 @Injectable({providedIn: 'root'})
 export class PlannerLocationService
 {
@@ -18,14 +14,14 @@ export class PlannerLocationService
 	private readonly locationSignal = signal<PlannerLocation | null>(null);
 	public readonly location: Signal<PlannerLocation | null> = this.locationSignal.asReadonly();
 
-	public constructor(authService: AuthService)
+	public constructor(
+		authService: AuthService,
+		private readonly storage: AppStorage,
+	)
 	{
 		this.locationSignal.set(this.load());
 
-		// The plan is the account's, and "Back to planner" would open it again
-		// (by link, read-only) in the signed-out session. The version stays -
-		// it is public, and it is what the way back needs. (Root singleton -
-		// no teardown needed.)
+		// On sign-out the plan is the account's (the link would reopen it read-only); the version is public and stays.
 		toObservable(authService.isAuthenticated).pipe(skip(1)).subscribe(isAuthenticated => {
 			if (!isAuthenticated) {
 				this.forgetPlan();
@@ -33,7 +29,6 @@ export class PlannerLocationService
 		});
 	}
 
-	/** Keeps the remembered version, drops the plan that was open in it. */
 	public forgetPlan(): void
 	{
 		const location = this.locationSignal();
@@ -47,12 +42,12 @@ export class PlannerLocationService
 	{
 		const location: PlannerLocation = {versionSlug, planId};
 		this.locationSignal.set(location);
-		localStorage.setItem(STORAGE_KEY, JSON.stringify(location));
+		this.storage.setItem(STORAGE_KEY, JSON.stringify(location));
 	}
 
 	private load(): PlannerLocation | null
 	{
-		const raw = localStorage.getItem(STORAGE_KEY);
+		const raw = this.storage.getItem(STORAGE_KEY);
 		if (raw === null) {
 			return null;
 		}

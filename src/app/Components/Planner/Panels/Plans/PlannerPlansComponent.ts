@@ -14,9 +14,9 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {IconPickerDialogComponent} from '@src/Components/Common/IconPickerDialogComponent';
 import {TruncateTitleDirective} from '@src/Components/Common/TruncateTitleDirective';
 import {ImportOldPlansDialogComponent} from '@src/Components/Planner/Panels/Plans/ImportOldPlansDialogComponent';
+import {OldPlanImporter} from '@src/Model/OldTools/OldPlanImporter';
 import {OldToolsImportRequest} from '@src/Model/OldTools/OldToolsImportRequest';
 import {OldToolsImportRequestService} from '@src/Model/OldTools/OldToolsImportRequestService';
-import {OldToolsLocalStorageService} from '@src/Model/OldTools/OldToolsLocalStorageService';
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
 import {DropPosition} from '@src/Components/Planner/Panels/Plans/DropPosition';
 import {DropTarget} from '@src/Components/Planner/Panels/Plans/DropTarget';
@@ -46,6 +46,8 @@ import {ShareTreeCache} from '@src/Model/Shares/ShareTreeCache';
 import {ShareTreeNode} from '@src/Model/Shares/ShareTreeNode';
 import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 import {VisitedSharesManager} from '@src/Model/Shares/VisitedSharesManager';
+import {PublicUrlService} from '@src/Model/Desktop/PublicUrlService';
+import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 
 interface FolderItem
 {
@@ -55,7 +57,6 @@ interface FolderItem
 	readonly name: string;
 	readonly isOpen: boolean;
 	readonly isEditing: boolean;
-	/** The folder fixes settings groups for everything inside - shown as a lock. */
 	readonly fixedSummary: string | null;
 }
 
@@ -67,7 +68,6 @@ interface PlanItem
 	readonly isEditing: boolean;
 	readonly hasSubplans: boolean;
 	readonly isOpen: boolean;
-	/** Lives inside its parent plan's graph rather than in a folder. */
 	readonly isSubplan: boolean;
 }
 
@@ -81,7 +81,6 @@ interface InputItem
 
 type TreeItem = FolderItem | PlanItem | InputItem;
 
-/** A row in the "On this device" section: plans open read-only, folders only label the rows below. */
 interface LocalItem
 {
 	readonly kind: 'folder' | 'plan';
@@ -89,20 +88,17 @@ interface LocalItem
 	readonly id: string;
 	readonly name: string;
 	readonly iconHash: string | null;
-	/** Subplans migrate with their parent plan and cannot be dragged on their own. */
 	readonly isSubplan: boolean;
 	readonly hasChildren: boolean;
 	readonly isOpen: boolean;
 }
 
-/** A row of a share's tree in the "Shared plans" section (below the share's own row). */
 interface SharedTreeItem
 {
 	readonly kind: 'folder' | 'plan';
 	readonly depth: number;
-	/** The sharer's original id from the payload - mapped to the hydrated plan while the share is open. */
 	readonly payloadId: string;
-	/** Collapse key, unique across shares (payload ids may repeat across shares of the same plan). */
+	/** Payload ids can repeat across shares of the same plan, so collapse state is keyed separately. */
 	readonly key: string;
 	readonly name: string;
 	readonly iconHash: string | null;
@@ -111,17 +107,11 @@ interface SharedTreeItem
 	readonly isOpen: boolean;
 }
 
-/**
- * The tree row being dragged. Account rows move within the tree; a local
- * row (this device's plans) or a shared row (a visited share - its id is
- * the share uuid) is copied/moved INTO the account tree when dropped on it.
- */
 interface DragItem
 {
 	readonly type: 'plan' | 'folder';
 	readonly id: string;
 	readonly source: 'account' | 'local' | 'shared';
-	/** Shared rows only: the share's game version, which must be the active one. */
 	readonly versionId?: string;
 }
 
@@ -136,7 +126,6 @@ const ROOT_ID = '__root__';
 const LOCAL_ID = '__local__';
 const SHARED_ID = '__shared__';
 
-/** How close to the edge of the list a touch drag starts scrolling it, and how fast. */
 const AUTO_SCROLL_EDGE = 48; // px
 const AUTO_SCROLL_STEP = 8; // px per step
 const AUTO_SCROLL_INTERVAL_MS = 16;
@@ -171,11 +160,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	public readonly activePlanId: Signal<string | null>;
 	public readonly activeFolderId: Signal<string | null>;
 
-	/**
-	 * Which sections, folders, plans and subplans are folded. Shared and
-	 * keyed by id, so the tree looks the same after closing and reopening
-	 * the panel; a share's nodes are keyed `{share}:{node}`.
-	 */
 	public readonly foldState: CollapsibleSections;
 	private readonly editStateSignal = signal<EditState | null>(null);
 	public readonly editState: Signal<EditState | null> = this.editStateSignal.asReadonly();
@@ -184,7 +168,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	private needsFocus = false;
 	private dragItem: DragItem | null = null;
 
-	/** Where the dragging finger last was, kept so auto-scrolling can re-check the row under it. */
 	private touchPoint: {x: number; y: number} | null = null;
 	private autoScrollTimer: ReturnType<typeof setInterval> | null = null;
 	private autoScrollSpeed = 0;
@@ -192,7 +175,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	private readonly dropTargetSignal = signal<DropTarget | null>(null);
 	public readonly dropTarget: Signal<DropTarget | null> = this.dropTargetSignal.asReadonly();
 
-	/** The row a finger is holding, dimmed while it travels (a mouse drag has the browser's own ghost instead). */
 	private readonly touchDragIdSignal = signal<string | null>(null);
 	public readonly touchDragId: Signal<string | null> = this.touchDragIdSignal.asReadonly();
 
@@ -204,7 +186,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return this.flattenTree(tree.entries, this.editStateSignal());
 	});
 
-	/** Flattens a (sub)tree into rows, honouring collapsed nodes and (for the user's own tree) the inline edit row. */
 	private flattenTree(entries: (PlanTreeFolder | PlanTreePlan)[], editing: EditState | null): TreeItem[]
 	{
 		const items: TreeItem[] = [];
@@ -269,19 +250,12 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	public readonly rootOpen: Signal<boolean> = computed(() => this.foldState.isOpen(ROOT_ID));
 
-	/**
-	 * Everything inside "Your plans" that can fold: its folders and the plans
-	 * that have subplans. The section's own band is not one of them - folding
-	 * everything inside it should not also close the section.
-	 */
 	public readonly rootFoldableIds: Signal<string[]> = computed(() =>
 		this.foldableIdsOf(this.planManager.planTree().entries));
 
-	/** Same for this device's own plans. */
 	public readonly localFoldableIds: Signal<string[]> = computed(() =>
 		this.foldableIdsOf(this.planManager.localPlanTree().entries));
 
-	/** Same for the visited shares: each share's row, plus the foldable nodes of its frozen tree. */
 	public readonly sharedFoldableIds: Signal<string[]> = computed(() => {
 		const trees = this.shareTrees.trees();
 		const ids: string[] = [];
@@ -325,19 +299,15 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return ids;
 	}
 
-	/** The "expand all" / "collapse all" buttons of one section. */
 	public setAllFolds(ids: readonly string[], open: boolean): void
 	{
 		this.foldState.setMany(ids, open);
 	}
 
-	/** Plans (subplans excluded) in the user's own tree - the section header shows the count. */
 	public readonly planCount: Signal<number> = computed(() => this.countPlans(this.planManager.planTree().entries));
 
-	/** True when the user's own tree has nothing in it yet - the section shows a short hint instead of rows. */
 	public readonly rootEmpty: Signal<boolean> = computed(() => this.planManager.planTree().entries.length === 0);
 
-	/** Plans (subplans excluded) stored only in this browser. */
 	public readonly localPlanCount: Signal<number> = computed(() => this.countPlans(this.planManager.localPlanTree().entries));
 
 	private countPlans(entries: (PlanTreeFolder | PlanTreePlan)[]): number
@@ -347,39 +317,24 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	public readonly localOpen: Signal<boolean> = computed(() => this.foldState.isOpen(LOCAL_ID));
 	public readonly sharedOpen: Signal<boolean> = computed(() => this.foldState.isOpen(SHARED_ID));
 
-	/** Every share link the user has opened, most recently added first, across all versions. */
 	private readonly allShares: Signal<VisitedShare[]>;
 
-	/**
-	 * The listed shares: those made for the active game version, so every
-	 * row opens in place and can be dragged into "Your plans". Shares of
-	 * other versions show up in that version's planner instead.
-	 */
 	public readonly sharedList: Signal<VisitedShare[]> = computed(() => {
 		const versionId = this.versionManager.activeVersion()?.id;
 		return this.allShares().filter(share => share.version.id === versionId);
 	});
 
-	/** Visited shares made for another game version than the active one. */
 	public readonly otherVersionShareCount: Signal<number> = computed(() => {
 		const versionId = this.versionManager.activeVersion()?.id;
 		return this.allShares().filter(share => share.version.id !== versionId).length;
 	});
 
-	/** The section shows whenever any share was visited - possibly just as an empty state counting the other versions' shares. */
 	public readonly showSharedSection: Signal<boolean> = computed(() => this.allShares().length > 0);
 
 	public readonly activeVersionName: Signal<string> = computed(() => this.versionManager.activeVersion()?.name ?? 'this version');
 
-	/** The share currently open in the planner, or null. */
 	public readonly activeShareId: Signal<string | null>;
 
-	/**
-	 * Every listed share's tree BELOW its root, from the device's snapshot
-	 * cache (see ShareTreeCache) - shown whether or not the share is open.
-	 * The root itself (the shared plan or folder) is not repeated: the
-	 * share's own list row is that row. Keyed by share uuid.
-	 */
 	public readonly sharedTreeItemsByShare: Signal<Map<string, SharedTreeItem[]>> = computed(() => {
 		const trees = this.shareTrees.trees();
 		const data = this.versionManager.activeVersionData();
@@ -414,11 +369,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return result;
 	});
 
-	/**
-	 * Payload ids on the path from the open share's root to its selected
-	 * plan (exclusive) - those rows are highlighted as ancestors, like the
-	 * folder chain and subplan parents in "Your plans".
-	 */
 	public readonly sharedAncestorPayloadIds: Signal<Set<string>> = computed(() => {
 		const shareId = this.activeShareId();
 		const activeId = this.activeShare.activePayloadPlanId();
@@ -443,17 +393,14 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return ids;
 	});
 
-	/** True while the open share's root plan is the selected one - its list row is then the active row. */
 	public readonly activeShareRootActive: Signal<boolean> = computed(() => {
 		const root = this.activeShare.rootPlan();
 		return root !== null && root.id === this.activePlanId();
 	});
 
-	/** Shown while signed in AND this device still has local plans to migrate. */
 	public readonly showLocalSection: Signal<boolean> = computed(() =>
 		this.planManager.isAuthenticated() && this.localTreeItems().length > 0);
 
-	/** Flattened rows of this device's local plans; folders and plans with subplans fold by id, like the account tree. */
 	public readonly localTreeItems: Signal<LocalItem[]> = computed(() => {
 		const tree = this.planManager.localPlanTree();
 		const items: LocalItem[] = [];
@@ -495,14 +442,8 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return items;
 	});
 
-	/**
-	 * Ids of every folder and plan on the path from the root to the active
-	 * plan (subplan parents first, then the folder chain) - highlighted so
-	 * the tree always shows where the selection lives.
-	 */
 	public readonly activeAncestorIds: Signal<Set<string>> = computed(() => {
 		const ids = new Set<string>();
-		// All three stores: the open share's and this device's subplans/folders highlight their ancestors the same way.
 		const plans = [...this.planManager.plans(), ...this.planManager.sharedPlans(), ...this.planManager.localPlans()];
 		const folders = [...this.planManager.folders(), ...this.planManager.sharedFolders(), ...this.planManager.localFolders()];
 
@@ -512,7 +453,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			if (plan) ids.add(plan.id);
 		}
 
-		// Path to the active plan's folder, or to the active folder's parent.
 		let folderId = plan?.folderId
 			?? (this.activeFolderId() !== null
 				? folders.find(f => f.id === this.activeFolderId())?.parentId ?? null
@@ -525,7 +465,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return ids;
 	});
 
-	/** The plan whose icon is being picked, or null when the dialog is closed. */
 	private readonly iconPickerPlanIdSignal = signal<string | null>(null);
 	public readonly iconPickerOpen: Signal<boolean> = computed(() => this.iconPickerPlanIdSignal() !== null);
 
@@ -533,21 +472,13 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	private readonly importDialogOpenSignal = signal(false);
 	public readonly importDialogOpen: Signal<boolean> = this.importDialogOpenSignal.asReadonly();
-	/** What the dialog loads on open when it was opened by a link or the "old plans found" offer; null for a blank dialog. */
 	private readonly importDialogRequestSignal = signal<OldToolsImportRequest | null>(null);
 	public readonly importDialogRequest: Signal<OldToolsImportRequest | null> = this.importDialogRequestSignal.asReadonly();
-
-	/**
-	 * Production lines the old Satisfactory Tools left in this browser (this
-	 * app now answers on its domain). Offered once, until imported or waved
-	 * away; the count is read when the panel opens, which is often enough.
-	 */
-	public readonly oldLocalLineCount: number;
-	public readonly oldLocalPromptDismissed: Signal<boolean>;
 
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly contextMenu: PlannerContextMenuService,
+		protected readonly platform: AppPlatform,
 		private readonly planIcons: PlanIconResolver,
 		private readonly planNames: PlanNameResolver,
 		private readonly versionManager: VersionManager,
@@ -559,16 +490,14 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		public readonly hotkeys: HotkeyService,
 		private readonly router: Router,
 		private readonly elementRef: ElementRef<HTMLElement>,
-		private readonly oldToolsLocalStorage: OldToolsLocalStorageService,
+		private readonly oldPlanImporter: OldPlanImporter,
 		oldToolsImports: OldToolsImportRequestService,
 		collapsedSections: CollapsedSectionsService,
+		private readonly publicUrls: PublicUrlService,
 	)
 	{
 		this.foldState = new CollapsibleSections(collapsedSections, 'plans');
-		this.oldLocalLineCount = oldToolsLocalStorage.count();
-		this.oldLocalPromptDismissed = oldToolsLocalStorage.promptDismissed;
-		// A link from the old tools parked its import request before this
-		// panel existed; the dialog opens with it as soon as the panel does.
+		// The old-tools link parks its import request before this panel exists.
 		effect(() => {
 			const request = oldToolsImports.pending();
 			if (request !== null) {
@@ -594,16 +523,9 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.stopAutoScroll();
 	}
 
-	/**
-	 * What the Plans hotkeys run. The tree has no selected row of its own -
-	 * the open plan is the selection - so these are the entries of the menus
-	 * that plan and its folder would show. Creating comes last as a fallback:
-	 * with no folder open a new plan or folder goes to the top level.
-	 */
 	public hotkeyItems(): HotkeyItem[]
 	{
-		// Importing is not about any one plan, so it stands outside the
-		// read-only gate below.
+		// Importing is not about any one plan, so it stays outside the read-only gate.
 		const items: HotkeyItem[] = [
 			{hotkey: 'plans.importOldTools', action: () => this.openImportDialog()},
 		];
@@ -625,13 +547,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return items;
 	}
 
-	// ── Sharing ─────────────────────────────────────────────────────────────
-
-	/**
-	 * Everything that shares opens the same window (see PlanShareDialogComponent): it
-	 * offers the plan's own link and a frozen snapshot link, and knows which of the two
-	 * a given row can have.
-	 */
 	public sharePlan(plan: Plan): void
 	{
 		this.shareDialog.open({type: 'plan', id: plan.id, name: this.planNames.displayName(plan), device: false});
@@ -642,13 +557,10 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.shareDialog.open({type: 'folder', id, name, device: false});
 	}
 
-	/** "On this device" rows: their plans exist nowhere but this browser, so only snapshots. */
 	public shareLocalItem(id: string, kind: 'plan' | 'folder', name: string): void
 	{
 		this.shareDialog.open({type: kind, id, name, device: true});
 	}
-
-	// ── Import from old Satisfactory Tools ──────────────────────────────────
 
 	public openImportDialog(request: OldToolsImportRequest | null = null): void
 	{
@@ -656,45 +568,19 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.importDialogOpenSignal.set(true);
 	}
 
-	/** The "old plans found in this browser" offer - the dialog opens with those lines loaded. */
-	public importOldLocalLines(): void
-	{
-		this.openImportDialog({shareKeys: [], localLines: true, otherFlavourShareKeys: []});
-	}
-
-	public dismissOldLocalPrompt(): void
-	{
-		this.oldToolsLocalStorage.dismissPrompt();
-	}
-
 	public closeImportDialog(): void
 	{
 		this.importDialogOpenSignal.set(false);
 	}
 
-	/** Files the imported plans into a fresh "Import ([datetime])" folder. */
 	public onImportApply(plans: Plan[]): void
 	{
 		this.importDialogOpenSignal.set(false);
 		if (plans.length === 0) {
 			return;
 		}
-		// The browser's old lines are in now (or the user picked which) - the offer is done.
-		if (this.importDialogRequestSignal()?.localLines) {
-			this.oldToolsLocalStorage.dismissPrompt();
-		}
-		const folder: Folder = {
-			id: crypto.randomUUID(),
-			name: `Import (${this.formatImportTimestamp(new Date())})`,
-			parentId: null,
-			settings: null,
-			fixedGroups: [],
-			resourcePool: false,
-			revision: null,
-		};
-		this.planManager.importTree([folder], plans.map(plan => ({...plan, folderId: folder.id})));
-		this.planManager.setActiveFolder(folder.id);
-		this.notifications.showSuccess(`Imported ${plans.length} plan${plans.length === 1 ? '' : 's'} into "${folder.name}".`);
+		const folder = this.oldPlanImporter.fileIntoFolder(plans, `Import (${this.formatImportTimestamp(new Date())})`);
+		this.oldPlanImporter.announce(plans.length, folder.name, 'Imported');
 	}
 
 	private formatImportTimestamp(date: Date): string
@@ -703,13 +589,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 	}
 
-	/** Icon hash for a plan row; null falls back to the generic file icon. */
 	public planIconHash(plan: Plan): string | null
 	{
 		return this.planIcons.iconHash(plan);
 	}
 
-	/** Shown name for a plan row - its own name, or a product-derived default. */
 	public planDisplayName(plan: Plan): string
 	{
 		return this.planNames.displayName(plan);
@@ -734,7 +618,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.iconPickerPlanIdSignal.set(null);
 	}
 
-	/** Clear the override so the plan falls back to its default (product) icon. */
 	public onIconNone(): void
 	{
 		const planId = this.iconPickerPlanIdSignal();
@@ -792,13 +675,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.toggleCollapse(SHARED_ID);
 	}
 
-	// ── Shared plans (visited share links) ──────────────────────────────────
-
-	/**
-	 * Opens the share in its version's planner (the version was auto-added on
-	 * first visit). The row of the already-open share is its root plan - like
-	 * any plan row, clicking it selects that plan (back from a subplan).
-	 */
 	public openVisitedShare(share: VisitedShare): void
 	{
 		if (this.activeShareId() === share.share) {
@@ -817,25 +693,16 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		if (version) {
 			void this.router.navigate(['/', this.versionManager.urlSlug(version), 'planner', 'shared', share.share]);
 		} else {
-			// The version left the list since the visit - the public entry
-			// point re-adds it before forwarding into the planner.
+			// The version left the list since the visit; the public entry point re-adds it.
 			void this.router.navigate(['/shared', share.share]);
 		}
 	}
 
-	/** Shown name of a visited-share row - an unnamed shared plan gets the usual fallback. */
 	public visitedShareName(share: VisitedShare): string
 	{
 		return share.type === 'plan' ? this.planNames.displayNameOf(share.name) : share.name;
 	}
 
-	/**
-	 * Icon of a visited-share row. A plan share's row IS its plan, so it shows
-	 * the plan's icon: the hydrated plan's while the share is open, else the
-	 * class name from the visit-time entry or the tree snapshot (resolved
-	 * against the active version's data - item icons are stable across
-	 * versions). Null falls back to the generic type icon.
-	 */
 	public visitedShareIconHash(share: VisitedShare): string | null
 	{
 		if (share.type !== 'plan') {
@@ -861,7 +728,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return (this.shareTrees.treeOf(shareId)?.children.length ?? 0) > 0;
 	}
 
-	/** A shared tree row is the active one while its share is open and its hydrated plan is selected. */
 	public isSharedRowActive(share: VisitedShare, item: SharedTreeItem): boolean
 	{
 		return share.share === this.activeShareId() && this.activeShare.hydratedPlanId(item.payloadId) === this.activePlanId();
@@ -872,7 +738,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return share.share === this.activeShareId() && this.sharedAncestorPayloadIds().has(item.payloadId);
 	}
 
-	/** Selects a plan of a share (read-only) - opening the share first when it is not the open one. */
 	public selectSharedTreePlan(share: VisitedShare, item: SharedTreeItem): void
 	{
 		this.activeShare.selectPlan(share.share, item.payloadId);
@@ -881,7 +746,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		}
 	}
 
-	/** Whether the open share's list row is expanded to show its tree (collapse keyed by share id, like any node). */
 	public isShareExpanded(shareId: string): boolean
 	{
 		return this.foldState.isOpen(shareId);
@@ -896,7 +760,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	public copyShareLink(share: VisitedShare): void
 	{
-		navigator.clipboard.writeText(`${window.location.origin}/shared/${share.share}`)
+		navigator.clipboard.writeText(this.publicUrls.url(`/shared/${share.share}`))
 			.then(() => this.notifications.showSuccess('Share link copied.'))
 			.catch(() => this.notifications.show('Could not copy the share link.'));
 	}
@@ -917,9 +781,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		event.dataTransfer!.effectAllowed = 'copy';
 	}
 
-	// ── Plans on this device ────────────────────────────────────────────────
-
-	/** Opens a device plan read-only, so it can be checked before it is moved into the account. Folder rows are labels only. */
 	public selectLocalItem(item: LocalItem): void
 	{
 		if (item.kind === 'plan') {
@@ -940,7 +801,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.notifications.showSuccess('Moved to your plans.');
 	}
 
-	/** Non-destructive: the share itself is permanent, reopening the link restores the entry. */
 	public removeVisitedShare(share: VisitedShare): void
 	{
 		const wasOpen = this.activeShareId() === share.share;
@@ -963,12 +823,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.planManager.setActiveFolder(id);
 	}
 
-	/**
-	 * Where a new plan or folder lands: the selected folder, or the folder
-	 * holding the selected plan - a subplan hands over its root plan's. Null
-	 * (the top of the tree) when nothing is selected, or when what is
-	 * selected is read-only and so lives outside the user's own tree.
-	 */
 	public currentFolderId(): string | null
 	{
 		const folder = this.planManager.activeFolder();
@@ -982,7 +836,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return this.rootPlanOf(plan).folderId;
 	}
 
-	/** A subplan sits under its parent plan, so the folder it counts as being in is the root plan's. */
 	private rootPlanOf(plan: Plan): Plan
 	{
 		let current = plan;
@@ -1007,10 +860,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.needsFocus = true;
 	}
 
-	/**
-	 * Plans are created unnamed and selected straight away - no inline edit box.
-	 * Their shown name is derived from their products until the user renames them.
-	 */
 	public startCreatePlan(parentId: string | null): void
 	{
 		this.expandFolder(parentId);
@@ -1027,7 +876,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.foldState.set(folderId, true);
 	}
 
-	/** The clone lands next to the original and becomes active, ready to work in. */
 	public cloneFolder(id: string): void
 	{
 		const clone = this.planManager.cloneFolder(id);
@@ -1126,19 +974,13 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return this.planManager.planTree();
 	}
 
-	// Drag-and-drop: moving between parents and reordering among siblings
-
 	public onDragStart(event: DragEvent, type: 'plan' | 'folder', id: string): void
 	{
 		this.dragItem = {type, id, source: 'account'};
 		event.dataTransfer!.effectAllowed = 'move';
 	}
 
-	/**
-	 * A local subplan row is not draggable, but an icon inside it can still
-	 * start a native drag that bubbles here - swallow it so the subplan cannot
-	 * be migrated apart from its parent plan.
-	 */
+	/** An icon inside a non-draggable subplan row can still start a native drag that bubbles here. */
 	public onLocalDragStart(event: DragEvent, item: LocalItem): void
 	{
 		if (item.isSubplan) {
@@ -1149,13 +991,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		event.dataTransfer!.effectAllowed = 'move';
 	}
 
-	/**
-	 * The pointer's place within the row decides the drop: the outer quarters
-	 * of a folder row (halves of a plan row) insert before/after it, the
-	 * middle of a folder row drops inside. The root header only takes "inside".
-	 * Rows that would not accept the dragged item are not marked and the
-	 * browser shows the drop as forbidden.
-	 */
 	public onDragOver(event: DragEvent, targetId: string, kind: 'root' | 'folder' | 'plan'): void
 	{
 		if (!this.dragItem) return;
@@ -1180,7 +1015,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		}
 	}
 
-	/** Position of the current drag over the given row, or null when it hovers elsewhere. */
 	public dropPositionOf(id: string): DropPosition | null
 	{
 		const target = this.dropTarget();
@@ -1201,8 +1035,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.dragItem = null;
 		if (!item) return;
 
-		// A local or shared row dropped onto the account tree lands in the
-		// folder the target row stands for (a plan row = its folder), last.
 		if (item.source !== 'account') {
 			const folderId = this.crossSectionFolder(target);
 			if (folderId === undefined) return;
@@ -1230,8 +1062,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			}
 			return;
 		}
-		// Dropped on the middle of a plan row: the dragged plan becomes that
-		// plan's subplan (and gets a node in its graph - see PlanManager).
 		if (target.type === 'plan' && position === 'inside' && item.type === 'plan') {
 			if (this.confirmPlanMove(item.id, null, target.plan.id)) {
 				this.planManager.placePlan(item.id, null, target.plan.id, null);
@@ -1249,13 +1079,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.stopAutoScroll();
 	}
 
-	// Touch drag-and-drop: the same moves, held with a finger
-
-	/**
-	 * A finger picked up an account row. The row is only marked here - the
-	 * drag itself starts with the first move, which is also what tells the
-	 * context menu opened by the same long press to get out of the way.
-	 */
+	/** Only marks the row: the drag starts on the first move, which also dismisses the long-press context menu. */
 	public onTouchDragPick(type: 'plan' | 'folder', id: string): void
 	{
 		this.dragItem = {type, id, source: 'account'};
@@ -1274,7 +1098,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.touchDragIdSignal.set(share.share);
 	}
 
-	/** Follows the finger: marks the row under it and scrolls the list at its edges. */
 	public onTouchDragMove(touch: Touch): void
 	{
 		if (!this.dragItem) {
@@ -1313,7 +1136,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.onDragEnd();
 	}
 
-	/** Marks the row under the finger, the way dragover does for a mouse drag. */
 	private updateTouchDropTarget(): void
 	{
 		const item = this.dragItem;
@@ -1334,7 +1156,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		});
 	}
 
-	/** The drop row under a point, found the way the browser finds a dragover target. */
 	private rowUnder(x: number, y: number): {id: string; kind: 'root' | 'folder' | 'plan'; element: HTMLElement} | null
 	{
 		const element = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-drop-id]') ?? null;
@@ -1346,12 +1167,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return {id, kind: kind as 'root' | 'folder' | 'plan', element};
 	}
 
-	/**
-	 * A finger cannot reach a row that is off screen, so the list scrolls
-	 * itself while the drag sits near its top or bottom edge. The row under
-	 * the finger is re-checked on every step - the list moves, the finger
-	 * does not.
-	 */
+	/** The list moves under a still finger, so the row under it is re-checked on every step. */
 	private updateAutoScroll(clientY: number): void
 	{
 		const container = this.scrollContainer();
@@ -1384,7 +1200,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.touchPoint = null;
 	}
 
-	/** The panel area the tree scrolls in - a docked panel, a floating window or the mobile view. */
 	private scrollContainer(): HTMLElement | null
 	{
 		let element: HTMLElement | null = this.elementRef.nativeElement.parentElement;
@@ -1398,17 +1213,8 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return null;
 	}
 
-	/**
-	 * Plans go anywhere: beside or inside a folder, beside or inside another
-	 * plan (which makes them its subplan), and out of a plan again. The one
-	 * thing they cannot do is land inside themselves or one of their own
-	 * subplans. Folders keep out of plans entirely - nothing but a plan can
-	 * sit between subplans. Dropping a row onto itself is a no-op.
-	 */
 	private dropAllowed(item: DragItem, targetId: string, kind: 'root' | 'folder' | 'plan'): boolean
 	{
-		// Rows coming INTO the account tree land in a folder: any folder, the
-		// root, or a top-level plan's folder. Shares are version-scoped.
 		if (item.source !== 'account') {
 			if (item.source === 'shared' && !this.activeShare.isShareVersionActive(item.versionId ?? '')) {
 				return false;
@@ -1428,7 +1234,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return target !== undefined && !this.isInsidePlan(target.id, item.id);
 	}
 
-	/** Whether the plan is the given one or one of its subplans, at any depth. */
 	private isInsidePlan(planId: string, ancestorId: string): boolean
 	{
 		const plans = this.planManager.plans();
@@ -1444,7 +1249,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return false;
 	}
 
-	/** A plan row takes an "inside" drop (= become its subplan) only from another plan. */
 	private insideAllowed(item: DragItem, kind: 'root' | 'folder' | 'plan'): boolean
 	{
 		return kind !== 'plan' || item.type === 'plan';
@@ -1462,11 +1266,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return fraction < 0.25 ? 'before' : fraction > 0.75 ? 'after' : 'inside';
 	}
 
-	/**
-	 * The folder a cross-section drop lands in: the folder row itself, the
-	 * root header (null), or a top-level plan row's folder. Undefined for rows
-	 * that take no such drop (subplans - they have no folder).
-	 */
 	private crossSectionFolder(target: TreeItem | null): string | null | undefined
 	{
 		if (target === null || target.type === 'input') {
@@ -1478,7 +1277,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return target.plan.parentPlanId === null ? target.plan.folderId : undefined;
 	}
 
-	/** Appends the dragged item to the folder (null = root). */
 	private dropInto(item: {type: 'plan' | 'folder'; id: string}, folderId: string | null): void
 	{
 		if (item.type === 'plan') {
@@ -1490,16 +1288,8 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		}
 	}
 
-	/**
-	 * Inserts the dragged item right before/after the target row. Folders and
-	 * plans of one level share a single order, so a plan dropped beside a
-	 * folder row (or a folder beside a plan row) lands exactly there. Beside a
-	 * subplan only plans can land, among that parent's subplans.
-	 */
 	private dropBeside(item: {type: 'plan' | 'folder'; id: string}, target: FolderItem | PlanItem, after: boolean): void
 	{
-		// Beside a subplan: only plans can land there, joining that parent's
-		// subplans (a plan dragged in from elsewhere included).
 		if (target.type === 'plan' && target.plan.parentPlanId !== null) {
 			const targetPlan = target.plan;
 			if (item.type !== 'plan') {
@@ -1514,8 +1304,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			return;
 		}
 
-		// Beside a folder or top-level plan: folders and plans share one
-		// position sequence per level, so either kind lands exactly there.
 		const targetId = target.type === 'folder' ? target.id : target.plan.id;
 		const folderId = target.type === 'folder'
 			? this.planManager.folders().find(f => f.id === target.id)?.parentId ?? null
@@ -1532,7 +1320,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		}
 	}
 
-	/** Entering a folder that fixes settings groups overwrites the plan's copies - ask once. */
 	private confirmPlanMove(planId: string, folderId: string | null, parentPlanId: string | null): boolean
 	{
 		const plans = this.planManager.plans();
@@ -1550,7 +1337,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return confirm(`Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings are replaced by the settings fixed by the folder.`);
 	}
 
-	/** A folder with custom settings loses them under a folder that fixes settings groups - ask once. */
 	private confirmFolderMove(folderId: string, newParentId: string | null): boolean
 	{
 		const folders = this.planManager.folders();
