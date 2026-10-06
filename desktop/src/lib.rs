@@ -48,6 +48,8 @@ fn platform() -> &'static str {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+	let context = tauri::generate_context!();
+	let version = context.package_info().version.to_string();
 	tauri::Builder::default()
 		// Must be the first plugin: a second launch (e.g. by an sftools:// link)
 		// hands its arguments to the running instance and exits.
@@ -57,7 +59,7 @@ pub fn run() {
 		.plugin(tauri_plugin_deep_link::init())
 		.plugin(tauri_plugin_opener::init())
 		.plugin(tauri_plugin_updater::Builder::new().build())
-		.manage(AppState::default())
+		.manage(AppState::new(&version))
 		.register_asynchronous_uri_scheme_protocol(cache::IMAGE_SCHEME, cache::serve_image)
 		.invoke_handler(tauri::generate_handler![
 			desktop_init,
@@ -81,12 +83,13 @@ pub fn run() {
 			// Without a matching installed .desktop file (AppImage, dev build) Linux taskbars name the
 			// app after its X11 window class, i.e. the binary name. GTK resets the class while it
 			// initialises, so it is set here - after that, but before the window exists.
+			let name = app.package_info().name.clone();
 			#[cfg(target_os = "linux")]
 			{
-				gtk::glib::set_application_name("Satisfactory Tools");
-				gtk::gdk::set_program_class("Satisfactory Tools");
+				gtk::glib::set_application_name(&name);
+				gtk::gdk::set_program_class(&name);
 			}
-			let config = app
+			let mut config = app
 				.config()
 				.app
 				.windows
@@ -94,6 +97,7 @@ pub fn run() {
 				.find(|window| window.label == "main")
 				.cloned()
 				.expect("the main window is defined in tauri.conf.json");
+			config.title = name;
 			let handle = app.handle().clone();
 			let new_window_handle = app.handle().clone();
 			WebviewWindowBuilder::from_config(app.handle(), &config)?
@@ -108,7 +112,7 @@ pub fn run() {
 			deep_links::setup(app.handle());
 			Ok(())
 		})
-		.run(tauri::generate_context!())
+		.run(context)
 		.expect("error while running the Satisfactory Tools desktop app");
 }
 
