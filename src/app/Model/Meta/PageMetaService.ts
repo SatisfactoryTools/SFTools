@@ -3,7 +3,7 @@ import {Meta, Title} from '@angular/platform-browser';
 import {MetaText} from '@src/Model/Meta/MetaText';
 import {PageMeta} from '@src/Model/Meta/PageMeta';
 
-/** Preview bots get the same values from index.php via GET /v1/meta; both follow docs/link-previews.md, keep them in sync. */
+/** Preview bots get the same values from index.php via GET /v1/meta; keep them in sync. */
 @Injectable({providedIn: 'root'})
 export class PageMetaService
 {

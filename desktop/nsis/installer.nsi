@@ -9,7 +9,7 @@
 ; Everything else is the stock template of the Tauri CLI version in
 ; package.json; the deviations are marked "Satisfactory Tools:". To update
 ; after a Tauri CLI upgrade, fetch the stock file for the new version and
-; carry those few lines over (see docs/desktop-app.md, "Installer"):
+; carry those few lines over:
 ;   https://raw.githubusercontent.com/tauri-apps/tauri/tauri-cli-v{version}/crates/tauri-bundler/src/bundle/windows/nsis/installer.nsi
 
 Unicode true

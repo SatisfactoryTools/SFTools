@@ -153,7 +153,7 @@ final class PageHeadInjector
 
 }
 
-// Local testing with PHP's built-in server (docs/link-previews.md): existing files are served as is.
+// Local testing with PHP's built-in server: existing files are served as is.
 if (PHP_SAPI === 'cli-server' && is_file(__DIR__ . parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH))) {
 	return false;
 }

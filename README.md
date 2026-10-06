@@ -47,9 +47,8 @@ The production build is emitted to the `dist/` folder. It uses `src/env/env.prod
 
 ## Desktop app
 
-A Tauri wrapper around the same bundle, released on every push to master (see
-`docs/desktop-app.md`). Installers are published next to the API; the app
-updates itself from there.
+A Tauri wrapper around the same bundle, released on every push to master.
+Installers are published next to the API; the app updates itself from there.
 
 ### Code signing policy
 

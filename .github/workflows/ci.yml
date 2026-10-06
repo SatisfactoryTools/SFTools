@@ -151,7 +151,7 @@ jobs:
             # Code signing for Windows is optional: without a certificate the
             # installer is unsigned (SmartScreen warns once). With one, add the
             # secrets WINDOWS_CERTIFICATE (base64 of the .pfx) and
-            # WINDOWS_CERTIFICATE_PASSWORD - see docs/desktop-app.md.
+            # WINDOWS_CERTIFICATE_PASSWORD.
             -   name: Import Windows signing certificate
                 id: windows-certificate
                 if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE == 'true'
@@ -194,7 +194,7 @@ jobs:
                     if-no-files-found: error
                     retention-days: 1
 
-            # Waits for the approval in SignPath - every release is approved by hand (see docs/desktop-app.md)
+            # Waits for the approval in SignPath - every release is approved by hand.
             -   name: Sign the installer
                 if: env.SIGN_WITH_SIGNPATH == 'true'
                 uses: signpath/github-action-submit-signing-request@v3

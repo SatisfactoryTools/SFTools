@@ -4,7 +4,7 @@ Require all granted
 	Options -Indexes
 </IfModule>
 
-# index.php exists only when the deploy added it (see docs/link-previews.md); a plain build serves
+# index.php exists only when the deploy added it; a plain build serves
 # index.html. "/" is a directory, so the front controller below never sees it - DirectoryIndex does.
 DirectoryIndex index.php index.html
 
@@ -21,7 +21,7 @@ DirectoryIndex index.php index.html
 <IfModule mod_rewrite.c>
 	RewriteEngine On
 
-	# RELEASE (see docs/migration-phases.md): uncomment once the www vhost serves this app, never
+	# RELEASE: uncomment once the www vhost serves this app, never
 	# before - it would send the beta host to the old site.
 	# RewriteCond %{HTTP_HOST} ^new\.satisfactorytools\.com$ [NC]
 	# RewriteRule ^(.*)$ https://www.satisfactorytools.com/$1 [R=301,L,QSA]
