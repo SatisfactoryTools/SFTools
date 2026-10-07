@@ -28,7 +28,9 @@ final class PageHeadInjector
 			return;
 		}
 
-		$html = (string) file_get_contents(__DIR__ . '/index.html');
+		$documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+		$root = is_string($documentRoot) && is_file($documentRoot . '/index.html') ? $documentRoot : __DIR__;
+		$html = (string) file_get_contents($root . '/index.html');
 		$path = substr((string) ($_SERVER['REQUEST_URI'] ?? '/'), 0, self::PATH_MAX_LENGTH);
 		$host = $this->publicHost();
 
