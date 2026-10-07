@@ -164,7 +164,7 @@ export class DesktopDownloadComponent
 
 	public formatBytes(bytes: number): string
 	{
-		return bytes < 1024 * 1024 ? `${Math.ceil(bytes / 1024)} kB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+		return bytes < 1000 * 1000 ? `${Math.ceil(bytes / 1000)} kB` : `${(bytes / 1000 / 1000).toFixed(1)} MB`;
 	}
 
 }
