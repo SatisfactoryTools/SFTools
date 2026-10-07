@@ -110,10 +110,17 @@ jobs:
             fail-fast: true
             matrix:
                 include:
-                    -   os: windows-latest
+                    -   name: windows
+                        os: windows-latest
                         bundles: nsis
-                    -   os: ubuntu-22.04
-                        bundles: appimage
+                    -   name: linux
+                        os: ubuntu-22.04
+                        bundles: appimage,deb,rpm
+                    -   name: macos
+                        os: macos-latest
+                        bundles: dmg
+                        rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+                        build-args: --target universal-apple-darwin
         runs-on: ${{ matrix.os }}
         env:
             HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
@@ -135,6 +142,8 @@ jobs:
                     path: dist
 
             -   uses: dtolnay/rust-toolchain@stable
+                with:
+                    targets: ${{ matrix.rust-targets }}
 
             -   uses: Swatinem/rust-cache@v2
                 with:
@@ -166,13 +175,28 @@ jobs:
                     Remove-Item -Recurse -Force certificate
                     "thumbprint=$($certificate.Thumbprint)" >> $env:GITHUB_OUTPUT
 
+            # Code signing for macOS is optional too: without the secrets the app is
+            # ad-hoc signed, which runs but makes Gatekeeper ask for "Open Anyway"
+            # once. With an Apple Developer ID, add APPLE_CERTIFICATE (base64 of the
+            # .p12), APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY and, for
+            # notarization, APPLE_ID, APPLE_PASSWORD (app-specific) and APPLE_TEAM_ID.
             -   name: Build the desktop app
                 shell: bash
                 env:
                     TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                     THUMBPRINT: ${{ steps.windows-certificate.outputs.thumbprint }}
+                    APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+                    APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+                    APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+                    APPLE_ID: ${{ secrets.APPLE_ID }}
+                    APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+                    APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
                 run: |
+                    if [ "$RUNNER_OS" = macOS ] && [ -z "$APPLE_CERTIFICATE" ]; then
+                      unset APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID
+                      export APPLE_SIGNING_IDENTITY=-
+                    fi
                     CONFIG=$(node -e '
                       const config = {version: process.env.DESKTOP_VERSION, build: {beforeBuildCommand: ""}};
                       if (process.env.THUMBPRINT) {
@@ -180,7 +204,16 @@ jobs:
                       }
                       console.log(JSON.stringify(config));
                     ')
-                    npx tauri build --bundles ${{ matrix.bundles }} --config "$CONFIG"
+                    npx tauri build --bundles ${{ matrix.bundles }} ${{ matrix.build-args }} --config "$CONFIG"
+
+            # The disk image is the download, not an updater artifact, so it gets its manifest
+            # signature here (every manifest entry carries one).
+            -   name: Sign the disk image
+                if: runner.os == 'macOS'
+                env:
+                    TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+                    TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+                run: npx tauri signer sign --app-version "$DESKTOP_VERSION" desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
             -   name: Upload the unsigned installer
                 id: unsigned-installer
@@ -222,12 +255,20 @@ jobs:
             -   name: Upload bundles
                 uses: actions/upload-artifact@v4
                 with:
-                    name: bundle-${{ matrix.bundles }}
+                    name: bundle-${{ matrix.name }}
                     path: |
                         desktop/target/release/bundle/nsis/*-setup.exe
                         desktop/target/release/bundle/nsis/*-setup.exe.sig
                         desktop/target/release/bundle/appimage/*.AppImage
                         desktop/target/release/bundle/appimage/*.AppImage.sig
+                        desktop/target/release/bundle/deb/*.deb
+                        desktop/target/release/bundle/deb/*.deb.sig
+                        desktop/target/release/bundle/rpm/*.rpm
+                        desktop/target/release/bundle/rpm/*.rpm.sig
+                        desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg
+                        desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg.sig
+                        desktop/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
+                        desktop/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
                     if-no-files-found: error
                     retention-days: 7
 

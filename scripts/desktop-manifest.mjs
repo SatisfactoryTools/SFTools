@@ -10,8 +10,15 @@ if (!version || !bundleDir || !outDir || !baseUrl) {
 }
 
 const PLATFORMS = [
-	{key: 'windows-x86_64', match: name => name.endsWith('-setup.exe'), rename: `satisfactory-tools-${version}-windows-x64-setup.exe`},
-	{key: 'linux-x86_64', match: name => name.endsWith('.AppImage'), rename: `satisfactory-tools-${version}-linux-x86_64.AppImage`},
+	{keys: ['windows-x86_64'], match: name => name.endsWith('-setup.exe'), rename: `satisfactory-tools-${version}-windows-x64-setup.exe`},
+	{keys: ['linux-x86_64'], match: name => name.endsWith('.AppImage'), rename: `satisfactory-tools-${version}-linux-x86_64.AppImage`},
+	// The updater looks up `{os}-{arch}-{installer}` before `{os}-{arch}`, so a package install updates with its own format.
+	{keys: ['linux-x86_64-deb'], match: name => name.endsWith('.deb'), rename: `satisfactory-tools-${version}-linux-amd64.deb`},
+	{keys: ['linux-x86_64-rpm'], match: name => name.endsWith('.rpm'), rename: `satisfactory-tools-${version}-linux-x86_64.rpm`},
+	// One universal build serves both macOS architectures.
+	{keys: ['darwin-aarch64', 'darwin-x86_64'], match: name => name.endsWith('.app.tar.gz'), rename: `satisfactory-tools-${version}-macos-universal.app.tar.gz`},
+	// The website's macOS download; the updater never asks for this key.
+	{keys: ['darwin-universal-dmg'], match: name => name.endsWith('.dmg'), rename: `satisfactory-tools-${version}-macos-universal.dmg`},
 ];
 
 function files(dir)
@@ -30,7 +37,7 @@ const platforms = {};
 for (const platform of PLATFORMS) {
 	const bundle = all.find(path => platform.match(basename(path)));
 	if (bundle === undefined) {
-		console.warn(`No ${platform.key} bundle found - left out of the manifest.`);
+		console.warn(`No ${platform.keys.join('/')} bundle found - left out of the manifest.`);
 		continue;
 	}
 	const signature = all.find(path => path === `${bundle}.sig`);
@@ -39,11 +46,14 @@ for (const platform of PLATFORMS) {
 	}
 	copyFileSync(bundle, join(target, platform.rename));
 	copyFileSync(signature, join(target, `${platform.rename}.sig`));
-	platforms[platform.key] = {
-		signature: readFileSync(signature, 'utf8').trim(),
-		url: `${baseUrl.replace(/\/+$/, '')}/${version}/${platform.rename}`,
-	};
-	console.log(`${platform.key}: ${platform.rename}`);
+	for (const key of platform.keys) {
+		platforms[key] = {
+			signature: readFileSync(signature, 'utf8').trim(),
+			url: `${baseUrl.replace(/\/+$/, '')}/${version}/${platform.rename}`,
+			size: statSync(bundle).size,
+		};
+	}
+	console.log(`${platform.keys.join(', ')}: ${platform.rename}`);
 }
 
 if (Object.keys(platforms).length === 0) {

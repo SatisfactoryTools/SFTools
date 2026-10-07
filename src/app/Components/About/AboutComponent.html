@@ -14,13 +14,24 @@
 	<div class="section-title">What's inside</div>
 	<div class="feature-list">
 		@for (feature of features; track feature.title) {
-			<div class="feature">
-				<span class="feature-icon"><fa-icon [icon]="feature.icon"></fa-icon></span>
-				<div>
-					<div class="feature-title">{{ feature.title }}</div>
-					<p class="feature-text">{{ feature.text }}</p>
+			@if (feature.link; as link) {
+				<a class="feature" [routerLink]="link">
+					<span class="feature-icon"><fa-icon [icon]="feature.icon"></fa-icon></span>
+					<div>
+						<div class="feature-title">{{ feature.title }}</div>
+						<p class="feature-text">{{ feature.text }}</p>
+						<span class="feature-link">Download</span>
+					</div>
+				</a>
+			} @else {
+				<div class="feature">
+					<span class="feature-icon"><fa-icon [icon]="feature.icon"></fa-icon></span>
+					<div>
+						<div class="feature-title">{{ feature.title }}</div>
+						<p class="feature-text">{{ feature.text }}</p>
+					</div>
 				</div>
-			</div>
+			}
 		}
 	</div>
 

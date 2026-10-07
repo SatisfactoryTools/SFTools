@@ -1,0 +1,60 @@
+<settings-section title="Get the desktop app" [icon]="sectionIcon" description="The same planner as an app that also works offline.">
+	<p class="mb-3">
+		The desktop app is the same planner, but it also works offline: download the game versions you play, and keep
+		planning without a connection. Plans are saved in files on your computer, or in your account when you are
+		signed in - changes made offline are saved to it once you are back online.
+	</p>
+	@if (release(); as manifest) {
+		@if (primaryDownload(); as download) {
+			<ng-container *ngTemplateOutlet="block; context: {download: download, primary: true}"></ng-container>
+		}
+		@if (otherDownloads().length > 0) {
+			<button type="button" class="download-others-toggle" (click)="toggleOthers()">
+				<fa-icon [icon]="othersOpen() ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary"></fa-icon>
+				<span class="fw-semibold">Other platforms</span>
+				<span class="text-secondary">{{ otherNames() }}</span>
+			</button>
+			@if (othersOpen()) {
+				<div class="download-others">
+					@for (download of otherDownloads(); track download.platform.key) {
+						<ng-container *ngTemplateOutlet="block; context: {download: download, primary: false}"></ng-container>
+					}
+				</div>
+			}
+		}
+		<div class="form-text mt-2">
+			Version {{ manifest.version }}@if (manifest.pub_date) {, released {{ manifest.pub_date | date: 'yyyy-MM-dd' }}}. The app updates itself.
+		</div>
+	} @else if (releaseMissing()) {
+		<info-note>The desktop app is not available for download yet.</info-note>
+	}
+</settings-section>
+
+<ng-template #block let-download="download" let-primary="primary">
+	<div class="download-block" [class.primary]="primary">
+		<span class="download-icon"><fa-icon [icon]="download.platform.icon"></fa-icon></span>
+		<div class="download-body">
+			<div class="download-title">
+				<span class="download-name">{{ download.platform.name }}</span>
+				<span class="download-meta">{{ download.platform.description }}</span>
+				@if (download.platform.experimental) {
+					<span class="download-badge">Experimental</span>
+				}
+			</div>
+			<div class="download-buttons">
+				@for (file of download.packages; track file.info.key) {
+					<a class="btn" [class.btn-primary]="primary && $first" [class.btn-outline-primary]="!primary || !$first" [href]="file.url" [attr.title]="file.info.file">
+						<fa-icon [icon]="faDownload"></fa-icon>
+						{{ file.info.label }}
+						@if (file.size !== null) {
+							<span class="download-size">{{ formatBytes(file.size) }}</span>
+						}
+					</a>
+				}
+			</div>
+			@if (download.platform.note; as note) {
+				<div class="download-note">{{ note }}</div>
+			}
+		</div>
+	</div>
+</ng-template>

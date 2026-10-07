@@ -19,6 +19,9 @@ export class AuthInterceptor implements HttpInterceptor
 	private refreshInFlight: Observable<string> | null = null;
 	private readonly bypassHttp: HttpClient;
 
+	// Static files: a Bearer would only force a CORS preflight that Apache's folder config has to answer.
+	private static readonly STATIC_PREFIXES = ['/data/', '/desktop/'];
+
 	public constructor(
 		private readonly authService: AuthService,
 		private readonly notificationService: NotificationService,
@@ -30,7 +33,7 @@ export class AuthInterceptor implements HttpInterceptor
 
 	public intercept(req: HttpRequest<unknown>, next: HttpHandler): Observable<HttpEvent<unknown>>
 	{
-		if (!req.url.startsWith(env.apiUrl)) {
+		if (!req.url.startsWith(env.apiUrl) || AuthInterceptor.isStaticFile(req.url)) {
 			return next.handle(req);
 		}
 
@@ -57,6 +60,11 @@ export class AuthInterceptor implements HttpInterceptor
 				return throwError(() => err);
 			}),
 		);
+	}
+
+	private static isStaticFile(url: string): boolean
+	{
+		return AuthInterceptor.STATIC_PREFIXES.some(prefix => url.startsWith(env.apiUrl + prefix));
 	}
 
 	private withToken(req: HttpRequest<unknown>, token: string): HttpRequest<unknown>

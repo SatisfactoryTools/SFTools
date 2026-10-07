@@ -1,14 +1,16 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
+import {RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faBookOpen, faDiagramProject, faHeart, faPuzzlePiece, faSliders} from '@fortawesome/free-solid-svg-icons';
+import {faBookOpen, faDesktop, faDiagramProject, faHeart, faPuzzlePiece, faSliders} from '@fortawesome/free-solid-svg-icons';
 import {CommunityLinks} from '@src/Model/CommunityLinks';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HomeFeature} from '@src/Components/Home/HomeFeature';
+import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 
 @Component({
 	templateUrl: './AboutComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, BackLinkComponent],
+	imports: [FaIconComponent, BackLinkComponent, RouterLink],
 	styles: [`
 		.about-hero {
 			display: flex;
@@ -39,6 +41,21 @@ import {HomeFeature} from '@src/Components/Home/HomeFeature';
 			padding: 0.9rem 1rem;
 			background: #20374c;
 			border: 1px solid #4e5d6c;
+			color: inherit;
+			text-decoration: none;
+		}
+		a.feature {
+			transition: border-color 0.15s, background 0.15s;
+		}
+		a.feature:hover {
+			border-color: #4c9be8;
+			background: #243e56;
+		}
+		.feature-link {
+			display: inline-block;
+			margin-top: 0.35rem;
+			font-size: 0.875rem;
+			color: #4c9be8;
 		}
 		.feature-icon {
 			flex-shrink: 0;
@@ -117,31 +134,44 @@ export class AboutComponent
 	public readonly communityLinks = CommunityLinks.COMMUNITY;
 	public readonly donationLinks = CommunityLinks.DONATIONS;
 
-	public readonly features: HomeFeature[] = [
-		{
-			icon: faDiagramProject,
-			title: 'Planner',
-			text: 'Production plans that are calculated for you, editing the graph by hand, subplans, and folders with shared settings.',
-			link: null,
-		},
-		{
-			icon: faBookOpen,
-			title: 'Codex',
-			text: 'Browse the items, buildings, recipes and milestones of any game version. Search from anywhere in the planner.',
-			link: null,
-		},
-		{
-			icon: faSliders,
-			title: 'Custom versions',
-			text: 'Make your own game version based on a public one, with recipe and power cost multipliers, mods, and the resource nodes of a modded world.',
-			link: null,
-		},
-		{
-			icon: faPuzzlePiece,
-			title: 'Mods',
-			text: 'Create sets of changes to the game data - new or changed items, recipes and buildings - and share them or keep them private.',
-			link: null,
-		},
-	];
+	public readonly features: HomeFeature[];
+
+	public constructor(platform: AppPlatform)
+	{
+		this.features = [
+			{
+				icon: faDiagramProject,
+				title: 'Planner',
+				text: 'Production plans that are calculated for you, editing the graph by hand, subplans, and folders with shared settings.',
+				link: null,
+			},
+			{
+				icon: faBookOpen,
+				title: 'Codex',
+				text: 'Browse the items, buildings, recipes and milestones of any game version. Search from anywhere in the planner.',
+				link: null,
+			},
+			{
+				icon: faSliders,
+				title: 'Custom versions',
+				text: 'Make your own game version based on a public one, with recipe and power cost multipliers, mods, and the resource nodes of a modded world.',
+				link: null,
+			},
+			{
+				icon: faPuzzlePiece,
+				title: 'Mods',
+				text: 'Create sets of changes to the game data - new or changed items, recipes and buildings - and share them or keep them private.',
+				link: null,
+			},
+		];
+		if (!platform.desktop && platform.desktopAppPublic) {
+			this.features.push({
+				icon: faDesktop,
+				title: 'Desktop app',
+				text: 'The same planner as an app for Windows, Linux and macOS. Works offline, keeps your plans in files on your computer.',
+				link: ['/settings', 'desktop'],
+			});
+		}
+	}
 
 }

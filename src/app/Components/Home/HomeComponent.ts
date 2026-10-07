@@ -595,7 +595,7 @@ export class HomeComponent
 				? {
 					icon: faDesktop,
 					title: 'Desktop app',
-					text: 'The same planner as an app for Windows and Linux. Works offline, keeps your plans in files on your computer.',
+					text: 'The same planner as an app for Windows, Linux and macOS. Works offline, keeps your plans in files on your computer.',
 					link: ['/settings', 'desktop'],
 				}
 				: {

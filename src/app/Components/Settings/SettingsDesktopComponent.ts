@@ -2,14 +2,13 @@ import {Component, ChangeDetectionStrategy, Optional, Signal, computed, signal} 
 import {FormsModule} from '@angular/forms';
 import {faDesktop} from '@fortawesome/free-solid-svg-icons';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {DesktopDownloadComponent} from '@src/Components/Settings/DesktopDownloadComponent';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {Version} from '@src/Model/API/Schema/Version';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
 import {DesktopIntegrationService} from '@src/Model/Desktop/DesktopIntegrationService';
 import {DesktopPreferencesService} from '@src/Model/Desktop/DesktopPreferencesService';
-import {DesktopReleaseManifest} from '@src/Model/Desktop/DesktopReleaseManifest';
-import {DesktopReleaseService} from '@src/Model/Desktop/DesktopReleaseService';
 import {DesktopUpdateService} from '@src/Model/Desktop/DesktopUpdateService';
 import {OfflineVersionsService} from '@src/Model/Desktop/OfflineVersionsService';
 import {WebLinkHandoffService} from '@src/Model/Desktop/WebLinkHandoffService';
@@ -20,7 +19,7 @@ import {NotificationService} from '@src/Model/NotificationService';
 	selector: 'settings-desktop',
 	templateUrl: './SettingsDesktopComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, SettingsSectionComponent, InfoNoteComponent],
+	imports: [FormsModule, SettingsSectionComponent, InfoNoteComponent, DesktopDownloadComponent],
 	styles: [`
 		.offline-row {
 			display: flex;
@@ -47,9 +46,6 @@ export class SettingsDesktopComponent
 	public readonly sectionIcon = faDesktop;
 	public readonly desktop: boolean;
 
-	public readonly release = signal<DesktopReleaseManifest | null>(null);
-	public readonly releaseMissing = signal(false);
-
 	public readonly cacheBytes = signal<number | null>(null);
 	public linkDraft = '';
 
@@ -65,16 +61,10 @@ export class SettingsDesktopComponent
 		private readonly integration: DesktopIntegrationService,
 		private readonly versionManager: VersionManager,
 		private readonly notifications: NotificationService,
-		releases: DesktopReleaseService,
 	)
 	{
 		this.desktop = bridge !== null;
-		if (bridge === null) {
-			releases.latest().subscribe({
-				next: manifest => this.release.set(manifest),
-				error: () => this.releaseMissing.set(true),
-			});
-		} else {
+		if (bridge !== null) {
 			this.refreshCacheSize();
 		}
 	}
@@ -82,11 +72,6 @@ export class SettingsDesktopComponent
 	public get dataDir(): string
 	{
 		return this.bridge?.info.dataDir ?? '';
-	}
-
-	public downloadUrl(platform: string): string | null
-	{
-		return this.release()?.platforms[platform]?.url ?? null;
 	}
 
 	public openLink(): void

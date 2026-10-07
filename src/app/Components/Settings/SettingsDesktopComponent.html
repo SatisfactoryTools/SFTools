@@ -1,35 +1,20 @@
-<settings-section title="Desktop app" [icon]="sectionIcon" [description]="desktop ? 'Updates, links, offline use and where your data is saved.' : 'Get the desktop app and open links in it.'">
-	@if (!desktop) {
-		<div class="subsection-title">Get the app</div>
-		<p class="mb-2">
-			The desktop app is the same planner, but it also works offline: download the game versions you play,
-			and keep planning without a connection. Plans are saved in files on your computer, or in your account
-			when you are signed in - changes made offline are saved to it once you are back online.
-		</p>
-		@if (release(); as manifest) {
-			<div class="d-flex flex-wrap gap-2 mb-1">
-				@if (downloadUrl('windows-x86_64'); as url) {
-					<a class="btn btn-sm btn-primary" [href]="url">Download for Windows</a>
-				}
-				@if (downloadUrl('linux-x86_64'); as url) {
-					<a class="btn btn-sm btn-outline-primary" [href]="url">Download for Linux (AppImage)</a>
-				}
+@if (!desktop) {
+	<div class="d-flex flex-column gap-3">
+		<desktop-download></desktop-download>
+		<settings-section title="Desktop app" [icon]="sectionIcon" description="How this browser works together with the app.">
+			<div class="subsection-title">Links</div>
+			<div class="form-check">
+				<input class="form-check-input" type="checkbox" id="open-in-desktop" [ngModel]="handoff.enabled()" (ngModelChange)="handoff.setEnabled($event)"/>
+				<label class="form-check-label" for="open-in-desktop">Open shared plans and plan links in the desktop app</label>
+				<div class="form-text">
+					Only in this browser. When a link to a shared plan or a plan opens the website here, it is passed on to the
+					desktop app instead - with a button to stay in the browser.
+				</div>
 			</div>
-			<div class="form-text">Version {{ manifest.version }}. The app updates itself.</div>
-		} @else if (releaseMissing()) {
-			<info-note class="mb-2">The desktop app is not available for download yet.</info-note>
-		}
-
-		<div class="subsection-title">Links</div>
-		<div class="form-check">
-			<input class="form-check-input" type="checkbox" id="open-in-desktop" [ngModel]="handoff.enabled()" (ngModelChange)="handoff.setEnabled($event)"/>
-			<label class="form-check-label" for="open-in-desktop">Open shared plans and plan links in the desktop app</label>
-			<div class="form-text">
-				Only in this browser. When a link to a shared plan or a plan opens the website here, it is passed on to the
-				desktop app instead - with a button to stay in the browser.
-			</div>
-		</div>
-	} @else {
+		</settings-section>
+	</div>
+} @else {
+	<settings-section title="Desktop app" [icon]="sectionIcon" description="Updates, links, offline use and where your data is saved.">
 		<div class="subsection-title">Updates</div>
 		<p class="mb-2">
 			Version {{ updates.currentVersion }}.
@@ -122,5 +107,5 @@
 				Clear downloaded data{{ cacheBytes() === null ? '' : ' (' + formatBytes(cacheBytes()!) + ')' }}
 			</button>
 		</div>
-	}
-</settings-section>
+	</settings-section>
+}

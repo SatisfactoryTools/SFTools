@@ -57,7 +57,9 @@ by [SignPath Foundation](https://signpath.org).
 
 Windows installers are built by GitHub Actions from this repository
 (`.github/workflows/ci.yml`) and signed through SignPath. Every signing request
-is approved by hand.
+is approved by hand. macOS builds are ad-hoc signed and not notarized, so
+macOS asks for "Open Anyway" in System Settings → Privacy & Security on first
+launch.
 
 | Role | |
 |---|---|
