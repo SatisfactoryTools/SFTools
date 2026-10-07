@@ -3,7 +3,7 @@ export class MetaText
 {
 
 	public static readonly SITE_NAME = 'Satisfactory Tools';
-	public static readonly TITLE_SUFFIX = ' · ' + MetaText.SITE_NAME;
+	public static readonly TITLE_SUFFIX = ' - ' + MetaText.SITE_NAME;
 	public static readonly DESCRIPTION_MAX_LENGTH = 200;
 
 	public static readonly DEFAULT_DESCRIPTION = 'Plan factories that actually work. An optimising production and logistics planner for Satisfactory, supporting every factory - from the first smelter to a 1 TW nuclear grid. Includes a searchable codex, custom versions and mods.';

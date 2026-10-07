@@ -4,8 +4,8 @@ export const env = {
 	apiUrl: 'https://api.new.satisfactorytools.com',
 	desktopAppPublic: false,
 	matomo: {
-		url: 'https://analytics.greeny.dev/',
-		siteId: 7,
-		platformDimensionId: 1,
+		url: null,
+		siteId: null,
+		platformDimensionId: null,
 	},
 };

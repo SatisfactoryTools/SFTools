@@ -27,6 +27,11 @@ export abstract class Node
 
 	public abstract toJSON(): object;
 
+	public canToggleLock(): boolean
+	{
+		return true;
+	}
+
 	protected serializeFlags(): {locked?: true; done?: true}
 	{
 		return {

@@ -69,7 +69,7 @@ export class NodeContextMenu extends PlannerContextMenu
 			});
 		}
 
-		if (this.node instanceof RecipeNode) {
+		if (this.node.canToggleLock()) {
 			items.push({
 				label: this.node.locked ? 'Unlock node' : 'Lock node',
 				icon: this.node.locked ? faLockOpen : faLock,

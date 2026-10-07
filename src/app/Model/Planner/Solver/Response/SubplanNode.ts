@@ -30,6 +30,12 @@ export class SubplanNode extends Node
 		return this.name;
 	}
 
+	/** Always locked: the calculation builds the rest of the plan around a subplan. */
+	public override canToggleLock(): boolean
+	{
+		return false;
+	}
+
 	public toJSON(): object
 	{
 		return {

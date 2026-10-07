@@ -1,4 +1,4 @@
-import {Component, ChangeDetectionStrategy, effect} from '@angular/core';
+import {Component, ChangeDetectionStrategy, OnDestroy, effect} from '@angular/core';
 import {CodexBrowserComponent} from '@src/Components/Codex/CodexBrowserComponent';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {PageCodexNavigation} from '@src/Components/Codex/PageCodexNavigation';
@@ -18,17 +18,24 @@ import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 		}
 	`,
 })
-export class CodexPageComponent
+export class CodexPageComponent implements OnDestroy
 {
 
-	public constructor(navigation: CodexNavigation, codexMeta: CodexMetaResolver, pageMeta: PageMetaService)
+	public constructor(navigation: CodexNavigation, codexMeta: CodexMetaResolver, private readonly pageMeta: PageMetaService)
 	{
 		effect(() => {
 			const meta = codexMeta.resolve(navigation.path());
 			if (meta !== null) {
 				pageMeta.set(meta);
+			} else {
+				pageMeta.clear();
 			}
 		});
+	}
+
+	public ngOnDestroy(): void
+	{
+		this.pageMeta.clear();
 	}
 
 }

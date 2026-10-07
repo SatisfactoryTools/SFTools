@@ -3,7 +3,6 @@ import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuIt
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
-import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 
 export class MultiNodeContextMenu extends PlannerContextMenu
@@ -24,7 +23,7 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 
 	public getItems(): ContextMenuItem[]
 	{
-		const lockable = this.nodes.filter(node => node instanceof RecipeNode);
+		const lockable = this.nodes.filter(node => node.canToggleLock());
 		const lockableIds = lockable.map(node => node.id);
 		// A mixed selection is unified to done first; only a fully done one clears.
 		const allDone = this.nodes.every(node => node.done);

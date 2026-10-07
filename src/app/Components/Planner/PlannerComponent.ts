@@ -94,6 +94,7 @@ import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 import {PageMetaService} from '@src/Model/Meta/PageMetaService';
+import {PlanMetaResolver} from '@src/Model/Meta/PlanMetaResolver';
 import {ShareMetaResolver} from '@src/Model/Meta/ShareMetaResolver';
 import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
 import {PlanLinkUnavailableDialogComponent} from '@src/Components/Planner/Share/PlanLinkUnavailableDialogComponent';
@@ -193,6 +194,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly oldToolsAutoImport: OldToolsAutoImportService,
 		private readonly pageMeta: PageMetaService,
 		private readonly shareMeta: ShareMetaResolver,
+		private readonly planMeta: PlanMetaResolver,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
 	)
@@ -624,12 +626,19 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}),
 		);
 
-		// An open share names the tab after the shared plan or folder; own plans keep the generic route title, since their names stay private (as in link previews).
+		// An open share or plan names the tab; with nothing open the route title set by AppTitleStrategy shows.
 		effect(() => {
 			const payload = this.activeShare.payload();
 			if (payload !== null) {
 				this.pageMeta.set(this.shareMeta.resolve(payload));
+				return;
 			}
+			const plan = this.planManager.activePlan();
+			if (plan !== null) {
+				this.pageMeta.set(this.planMeta.resolve(plan));
+				return;
+			}
+			this.pageMeta.clear();
 		});
 	}
 
@@ -690,6 +699,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.hotkeyRegistrations = [];
 		this.activeShare.close();
 		this.planLink.close();
+		this.pageMeta.clear();
 	}
 
 	public hotkeyItems(): HotkeyItem[]

@@ -5,7 +5,7 @@ import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 
 /**
  * Only a change of the URL path retitles: query/fragment changes (codex panel, help section) keep
- * what the page set, and pages that know better override from an effect that runs after this.
+ * what the page set, and a page's own meta set on PageMetaService stays on top until the page clears it.
  */
 @Injectable()
 export class AppTitleStrategy extends TitleStrategy
@@ -31,11 +31,11 @@ export class AppTitleStrategy extends TitleStrategy
 
 		const title = this.buildTitle(snapshot);
 		if (title === undefined) {
-			this.pageMeta.reset();
+			this.pageMeta.setRoute(null);
 			return;
 		}
 		const description = this.deepestDescription(snapshot.root);
-		this.pageMeta.set({
+		this.pageMeta.setRoute({
 			title: this.withVersion(title),
 			description: description !== null ? this.withVersion(description) : null,
 		});

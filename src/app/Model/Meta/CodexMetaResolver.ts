@@ -42,7 +42,7 @@ export class CodexMetaResolver
 		}
 		const [sectionTitle, sectionNoun, entityLabel] = section;
 		if (className === undefined) {
-			return {title: `${sectionTitle} – Codex (${version})`, description: `All ${sectionNoun} in Satisfactory (${version}).`};
+			return {title: `${sectionTitle} - Codex (${version})`, description: `All ${sectionNoun} in Satisfactory (${version}).`};
 		}
 
 		const data = this.versionManager.activeVersionData();

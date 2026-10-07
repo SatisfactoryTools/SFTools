@@ -40,6 +40,12 @@ export class AugmenterNode extends Node
 		return this.building.name;
 	}
 
+	/** Augmenters are driven by the Power tab settings, so locking them has no effect. */
+	public override canToggleLock(): boolean
+	{
+		return false;
+	}
+
 	public toJSON(): object
 	{
 		return {

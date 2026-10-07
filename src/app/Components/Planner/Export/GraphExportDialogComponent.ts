@@ -12,6 +12,7 @@ import {GraphExportFormat} from '@src/Model/Export/GraphExportFormat';
 import {GraphSvgSnapshot} from '@src/Model/Export/GraphSvgSnapshot';
 import {NotificationService} from '@src/Model/NotificationService';
 import {RasterSize} from '@src/Model/Export/RasterSize';
+import {SnapshotRasterSource} from '@src/Model/Export/SnapshotRasterSource';
 import {SvgRasterizer} from '@src/Model/Export/SvgRasterizer';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
@@ -192,10 +193,10 @@ export class GraphExportDialogComponent implements OnInit
 		this.exportingSignal.set(true);
 		this.errorSignal.set(null);
 		try {
-			const svg = snapshot.render(snapshot.contentBox, this.background() ? this.pageBackground() : null);
+			const background = this.background() ? this.pageBackground() : null;
 			const blob = this.format() === 'svg'
-				? new Blob([svg], {type: 'image/svg+xml;charset=utf-8'})
-				: await this.rasterizer.toBlob(svg, this.sizeFor(snapshot.contentBox, this.scale()));
+				? new Blob([snapshot.render(snapshot.contentBox, background)], {type: 'image/svg+xml;charset=utf-8'})
+				: await this.rasterizer.toBlob(new SnapshotRasterSource(snapshot, snapshot.contentBox, background), this.sizeFor(snapshot.contentBox, this.scale()));
 			const fileName = this.downloader.safeName(this.planName(), this.format(), 'production-graph');
 			const savedPath = await this.downloader.download(blob, fileName);
 			this.notifications.showSuccess(savedPath === null ? `Downloaded ${fileName}.` : `Saved to ${savedPath} and opened.`);
@@ -222,8 +223,8 @@ export class GraphExportDialogComponent implements OnInit
 		if (snapshot === null || this.format() !== 'png') {
 			return;
 		}
-		const svg = snapshot.render(snapshot.sampleBox, this.background() ? this.pageBackground() : null);
-		this.rasterizer.toDataUrl(svg, this.sizeFor(snapshot.sampleBox, this.scale()))
+		const source = new SnapshotRasterSource(snapshot, snapshot.sampleBox, this.background() ? this.pageBackground() : null);
+		this.rasterizer.toDataUrl(source, this.sizeFor(snapshot.sampleBox, this.scale()))
 			.then(url => {
 				if (request === this.previewRequest) {
 					this.previewSignal.set(url);

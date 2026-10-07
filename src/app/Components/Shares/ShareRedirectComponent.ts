@@ -1,4 +1,4 @@
-import {Component, ChangeDetectionStrategy, Signal, effect, signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, OnDestroy, Signal, effect, signal} from '@angular/core';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 import {PageMetaService} from '@src/Model/Meta/PageMetaService';
@@ -21,7 +21,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 		</div>
 	`,
 })
-export class ShareRedirectComponent
+export class ShareRedirectComponent implements OnDestroy
 {
 
 	private readonly errorSignal = signal<string | null>(null);
@@ -34,11 +34,10 @@ export class ShareRedirectComponent
 		activeShare: ActiveShareManager,
 		versionManager: VersionManager,
 		router: Router,
-		pageMeta: PageMetaService,
+		private readonly pageMeta: PageMetaService,
 		shareMeta: ShareMetaResolver,
 	)
 	{
-		// From an effect, so it lands after the router has applied the route's (default) title.
 		effect(() => {
 			const payload = this.payloadSignal();
 			if (payload !== null) {
@@ -59,6 +58,11 @@ export class ShareRedirectComponent
 			},
 			error: () => this.errorSignal.set('This shared plan does not exist, or the link is broken.'),
 		});
+	}
+
+	public ngOnDestroy(): void
+	{
+		this.pageMeta.clear();
 	}
 
 }

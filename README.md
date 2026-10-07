@@ -1,6 +1,6 @@
 # Satisfactory Tools
 
-New generation of [Satisfactory Tools](https://www.satisfactorytools.com/) — a production planner and toolset for the game Satisfactory.
+New generation of [Satisfactory Tools](https://www.satisfactorytools.com/) - a production planner and toolset for the game Satisfactory.
 
 Built with Angular (standalone components), Bootstrap 5 + ngx-bootstrap, AntV X6 for the interactive planner graph, and the HiGHS LP solver for production calculations.
 
