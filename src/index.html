@@ -78,6 +78,11 @@
 			window.addEventListener('error', function (event) {
 				var target = event.target;
 				if (!(target instanceof HTMLScriptElement) || !target.src) return;
+				try {
+					if (new URL(target.src, location.href).origin !== location.origin) return;
+				} catch (e) {
+					return;
+				}
 				if (!lastReloadRecently()) {
 					rememberReload();
 					location.reload();
