@@ -36,7 +36,7 @@ jobs:
 
             -   name: Upload build artifact
                 if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-                uses: actions/upload-artifact@v4
+                uses: actions/upload-artifact@v7
                 with:
                     name: dist
                     path: dist
@@ -56,7 +56,7 @@ jobs:
                     sparse-checkout: deploy/web
 
             -   name: Download build artifact
-                uses: actions/download-artifact@v4
+                uses: actions/download-artifact@v8
                 with:
                     name: dist
                     path: dist
@@ -124,7 +124,7 @@ jobs:
         runs-on: ${{ matrix.os }}
         env:
             HAS_WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE != '' }}
-            SIGN_WITH_SIGNPATH: ${{ matrix.bundles == 'nsis' && vars.SIGNPATH_ORGANIZATION_ID != '' }}
+            SIGN_WITH_CERTUM: ${{ matrix.bundles == 'nsis' && secrets.CERTUM_OTP != '' }}
         steps:
             -   uses: actions/checkout@v5
 
@@ -136,7 +136,7 @@ jobs:
             -   run: npm ci
 
             -   name: Download build artifact
-                uses: actions/download-artifact@v4
+                uses: actions/download-artifact@v8
                 with:
                     name: dist
                     path: dist
@@ -155,13 +155,26 @@ jobs:
                     sudo apt-get update
                     sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-            # Code signing for Windows is optional: without a certificate the
-            # installer is unsigned (SmartScreen warns once). With one, add the
-            # secrets WINDOWS_CERTIFICATE (base64 of the .pfx) and
-            # WINDOWS_CERTIFICATE_PASSWORD.
+            # Certum SimplySign cloud certificate, signed by ssign (github.com/Le-Syl21/ssign):
+            # Tauri runs it on every binary it builds (app, NSIS plugins, uninstaller, installer).
+            # One TOTP login per run - ssign caches the session for 20 minutes.
+            -   name: Install ssign
+                if: env.SIGN_WITH_CERTUM == 'true'
+                shell: pwsh
+                run: |
+                    $dir = Join-Path $env:RUNNER_TEMP ssign
+                    $zip = Join-Path $env:RUNNER_TEMP ssign.zip
+                    Invoke-WebRequest -Uri https://github.com/Le-Syl21/ssign/releases/download/v0.1.7/ssign-windows-x86_64.zip -OutFile $zip
+                    $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+                    if ($hash -ne '4ee5389a74ddbeb67e18fe8c8b963734ca13de7b24beffbe430c3f427ecc5e40') { throw "ssign checksum mismatch: $hash" }
+                    Expand-Archive -Path $zip -DestinationPath $dir
+                    $dir >> $env:GITHUB_PATH
+
+            # A certificate of your own instead: WINDOWS_CERTIFICATE (base64 of the
+            # .pfx) and WINDOWS_CERTIFICATE_PASSWORD. Certum wins when both are set.
             -   name: Import Windows signing certificate
                 id: windows-certificate
-                if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE == 'true'
+                if: runner.os == 'Windows' && env.HAS_WINDOWS_CERTIFICATE == 'true' && env.SIGN_WITH_CERTUM != 'true'
                 shell: pwsh
                 env:
                     WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
@@ -186,6 +199,8 @@ jobs:
                     TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
                     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                     THUMBPRINT: ${{ steps.windows-certificate.outputs.thumbprint }}
+                    CERTUM_EMAIL: ${{ secrets.CERTUM_EMAIL }}
+                    CERTUM_OTP: ${{ secrets.CERTUM_OTP }}
                     APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
                     APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
                     APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
@@ -199,7 +214,9 @@ jobs:
                     fi
                     CONFIG=$(node -e '
                       const config = {version: process.env.DESKTOP_VERSION, build: {beforeBuildCommand: ""}};
-                      if (process.env.THUMBPRINT) {
+                      if (process.env.SIGN_WITH_CERTUM === "true") {
+                        config.bundle = {windows: {signCommand: {cmd: "ssign", args: ["-n", "Satisfactory Tools", "-u", "https://satisfactorytools.com", "%1"]}}};
+                      } else if (process.env.THUMBPRINT) {
                         config.bundle = {windows: {certificateThumbprint: process.env.THUMBPRINT, timestampUrl: "http://timestamp.digicert.com"}};
                       }
                       console.log(JSON.stringify(config));
@@ -215,45 +232,8 @@ jobs:
                     TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
                 run: npx tauri signer sign --app-version "$DESKTOP_VERSION" desktop/target/universal-apple-darwin/release/bundle/dmg/*.dmg
 
-            -   name: Upload the unsigned installer
-                id: unsigned-installer
-                if: env.SIGN_WITH_SIGNPATH == 'true'
-                uses: actions/upload-artifact@v4
-                with:
-                    name: unsigned-installer
-                    path: desktop/target/release/bundle/nsis/*-setup.exe
-                    if-no-files-found: error
-                    retention-days: 1
-
-            # Waits for the approval in SignPath - every release is approved by hand.
-            -   name: Sign the installer
-                if: env.SIGN_WITH_SIGNPATH == 'true'
-                uses: signpath/github-action-submit-signing-request@v3
-                with:
-                    api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
-                    organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
-                    project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
-                    signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
-                    github-artifact-id: ${{ steps.unsigned-installer.outputs.artifact-id }}
-                    wait-for-completion: true
-                    wait-for-completion-timeout-in-seconds: 18000
-                    output-artifact-directory: signed-installer
-                    parameters: |
-                        version: "${{ env.DESKTOP_VERSION }}"
-
-            # Signing changed the file, so the updater signature is redone
-            -   name: Use the signed installer
-                if: env.SIGN_WITH_SIGNPATH == 'true'
-                shell: bash
-                env:
-                    TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-                    TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-                run: |
-                    cp signed-installer/*-setup.exe desktop/target/release/bundle/nsis/
-                    npx tauri signer sign --app-version "$DESKTOP_VERSION" desktop/target/release/bundle/nsis/*-setup.exe
-
             -   name: Upload bundles
-                uses: actions/upload-artifact@v4
+                uses: actions/upload-artifact@v7
                 with:
                     name: bundle-${{ matrix.name }}
                     path: |
@@ -275,6 +255,8 @@ jobs:
     desktop-publish:
         needs: desktop
         runs-on: ubuntu-latest
+        permissions:
+            contents: write
         concurrency:
             group: desktop-release
             cancel-in-progress: false
@@ -290,7 +272,7 @@ jobs:
                     node-version: 24
 
             -   name: Download bundles
-                uses: actions/download-artifact@v4
+                uses: actions/download-artifact@v8
                 with:
                     pattern: bundle-*
                     path: bundles
@@ -331,3 +313,17 @@ jobs:
             -   name: Check the manifest
                 run: |
                     curl -fsS "$DOWNLOAD_URL/latest.json" | grep -q "\"version\": \"$DESKTOP_VERSION\""
+
+            # The installers only - the .sig files and the macOS updater archive serve the updater.
+            -   name: Publish the GitHub release
+                env:
+                    GH_TOKEN: ${{ github.token }}
+                    NOTES: ${{ github.event.head_commit.message }}
+                run: |
+                    TAG="desktop-v$DESKTOP_VERSION"
+                    FILES=$(find "release/$DESKTOP_VERSION" -type f ! -name '*.sig' ! -name '*.app.tar.gz' | sort)
+                    if gh release view "$TAG" > /dev/null 2>&1; then
+                      gh release upload "$TAG" --clobber $FILES
+                    else
+                      gh release create "$TAG" --target "$GITHUB_SHA" --title "Satisfactory Tools $DESKTOP_VERSION" --notes "$NOTES" $FILES
+                    fi

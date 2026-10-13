@@ -50,21 +50,12 @@ The production build is emitted to the `dist/` folder. It uses `src/env/env.prod
 A Tauri wrapper around the same bundle, released on every push to master.
 Installers are published next to the API; the app updates itself from there.
 
-### Code signing policy
-
-Free code signing provided by [SignPath.io](https://signpath.io), certificate
-by [SignPath Foundation](https://signpath.org).
+### Code signing
 
 Windows installers are built by GitHub Actions from this repository
-(`.github/workflows/ci.yml`) and signed through SignPath. Every signing request
-is approved by hand. macOS builds are ad-hoc signed and not notarized, so
-macOS asks for "Open Anyway" in System Settings → Privacy & Security on first
-launch.
-
-| Role | |
-|---|---|
-| Committers and reviewers | [greeny](https://github.com/greeny) |
-| Approvers | [greeny](https://github.com/greeny) |
+(`.github/workflows/ci.yml`) and signed with a Certum code signing certificate. macOS
+builds are ad-hoc signed and not notarized, so macOS asks for "Open Anyway" in
+System Settings → Privacy & Security on first launch.
 
 ### Privacy
 

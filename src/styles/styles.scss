@@ -32,6 +32,58 @@ html {
 	overflow-x: clip;
 }
 
+// App-like selection: a click-drag or double-click anywhere would otherwise highlight labels,
+// icons and buttons. Text that is worth copying opts back in with `.selectable`.
+// The arrow cursor stops plain text from showing the text-selection I-beam it can no longer select.
+body {
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+	cursor: default;
+}
+
+// WebKit (the macOS desktop webview) makes fields read-only when an ancestor turns selection off,
+// so they opt back in explicitly; `cursor: auto` restores the I-beam the body rule replaced.
+// Error alerts are selectable so their text can be pasted into a bug report.
+input,
+textarea,
+[contenteditable]:not([contenteditable="false"]),
+.selectable,
+.alert-danger,
+code,
+pre {
+	-webkit-user-select: text;
+	user-select: text;
+	-webkit-touch-callout: default;
+}
+
+input,
+textarea,
+[contenteditable]:not([contenteditable="false"]),
+.selectable,
+.alert-danger {
+	cursor: auto;
+}
+
+// Buttons inside selectable text (an alert's Retry) stay buttons.
+:is(.selectable, .alert-danger) :is(button, .btn) {
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+// Chromium and WebKit (every desktop webview); RootComponent covers Firefox.
+img {
+	-webkit-user-drag: none;
+}
+
+// Set by PageScrollbarService.
+html.no-page-scrollbar {
+	body,
+	.navbar {
+		padding-right: var(--scrollbar-width, 0px);
+	}
+}
+
 // Menus opened into <body>: Bootstrap positions the menu absolutely, leaving ngx-bootstrap's
 // wrapper 0x0, so its flip/overflow modifiers (AppPositioningService) have nothing to measure.
 // Laid out in flow the wrapper takes the menu's size; the transform override drops the inline

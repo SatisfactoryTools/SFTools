@@ -9,7 +9,7 @@
 			<span class="text-success small">Saved.</span>
 		}
 		@if (saveError; as message) {
-			<span class="text-danger small">{{ message }}</span>
+			<span class="text-danger small selectable">{{ message }}</span>
 		}
 		<button type="button" class="btn btn-sm btn-primary" [disabled]="loadState !== 'ready' || saveState === 'saving'" (click)="save()">
 			{{ saveState === 'saving' ? 'Saving…' : 'Save to mod version' }}
@@ -76,7 +76,7 @@
 			<button type="button" class="btn btn-sm btn-success flex-shrink-0" (click)="addEntry(descriptor)">Add {{ descriptor.singular }}</button>
 		</div>
 		@if (addError; as message) {
-			<div class="text-danger small mt-1">{{ message }}</div>
+			<div class="text-danger small mt-1 selectable">{{ message }}</div>
 		}
 
 		<div class="list-group mt-3">

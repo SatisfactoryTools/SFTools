@@ -10,6 +10,7 @@ import {AnalyticsService} from '@src/Model/Analytics/AnalyticsService';
 import {DesktopIntegrationService} from '@src/Model/Desktop/DesktopIntegrationService';
 import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
+import {PageScrollbarService} from '@src/PageScrollbarService';
 
 @Component({
     selector: 'root',
@@ -35,10 +36,12 @@ export class RootComponent
         analytics: AnalyticsService,
         public readonly connectivity: ConnectivityService,
         desktopIntegration: DesktopIntegrationService,
+        pageScrollbar: PageScrollbarService,
     )
     {
         // A no-op on the website.
         desktopIntegration.start();
+        pageScrollbar.start();
     }
 
     /** A desktop with a touch screen reports `hover: hover`, so the stylesheets key hover-only controls off this class rather than the media query. */
@@ -46,6 +49,15 @@ export class RootComponent
     public onTouchStart(): void
     {
         document.body.classList.add('touch-input');
+    }
+
+    /** Firefox ignores `-webkit-user-drag`. Images inside a draggable row are left alone, the drag belongs to the row. */
+    @HostListener('document:dragstart', ['$event'])
+    public onDragStart(event: DragEvent): void
+    {
+        if (event.target instanceof HTMLImageElement && event.target.closest('[draggable="true"]') === null) {
+            event.preventDefault();
+        }
     }
 
     /** Keys no action claims are left to the browser. */

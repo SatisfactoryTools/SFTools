@@ -25,7 +25,7 @@
 			}
 		</p>
 		@if (updates.error(); as error) {
-			<info-note kind="warning" class="mb-2">{{ error }}</info-note>
+			<info-note kind="warning" class="mb-2 selectable">{{ error }}</info-note>
 		}
 		<div class="d-flex flex-wrap gap-2 mb-2">
 			@if (updates.available()) {

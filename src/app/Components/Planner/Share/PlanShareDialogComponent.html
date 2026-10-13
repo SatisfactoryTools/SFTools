@@ -68,7 +68,7 @@
 				<div class="text-secondary mb-3">How do you want to send this {{ target()?.type === 'folder' ? 'folder' : 'plan' }}?</div>
 
 				@if (error(); as message) {
-					<div class="text-danger small mb-2">{{ message }}</div>
+					<div class="text-danger small mb-2 selectable">{{ message }}</div>
 				}
 
 				<div class="d-flex flex-column gap-2">

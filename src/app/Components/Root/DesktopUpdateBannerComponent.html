@@ -16,7 +16,7 @@
 				}
 			</div>
 			@if (updates.error(); as error) {
-				<div class="small text-danger mt-1">{{ error }}</div>
+				<div class="small text-danger mt-1 selectable">{{ error }}</div>
 			}
 			<div class="mt-2">
 				@if (updates.progress() === undefined) {
