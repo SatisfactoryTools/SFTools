@@ -7,4 +7,7 @@ export interface CountedNode<T extends Node>
 
 	readonly count: number;
 
+	/** Marked done itself or sits inside a subplan node marked done. */
+	readonly done: boolean;
+
 }

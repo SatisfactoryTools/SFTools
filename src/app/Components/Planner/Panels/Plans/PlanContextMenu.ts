@@ -38,9 +38,9 @@ export class PlanContextMenu extends PlannerContextMenu
 			},
 		];
 
-		if (typeof this.plan.iconClassName === 'string') {
+		if (this.plan.autoIcon === false) {
 			items.push({
-				label: 'Reset icon to default',
+				label: 'Use automatic icon',
 				icon: faRotateLeft,
 				hotkey: 'plans.resetPlanIcon',
 				action: () => this.host.resetPlanIcon(this.plan),

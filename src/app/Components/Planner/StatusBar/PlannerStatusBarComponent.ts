@@ -275,6 +275,8 @@ export class PlannerStatusBarComponent
 
 	public readonly buildings = computed(() => this.buildCost().machines);
 
+	public readonly builtBuildings = computed(() => this.buildCost().builtMachines);
+
 	public readonly powerText = computed(() => {
 		const consumption = this.power().consumption.average;
 		if (this.rateFormatter.isZero(consumption) && !this.hasProduction()) {

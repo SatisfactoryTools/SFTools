@@ -259,7 +259,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 
 	private hydratePlan(schema: PlanSchema): Plan
 	{
-		let data: {settings?: Plan['settings']; requests?: Plan['requests']; inputs?: Plan['inputs']; graph?: Plan['graph']; metadata?: Plan['metadata']; iconClassName?: Plan['iconClassName']; order?: number} = {};
+		let data: {settings?: Plan['settings']; requests?: Plan['requests']; inputs?: Plan['inputs']; graph?: Plan['graph']; metadata?: Plan['metadata']; iconClassName?: Plan['iconClassName']; autoName?: boolean; autoIcon?: boolean; order?: number} = {};
 		try {
 			data = JSON.parse(schema.data) as typeof data;
 		} catch {
@@ -273,26 +273,8 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 			folderId: schema.folder,
 			parentPlanId: schema.parent,
 			settings: PlanSettingsNormalizer.normalize({
+				...data.settings,
 				calculationMode: data.settings?.calculationMode ?? 'automatic',
-				graph: data.settings?.graph,
-				enabledRecipes: data.settings?.enabledRecipes,
-				disabledMachines: data.settings?.disabledMachines,
-				resourceLimits: data.settings?.resourceLimits,
-				disabledResources: data.settings?.disabledResources,
-				resourceWeightMode: data.settings?.resourceWeightMode,
-				resourceWeights: data.settings?.resourceWeights,
-				enabledFuels: data.settings?.enabledFuels,
-				disabledByproducts: data.settings?.disabledByproducts,
-				sinkableItems: data.settings?.sinkableItems,
-				producePowerForFactory: data.settings?.producePowerForFactory,
-				excessPowerPercent: data.settings?.excessPowerPercent,
-				optimisation: data.settings?.optimisation,
-				defaultGroupingMode: data.settings?.defaultGroupingMode,
-				defaultClockSpeed: data.settings?.defaultClockSpeed,
-				recipeClockSpeeds: data.settings?.recipeClockSpeeds,
-				machineClockSpeeds: data.settings?.machineClockSpeeds,
-				maxSloops: data.settings?.maxSloops,
-				sloopAccuracy: data.settings?.sloopAccuracy,
 			}),
 			requests: data.requests ?? [],
 			inputs: data.inputs ?? [],
@@ -303,6 +285,8 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 				recalculationNeeded: data.metadata?.recalculationNeeded,
 			},
 			iconClassName: data.iconClassName,
+			autoName: data.autoName,
+			autoIcon: data.autoIcon,
 			order: data.order,
 			// Plans stored before the column existed come back without it - those are open.
 			linkAccess: schema.linkAccess ?? true,

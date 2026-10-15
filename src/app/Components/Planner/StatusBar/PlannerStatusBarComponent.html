@@ -6,7 +6,7 @@
 @if (subplanBuilds() > 1) {
 	<span class="stat" [title]="subplanBuildsText()"><fa-icon class="stat-icon" [icon]="faLayerGroup"></fa-icon><span class="lbl">Built </span><b>{{ subplanBuilds() }}×</b></span>
 }
-<span class="stat" title="Buildings"><fa-icon class="stat-icon" [icon]="faIndustry"></fa-icon><span class="lbl">Buildings </span><b>{{ rateFormatter.amount(buildings()) }}</b></span>
+<span class="stat" [title]="builtBuildings() > 0 ? 'Buildings - ' + rateFormatter.amount(builtBuildings()) + ' already built (marked as done)' : 'Buildings'"><fa-icon class="stat-icon" [icon]="faIndustry"></fa-icon><span class="lbl">Buildings </span><b>{{ rateFormatter.amount(buildings()) }}</b>@if (builtBuildings() > 0) {<small class="range">{{ rateFormatter.amount(builtBuildings()) }} built</small>}</span>
 <span class="stat" [class.zero]="sloops() === 0" title="Somersloops"><game-icon [hash]="sloopIcon()" [size]="16" alt="Sloops"></game-icon> <b>{{ sloops() }}</b></span>
 <span class="stat" [class.zero]="shards() === 0" title="Power shards"><game-icon [hash]="shardIcon()" [size]="16" alt="Shards"></game-icon> <b>{{ shards() }}</b></span>
 

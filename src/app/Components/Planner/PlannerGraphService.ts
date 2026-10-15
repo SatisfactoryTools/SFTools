@@ -170,7 +170,9 @@ const EDGE_DEFAULT_LABEL = {
 	},
 	position: {distance: 0.5},
 };
-// Must clear any realistic cell count: base z-indexes are auto-assigned in insertion order.
+// Explicit, because X6 auto-assigns insertion order and edges are added after nodes - they would cover the nodes they cross.
+const EDGE_BASE_Z = 0;
+const NODE_BASE_Z = 1;
 const NODE_HIGHLIGHT_Z = 100000;
 const EDGE_HIGHLIGHT_Z = 100001;
 const CONNECT_PREVIEW_Z = 100002;
@@ -1083,6 +1085,7 @@ export class PlannerGraphService implements OnDestroy
 		x6Graph.addNode({
 			id: node.id,
 			shape: 'planner-node',
+			zIndex: NODE_BASE_Z,
 			x: node.x,
 			y: node.y,
 			width: size.width,
@@ -1138,6 +1141,7 @@ export class PlannerGraphService implements OnDestroy
 		x6Graph.addNode({
 			id: node.id,
 			shape: 'planner-subplan-node',
+			zIndex: NODE_BASE_Z,
 			x: node.x,
 			y: node.y,
 			width: size.width,
@@ -1514,6 +1518,7 @@ export class PlannerGraphService implements OnDestroy
 
 		x6Graph.addEdge({
 			id,
+			zIndex: EDGE_BASE_Z,
 			source: anchor ? {cell: edge.sourceId, anchor} : edge.sourceId,
 			target: anchor ? {cell: edge.targetId, anchor} : edge.targetId,
 			attrs: {

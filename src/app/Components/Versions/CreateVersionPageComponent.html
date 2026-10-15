@@ -22,10 +22,6 @@
 							<option [ngValue]="version.id">{{ version.name }}</option>
 						}
 					</select>
-					<info-note>
-						Everything below is applied on top of the data of this version. Mods are added first, then the
-						cost multipliers, so the multipliers also affect content from mods.
-					</info-note>
 				</div>
 			</div>
 
@@ -127,10 +123,7 @@
 					}
 				</div>
 				<div class="card-body d-flex flex-column gap-2">
-					<info-note>
-						Optional. Load the resource node counts of a modded world (seed, mode, purity). The planner
-						then uses them as the default resource limits. You can also load the vanilla counts and edit them by hand.
-					</info-note>
+					<info-note>Optional. The node counts of your world become the default resource limits.</info-note>
 
 					<div class="row g-2 align-items-end">
 						<div class="col-6 col-md-3">
@@ -249,8 +242,7 @@
 						</div>
 
 						<info-note>
-							The limits assume the best extractor on every node at 250% clock speed, but at most one belt (1200/min)
-							or one pipe (600/min) per node. Water is always unlimited.
+							Best extractor at 250% on every node, at most one belt or pipe per node. Water is unlimited.
 							@if (geyserSummary; as geysers) {
 								Geysers (impure / normal / pure): {{ geysers }}. They are not part of the limits.
 							}

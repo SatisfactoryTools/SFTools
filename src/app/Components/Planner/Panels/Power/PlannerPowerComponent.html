@@ -45,6 +45,7 @@
 									}
 									{{ row.name }}
 								</span>
+								<built-mark [built]="row.builtMachines" [total]="row.machines"></built-mark>
 								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 							</div>
 						</td>
@@ -57,6 +58,7 @@
 								<td class="ps-4 stack-full">
 									<div class="d-flex align-items-center gap-1">
 										<span class="flex-grow-1">{{ entry.name }}</span>
+										<built-mark [built]="entry.builtMachines" [total]="entry.machines"></built-mark>
 										<go-to-node [nodeIds]="entry.nodeIds"></go-to-node>
 									</div>
 									@if (entry.detail !== '') {

@@ -606,7 +606,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	public resetPlanIcon(plan: Plan): void
 	{
-		this.planManager.setPlanIcon(plan.id, null);
+		this.planManager.resetPlanIcon(plan.id);
 	}
 
 	public onIconPicked(iconClassName: string): void
@@ -911,6 +911,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		const state = this.editState();
 		if (!state) return;
 		const value = this.editValue.trim();
+
+		// A cleared plan name goes back to the generated one.
+		if (!value && state.mode === 'rename-plan' && state.targetId) {
+			this.planManager.renamePlan(state.targetId, '');
+		}
 
 		if (value) {
 			switch (state.mode) {

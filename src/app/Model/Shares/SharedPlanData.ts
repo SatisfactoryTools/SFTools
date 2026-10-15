@@ -12,5 +12,7 @@ export interface SharedPlanData
 	graph?: Graph | null;
 	metadata?: PlanMetadata;
 	iconClassName?: string | null;
+	autoName?: boolean;
+	autoIcon?: boolean;
 	order?: number;
 }

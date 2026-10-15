@@ -29,10 +29,6 @@
 				/>
 				<span class="text-light" style="width: 40px;">{{ excessPowerPercent }}%</span>
 			</div>
-			<info-note>
-				Generators are added to cover the average power use of every machine, including fuel production.
-				The excess is a safety margin for miners, pumps and machines whose power use goes up and down.
-			</info-note>
 			@if (producePowerForFactory && maxSloops > 0) {
 				<info-note kind="warning">
 					Producing power for the factory together with somersloops
@@ -42,6 +38,45 @@
 		</div>
 		}
 	</collapsible-card>
+
+	<info-note>Enabling a fuel also enables its generator.</info-note>
+
+	@for (generator of generators; track generator.className) {
+		<collapsible-card [open]="foldState.isOpen(sectionOf(generator))" (toggle)="foldState.toggle(sectionOf(generator))">
+			<ng-container card-title>
+				<game-icon [hash]="generator.icon" [size]="20" [alt]="generator.name"></game-icon>
+				<span class="text-truncate">{{ generator.name }}</span>
+				<span class="text-secondary fw-normal text-nowrap">{{ powerText(generator) }}</span>
+				@if (!foldState.isOpen(sectionOf(generator))) {
+					<span class="text-secondary fw-normal text-nowrap">· {{ enabledFuelCount(generator) }}/{{ generator.fuel.length }} fuels</span>
+				}
+			</ng-container>
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, true)">All</button>
+			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, false)">None</button>
+			@if (foldState.isOpen(sectionOf(generator))) {
+			<div class="card-body p-2">
+				@for (fuel of generator.fuel; track fuel.item.className) {
+					<div class="form-check">
+						<input
+							class="form-check-input"
+							type="checkbox"
+							[id]="'fuel-' + generator.className + '-' + fuel.item.className"
+							[checked]="isEnabled(generator, fuel)"
+							(change)="toggle(generator, fuel)"
+						/>
+						<label class="form-check-label d-flex align-items-center gap-2" [for]="'fuel-' + generator.className + '-' + fuel.item.className">
+							<game-icon [hash]="fuel.item.icon" [size]="18" [alt]="fuel.item.name"></game-icon>
+							{{ fuel.item.name }}
+							@if (fuel.byproduct; as byproduct) {
+								<span class="text-secondary d-inline-flex align-items-center gap-1"><fa-icon [icon]="faChevronRight"></fa-icon> <game-icon [hash]="byproduct.icon" [size]="18" [alt]="byproduct.name"></game-icon>{{ byproduct.name }}</span>
+							}
+						</label>
+					</div>
+				}
+			</div>
+			}
+		</collapsible-card>
+	}
 
 	@if (geothermalBuilding; as geothermal) {
 		<collapsible-card [open]="foldState.isOpen('geothermal')" (toggle)="foldState.toggle('geothermal')">
@@ -58,10 +93,6 @@
 			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="clearGeysers()">None</button>
 			@if (foldState.isOpen('geothermal')) {
 			<div class="card-body p-2 d-flex flex-column gap-2">
-				<info-note>
-					These need no fuel and cannot be overclocked, so their power costs the plan nothing.
-					Each one makes more or less power all the time; the plan counts the average.
-				</info-note>
 				@for (row of geyserRows; track row.key) {
 					<div class="d-flex align-items-center gap-2">
 						<label class="flex-grow-1 mb-0" [for]="'geyser-' + row.key">
@@ -167,45 +198,6 @@
 							Raise the number in the Sloops tab or build fewer augmenters.
 						</info-note>
 					}
-				}
-			</div>
-			}
-		</collapsible-card>
-	}
-
-	<info-note>Generators and fuels the plan may use. Enabling a fuel also enables its generator.</info-note>
-
-	@for (generator of generators; track generator.className) {
-		<collapsible-card [open]="foldState.isOpen(sectionOf(generator))" (toggle)="foldState.toggle(sectionOf(generator))">
-			<ng-container card-title>
-				<game-icon [hash]="generator.icon" [size]="20" [alt]="generator.name"></game-icon>
-				<span class="text-truncate">{{ generator.name }}</span>
-				<span class="text-secondary fw-normal text-nowrap">{{ powerText(generator) }}</span>
-				@if (!foldState.isOpen(sectionOf(generator))) {
-					<span class="text-secondary fw-normal text-nowrap">· {{ enabledFuelCount(generator) }}/{{ generator.fuel.length }} fuels</span>
-				}
-			</ng-container>
-			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, true)">All</button>
-			<button card-actions class="btn btn-sm btn-outline-secondary py-0" type="button" (click)="setAll(generator, false)">None</button>
-			@if (foldState.isOpen(sectionOf(generator))) {
-			<div class="card-body p-2">
-				@for (fuel of generator.fuel; track fuel.item.className) {
-					<div class="form-check">
-						<input
-							class="form-check-input"
-							type="checkbox"
-							[id]="'fuel-' + generator.className + '-' + fuel.item.className"
-							[checked]="isEnabled(generator, fuel)"
-							(change)="toggle(generator, fuel)"
-						/>
-						<label class="form-check-label d-flex align-items-center gap-2" [for]="'fuel-' + generator.className + '-' + fuel.item.className">
-							<game-icon [hash]="fuel.item.icon" [size]="18" [alt]="fuel.item.name"></game-icon>
-							{{ fuel.item.name }}
-							@if (fuel.byproduct; as byproduct) {
-								<span class="text-secondary d-inline-flex align-items-center gap-1"><fa-icon [icon]="faChevronRight"></fa-icon> <game-icon [hash]="byproduct.icon" [size]="18" [alt]="byproduct.name"></game-icon>{{ byproduct.name }}</span>
-							}
-						</label>
-					</div>
 				}
 			</div>
 			}

@@ -124,8 +124,14 @@ export class SharePayloadHydrator
 			requests: data.requests ?? [],
 			inputs: data.inputs ?? [],
 			graph: this.remapGraph(data.graph ?? null, idMap),
-			metadata: {graphDirty: data.metadata?.graphDirty ?? false, recalculationNeeded: data.metadata?.recalculationNeeded},
+			metadata: {
+				graphDirty: data.metadata?.graphDirty ?? false,
+				achievedMaximums: data.metadata?.achievedMaximums,
+				recalculationNeeded: data.metadata?.recalculationNeeded,
+			},
 			iconClassName: data.iconClassName,
+			autoName: data.autoName,
+			autoIcon: data.autoIcon,
 			order: data.order,
 			revision: null,
 		});

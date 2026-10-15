@@ -19,8 +19,12 @@ export interface Plan
 	readonly metadata: PlanMetadata;
 	readonly revision: number | null;
 
-	/** undefined = not chosen yet (auto-filled from the first product); null = explicitly none, never auto-filled. */
+	/** null = no icon; undefined only on plans saved before labels were stored. */
 	readonly iconClassName?: string | null;
+
+	/** Name and icon follow the first product until the user sets their own; undefined on plans saved before the flags existed. */
+	readonly autoName?: boolean;
+	readonly autoIcon?: boolean;
 
 	readonly order?: number;
 

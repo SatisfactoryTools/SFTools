@@ -18,6 +18,7 @@ import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {LocalPlanStoreBackend} from '@src/Model/Planner/LocalPlanStoreBackend';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanApiDataBackend} from '@src/Model/Planner/PlanApiDataBackend';
+import {PlanLabelAssigner} from '@src/Model/Planner/PlanLabelAssigner';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {PlanStore} from '@src/Model/Planner/PlanStore';
 import {PlanStoreOfflineMerger} from '@src/Model/Planner/PlanStoreOfflineMerger';
@@ -127,6 +128,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		notifications: NotificationService,
 		plannerLocation: PlannerLocationService,
 		private readonly settingsManager: SettingsManager,
+		private readonly labels: PlanLabelAssigner,
 		storage: AppStorage,
 		connectivity: ConnectivityService,
 		@Optional() desktop: DesktopBridge | null,
@@ -405,6 +407,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		const root: Plan = {
 			...copy.plans.find(p => p.id === copy.idMap.get(id))!,
 			name: `Clone: ${name}`,
+			autoName: false,
 			folderId: parentPlanId === null ? original.folderId : null,
 			parentPlanId,
 			order: this.nextOrder(parentPlanId === null
@@ -807,6 +810,8 @@ export class PlanManager extends SyncableService<PlanStore>
 			enabledFuels: settings.enabledFuels
 				? Object.fromEntries(Object.entries(settings.enabledFuels).map(([generator, fuels]) => [generator, [...fuels]]))
 				: undefined,
+			geothermalGenerators: settings.geothermalGenerators ? {...settings.geothermalGenerators} : undefined,
+			alienPowerAugmenters: settings.alienPowerAugmenters ? {...settings.alienPowerAugmenters} : undefined,
 			disabledByproducts: settings.disabledByproducts ? [...settings.disabledByproducts] : undefined,
 			sinkableItems: settings.sinkableItems ? [...settings.sinkableItems] : undefined,
 			producePowerForFactory: settings.producePowerForFactory,
@@ -903,7 +908,7 @@ export class PlanManager extends SyncableService<PlanStore>
 		if (this.isReadOnlyPlan(id)) return;
 		this.mutate(store => ({
 			...store,
-			plans: store.plans.map(p => p.id === id ? {...p, name} : p),
+			plans: store.plans.map(p => p.id === id ? {...p, name, autoName: name.trim() === ''} : p),
 		}));
 	}
 
@@ -924,7 +929,16 @@ export class PlanManager extends SyncableService<PlanStore>
 		if (this.isReadOnlyPlan(id)) return;
 		this.mutate(store => ({
 			...store,
-			plans: store.plans.map(p => p.id === id ? {...p, iconClassName} : p),
+			plans: store.plans.map(p => p.id === id ? {...p, iconClassName, autoIcon: false} : p),
+		}));
+	}
+
+	public resetPlanIcon(id: string): void
+	{
+		if (this.isReadOnlyPlan(id)) return;
+		this.mutate(store => ({
+			...store,
+			plans: store.plans.map(p => p.id === id ? {...p, autoIcon: true} : p),
 		}));
 	}
 
@@ -1103,7 +1117,8 @@ export class PlanManager extends SyncableService<PlanStore>
 
 	private mutate(updater: (store: PlanStore) => PlanStore): void
 	{
-		this.persist(updater(this.data()));
+		const store = updater(this.data());
+		this.persist({...store, plans: store.plans.map(plan => this.labels.assign(plan))});
 	}
 
 	private buildTree(store: PlanStore): PlanTree
@@ -1321,6 +1336,8 @@ export class PlanManager extends SyncableService<PlanStore>
 			inputs: [],
 			graph: null,
 			metadata: {graphDirty: false},
+			autoName: name.trim() === '',
+			autoIcon: true,
 			linkAccess: true,
 			order: this.nextOrder(parentPlanId === null ? this.orderedEntries(this.data(), folderId) : this.orderedPlans(this.data(), folderId, parentPlanId)),
 			revision: null,

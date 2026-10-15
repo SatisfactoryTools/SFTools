@@ -8,10 +8,14 @@ export interface BuildCostBreakdown
 
 	readonly machines: number;
 
+	readonly builtMachines: number;
+
 	readonly shards: number;
 
 	readonly sloops: number;
 
 	readonly materials: BuildCostMaterialRow[];
+
+	readonly remainingMaterials: BuildCostMaterialRow[];
 
 }

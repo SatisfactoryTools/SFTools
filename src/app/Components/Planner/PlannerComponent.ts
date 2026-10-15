@@ -1319,7 +1319,6 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, graph);
 	}
 
-	/** Dirty because a recalculation drops the flags. */
 	private applyDoneChange(request: NodeDoneRequest): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1349,7 +1348,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
 		this.plannerGraph.selectNodesById(request.nodeIds);
-		this.planManager.setGraph(plan.id, graph, true);
+		// Not dirty: every solve carries done marks over (GraphComposer.carryDone), and dirty would pause automatic mode.
+		this.planManager.setGraph(plan.id, graph);
 	}
 
 	private disableRecipe(recipeClassName: string): void
@@ -2044,6 +2044,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.plannerGraph.restore(container, graph);
 			return graph;
 		}
+
+		this.graphComposer.carryDone(existing, result.nodes);
 
 		if (existing && hasLocks) {
 			const rebuilt = this.graphComposer.rebuild(existing, result.nodes);

@@ -13,11 +13,17 @@ export interface BuildCostRow
 
 	readonly machines: number;
 
+	/** Machines on nodes marked done. */
+	readonly builtMachines: number;
+
 	readonly shards: number;
 
 	readonly sloops: number;
 
 	readonly materials: BuildCostMaterialRow[];
+
+	/** Materials for the machines not built yet. */
+	readonly remainingMaterials: BuildCostMaterialRow[];
 
 	/** Empty when the row is not on this plan's canvas (folder views, buildings inside subplans). */
 	readonly nodeIds: string[];

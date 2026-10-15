@@ -1,0 +1,3 @@
+@if (state !== 'none') {
+	<span class="text-success lh-1" [tooltip]="label" container="body"><fa-icon [icon]="state === 'full' ? faCircleCheck : faCircleHalfStroke"></fa-icon><span class="visually-hidden">{{ label }}</span></span>
+}

@@ -3,6 +3,7 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {BuiltMarkComponent} from '@src/Components/Planner/Panels/BuiltMark/BuiltMarkComponent';
 import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {BuildCostBreakdown} from '@src/Model/Planner/Breakdown/BuildCostBreakdown';
 import {BuildCostMaterialRow} from '@src/Model/Planner/Breakdown/BuildCostMaterialRow';
@@ -17,7 +18,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'planner-build-cost',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerBuildCostComponent.html',
-	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, GoToNodeButtonComponent],
+	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, GoToNodeButtonComponent, BuiltMarkComponent],
 })
 export class PlannerBuildCostComponent
 {
@@ -27,6 +28,9 @@ export class PlannerBuildCostComponent
 
 	private readonly searchTermSignal = signal('');
 	public readonly searchTerm = this.searchTermSignal.asReadonly();
+
+	private readonly hideBuiltSignal = signal(false);
+	public readonly hideBuilt = this.hideBuiltSignal.asReadonly();
 
 	private readonly expandedKeysSignal = signal<ReadonlySet<string>>(new Set());
 
@@ -39,8 +43,17 @@ export class PlannerBuildCostComponent
 			: this.breakdownService.buildCost(this.planManager.activePlan());
 	});
 
-	public readonly rows: Signal<BuildCostRow[]> = computed(() =>
-		this.filterRows(this.breakdown().rows, this.searchTerm().trim().toLowerCase()));
+	public readonly hasBuilt = computed(() => !this.rateFormatter.isZero(this.breakdown().builtMachines));
+
+	public readonly rows: Signal<BuildCostRow[]> = computed(() => {
+		const rows = this.hideBuilt() && this.hasBuilt()
+			? this.breakdown().rows.filter(row => !this.isFullyBuilt(row))
+			: this.breakdown().rows;
+		return this.filterRows(rows, this.searchTerm().trim().toLowerCase());
+	});
+
+	private readonly remainingByItem: Signal<ReadonlyMap<string, number>> = computed(() =>
+		new Map(this.breakdown().remainingMaterials.map(material => [material.item.className, material.amount])));
 
 	public readonly totalMaterials: Signal<BuildCostMaterialRow[]> = computed(() => {
 		const term = this.searchTerm().trim().toLowerCase();
@@ -69,6 +82,16 @@ export class PlannerBuildCostComponent
 		this.searchTermSignal.set(value);
 	}
 
+	public toggleHideBuilt(): void
+	{
+		this.hideBuiltSignal.update(value => !value);
+	}
+
+	public remainingAmount(material: BuildCostMaterialRow): number
+	{
+		return this.remainingByItem().get(material.item.className) ?? 0;
+	}
+
 	public isExpanded(row: BuildCostRow): boolean
 	{
 		return row.materials.length > 0
@@ -83,6 +106,11 @@ export class PlannerBuildCostComponent
 		const keys = new Set(this.expandedKeysSignal());
 		keys.has(row.key) ? keys.delete(row.key) : keys.add(row.key);
 		this.expandedKeysSignal.set(keys);
+	}
+
+	private isFullyBuilt(row: BuildCostRow): boolean
+	{
+		return row.machines > 0 && this.rateFormatter.isZero(row.machines - row.builtMachines);
 	}
 
 	private filterRows(rows: BuildCostRow[], term: string): BuildCostRow[]

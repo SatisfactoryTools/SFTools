@@ -9,4 +9,8 @@ export interface CountedExtraPower
 
 	readonly count: number;
 
+	readonly geothermalDone: boolean;
+
+	readonly augmentersDone: boolean;
+
 }

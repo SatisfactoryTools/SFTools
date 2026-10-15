@@ -102,28 +102,6 @@ export class CalculatorProductionTabComponent implements OnDestroy
 			row.powerUnit = undefined;
 		}
 		this.sync();
-		this.autoFillNameAndIcon();
-	}
-
-	private autoFillNameAndIcon(): void
-	{
-		const plan = this.planManager.activePlan();
-		const data = this.versionManager.activeVersionData();
-		if (!plan || !data) {
-			return;
-		}
-		const firstItem = this.rows
-			.map(r => data.searchItemByClassName(r.itemClassName))
-			.find((item): item is Item => item !== undefined);
-		if (!firstItem) {
-			return;
-		}
-		if (plan.name.trim() === '') {
-			this.planManager.renamePlan(plan.id, `${firstItem.name} factory`);
-		}
-		if (plan.iconClassName === undefined) {
-			this.planManager.setPlanIcon(plan.id, firstItem.className);
-		}
 	}
 
 	public modeOf(row: ProductionRequest): ProductionRequestMode

@@ -74,6 +74,38 @@ export class GraphComposer
 		return {nodes, edges: this.withPriorRouting(this.edgeBuilder.build(nodes, existing.edges), existing.edges), newNodes};
 	}
 
+	/**
+	 * A recalculation replaces every unlocked node, so done marks move over to the matching new nodes.
+	 * A new node stays done only while what was built covers it - a plan that now needs more is not built yet.
+	 */
+	public carryDone(existing: Graph | null, incoming: Node[]): void
+	{
+		const built = new Map<string, number>();
+		existing?.nodes.forEach(node => {
+			if (node.done && !node.locked) {
+				const key = this.identityKey(node);
+				built.set(key, (built.get(key) ?? 0) + this.builtSize(node));
+			}
+		});
+
+		incoming.forEach(node => {
+			const key = this.identityKey(node);
+			const available = built.get(key) ?? 0;
+			const needed = node instanceof RecipeNode ? node.target : node.amount;
+			// Solver output carries float noise in the sixth significant digit.
+			if (available > 0 && needed <= available * (1 + 1e-6) + 1e-9) {
+				node.done = true;
+				built.set(key, available - needed);
+			}
+		});
+	}
+
+	/** Machines can be overclocked by hand, so a recipe counts by what it can make, not by machine count. */
+	private builtSize(node: Node): number
+	{
+		return node instanceof RecipeNode ? node.capacity() : node.amount;
+	}
+
 	private withPriorRouting(edges: GraphEdge[], priorEdges: GraphEdge[]): GraphEdge[]
 	{
 		return edges.map(edge => {
@@ -200,6 +232,7 @@ export class GraphComposer
 
 		node.x = match.x;
 		node.y = match.y;
+		node.done = incoming.done;
 		return node;
 	}
 

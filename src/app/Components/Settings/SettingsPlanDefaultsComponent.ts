@@ -1,6 +1,5 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {GraphDirection} from '@src/Model/Planner/GraphDirection';
 import {GraphEdgeShape} from '@src/Model/Planner/GraphEdgeShape';
@@ -13,7 +12,7 @@ import {faFileCirclePlus} from '@fortawesome/free-solid-svg-icons';
 	selector: 'settings-plan-defaults',
 	templateUrl: './SettingsPlanDefaultsComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, SettingsSectionComponent, InfoNoteComponent],
+	imports: [FormsModule, SettingsSectionComponent],
 })
 export class SettingsPlanDefaultsComponent
 {

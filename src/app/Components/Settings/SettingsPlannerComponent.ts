@@ -4,14 +4,13 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {TabLabelsMode} from '@src/Model/Settings/TabLabelsMode';
 import {UnmakeableItemsDisplay} from '@src/Model/Settings/UnmakeableItemsDisplay';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
-import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faTableColumns} from '@fortawesome/free-solid-svg-icons';
 
 @Component({
 	selector: 'settings-planner',
 	templateUrl: './SettingsPlannerComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, SettingsSectionComponent, InfoNoteComponent],
+	imports: [FormsModule, SettingsSectionComponent],
 })
 export class SettingsPlannerComponent
 {

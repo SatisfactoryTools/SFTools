@@ -12,7 +12,7 @@
 		/>
 
 		<div class="d-flex gap-3 flex-wrap">
-			<span class="text-secondary">Buildings: <span class="text-light">{{ rateFormatter.amount(breakdown().machines) }}</span></span>
+			<span class="text-secondary">Buildings: <span class="text-light">{{ rateFormatter.amount(breakdown().machines) }}</span>@if (hasBuilt()) {&ngsp;<span class="text-success">({{ rateFormatter.amount(breakdown().builtMachines) }} built)</span>}</span>
 			<span class="text-secondary d-inline-flex align-items-center gap-1">
 				<game-icon [hash]="shardIcon()" [size]="18" alt="Power Shard"></game-icon>
 				Power shards: <span class="text-light">{{ breakdown().shards }}</span>
@@ -21,6 +21,12 @@
 				<game-icon [hash]="sloopIcon()" [size]="18" alt="Somersloop"></game-icon>
 				Somersloops: <span class="text-light">{{ breakdown().sloops }}</span>
 			</span>
+			@if (hasBuilt()) {
+				<div class="form-check mb-0 ms-auto">
+					<input class="form-check-input" type="checkbox" id="build-cost-hide-built" [checked]="hideBuilt()" (change)="toggleHideBuilt()"/>
+					<label class="form-check-label" for="build-cost-hide-built">Hide built</label>
+				</div>
+			}
 		</div>
 
 		<table class="table table-dark table-sm table-hover align-middle mb-0 table-stack-sm">
@@ -50,6 +56,7 @@
 									}
 									{{ row.name }}
 								</span>
+								<built-mark [built]="row.builtMachines" [total]="row.machines"></built-mark>
 								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 							</div>
 						</td>
@@ -73,7 +80,7 @@
 						}
 					}
 				} @empty {
-					<tr><td colspan="4" class="text-secondary fst-italic">Nothing matches the filter.</td></tr>
+					<tr><td colspan="4" class="text-secondary fst-italic">{{ hideBuilt() && searchTerm().trim() === '' ? 'Everything is built.' : 'Nothing matches the filter.' }}</td></tr>
 				}
 			</tbody>
 		</table>
@@ -83,6 +90,9 @@
 				<tr>
 					<th>Total materials</th>
 					<th class="text-end" style="width: 90px;">Amount</th>
+					@if (hasBuilt()) {
+						<th class="text-end" style="width: 90px;" title="Still needed for the buildings not built yet">Left</th>
+					}
 				</tr>
 			</thead>
 			<tbody>
@@ -95,9 +105,12 @@
 							</span>
 						</td>
 						<td class="text-end">{{ rateFormatter.amount(material.amount) }}</td>
+						@if (hasBuilt()) {
+							<td class="text-end" [class.text-secondary]="rateFormatter.isZero(remainingAmount(material))">{{ rateFormatter.amount(remainingAmount(material)) }}</td>
+						}
 					</tr>
 				} @empty {
-					<tr><td colspan="2" class="fst-italic text-secondary">None</td></tr>
+					<tr><td [attr.colspan]="hasBuilt() ? 3 : 2" class="fst-italic text-secondary">None</td></tr>
 				}
 			</tbody>
 		</table>

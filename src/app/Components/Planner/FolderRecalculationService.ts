@@ -160,6 +160,7 @@ export class FolderRecalculationService
 
 	private async composeGraph(plan: Plan, result: SolverResponse, existing: Graph | null): Promise<Graph>
 	{
+		this.composer.carryDone(existing, result.nodes);
 		if (existing && existing.nodes.some(node => node.locked)) {
 			const rebuilt = this.composer.rebuild(existing, result.nodes);
 			await this.plannerGraph.layout(rebuilt.nodes, rebuilt.edges, plan.settings.graph);

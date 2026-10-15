@@ -68,54 +68,62 @@ export class PlanBreakdownService
 		const machines = new Map<string, {
 			building: Building;
 			machines: number;
+			builtMachines: number;
 			power: PowerDraw;
 			nodeIds: string[];
-			entries: Map<string, {name: string; machines: number; power: PowerDraw; groups: MachineGroup[]; nodeIds: string[]}>;
+			entries: Map<string, {name: string; machines: number; builtMachines: number; power: PowerDraw; groups: MachineGroup[]; nodeIds: string[]}>;
 		}>();
 		const generators = new Map<string, {
 			building: Building;
 			machines: number;
+			builtMachines: number;
 			power: PowerDraw;
 			nodeIds: string[];
-			entries: Map<string, {name: string; machines: number; power: PowerDraw; nodeIds: string[]}>;
+			entries: Map<string, {name: string; machines: number; builtMachines: number; power: PowerDraw; nodeIds: string[]}>;
 		}>();
 		const subplanNodes: SubplanNode[] = [];
-		const augmenterIds: string[] = [];
+		const augmenters: AugmenterNode[] = [];
 		let consumption = PowerDraw.ZERO;
 		let production = PowerDraw.ZERO;
 
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
 				const power = node.powerDraw();
+				const built = node.done ? node.amount : 0;
 				consumption = consumption.add(power);
 				const row = this.getOrCreate(machines, node.machine.className,
-					() => ({building: node.machine, machines: 0, power: PowerDraw.ZERO, nodeIds: [], entries: new Map()}));
+					() => ({building: node.machine, machines: 0, builtMachines: 0, power: PowerDraw.ZERO, nodeIds: [], entries: new Map()}));
 				row.machines += node.amount;
+				row.builtMachines += built;
 				row.power = row.power.add(power);
 				row.nodeIds.push(node.id);
 				const entry = this.getOrCreate(row.entries, node.recipe.className,
-					() => ({name: node.recipe.name, machines: 0, power: PowerDraw.ZERO, groups: [], nodeIds: []}));
+					() => ({name: node.recipe.name, machines: 0, builtMachines: 0, power: PowerDraw.ZERO, groups: [], nodeIds: []}));
 				entry.machines += node.amount;
+				entry.builtMachines += built;
 				entry.power = entry.power.add(power);
 				entry.groups.push(...node.groups);
 				entry.nodeIds.push(node.id);
 			} else if (node instanceof GeneratorNode) {
 				const megawatts = node.powerProduction();
+				const built = node.done ? node.amount : 0;
 				production = production.add(PowerDraw.fixed(megawatts));
 				const row = this.getOrCreate(generators, node.generator.className,
-					() => ({building: node.generator, machines: 0, power: PowerDraw.ZERO, nodeIds: [], entries: new Map()}));
+					() => ({building: node.generator, machines: 0, builtMachines: 0, power: PowerDraw.ZERO, nodeIds: [], entries: new Map()}));
 				row.machines += node.amount;
+				row.builtMachines += built;
 				row.power = row.power.subtract(PowerDraw.fixed(megawatts));
 				row.nodeIds.push(node.id);
 				const entry = this.getOrCreate(row.entries, node.fuel.item.className,
-					() => ({name: node.fuel.item.name, machines: 0, power: PowerDraw.ZERO, nodeIds: []}));
+					() => ({name: node.fuel.item.name, machines: 0, builtMachines: 0, power: PowerDraw.ZERO, nodeIds: []}));
 				entry.machines += node.amount;
+				entry.builtMachines += built;
 				entry.power = entry.power.subtract(PowerDraw.fixed(megawatts));
 				entry.nodeIds.push(node.id);
 			} else if (node instanceof SubplanNode) {
 				subplanNodes.push(node);
 			} else if (node instanceof AugmenterNode) {
-				augmenterIds.push(node.id);
+				augmenters.push(node);
 			}
 		});
 
@@ -127,6 +135,7 @@ export class PlanBreakdownService
 			icon: row.building.icon,
 			kind: 'machine',
 			machines: row.machines,
+			builtMachines: row.builtMachines,
 			power: row.power,
 			nodeIds: row.nodeIds,
 			entries: [...row.entries.entries()]
@@ -135,6 +144,7 @@ export class PlanBreakdownService
 					key,
 					name: entry.name,
 					machines: entry.machines,
+					builtMachines: entry.builtMachines,
 					detail: this.groupsSummary(entry.groups),
 					power: entry.power,
 					nodeIds: entry.nodeIds,
@@ -147,6 +157,7 @@ export class PlanBreakdownService
 			icon: row.building.icon,
 			kind: 'generator',
 			machines: row.machines,
+			builtMachines: row.builtMachines,
 			power: row.power,
 			nodeIds: row.nodeIds,
 			entries: [...row.entries.entries()]
@@ -155,6 +166,7 @@ export class PlanBreakdownService
 					key,
 					name: entry.name,
 					machines: entry.machines,
+					builtMachines: entry.builtMachines,
 					detail: '',
 					power: entry.power,
 					nodeIds: entry.nodeIds,
@@ -162,14 +174,13 @@ export class PlanBreakdownService
 		}));
 
 		// After the generator rows: the augmenters' percentage applies to what this plan's own generators make.
-		const extraRows = this.extraPowerRows(plan, production.average, augmenterIds);
+		const extraRows = this.extraPowerRows(plan, production.average, augmenters);
 		rows.push(...extraRows.rows);
 		production = production.add(extraRows.production);
 
-		this.groupSubplans(subplanNodes).forEach(group => {
-			const nodes = this.collectProductionNodes(group.subplanId, new Set([plan.id]));
-			const subConsumption = this.consumptionOf(nodes.recipes).scale(group.count);
-			const subProduction = this.productionOf(nodes).scale(group.count);
+		this.groupSubplans(plan.id, subplanNodes).forEach(group => {
+			const subConsumption = this.consumptionOf(group.nodes.recipes);
+			const subProduction = this.productionOf(group.nodes);
 			consumption = consumption.add(subConsumption);
 			production = production.add(subProduction);
 			rows.push({
@@ -177,7 +188,8 @@ export class PlanBreakdownService
 				name: this.subplanRowName(group),
 				icon: null,
 				kind: 'subplan',
-				machines: this.countMachines(nodes) * group.count,
+				machines: this.countMachines(group.nodes, false),
+				builtMachines: this.countMachines(group.nodes, true),
 				power: subConsumption.subtract(subProduction),
 				nodeIds: group.nodeIds,
 				entries: [],
@@ -196,8 +208,8 @@ export class PlanBreakdownService
 
 		const rows = new Map<string, {
 			item: Item;
-			sources: Map<string, {name: string; amount: number; nodeIds: string[]}>;
-			targets: Map<string, {name: string; amount: number; nodeIds: string[]}>;
+			sources: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
+			targets: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
 		}>();
 
 		graph.nodes.forEach(node => {
@@ -205,15 +217,17 @@ export class PlanBreakdownService
 			node.outputs.forEach(io => {
 				const row = this.getOrCreate(rows, io.item.className,
 					() => ({item: io.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, amount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += io.maxAmount;
+				entry.builtAmount += node.done ? io.maxAmount : 0;
 				entry.nodeIds.push(node.id);
 			});
 			node.inputs.forEach(io => {
 				const row = this.getOrCreate(rows, io.item.className,
 					() => ({item: io.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, amount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += io.maxAmount;
+				entry.builtAmount += node.done ? io.maxAmount : 0;
 				entry.nodeIds.push(node.id);
 			});
 		});
@@ -227,53 +241,38 @@ export class PlanBreakdownService
 	{
 		const graph = this.reviveGraph(plan?.graph ?? null);
 		if (!plan || !graph) {
-			return {rows: [], machines: 0, shards: 0, sloops: 0, materials: []};
+			return this.costBreakdown([]);
 		}
 
-		// Only buildings are counted, so the generated MW the augmenters scale does not matter here.
-		const own: ProductionNodes = {recipes: [], generators: [], mines: [], extraPower: this.extraPowerEntries(plan, 0)};
 		const subplanNodes: SubplanNode[] = [];
-		const augmenterIds: string[] = [];
+		const augmenters: AugmenterNode[] = [];
+		const recipes: CountedNode<RecipeNode>[] = [];
+		const generators: CountedNode<GeneratorNode>[] = [];
 		graph.nodes.forEach(node => {
 			if (node instanceof RecipeNode) {
-				own.recipes.push({node, count: 1});
+				recipes.push({node, count: 1, done: node.done});
 			} else if (node instanceof GeneratorNode) {
-				own.generators.push({node, count: 1});
+				generators.push({node, count: 1, done: node.done});
 			} else if (node instanceof SubplanNode) {
 				subplanNodes.push(node);
 			} else if (node instanceof AugmenterNode) {
-				augmenterIds.push(node.id);
+				augmenters.push(node);
 			}
 		});
+		// Only buildings are counted, so the generated MW the augmenters scale does not matter here.
+		const own: ProductionNodes = {recipes, generators, mines: [], extraPower: this.extraPowerEntries(plan, 0, false, augmenters)};
 
 		// The augmenter row comes from the settings, so its node ids are attached here.
+		const augmenterIds = augmenters.map(node => node.id);
 		const rows: BuildCostRow[] = this.machineCostRows(own, true)
 			.map(row => row.key === SpecialClasses.AlienPowerAugmenterBuilding ? {...row, nodeIds: augmenterIds} : row);
 
-		this.groupSubplans(subplanNodes).forEach(group => {
-			const nodes = this.collectProductionNodes(group.subplanId, new Set([plan.id]));
-			const subRows = this.machineCostRows(nodes);
-			rows.push({
-				key: `subplan:${group.subplanId}`,
-				name: this.subplanRowName(group),
-				icon: null,
-				kind: 'subplan',
-				machines: subRows.reduce((sum, row) => sum + row.machines, 0) * group.count,
-				shards: subRows.reduce((sum, row) => sum + row.shards, 0) * group.count,
-				sloops: subRows.reduce((sum, row) => sum + row.sloops, 0) * group.count,
-				materials: this.mergeMaterials(subRows.flatMap(row => row.materials))
-					.map(material => ({item: material.item, amount: material.amount * group.count})),
-				nodeIds: group.nodeIds,
-			});
-		});
+		this.groupSubplans(plan.id, subplanNodes).forEach(group => rows.push({
+			...this.summaryCostRow(`subplan:${group.subplanId}`, this.subplanRowName(group), 'subplan', this.machineCostRows(group.nodes)),
+			nodeIds: group.nodeIds,
+		}));
 
-		return {
-			rows,
-			machines: rows.reduce((sum, row) => sum + row.machines, 0),
-			shards: rows.reduce((sum, row) => sum + row.shards, 0),
-			sloops: rows.reduce((sum, row) => sum + row.sloops, 0),
-			materials: this.mergeMaterials(rows.flatMap(row => row.materials)),
-		};
+		return this.costBreakdown(rows);
 	}
 
 	public resources(plan: Plan | null): ResourceUsageRow[]
@@ -334,11 +333,12 @@ export class PlanBreakdownService
 			return [];
 		}
 
-		const rows = new Map<string, {recipe: Recipe; machines: number}>();
+		const rows = new Map<string, {recipe: Recipe; machines: number; builtMachines: number}>();
 		this.collectProductionNodes(plan.id, new Set()).recipes.forEach(entry => {
 			const row = this.getOrCreate(rows, entry.node.recipe.className,
-				() => ({recipe: entry.node.recipe, machines: 0}));
+				() => ({recipe: entry.node.recipe, machines: 0, builtMachines: 0}));
 			row.machines += entry.node.amount * entry.count;
+			row.builtMachines += entry.done ? entry.node.amount * entry.count : 0;
 		});
 		const recipeIds = this.ownNodeIds(plan, node => node instanceof RecipeNode ? node.recipe.className : null);
 
@@ -364,7 +364,8 @@ export class PlanBreakdownService
 				name: this.planNames.displayName(plan),
 				icon: null,
 				kind: 'plan',
-				machines: this.countMachines(nodes),
+				machines: this.countMachines(nodes, false),
+				builtMachines: this.countMachines(nodes, true),
 				power: planConsumption.subtract(planProduction),
 				nodeIds: [],
 				entries: [],
@@ -378,23 +379,24 @@ export class PlanBreakdownService
 	{
 		const rows = new Map<string, {
 			item: Item;
-			sources: Map<string, {name: string; amount: number; nodeIds: string[]}>;
-			targets: Map<string, {name: string; amount: number; nodeIds: string[]}>;
+			sources: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
+			targets: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
 		}>();
 
+		// A plan's IO is not tied to single nodes, so folder flows carry no built share.
 		this.folderPlans(folderId).forEach(plan => {
 			const io = this.subplanResolver.resolveGraph(plan.graph);
 			const flow = {key: `plan:${plan.id}`, name: this.planNames.displayName(plan)};
 			io.outputs.forEach(nodeIo => {
 				const row = this.getOrCreate(rows, nodeIo.item.className,
 					() => ({item: nodeIo.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, amount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += nodeIo.maxAmount;
 			});
 			io.inputs.forEach(nodeIo => {
 				const row = this.getOrCreate(rows, nodeIo.item.className,
 					() => ({item: nodeIo.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, amount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += nodeIo.maxAmount;
 			});
 		});
@@ -406,29 +408,14 @@ export class PlanBreakdownService
 
 	public buildCostForFolder(folderId: string): BuildCostBreakdown
 	{
-		const rows: BuildCostRow[] = this.folderPlans(folderId).map(plan => {
-			const nodes = this.collectProductionNodes(plan.id, new Set());
-			const planRows = this.machineCostRows(nodes);
-			return {
-				key: plan.id,
-				name: this.planNames.displayName(plan),
-				icon: null,
-				kind: 'plan' as const,
-				machines: planRows.reduce((sum, row) => sum + row.machines, 0),
-				shards: planRows.reduce((sum, row) => sum + row.shards, 0),
-				sloops: planRows.reduce((sum, row) => sum + row.sloops, 0),
-				materials: this.mergeMaterials(planRows.flatMap(row => row.materials)),
-				nodeIds: [],
-			};
-		});
+		const rows: BuildCostRow[] = this.folderPlans(folderId).map(plan => this.summaryCostRow(
+			plan.id,
+			this.planNames.displayName(plan),
+			'plan',
+			this.machineCostRows(this.collectProductionNodes(plan.id, new Set())),
+		));
 
-		return {
-			rows,
-			machines: rows.reduce((sum, row) => sum + row.machines, 0),
-			shards: rows.reduce((sum, row) => sum + row.shards, 0),
-			sloops: rows.reduce((sum, row) => sum + row.sloops, 0),
-			materials: this.mergeMaterials(rows.flatMap(row => row.materials)),
-		};
+		return this.costBreakdown(rows);
 	}
 
 	public buildingsRecursive(plan: Plan): BuildCostRow[]
@@ -468,14 +455,15 @@ export class PlanBreakdownService
 	/** `onCanvas` only for a plan's own nodes - nested subplan and folder nodes are not on the active canvas. */
 	private machineCostRows(nodes: ProductionNodes, onCanvas = false): BuildCostRow[]
 	{
-		const map = new Map<string, {building: Building; machines: number; shards: number; sloops: number; nodeIds: string[]}>();
+		const map = new Map<string, {building: Building; machines: number; builtMachines: number; shards: number; sloops: number; nodeIds: string[]}>();
 		const {recipes, generators} = nodes;
 
 		recipes.forEach(entry => {
 			const row = this.getOrCreate(map, entry.node.machine.className,
-				() => ({building: entry.node.machine, machines: 0, shards: 0, sloops: 0, nodeIds: []}));
+				() => ({building: entry.node.machine, machines: 0, builtMachines: 0, shards: 0, sloops: 0, nodeIds: []}));
 			entry.node.groups.forEach(group => {
 				row.machines += group.machines * entry.count;
+				row.builtMachines += entry.done ? group.machines * entry.count : 0;
 				row.shards += group.machines * Formulas.powerShards(group.clockSpeed) * entry.count;
 				row.sloops += group.machines * group.sloops * entry.count;
 			});
@@ -486,9 +474,11 @@ export class PlanBreakdownService
 
 		generators.forEach(entry => {
 			const row = this.getOrCreate(map, entry.node.generator.className,
-				() => ({building: entry.node.generator, machines: 0, shards: 0, sloops: 0, nodeIds: []}));
+				() => ({building: entry.node.generator, machines: 0, builtMachines: 0, shards: 0, sloops: 0, nodeIds: []}));
 			// Generator counts are fractional - building them takes whole machines.
-			row.machines += entry.node.wholeGenerators() * entry.count;
+			const machines = entry.node.wholeGenerators() * entry.count;
+			row.machines += machines;
+			row.builtMachines += entry.done ? machines : 0;
 			row.shards += entry.node.powerShards() * entry.count;
 			if (onCanvas) {
 				row.nodeIds.push(entry.node.id);
@@ -497,9 +487,9 @@ export class PlanBreakdownService
 
 		nodes.extraPower.forEach(entry => {
 			this.addExtraBuilding(map, SpecialClasses.GeothermalGeneratorBuilding,
-				entry.extraPower.geothermalCount * entry.count, 0);
+				entry.extraPower.geothermalCount * entry.count, 0, entry.geothermalDone);
 			this.addExtraBuilding(map, SpecialClasses.AlienPowerAugmenterBuilding,
-				entry.extraPower.augmenters.count * entry.count, entry.extraPower.sloopCost * entry.count);
+				entry.extraPower.augmenters.count * entry.count, entry.extraPower.sloopCost * entry.count, entry.augmentersDone);
 		});
 
 		return this.sortedByBuildingName(map).map(row => ({
@@ -508,14 +498,45 @@ export class PlanBreakdownService
 			icon: row.building.icon,
 			kind: 'machine' as const,
 			machines: row.machines,
+			builtMachines: row.builtMachines,
 			shards: row.shards,
 			sloops: row.sloops,
 			materials: this.buildingMaterials(row.building, row.machines),
+			remainingMaterials: this.buildingMaterials(row.building, row.machines - row.builtMachines),
 			nodeIds: row.nodeIds,
 		}));
 	}
 
-	private extraPowerRows(plan: Plan, generated: number, augmenterIds: string[]): {rows: PowerRow[]; production: PowerDraw}
+	private summaryCostRow(key: string, name: string, kind: 'subplan' | 'plan', rows: BuildCostRow[]): BuildCostRow
+	{
+		return {
+			key,
+			name,
+			icon: null,
+			kind,
+			...this.costTotals(rows),
+			nodeIds: [],
+		};
+	}
+
+	private costBreakdown(rows: BuildCostRow[]): BuildCostBreakdown
+	{
+		return {rows, ...this.costTotals(rows)};
+	}
+
+	private costTotals(rows: BuildCostRow[]): Pick<BuildCostRow, 'machines' | 'builtMachines' | 'shards' | 'sloops' | 'materials' | 'remainingMaterials'>
+	{
+		return {
+			machines: rows.reduce((sum, row) => sum + row.machines, 0),
+			builtMachines: rows.reduce((sum, row) => sum + row.builtMachines, 0),
+			shards: rows.reduce((sum, row) => sum + row.shards, 0),
+			sloops: rows.reduce((sum, row) => sum + row.sloops, 0),
+			materials: this.mergeMaterials(rows.flatMap(row => row.materials)),
+			remainingMaterials: this.mergeMaterials(rows.flatMap(row => row.remainingMaterials)),
+		};
+	}
+
+	private extraPowerRows(plan: Plan, generated: number, augmenterNodes: AugmenterNode[]): {rows: PowerRow[]; production: PowerDraw}
 	{
 		const extra = this.extraPower.resolve(plan.settings);
 		if (!extra.isActive) {
@@ -535,6 +556,7 @@ export class PlanBreakdownService
 				icon: building?.icon ?? null,
 				kind: 'generator',
 				machines: extra.geothermalCount,
+				builtMachines: 0,
 				power: geothermal.negate(),
 				nodeIds: [],
 				entries: this.geothermalEntries(extra),
@@ -549,8 +571,9 @@ export class PlanBreakdownService
 				icon: building?.icon ?? null,
 				kind: 'generator',
 				machines: extra.augmenters.count,
+				builtMachines: this.allDone(augmenterNodes) ? extra.augmenters.count : 0,
 				power: augmenters.negate(),
-				nodeIds: augmenterIds,
+				nodeIds: augmenterNodes.map(node => node.id),
 				entries: this.augmenterEntries(extra, geothermal.add(PowerDraw.fixed(generated))),
 			});
 		}
@@ -576,6 +599,7 @@ export class PlanBreakdownService
 					key: mode.key,
 					name: `${mode.label} (+${this.rateFormatter.percent(share)} each)`,
 					machines: mode.count,
+					builtMachines: 0,
 					detail: '',
 					power: power.negate(),
 					nodeIds: [],
@@ -599,6 +623,7 @@ export class PlanBreakdownService
 					key: purity.key,
 					name: purity.name,
 					machines: count,
+					builtMachines: 0,
 					detail: '',
 					power: only.geothermalPower.negate(),
 					nodeIds: [],
@@ -607,18 +632,20 @@ export class PlanBreakdownService
 	}
 
 	private addExtraBuilding(
-		map: Map<string, {building: Building; machines: number; shards: number; sloops: number}>,
+		map: Map<string, {building: Building; machines: number; builtMachines: number; shards: number; sloops: number; nodeIds: string[]}>,
 		className: string,
 		count: number,
 		sloops: number,
+		done: boolean,
 	): void
 	{
 		const building = this.versionManager.activeVersionData()?.searchBuildingByClassName(className);
 		if (!building || count <= 0) {
 			return;
 		}
-		const row = this.getOrCreate(map, className, () => ({building, machines: 0, shards: 0, sloops: 0}));
+		const row = this.getOrCreate(map, className, () => ({building, machines: 0, builtMachines: 0, shards: 0, sloops: 0, nodeIds: []}));
 		row.machines += count;
+		row.builtMachines += done ? count : 0;
 		row.sloops += sloops;
 	}
 
@@ -641,8 +668,11 @@ export class PlanBreakdownService
 		return [...merged.values()].sort((a, b) => a.item.name.localeCompare(b.item.name));
 	}
 
-	/** `ancestors` is the current path, not a visited set: a corrupt cycle terminates while the same subplan used twice as siblings still counts twice. */
-	private collectProductionNodes(planId: string, ancestors: ReadonlySet<string>): ProductionNodes
+	/**
+	 * `ancestors` is the current path, not a visited set: a corrupt cycle terminates while the same subplan used twice as siblings still counts twice.
+	 * `insideDone` marks everything collected as built - the subplan node holding it is done.
+	 */
+	private collectProductionNodes(planId: string, ancestors: ReadonlySet<string>, insideDone = false): ProductionNodes
 	{
 		const result: ProductionNodes = {recipes: [], generators: [], mines: [], extraPower: []};
 		if (ancestors.has(planId)) {
@@ -657,54 +687,79 @@ export class PlanBreakdownService
 		// Only this plan's own generators - a subplan brings its own entry.
 		let generated = 0;
 		const path = new Set([...ancestors, planId]);
+		const augmenters: AugmenterNode[] = [];
 		graph.nodes.forEach(node => {
+			const done = insideDone || node.done;
 			if (node instanceof RecipeNode) {
-				result.recipes.push({node, count: 1});
+				result.recipes.push({node, count: 1, done});
 			} else if (node instanceof GeneratorNode) {
 				generated += node.powerProduction();
-				result.generators.push({node, count: 1});
+				result.generators.push({node, count: 1, done});
 			} else if (node instanceof MineNode) {
-				result.mines.push({node, count: 1});
+				result.mines.push({node, count: 1, done});
 			} else if (node instanceof SubplanNode) {
-				const builds = Math.max(1, node.buildCount);
-				const nested = this.collectProductionNodes(node.subplanId, path);
-				result.recipes.push(...this.multiplied(nested.recipes, builds));
-				result.generators.push(...this.multiplied(nested.generators, builds));
-				result.mines.push(...this.multiplied(nested.mines, builds));
-				result.extraPower.push(...nested.extraPower.map(entry => ({...entry, count: entry.count * builds})));
+				this.appendProductionNodes(result, this.collectProductionNodes(node.subplanId, path, done), Math.max(1, node.buildCount));
+			} else if (node instanceof AugmenterNode) {
+				augmenters.push(node);
 			}
 		});
-		result.extraPower.unshift(...this.extraPowerEntries(plan, generated));
+		result.extraPower.unshift(...this.extraPowerEntries(plan, generated, insideDone, augmenters));
 		return result;
 	}
 
-	private extraPowerEntries(plan: Plan | null | undefined, generated: number): CountedExtraPower[]
+	private appendProductionNodes(target: ProductionNodes, nested: ProductionNodes, builds: number): void
+	{
+		target.recipes.push(...this.multiplied(nested.recipes, builds));
+		target.generators.push(...this.multiplied(nested.generators, builds));
+		target.mines.push(...this.multiplied(nested.mines, builds));
+		target.extraPower.push(...nested.extraPower.map(entry => ({...entry, count: entry.count * builds})));
+	}
+
+	/** Geothermal generators have no node, so only a done subplan around them marks them built. */
+	private extraPowerEntries(plan: Plan | null | undefined, generated: number, insideDone: boolean, augmenters: AugmenterNode[]): CountedExtraPower[]
 	{
 		const extraPower = this.extraPower.resolve(plan?.settings);
-		return extraPower.isActive ? [{extraPower, generated, count: 1}] : [];
+		return extraPower.isActive
+			? [{extraPower, generated, count: 1, geothermalDone: insideDone, augmentersDone: insideDone || this.allDone(augmenters)}]
+			: [];
+	}
+
+	private allDone(nodes: Node[]): boolean
+	{
+		return nodes.length > 0 && nodes.every(node => node.done);
 	}
 
 	private multiplied<T extends Node>(nodes: CountedNode<T>[], factor: number): CountedNode<T>[]
 	{
-		return factor === 1 ? nodes : nodes.map(entry => ({node: entry.node, count: entry.count * factor}));
+		return factor === 1 ? nodes : nodes.map(entry => ({...entry, count: entry.count * factor}));
 	}
 
-	private countMachines(nodes: ProductionNodes): number
+	private countMachines(nodes: ProductionNodes, onlyBuilt: boolean): number
 	{
-		return nodes.recipes.reduce((sum, entry) => sum + entry.node.amount * entry.count, 0)
-			+ nodes.generators.reduce((sum, entry) => sum + entry.node.wholeGenerators() * entry.count, 0)
-			+ nodes.extraPower.reduce((sum, entry) =>
-				sum + (entry.extraPower.geothermalCount + entry.extraPower.augmenters.count) * entry.count, 0);
+		return nodes.recipes.reduce((sum, entry) => sum + (!onlyBuilt || entry.done ? entry.node.amount * entry.count : 0), 0)
+			+ nodes.generators.reduce((sum, entry) => sum + (!onlyBuilt || entry.done ? entry.node.wholeGenerators() * entry.count : 0), 0)
+			+ nodes.extraPower.reduce((sum, entry) => sum + entry.count * (
+				(!onlyBuilt || entry.geothermalDone ? entry.extraPower.geothermalCount : 0)
+				+ (!onlyBuilt || entry.augmentersDone ? entry.extraPower.augmenters.count : 0)
+			), 0);
 	}
 
-	private groupSubplans(nodes: SubplanNode[]): {subplanId: string; name: string; count: number; nodeIds: string[]}[]
+	/** Each subplan node is collected on its own: copies of one subplan can differ in being done. Counts in `nodes` already include the builds. */
+	private groupSubplans(parentPlanId: string, nodes: SubplanNode[]): {subplanId: string; name: string; count: number; nodeIds: string[]; nodes: ProductionNodes}[]
 	{
-		const groups = new Map<string, {subplanId: string; name: string; count: number; nodeIds: string[]}>();
+		const groups = new Map<string, {subplanId: string; name: string; count: number; nodeIds: string[]; nodes: ProductionNodes}>();
 		nodes.forEach(node => {
-			const group = this.getOrCreate(groups, node.subplanId,
-				() => ({subplanId: node.subplanId, name: node.name, count: 0, nodeIds: []}));
-			group.count += Math.max(1, node.buildCount);
+			const group = this.getOrCreate(groups, node.subplanId, () => ({
+				subplanId: node.subplanId,
+				name: node.name,
+				count: 0,
+				nodeIds: [],
+				nodes: {recipes: [], generators: [], mines: [], extraPower: []},
+			}));
+			const builds = Math.max(1, node.buildCount);
+			group.count += builds;
 			group.nodeIds.push(node.id);
+			this.appendProductionNodes(group.nodes, this.collectProductionNodes(node.subplanId, new Set([parentPlanId]), node.done), builds);
 		});
 		return [...groups.values()].sort((a, b) => a.name.localeCompare(b.name));
 	}
@@ -757,10 +812,10 @@ export class PlanBreakdownService
 		return {key: node.type, name: node.getDisplayName()};
 	}
 
-	private toFlowRows(entries: Map<string, {name: string; amount: number; nodeIds: string[]}>): ItemFlowRow[]
+	private toFlowRows(entries: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>): ItemFlowRow[]
 	{
 		return [...entries.entries()]
-			.map(([key, entry]) => ({key, name: entry.name, amount: entry.amount, nodeIds: entry.nodeIds}))
+			.map(([key, entry]) => ({key, name: entry.name, amount: entry.amount, builtAmount: entry.builtAmount, nodeIds: entry.nodeIds}))
 			.sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
 	}
 
@@ -775,6 +830,7 @@ export class PlanBreakdownService
 			totalSources,
 			totalTargets,
 			net: totalSources - totalTargets,
+			builtAmount: [...sources, ...targets].reduce((sum, flow) => sum + flow.builtAmount, 0),
 			nodeIds: this.uniqueIds([...sources, ...targets].flatMap(flow => flow.nodeIds)),
 		};
 	}

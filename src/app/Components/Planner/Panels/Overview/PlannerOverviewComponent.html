@@ -305,6 +305,7 @@
 																			}
 																			{{ row.name }}
 																		</span>
+																		<built-mark [built]="row.builtMachines" [total]="row.machines"></built-mark>
 																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 																	</div>
 																</td>
@@ -327,7 +328,12 @@
 												} @else if (buildings().length > 0) {
 													<tfoot>
 														<tr class="fw-semibold">
-															<td>Total</td>
+															<td>
+																<span class="d-inline-flex align-items-center gap-1">
+																	Total
+																	<built-mark [built]="buildCost().builtMachines" [total]="buildCost().machines"></built-mark>
+																</span>
+															</td>
 															<td class="text-end">{{ rateFormatter.amount(buildCost().machines) }}</td>
 														</tr>
 													</tfoot>
@@ -435,6 +441,7 @@
 																				<span class="badge text-bg-secondary">alt</span>
 																			}
 																		</span>
+																		<built-mark [built]="row.builtMachines" [total]="row.machines"></built-mark>
 																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 																	</div>
 																</td>

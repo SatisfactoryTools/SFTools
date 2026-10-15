@@ -9,6 +9,8 @@ export interface PowerEntryRow
 
 	readonly machines: number;
 
+	readonly builtMachines: number;
+
 	readonly detail: string;
 
 	readonly power: PowerDraw;

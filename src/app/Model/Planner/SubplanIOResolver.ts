@@ -1,6 +1,6 @@
 import {Injectable} from '@angular/core';
-import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
+import {GraphIOResolver} from '@src/Model/Planner/GraphIOResolver';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {NodeIO} from '@src/Model/Planner/Solver/Response/NodeIO';
@@ -12,7 +12,7 @@ export class SubplanIOResolver
 
 	public constructor(
 		private readonly planManager: PlanManager,
-		private readonly versionManager: VersionManager,
+		private readonly graphIO: GraphIOResolver,
 	)
 	{
 	}
@@ -42,25 +42,7 @@ export class SubplanIOResolver
 
 	public resolveGraph(graph: Graph | null): {inputs: NodeIO[]; outputs: NodeIO[]}
 	{
-		const inputs = new Map<string, number>();
-		const outputs = new Map<string, number>();
-
-		(graph?.nodes ?? []).forEach(node => {
-			// Raw JSON nodes carry itemClassName, hydrated ones an item entity.
-			const raw = node as unknown as {type?: string; amount?: number; itemClassName?: string; item?: {className: string}};
-			const itemClassName = raw.item?.className ?? raw.itemClassName;
-			const amount = raw.amount ?? 0;
-			if (!itemClassName || amount <= 0) {
-				return;
-			}
-			if (raw.type === 'input') {
-				inputs.set(itemClassName, (inputs.get(itemClassName) ?? 0) + amount);
-			} else if (raw.type === 'product' || raw.type === 'byproduct') {
-				outputs.set(itemClassName, (outputs.get(itemClassName) ?? 0) + amount);
-			}
-		});
-
-		return {inputs: this.toNodeIO(inputs), outputs: this.toNodeIO(outputs)};
+		return this.graphIO.resolve(graph);
 	}
 
 	private rebuild(node: SubplanNode, buildCount: number): SubplanNode
@@ -87,17 +69,6 @@ export class SubplanIOResolver
 	private scaled(io: NodeIO[], factor: number): NodeIO[]
 	{
 		return factor === 1 ? io : io.map(entry => new NodeIO(entry.item, entry.maxAmount * factor));
-	}
-
-	private toNodeIO(amounts: Map<string, number>): NodeIO[]
-	{
-		const data = this.versionManager.activeVersionData();
-		if (!data) {
-			return [];
-		}
-		return [...amounts.entries()]
-			.sort(([a], [b]) => a.localeCompare(b))
-			.map(([className, amount]) => new NodeIO(data.getItemByClassName(className), amount));
 	}
 
 	private sameIO(a: NodeIO[], b: NodeIO[]): boolean

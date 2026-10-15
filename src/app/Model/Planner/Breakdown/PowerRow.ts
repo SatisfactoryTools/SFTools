@@ -14,6 +14,8 @@ export interface PowerRow
 
 	readonly machines: number;
 
+	readonly builtMachines: number;
+
 	readonly power: PowerDraw;
 
 	readonly entries: PowerEntryRow[];

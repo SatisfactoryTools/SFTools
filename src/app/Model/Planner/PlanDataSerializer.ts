@@ -13,6 +13,8 @@ export class PlanDataSerializer
 			graph: plan.graph,
 			metadata: plan.metadata,
 			iconClassName: plan.iconClassName,
+			autoName: plan.autoName,
+			autoIcon: plan.autoIcon,
 			order: plan.order,
 		});
 	}

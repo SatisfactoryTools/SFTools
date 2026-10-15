@@ -31,6 +31,7 @@
 								></fa-icon>
 								<game-icon [hash]="row.item.icon" [size]="20" [alt]="row.item.name"></game-icon>
 								<span>{{ row.item.name }}</span>
+								<built-mark [built]="row.builtAmount" [total]="row.totalSources + row.totalTargets" [share]="true"></built-mark>
 								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 							</div>
 						</td>
@@ -43,6 +44,7 @@
 								<td class="ps-4 stack-grow">
 									<div class="d-flex align-items-center gap-1">
 										<span class="flex-grow-1">{{ flow.name }}</span>
+										<built-mark [built]="flow.builtAmount" [total]="flow.amount" [share]="true"></built-mark>
 										<go-to-node [nodeIds]="flow.nodeIds"></go-to-node>
 									</div>
 								</td>
@@ -55,6 +57,7 @@
 								<td class="ps-4 stack-grow">
 									<div class="d-flex align-items-center gap-1">
 										<span class="flex-grow-1">{{ flow.name }}</span>
+										<built-mark [built]="flow.builtAmount" [total]="flow.amount" [share]="true"></built-mark>
 										<go-to-node [nodeIds]="flow.nodeIds"></go-to-node>
 									</div>
 								</td>
