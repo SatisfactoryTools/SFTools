@@ -1,4 +1,4 @@
-<settings-section helpTopic="settings.account" title="Account" [icon]="sectionIcon" description="Where your data is saved, and sign-in reminders.">
+<settings-section [resetCategories]="['account']" helpTopic="settings.account" title="Account" [icon]="sectionIcon" description="Where your data is saved, and sign-in reminders.">
 		<div class="subsection-title">Status</div>
 		@if (auth.isAuthenticated()) {
 			<p class="mb-2">
@@ -27,7 +27,7 @@
 				[ngModel]="signInPrompts"
 				(ngModelChange)="setSignInPrompts($event)"
 			/>
-			<label class="form-check-label" for="sign-in-prompts">Remind me to sign in</label>
+			<label class="form-check-label" for="sign-in-prompts">Remind me to sign in</label><setting-reset-button category="account" field="signInPrompts"/>
 			<div class="form-text">
 				While you are signed out, the planner asks you once per visit if you want to sign in, and the home
 				page shows a sign-in box. Turn this off to work without an account in peace. The sign-in link

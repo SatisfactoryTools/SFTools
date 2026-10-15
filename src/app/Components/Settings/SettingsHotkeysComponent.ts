@@ -217,11 +217,6 @@ export class SettingsHotkeysComponent
 		this.settings.updateHotkeys(overrides);
 	}
 
-	public resetAll(): void
-	{
-		this.settings.updateHotkeys({});
-	}
-
 	private store(action: HotkeyAction, binding: HotkeyBinding | null): void
 	{
 		this.settings.updateHotkeys({...this.settings.hotkeys(), [action]: binding});

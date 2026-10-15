@@ -1,3 +1,4 @@
+import {CalculatorTabDefinitions} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinitions';
 import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
 import {Settings} from '@src/Model/Settings/Settings';
 
@@ -15,8 +16,10 @@ export class SettingsDefaults
 		},
 		graph: {
 			sloopGlow: true,
+			simplifyWhenZoomedOut: true,
 			showEdgeItemIcons: true,
-			showEdgeLabelBox: true,
+			// Renamed from showEdgeLabelBox: settings are saved whole, so the old key would keep the previous default for everyone.
+			showEdgeLabelBoxes: false,
 			showNodeItemIcons: true,
 			showNodeBuildingIcons: true,
 			showSubplanItemIcons: true,
@@ -36,11 +39,15 @@ export class SettingsDefaults
 				byproduct: '#9c27b0',
 				subplan: '#e07be0',
 			},
+			// High enough that nodes stand out from the dark canvas, low enough to keep white text above 6:1 for any accent.
+			nodeFillStrength: 0.38,
 		},
 		planner: {
 			unmakeableItems: 'show',
 			tabBadges: true,
 			tabLabels: 'auto',
+			groupTabs: true,
+			moreTabs: CalculatorTabDefinitions.DEFAULT_MORE,
 			helpButtons: true,
 		},
 		planDefaults: {

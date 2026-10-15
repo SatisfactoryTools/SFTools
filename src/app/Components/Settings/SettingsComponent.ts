@@ -2,7 +2,7 @@ import {Component, ChangeDetectionStrategy, OnDestroy, signal, Signal, WritableS
 import {ActivatedRoute, Router} from '@angular/router';
 import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faHashtag, faDesktop, faDiagramProject, faFileCirclePlus, faKeyboard, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
+import {faHashtag, faDesktop, faDiagramProject, faFileCirclePlus, faKeyboard, faRotateLeft, faTableColumns, faUser} from '@fortawesome/free-solid-svg-icons';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {SettingsAccountComponent} from '@src/Components/Settings/SettingsAccountComponent';
@@ -15,6 +15,7 @@ import {SettingsPlannerComponent} from '@src/Components/Settings/SettingsPlanner
 import {SettingsSection} from '@src/Components/Settings/SettingsSection';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
+import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
 @Component({
 	templateUrl: './SettingsComponent.html',
@@ -77,6 +78,8 @@ export class SettingsComponent implements OnDestroy
 
 	public readonly sections: SettingsSection[];
 
+	public readonly faRotateLeft = faRotateLeft;
+
 	private readonly activeSectionSignal: WritableSignal<string>;
 	public readonly activeSection: Signal<string>;
 
@@ -85,6 +88,7 @@ export class SettingsComponent implements OnDestroy
 	public constructor(
 		protected readonly auth: AuthService,
 		protected readonly platform: AppPlatform,
+		protected readonly settings: SettingsManager,
 		private readonly route: ActivatedRoute,
 		private readonly router: Router,
 	)
@@ -116,6 +120,15 @@ export class SettingsComponent implements OnDestroy
 	public ngOnDestroy(): void
 	{
 		this.subscription.unsubscribe();
+	}
+
+	public resetAll(): void
+	{
+		if (confirm('Put every setting back to its default?\n\n'
+			+ 'This covers numbers, graph, planner, plan defaults, account and hotkeys. Plans that never changed '
+			+ 'their own settings follow the plan defaults, so they change too. Panel positions and sizes stay as they are.')) {
+			this.settings.reset();
+		}
 	}
 
 	public selectSection(id: string): void

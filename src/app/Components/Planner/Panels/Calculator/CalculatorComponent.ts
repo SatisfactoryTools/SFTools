@@ -5,7 +5,7 @@ import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {CalculatorTabsMode} from '@src/Components/Planner/Panels/Calculator/CalculatorTabsMode';
-import {faBolt, faCopy, faDownload, faFileImport, faGaugeHigh, faIndustry, faListCheck, faLock, faMountain, faPlay, faRecycle, faRightFromBracket, faRightToBracket, faRotateLeft, faScroll, faShareNodes, faSitemap, faSliders, faWandMagicSparkles, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faCopy, faDownload, faEllipsis, faFileImport, faLock, faPlay, faRotateLeft, faShareNodes, faSitemap, faSliders, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {CalculationModeOption} from '@src/Components/Planner/Panels/Calculator/CalculationModeOption';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 import {HelpTopicId} from '@src/Model/Help/HelpTopicId';
@@ -15,6 +15,7 @@ import {CalculatorTabStateService} from '@src/Components/Planner/Panels/Calculat
 import {FolderRecalculationService} from '@src/Components/Planner/FolderRecalculationService';
 import {FolderRecalculationProgress} from '@src/Components/Planner/FolderRecalculationProgress';
 import {CalculatorTabDefinition} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinition';
+import {CalculatorTabDefinitions} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinitions';
 import {LoadFromSaveDialogComponent} from '@src/Components/Planner/Panels/Calculator/LoadFromSaveDialogComponent';
 import {CalculatorByproductsTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Byproducts/CalculatorByproductsTabComponent';
 import {CalculatorOptimisationTabComponent} from '@src/Components/Planner/Panels/Calculator/Tabs/Optimisation/CalculatorOptimisationTabComponent';
@@ -189,24 +190,19 @@ export class CalculatorComponent implements OnDestroy
 	public readonly faSitemap = faSitemap;
 	public readonly faShareNodes = faShareNodes;
 	public readonly faXmark = faXmark;
+	public readonly faEllipsis = faEllipsis;
 
 	public readonly activeTab: Signal<CalculatorTab>;
 
 	public readonly badges: Signal<ReadonlyMap<CalculatorTab, string | null>>;
 
-	public readonly tabs: CalculatorTabDefinition[] = [
-		{id: 'request', label: 'Request', icon: faListCheck},
-		{id: 'resources', label: 'Resources', icon: faMountain},
-		{id: 'recipes', label: 'Recipes', icon: faScroll},
-		{id: 'machines', label: 'Machines', icon: faIndustry},
-		{id: 'input', label: 'Input', icon: faRightToBracket},
-		{id: 'byproducts', label: 'Byproducts', icon: faRightFromBracket},
-		{id: 'power', label: 'Power', icon: faBolt},
-		{id: 'sink', label: 'Sink', icon: faRecycle},
-		{id: 'sloops', label: 'Sloops', icon: faWandMagicSparkles},
-		{id: 'overclocking', label: 'Overclocking', icon: faGaugeHigh},
-		{id: 'optimisation', label: 'Optimisation', icon: faSliders},
-	];
+	public readonly tabs: readonly CalculatorTabDefinition[] = CalculatorTabDefinitions.ALL;
+
+	public readonly mainTabs: Signal<readonly CalculatorTabDefinition[]>;
+
+	public readonly moreTabs: Signal<readonly CalculatorTabDefinition[]>;
+
+	public readonly moreTabActive: Signal<boolean>;
 
 	public readonly modeOptions: CalculationModeOption[] = [
 		{mode: 'automatic', label: 'Automatic', description: 'Recalculates every time you change something'},
@@ -271,8 +267,15 @@ export class CalculatorComponent implements OnDestroy
 	{
 		this.activeTab = tabState.activeTab;
 		// Reading the preference here re-runs updateTabsMode on a change even when nothing resized.
+		this.moreTabs = computed(() => {
+			const planner = this.settingsManager.planner();
+			return planner.groupTabs ? this.tabs.filter(tab => planner.moreTabs.includes(tab.id)) : [];
+		});
+		this.mainTabs = computed(() => this.tabs.filter(tab => !this.moreTabs().includes(tab)));
+		this.moreTabActive = computed(() => this.moreTabs().some(tab => tab.id === this.activeTab()));
 		effect(() => {
 			this.settingsManager.planner().tabLabels;
+			this.moreTabs();
 			this.updateTabsMode();
 		});
 		this.badges = computed(() => {
@@ -579,6 +582,14 @@ export class CalculatorComponent implements OnDestroy
 			parts.push(this.fixedTabTooltip(tab.id));
 		}
 		return parts.join(' - ');
+	}
+
+	public moreTooltip(): string
+	{
+		if (this.moreTabActive()) {
+			return this.tabTooltip(this.activeTabDefinition, false);
+		}
+		return 'More tabs';
 	}
 
 	public fixedTabTooltip(tab: CalculatorTab): string

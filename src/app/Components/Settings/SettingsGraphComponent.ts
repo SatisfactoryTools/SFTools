@@ -1,10 +1,16 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
+import {DecimalPipe} from '@angular/common';
 import {FormsModule} from '@angular/forms';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {MachineDisplayMode} from '@src/Model/Settings/MachineDisplayMode';
+import {NodeColorPreset} from '@src/Model/Settings/NodeColorPreset';
+import {NodeColorPresets} from '@src/Model/Settings/NodeColorPresets';
 import {NodeColors} from '@src/Model/Settings/NodeColors';
+import {NodeFillResolver} from '@src/Model/Settings/NodeFillResolver';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {SettingResetButtonComponent} from '@src/Components/Settings/SettingResetButtonComponent';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
@@ -13,7 +19,7 @@ import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 	selector: 'settings-graph',
 	templateUrl: './SettingsGraphComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, SettingsSectionComponent, InfoNoteComponent],
+	imports: [AppTooltipDirective, DecimalPipe, FormsModule, SettingResetButtonComponent, SettingsSectionComponent, InfoNoteComponent],
 	styles: [`
 		.node-preview {
 			display: inline-flex;
@@ -27,6 +33,44 @@ import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 			color: #dde4ef;
 		}
 		.node-preview .group-line { color: #aab8cc; }
+		.node-preview.dark-text { color: #0b1520; }
+		.node-preview.dark-text .group-line { color: #22303f; }
+		.preset-list {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+			gap: 0.5rem;
+		}
+		.preset {
+			display: flex;
+			flex-direction: column;
+			gap: 0.4rem;
+			padding: 0.5rem 0.6rem;
+			text-align: left;
+			color: #dde4ef;
+			background: #20374c;
+			border: 1px solid #4e5d6c;
+		}
+		/* ngx-bootstrap's hover trigger listens to mouseover/mouseout, which fire on every swatch edge and make the tooltip flicker. */
+		.preset > * {
+			pointer-events: none;
+		}
+		.preset:hover {
+			border-color: #4c9be8;
+		}
+		.preset.active {
+			border-color: #4c9be8;
+			box-shadow: inset 0 0 0 1px #4c9be8;
+		}
+		.preset-swatches {
+			display: flex;
+			gap: 3px;
+		}
+		.preset-swatch {
+			width: 14px;
+			height: 14px;
+			border-radius: 3px;
+			border: 1.5px solid;
+		}
 	`],
 })
 export class SettingsGraphComponent
@@ -148,6 +192,47 @@ export class SettingsGraphComponent
 	public setToggle(key: keyof GraphSettings, value: boolean): void
 	{
 		this.settings.updateGraph({[key]: value});
+	}
+
+	public readonly presets: readonly NodeColorPreset[] = NodeColorPresets.ALL;
+
+	public swatchFill(preset: NodeColorPreset, key: keyof NodeColors): string
+	{
+		return NodeFillResolver.fill(preset.colors[key], preset.fillStrength);
+	}
+
+	public isActivePreset(preset: NodeColorPreset): boolean
+	{
+		return this.nodeTypes.every(type => this.graph.nodeColors[type.key].toLowerCase() === preset.colors[type.key].toLowerCase())
+			&& this.graph.nodeFillStrength === preset.fillStrength;
+	}
+
+	public applyPreset(preset: NodeColorPreset): void
+	{
+		// Only colours of the user's own would be lost; switching between presets needs no question.
+		const ownColours = !this.presets.some(candidate => this.isActivePreset(candidate));
+		if (ownColours && !confirm(`Replace your node colours with the "${preset.label}" colours?`)) {
+			return;
+		}
+		this.settings.updateGraph({nodeColors: {...preset.colors}, nodeFillStrength: preset.fillStrength});
+	}
+
+	public setNodeFillStrength(value: number | string): void
+	{
+		const strength = Number(value);
+		if (!Number.isNaN(strength)) {
+			this.settings.updateGraph({nodeFillStrength: Math.min(1, Math.max(0.1, strength))});
+		}
+	}
+
+	public get previewFill(): string
+	{
+		return NodeFillResolver.fill(this.graph.nodeColors.recipe, this.graph.nodeFillStrength);
+	}
+
+	public get previewDarkText(): boolean
+	{
+		return NodeFillResolver.needsDarkText(this.previewFill);
 	}
 
 	public setNodeColor(key: keyof NodeColors, color: string): void

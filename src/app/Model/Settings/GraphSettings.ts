@@ -6,9 +6,11 @@ export interface GraphSettings
 
 	readonly sloopGlow: boolean;
 
+	readonly simplifyWhenZoomedOut: boolean;
+
 	readonly showEdgeItemIcons: boolean;
 
-	readonly showEdgeLabelBox: boolean;
+	readonly showEdgeLabelBoxes: boolean;
 
 	readonly showNodeItemIcons: boolean;
 
@@ -25,5 +27,8 @@ export interface GraphSettings
 	readonly edgeScale: number;
 
 	readonly nodeColors: NodeColors;
+
+	/** Node fill = accent colour × this (0-1). */
+	readonly nodeFillStrength: number;
 
 }

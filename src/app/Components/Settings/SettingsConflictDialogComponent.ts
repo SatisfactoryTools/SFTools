@@ -4,6 +4,8 @@ import {faCloud, faCodeCompare, faDesktop} from '@fortawesome/free-solid-svg-ico
 import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {SettingsDiffRow} from '@src/Components/Settings/SettingsDiffRow';
+import {CalculatorTab} from '@src/Components/Planner/Panels/Calculator/CalculatorTab';
+import {CalculatorTabDefinitions} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinitions';
 import {SettingsFieldLabel} from '@src/Components/Settings/SettingsFieldLabel';
 import {AccountSettings} from '@src/Model/Settings/AccountSettings';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
@@ -34,8 +36,9 @@ const NUMBER_LABELS: Record<keyof NumberSettings, SettingsFieldLabel> = {
 
 const GRAPH_LABELS: Record<Exclude<keyof GraphSettings, 'nodeColors'>, SettingsFieldLabel> = {
 	sloopGlow: {label: 'Sloop glow', format: YES_NO},
+	simplifyWhenZoomedOut: {label: 'Simplify the graph when zoomed out', format: YES_NO},
 	showEdgeItemIcons: {label: 'Item icons on connections', format: YES_NO},
-	showEdgeLabelBox: {label: 'Box behind connection labels', format: YES_NO},
+	showEdgeLabelBoxes: {label: 'Box behind connection labels', format: YES_NO},
 	showNodeItemIcons: {label: 'Item icons on nodes', format: YES_NO},
 	showNodeBuildingIcons: {label: 'Building icons on nodes', format: YES_NO},
 	showSubplanItemIcons: {label: 'Input/output icons on subplans', format: YES_NO},
@@ -51,6 +54,7 @@ const GRAPH_LABELS: Record<Exclude<keyof GraphSettings, 'nodeColors'>, SettingsF
 	},
 	nodeScale: {label: 'Node size', format: PERCENT},
 	edgeScale: {label: 'Connection label size', format: PERCENT},
+	nodeFillStrength: {label: 'Node fill strength', format: PERCENT},
 };
 
 const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
@@ -62,6 +66,11 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 	tabLabels: {
 		label: 'Production request tab labels',
 		format: CHOICE({auto: 'Fit to width', icons: 'Icons only', labels: 'Always labels'}),
+	},
+	groupTabs: {label: 'Less-used production request tabs under More', format: YES_NO},
+	moreTabs: {
+		label: 'Tabs listed under More',
+		format: value => (value as CalculatorTab[]).map(tab => CalculatorTabDefinitions.labelOf(tab)).join(', ') || 'None',
 	},
 	helpButtons: {label: 'Help buttons next to settings and tools', format: YES_NO},
 };

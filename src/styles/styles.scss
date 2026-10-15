@@ -356,3 +356,14 @@ circle.pg-port-adsorbed {
 		background-color: rgba(235, 235, 235, 0.45);
 	}
 }
+
+// Zoomed-out view, toggled on the graph container by zoom level. The swapped-in elements carry
+// display="none" so image exports, which do not copy these styles, keep the full detail.
+.pg-zoomed-out-nodes .x6-node .pn-detail,
+.pg-zoomed-out-edges .x6-edge .pg-edge-detail {
+	display: none;
+}
+.pg-zoomed-out-nodes .x6-node text.pn-zoomed-out-name,
+.pg-zoomed-out-edges .x6-edge image.pg-edge-zoomed-out-icon {
+	display: inline;
+}

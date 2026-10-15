@@ -1,7 +1,7 @@
 <div class="card">
 	<div class="card-header d-flex align-items-center gap-2 py-2">
 		<span class="section-icon"><fa-icon [icon]="icon"></fa-icon></span>
-		<div>
+		<div class="flex-grow-1">
 			<div class="fw-semibold d-flex align-items-center gap-2">
 				{{ title }}
 				@if (helpTopic !== '') {
@@ -12,6 +12,15 @@
 				<div class="small text-secondary">{{ description }}</div>
 			}
 		</div>
+		@if (resetCategories.length > 0 && !isDefault) {
+			<button
+				type="button"
+				class="btn btn-sm btn-outline-secondary section-reset align-self-start"
+				tooltip="Put every setting on this page back to its default"
+				container="body" placement="bottom"
+				(click)="reset()"
+			><fa-icon [icon]="faRotateLeft"></fa-icon> Reset</button>
+		}
 	</div>
 	<div class="card-body">
 		<ng-content></ng-content>

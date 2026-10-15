@@ -457,24 +457,22 @@
 						<fa-icon [icon]="faLock" class="small text-secondary"></fa-icon>
 					}
 				</button>
+				<!-- Narrow panels list every tab here; the less-used ones follow a divider instead of a nested More. -->
 				<div *dropdownMenu class="dropdown-menu" style="min-width: 240px;">
-					@for (tab of tabs; track tab.id) {
-						<button class="dropdown-item d-flex align-items-center gap-2" [class.active]="activeTab() === tab.id" type="button" (click)="setTab(tab.id)">
-							<fa-icon [icon]="tab.icon" [fixedWidth]="true"></fa-icon>
-							<span class="flex-grow-1">{{ tab.label }}</span>
-							@if (badges().get(tab.id); as badge) {
-								<span class="badge rounded-pill tab-badge">{{ badge }}</span>
-							}
-							@if (locks && isFixedTab(tab.id)) {
-								<fa-icon [icon]="faLock" class="small opacity-75"></fa-icon>
-							}
-						</button>
+					@for (tab of mainTabs(); track tab.id) {
+						<ng-container *ngTemplateOutlet="tabMenuItem; context: {tab: tab, locks: locks}"></ng-container>
+					}
+					@if (moreTabs().length > 0) {
+						<div class="dropdown-divider"></div>
+						@for (tab of moreTabs(); track tab.id) {
+							<ng-container *ngTemplateOutlet="tabMenuItem; context: {tab: tab, locks: locks}"></ng-container>
+						}
 					}
 				</div>
 			</div>
 		} @else {
 			<ul class="nav nav-tabs calc-tabs" [class.icons]="tabsMode() === 'icons'">
-				@for (tab of tabs; track tab.id) {
+				@for (tab of mainTabs(); track tab.id) {
 					<li class="nav-item">
 						<button
 							class="nav-link"
@@ -488,25 +486,79 @@
 						</button>
 					</li>
 				}
+				@if (moreTabs().length > 0) {
+					<li class="nav-item" dropdown container="body" placement="bottom right">
+						<button
+							class="nav-link dropdown-toggle"
+							type="button"
+							[class.active]="moreTabActive()"
+							[tooltip]="moreTooltip()"
+							container="body" placement="bottom"
+							dropdownToggle
+						>
+							<ng-container *ngTemplateOutlet="moreContent; context: {locks: locks, label: tabsMode() === 'full'}"></ng-container>
+						</button>
+						<div *dropdownMenu class="dropdown-menu dropdown-menu-end" style="min-width: 220px;">
+							@for (tab of moreTabs(); track tab.id) {
+								<ng-container *ngTemplateOutlet="tabMenuItem; context: {tab: tab, locks: locks}"></ng-container>
+							}
+						</div>
+					</li>
+				}
 			</ul>
 		}
 
 		<!-- Invisible natural-width copies (all labels / active label only) that decide the mode. -->
 		<ul class="nav nav-tabs calc-tabs tab-measure" #measureFull aria-hidden="true">
-			@for (tab of tabs; track tab.id) {
+			@for (tab of mainTabs(); track tab.id) {
 				<li class="nav-item"><span class="nav-link" [class.active]="activeTab() === tab.id">
 					<ng-container *ngTemplateOutlet="tabContent; context: {tab: tab, locks: locks, label: true}"></ng-container>
 				</span></li>
 			}
+			@if (moreTabs().length > 0) {
+				<li class="nav-item"><span class="nav-link dropdown-toggle" [class.active]="moreTabActive()">
+					<ng-container *ngTemplateOutlet="moreContent; context: {locks: locks, label: true}"></ng-container>
+				</span></li>
+			}
 		</ul>
 		<ul class="nav nav-tabs calc-tabs icons tab-measure" #measureIcons aria-hidden="true">
-			@for (tab of tabs; track tab.id) {
+			@for (tab of mainTabs(); track tab.id) {
 				<li class="nav-item"><span class="nav-link" [class.active]="activeTab() === tab.id">
 					<ng-container *ngTemplateOutlet="tabContent; context: {tab: tab, locks: locks, label: activeTab() === tab.id}"></ng-container>
 				</span></li>
 			}
+			@if (moreTabs().length > 0) {
+				<li class="nav-item"><span class="nav-link dropdown-toggle" [class.active]="moreTabActive()">
+					<ng-container *ngTemplateOutlet="moreContent; context: {locks: locks, label: false}"></ng-container>
+				</span></li>
+			}
 		</ul>
 	</div>
+</ng-template>
+
+<ng-template #tabMenuItem let-tab="tab" let-locks="locks">
+	<button class="dropdown-item d-flex align-items-center gap-2" [class.active]="activeTab() === tab.id" type="button" (click)="setTab(tab.id)">
+		<fa-icon [icon]="tab.icon" [fixedWidth]="true"></fa-icon>
+		<span class="flex-grow-1">{{ tab.label }}</span>
+		@if (badges().get(tab.id); as badge) {
+			<span class="badge rounded-pill tab-badge">{{ badge }}</span>
+		}
+		@if (locks && isFixedTab(tab.id)) {
+			<fa-icon [icon]="faLock" class="small opacity-75"></fa-icon>
+		}
+	</button>
+</ng-template>
+
+<!-- While one of its tabs is open, More turns into that tab, so the strip never shifts to show where the user is. -->
+<ng-template #moreContent let-locks="locks" let-label="label">
+	@if (moreTabActive()) {
+		<ng-container *ngTemplateOutlet="tabContent; context: {tab: activeTabDefinition, locks: locks, label: true}"></ng-container>
+	} @else {
+		<fa-icon [icon]="faEllipsis"></fa-icon>
+		@if (label) {
+			<span>More</span>
+		}
+	}
 </ng-template>
 
 <ng-template #tabContent let-tab="tab" let-locks="locks" let-label="label">

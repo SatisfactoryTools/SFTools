@@ -5,6 +5,7 @@ import {DecimalSeparator} from '@src/Model/Settings/DecimalSeparator';
 import {PowerDisplay} from '@src/Model/Settings/PowerDisplay';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {SettingResetButtonComponent} from '@src/Components/Settings/SettingResetButtonComponent';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {faHashtag} from '@fortawesome/free-solid-svg-icons';
 
@@ -12,7 +13,7 @@ import {faHashtag} from '@fortawesome/free-solid-svg-icons';
 	selector: 'settings-numbers',
 	templateUrl: './SettingsNumbersComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, SettingsSectionComponent],
+	imports: [SettingResetButtonComponent, FormsModule, SettingsSectionComponent],
 })
 export class SettingsNumbersComponent
 {

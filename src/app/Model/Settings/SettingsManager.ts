@@ -20,6 +20,8 @@ import {NumberSettings} from '@src/Model/Settings/NumberSettings';
 import {PlanDefaultsSettings} from '@src/Model/Settings/PlanDefaultsSettings';
 import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
 import {Settings} from '@src/Model/Settings/Settings';
+import {SettingsCategories} from '@src/Model/Settings/SettingsCategories';
+import {SettingsCategory} from '@src/Model/Settings/SettingsCategory';
 import {SettingsApiDataBackend} from '@src/Model/Settings/SettingsApiDataBackend';
 import {SettingsConflictService} from '@src/Model/Settings/SettingsConflictService';
 import {SettingsDefaults} from '@src/Model/Settings/SettingsDefaults';
@@ -115,6 +117,55 @@ export class SettingsManager extends SyncableService<Settings>
 	public updatePanels(panels: PanelLayoutState | null): void
 	{
 		this.persist({...this.settings(), panels});
+	}
+
+	public isDefault(categories: readonly SettingsCategory[] = SettingsCategories.ALL): boolean
+	{
+		const settings = this.settings();
+		const defaults = SettingsDefaults.normalize(null);
+		return categories.every(category => this.sameAsDefault(settings[category], defaults[category]));
+	}
+
+	public reset(categories: readonly SettingsCategory[] = SettingsCategories.ALL): void
+	{
+		const defaults = SettingsDefaults.normalize(null);
+		const settings: Record<string, unknown> = {...this.settings()};
+		categories.forEach(category => settings[category] = defaults[category]);
+		this.persist(settings as unknown as Settings);
+	}
+
+	/** `key` reaches one entry of a record field, such as a single node colour. */
+	public isFieldDefault(category: SettingsCategory, field: string, key: string | null = null): boolean
+	{
+		return JSON.stringify(this.fieldValue(this.settings(), category, field, key))
+			=== JSON.stringify(this.fieldValue(SettingsDefaults.normalize(null), category, field, key));
+	}
+
+	public resetField(category: SettingsCategory, field: string, key: string | null = null): void
+	{
+		const settings = this.settings();
+		const current = settings[category] as Record<string, unknown>;
+		const defaultValue = this.fieldValue(SettingsDefaults.normalize(null), category, field, key);
+		const value = key === null ? defaultValue : {...(current[field] as Record<string, unknown>), [key]: defaultValue};
+		this.persist({...settings, [category]: {...current, [field]: value}});
+	}
+
+	private fieldValue(settings: Settings, category: SettingsCategory, field: string, key: string | null): unknown
+	{
+		const value = (settings[category] as Record<string, unknown>)[field];
+		return key === null ? value : (value as Record<string, unknown> | undefined)?.[key];
+	}
+
+	/** Field by field: stored settings can still carry renamed or removed keys, which must not count as a change. */
+	private sameAsDefault(value: object, defaults: object): boolean
+	{
+		const keys = Object.keys(defaults);
+		if (keys.length === 0) {
+			return Object.keys(value).length === 0;
+		}
+		const current = value as Record<string, unknown>;
+		const expected = defaults as Record<string, unknown>;
+		return keys.every(key => JSON.stringify(current[key]) === JSON.stringify(expected[key]));
 	}
 
 }

@@ -1,4 +1,4 @@
-<settings-section helpTopic="settings.hotkeys" title="Hotkeys" [icon]="sectionIcon" description="The keys that run each action, and what you can change them to.">
+<settings-section [resetCategories]="['hotkeys']" helpTopic="settings.hotkeys" title="Hotkeys" [icon]="sectionIcon" description="The keys that run each action, and what you can change them to.">
 	<info-note>Click a field and press the keys you want. Keys do nothing while you are typing in a text box.</info-note>
 
 	<div class="hotkey-search">
@@ -80,10 +80,7 @@
 		}
 	}
 
-	<div class="mt-3 d-flex align-items-center gap-2">
-		<button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="changedCount() === 0" (click)="resetAll()">
-			Reset every key
-		</button>
+	<div class="mt-3">
 		<span class="small text-secondary">
 			@if (changedCount() === 0) {
 				Every action is on the key it came with.

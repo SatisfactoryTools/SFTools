@@ -36,6 +36,7 @@ import {GraphWarningEntry} from '@src/Model/Planner/Graph/GraphWarningEntry';
 import {GraphReconciler} from '@src/Model/Planner/Graph/GraphReconciler';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
+import {NodeFillResolver} from '@src/Model/Settings/NodeFillResolver';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
@@ -52,18 +53,22 @@ import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
+import {ZoomedOutNameLayout} from '@src/Components/Planner/ZoomedOutNameLayout';
 
 const NODE_WIDTH = GraphMetrics.NODE_WIDTH;
 const NODE_HEIGHT = GraphMetrics.NODE_HEIGHT;
 
-const LABEL_CHAR_WIDTH = 6.8;
+const LABEL_CHAR_WIDTH = 7.4;
 const LABEL_NAME_CHAR_WIDTH = 7.9;
 const LABEL_PADDING_X = 20;
 const LABEL_HEIGHT = 46;
-const LABEL_FONT_SIZE = 12;
+const LABEL_FONT_SIZE = 13;
 const LABEL_NAME_FONT_SIZE = 14;
 const LABEL_NAME_Y = -9;
 const LABEL_RATE_Y = 11;
+// Each connection label gets its own layout column as wide as its widest label, so long names wrap to keep columns narrow.
+const LABEL_NAME_WRAP_WIDTH = 102;
+const LABEL_NAME_LINE_HEIGHT = 17;
 
 const EDGE_ICON_SIZE = 24;
 const EDGE_ICON_GAP = 4;
@@ -93,33 +98,50 @@ const NODE_STROKE_WIDTH = 1.5;
 // Dark fallbacks: x6's `rect` defaults (white body, black text) show whenever a per-node attr fails to apply.
 const NODE_FALLBACK_FILL = '#141c28';
 const NODE_FALLBACK_STROKE = '#5c718a';
-const NODE_FALLBACK_TEXT = '#dde4ef';
-const NODE_FONT_SIZE = 12;
+const NODE_FALLBACK_TEXT = '#f4f7fb';
+const NODE_NAME_TEXT = '#ffffff';
+const NODE_DETAIL_TEXT = '#eef2f8';
+const NODE_STATS_TEXT = '#d6dfea';
+// Swapped in on fills too light for white text, such as solid yellow.
+const NODE_DARK_NAME_TEXT = '#0b1520';
+const NODE_DARK_DETAIL_TEXT = '#142130';
+const NODE_DARK_STATS_TEXT = '#22303f';
+const NODE_FONT_SIZE = 13;
 const NODE_NAME_FONT_SIZE = 14;
 const NODE_NAME_CHAR_WIDTH = 8.75;
 const SUBPLAN_NAME_FONT_SIZE = 18;
 const SUBPLAN_NAME_CHAR_WIDTH = 9.8;
 const SUBPLAN_STATS_CHAR_WIDTH = 7.4;
 const SUBPLAN_MAX_WIDTH = 520;
+// Below this on-screen scale the 13px stats are under 5px; the CSS classes swap in the zoomed-out view.
+const ZOOMED_OUT_SCALE = 0.37;
+const ZOOMED_OUT_NODES_CLASS = 'pg-zoomed-out-nodes';
+const ZOOMED_OUT_EDGES_CLASS = 'pg-zoomed-out-edges';
+const ZOOMED_OUT_NAME_MAX_FONT = 24;
+const ZOOMED_OUT_NAME_PAD_Y = 8;
+const ZOOMED_OUT_NAME_PAD_RIGHT = 26;
+const ZOOMED_OUT_EDGE_ICON_PAD = 4;
+const EDGE_DETAIL_CLASS = 'pg-edge-detail';
+const EDGE_ZOOMED_OUT_ICON_CLASS = 'pg-edge-zoomed-out-icon';
 const WARNING_ICON_SIZE = 14;
 
 const RECIPE_NAME_Y = 18;
 const RECIPE_NAME_FONT_SIZE = 16;
 const RECIPE_MACHINES_Y = 38;
 const RECIPE_STATS_Y = 50;
-const RECIPE_STATS_LINE_HEIGHT = 16;
+const RECIPE_STATS_LINE_HEIGHT = 17;
 const RECIPE_BOTTOM_PADDING = 10;
 const RECIPE_MAX_WIDTH = 360;
 const RECIPE_NAME_CHAR_WIDTH = 9.8;
-const RECIPE_BOLD_CHAR_WIDTH = 7.5;
-const RECIPE_STATS_CHAR_WIDTH = 6.8;
+const RECIPE_BOLD_CHAR_WIDTH = 8.1;
+const RECIPE_STATS_CHAR_WIDTH = 7.4;
 const RECIPE_TEXT_PADDING_X = 30;
 const STAT_SLOOP_SIZE = 12;
 // Negative: the somersloop icon has ~25% transparent padding per side.
 const STAT_SLOOP_GAP = -1;
 const STAT_SLOOP_MAX_LINES = 8;
 // Measured from the rendered text box.
-const STAT_SLOOP_CENTER_OFFSET = 5;
+const STAT_SLOOP_CENTER_OFFSET = 5.5;
 const CORNER_PREVIEW_SNAP = 10;
 const EDGE_STROKE = '#5c718a';
 const EDGE_STROKE_WIDTH = 1.5;
@@ -135,8 +157,10 @@ const EDGE_HOVER_CLASS = 'pg-edge-hovered';
 const EDGE_HIGHLIGHT_CLASS = 'pg-edge-highlighted';
 const LABEL_BOX_CLASS = 'pg-label-box';
 const LABEL_BOX_HIGHLIGHT_CLASS = 'pg-label-box-highlighted';
-const LABEL_BOX_FILL = '#141c28';
-const LABEL_BOX_STROKE = '#2e3d52';
+// Pill, darker than the canvas, edge-coloured outline: nodes are lighter than the canvas with square-ish corners.
+const LABEL_BOX_FILL = '#08111c';
+const LABEL_BOX_STROKE = EDGE_STROKE;
+const LABEL_BOX_PILL_PAD = 6;
 const LABEL_BOX_STROKE_WIDTH = 1;
 const LABEL_TEXT_FILL = '#dde4ef';
 const LABEL_BOX_RADIUS = 4;
@@ -185,9 +209,9 @@ const PORT_FILL = '#141c28';
 const PORT_STROKE = '#8ea9c9';
 const CONNECT_SNAP_RADIUS = 30;
 
-const statSloopMarkup: {tagName: string; selector: string}[] = [];
+const statSloopMarkup: {tagName: string; selector: string; className: string}[] = [];
 for (let i = 0; i < STAT_SLOOP_MAX_LINES; i++) {
-	statSloopMarkup.push({tagName: 'image', selector: `statSloop${i}`});
+	statSloopMarkup.push({tagName: 'image', selector: `statSloop${i}`, className: 'pn-detail'});
 }
 
 const subplanIoMarkup: {tagName: string; selector: string}[] = [];
@@ -210,9 +234,10 @@ function registerPlannerShapes(scale: number): void
 		inherit: 'rect',
 		markup: [
 			{tagName: 'rect', selector: 'body', className: 'pn-body'},
-			{tagName: 'text', selector: 'name'},
-			{tagName: 'text', selector: 'machines'},
-			{tagName: 'text', selector: 'stats'},
+			{tagName: 'text', selector: 'name', className: 'pn-detail'},
+			{tagName: 'text', selector: 'machines', className: 'pn-detail'},
+			{tagName: 'text', selector: 'stats', className: 'pn-detail'},
+			{tagName: 'text', selector: 'zoomedOutName', className: 'pn-zoomed-out-name'},
 			...statSloopMarkup,
 			{tagName: 'image', selector: 'machineIcon', className: 'pn-machine'},
 			{tagName: 'image', selector: 'sloop', className: 'pn-sloop'},
@@ -290,7 +315,7 @@ function registerPlannerShapes(scale: number): void
 				textVerticalAnchor: 'middle',
 				fontWeight: 'bold',
 				fontSize: px(NODE_NAME_FONT_SIZE),
-				fill: '#dde4ef',
+				fill: NODE_NAME_TEXT,
 			},
 			machines: {
 				refX: 0.5,
@@ -299,7 +324,7 @@ function registerPlannerShapes(scale: number): void
 				textVerticalAnchor: 'middle',
 				fontWeight: 'bold',
 				fontSize: px(NODE_FONT_SIZE),
-				fill: '#c8d3e4',
+				fill: NODE_DETAIL_TEXT,
 			},
 			stats: {
 				refX: 0.5,
@@ -307,8 +332,9 @@ function registerPlannerShapes(scale: number): void
 				textAnchor: 'middle',
 				textVerticalAnchor: 'middle',
 				fontSize: px(NODE_FONT_SIZE),
-				fill: '#aab8cc',
+				fill: NODE_STATS_TEXT,
 			},
+			zoomedOutName: {refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fill: NODE_NAME_TEXT, display: 'none'},
 		},
 	}, true);
 
@@ -323,8 +349,9 @@ function registerPlannerShapes(scale: number): void
 		inherit: 'rect',
 		markup: [
 			{tagName: 'rect', selector: 'body', className: 'pn-body'},
-			{tagName: 'text', selector: 'name'},
-			{tagName: 'text', selector: 'stats'},
+			{tagName: 'text', selector: 'name', className: 'pn-detail'},
+			{tagName: 'text', selector: 'stats', className: 'pn-detail'},
+			{tagName: 'text', selector: 'zoomedOutName', className: 'pn-zoomed-out-name'},
 			...subplanIoMarkup,
 			{tagName: 'text', selector: 'inMore'},
 			{tagName: 'text', selector: 'outMore'},
@@ -335,11 +362,12 @@ function registerPlannerShapes(scale: number): void
 			rect: {fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
 			text: {fill: NODE_FALLBACK_TEXT},
 			body: {refWidth: '100%', refHeight: '100%', fill: NODE_FALLBACK_FILL, stroke: NODE_FALLBACK_STROKE, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
-			name: {refX: 0.5, refY: 0.5, y: px(-10), textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fontSize: px(SUBPLAN_NAME_FONT_SIZE), fill: '#dde4ef'},
-			stats: {refX: 0.5, refY: 0.5, y: px(12), textAnchor: 'middle', textVerticalAnchor: 'middle', fontSize: px(13), fill: '#aab8cc'},
+			name: {refX: 0.5, refY: 0.5, y: px(-10), textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fontSize: px(SUBPLAN_NAME_FONT_SIZE), fill: NODE_NAME_TEXT},
+			stats: {refX: 0.5, refY: 0.5, y: px(12), textAnchor: 'middle', textVerticalAnchor: 'middle', fontSize: px(13), fill: NODE_STATS_TEXT},
+			zoomedOutName: {refX: 0.5, refY: 0.5, textAnchor: 'middle', textVerticalAnchor: 'middle', fontWeight: 'bold', fill: NODE_NAME_TEXT, display: 'none'},
 			...subplanIoAttrs,
-			inMore: {refX: 0, x: px(10), refY: 0, y: px(SUBPLAN_MORE_Y), textAnchor: 'start', textVerticalAnchor: 'middle', fontSize: px(11), fill: '#aab8cc'},
-			outMore: {refDx: px(-10), refY: 0, y: px(SUBPLAN_MORE_Y), textAnchor: 'end', textVerticalAnchor: 'middle', fontSize: px(11), fill: '#aab8cc'},
+			inMore: {refX: 0, x: px(10), refY: 0, y: px(SUBPLAN_MORE_Y), textAnchor: 'start', textVerticalAnchor: 'middle', fontSize: px(11), fill: NODE_STATS_TEXT},
+			outMore: {refDx: px(-10), refY: 0, y: px(SUBPLAN_MORE_Y), textAnchor: 'end', textVerticalAnchor: 'middle', fontSize: px(11), fill: NODE_STATS_TEXT},
 			lock: {refDx: -px(LOCK_ICON_SIZE + CORNER_INSET), refY: 0, y: px(CORNER_INSET), width: px(LOCK_ICON_SIZE), height: px(LOCK_ICON_SIZE), cursor: 'help'},
 			done: {refDx: -px(DONE_ICON_SIZE + CORNER_INSET), refDy: -px(DONE_ICON_SIZE + CORNER_INSET), width: px(DONE_ICON_SIZE), height: px(DONE_ICON_SIZE)},
 		},
@@ -352,6 +380,7 @@ registerPlannerShapes(1);
 interface NodeStyle {
 	bodyFill: string;
 	bodyStroke: string;
+	darkText: boolean;
 	name: string;
 	machines: string;
 	stats: string;
@@ -421,6 +450,7 @@ export class PlannerGraphService implements OnDestroy
 	private markedPorts: Array<{cell: X6Node; portId: string}> = [];
 	private dimmedNodeIds: string[] = [];
 
+	private readonly zoomedOutNames = new ZoomedOutNameLayout();
 	private readonly lockIconUri = this.iconDataUri(faLock, '#c9962e');
 	private readonly doneIconUri = this.iconDataUri(faCircleCheck, '#4caf50');
 	private readonly warningIconUri = this.iconDataUri(faTriangleExclamation, '#e58a72');
@@ -507,6 +537,9 @@ export class PlannerGraphService implements OnDestroy
 				'elk.spacing.edgeLabel': '10',
 				'elk.spacing.nodeNode': String(settings.nodeSpacing),
 				'elk.layered.spacing.nodeNodeBetweenLayers': String(settings.layerSpacing),
+				'elk.layered.spacing.edgeNodeBetweenLayers': '4',
+				// The polyline router widens each gap in proportion to this, times how far lines travel sideways; top-to-bottom graphs are wide.
+				'elk.layered.spacing.edgeEdgeBetweenLayers': settings.direction === 'down' ? '2' : '4',
 			},
 			children: nodes.map(node => ({
 				id: node.id,
@@ -891,6 +924,8 @@ export class PlannerGraphService implements OnDestroy
 		x6Graph.use(new Export());
 
 		x6Graph.on('selection:changed', ({selected}) => this.onSelectionChanged(x6Graph, selected));
+		x6Graph.on('scale', () => this.applyZoomDetail(x6Graph));
+		this.applyZoomDetail(x6Graph);
 		x6Graph.on('node:contextmenu', ({e, x, y, node}) => {
 			e.preventDefault();
 			if (!this.isNativeContextMenuSuppressed()) {
@@ -1103,9 +1138,14 @@ export class PlannerGraphService implements OnDestroy
 						: {}),
 					...fade,
 				},
-				name: {text: style.name, ...recipeLabelAttrs.name, x: textShift, ...fade},
-				machines: {text: style.machines, ...recipeLabelAttrs.machines, x: textShift, ...fade},
-				stats: {text: style.stats, ...recipeLabelAttrs.stats, x: textShift, ...fade},
+				name: {text: style.name, ...recipeLabelAttrs.name, x: textShift, ...this.textFill(style, NODE_DARK_NAME_TEXT), ...fade},
+				machines: {text: style.machines, ...recipeLabelAttrs.machines, x: textShift, ...this.textFill(style, NODE_DARK_DETAIL_TEXT), ...fade},
+				stats: {text: style.stats, ...recipeLabelAttrs.stats, x: textShift, ...this.textFill(style, NODE_DARK_STATS_TEXT), ...fade},
+				zoomedOutName: {
+					...this.zoomedOutNameAttrs(style.name, size, this.hasLeftIcon(node) ? TEXT_LEFT_INSET : ZOOMED_OUT_NAME_PAD_RIGHT, ZOOMED_OUT_NAME_PAD_RIGHT),
+					...this.textFill(style, NODE_DARK_NAME_TEXT),
+					...fade,
+				},
 				machineIcon: {...this.iconAttrs(this.nodeIconFor(node)), ...this.leftIconAttrs(node), ...fade},
 				...this.recipeSloopBadges(node, textShift, labelOffset, fade),
 				sloop: {...this.iconAttrs(cornerSloop), ...fade},
@@ -1126,14 +1166,20 @@ export class PlannerGraphService implements OnDestroy
 	{
 		const style = this.baseStyleFor(node);
 		const size = this.sizeFor(node);
+		const ioInset = this.settings.graph().showSubplanItemIcons ? SUBPLAN_IO_COLUMN_WIDTH + 4 : ZOOMED_OUT_NAME_PAD_RIGHT;
 		const attrs: Record<string, Record<string, string | number>> = {
 			body: {fill: style.bodyFill, stroke: style.bodyStroke, strokeWidth: NODE_STROKE_WIDTH, rx: 5, ry: 5},
-			name: {text: this.subplanDisplayName(node)},
-			stats: {text: this.subplanStats(node)},
+			name: {text: this.subplanDisplayName(node), ...this.textFill(style, NODE_DARK_NAME_TEXT)},
+			stats: {text: this.subplanStats(node), ...this.textFill(style, NODE_DARK_STATS_TEXT)},
+			zoomedOutName: {...this.zoomedOutNameAttrs(this.subplanDisplayName(node), size, ioInset, ioInset), ...this.textFill(style, NODE_DARK_NAME_TEXT)},
 			lock: this.iconAttrs(this.lockIconUri),
 		};
 		this.applySubplanIoIcons(attrs, 'in', node.inputs);
 		this.applySubplanIoIcons(attrs, 'out', node.outputs);
+		if (style.darkText) {
+			attrs['inMore']['fill'] = NODE_DARK_STATS_TEXT;
+			attrs['outMore']['fill'] = NODE_DARK_STATS_TEXT;
+		}
 		if (node.done) {
 			Object.values(attrs).forEach(attr => attr['opacity'] = DONE_OPACITY);
 		}
@@ -1149,6 +1195,23 @@ export class PlannerGraphService implements OnDestroy
 			ports: this.portsFor(node),
 			attrs,
 		});
+	}
+
+	private zoomedOutNameAttrs(name: string, size: {width: number; height: number}, leftInset: number, rightInset: number): Record<string, string | number>
+	{
+		const scale = this.nodeScale();
+		const layout = this.zoomedOutNames.layout(
+			name,
+			size.width - (leftInset + rightInset) * scale,
+			size.height - 2 * ZOOMED_OUT_NAME_PAD_Y * scale,
+			ZOOMED_OUT_NAME_MAX_FONT * scale,
+		);
+		return {
+			text: layout.text,
+			fontSize: layout.fontSize,
+			lineHeight: this.zoomedOutNames.lineHeight(layout.fontSize),
+			x: (leftInset - rightInset) * scale / 2,
+		};
 	}
 
 	private applySubplanIoIcons(attrs: Record<string, Record<string, string | number>>, prefix: 'in' | 'out', ios: NodeIO[]): void
@@ -1509,7 +1572,12 @@ export class PlannerGraphService implements OnDestroy
 		const hasIcon = label.iconUrl !== null && this.settings.graph().showEdgeItemIcons;
 		const scale = this.edgeScale();
 		const textShift = hasIcon ? (EDGE_ICON_SIZE + EDGE_ICON_GAP) * scale / 2 : 0;
-		const showBox = this.settings.graph().showEdgeLabelBox;
+		const showBox = this.settings.graph().showEdgeLabelBoxes;
+		// Only labels with an icon swap to it when zoomed out; text-only labels keep their text.
+		const detailClass = hasIcon ? EDGE_DETAIL_CLASS : '';
+		const zoomedOutIconSize = (LABEL_HEIGHT - 2 * ZOOMED_OUT_EDGE_ICON_PAD) * scale;
+		const wrapShift = (label.name.split('\n').length - 1) * LABEL_NAME_LINE_HEIGHT / 2;
+		const boxPad = showBox ? LABEL_BOX_PILL_PAD * scale : 0;
 		const fade = this.doneNodeIds.has(edge.sourceId) && this.doneNodeIds.has(edge.targetId)
 			? {opacity: DONE_OPACITY}
 			: {};
@@ -1536,11 +1604,13 @@ export class PlannerGraphService implements OnDestroy
 					{tagName: 'image', selector: 'icon'},
 					{tagName: 'text', selector: 'name'},
 					{tagName: 'text', selector: 'rate'},
+					{tagName: 'image', selector: 'zoomedOutIcon'},
 				],
 				position: {distance: edge.labelDistance ?? 0.5},
 				attrs: {
 					name: {
 						text: label.name,
+						class: detailClass,
 						fill: LABEL_TEXT_FILL,
 						fontSize: LABEL_NAME_FONT_SIZE * scale,
 						fontWeight: 'bold',
@@ -1548,20 +1618,23 @@ export class PlannerGraphService implements OnDestroy
 						textVerticalAnchor: 'middle',
 						x: textShift,
 						y: LABEL_NAME_Y * scale,
+						lineHeight: LABEL_NAME_LINE_HEIGHT * scale,
 						...fade,
 					},
 					rate: {
 						text: label.rate,
+						class: detailClass,
 						fill: LABEL_TEXT_FILL,
 						fontSize: LABEL_FONT_SIZE * scale,
 						textAnchor: 'middle',
 						textVerticalAnchor: 'middle',
 						x: textShift,
-						y: LABEL_RATE_Y * scale,
+						y: (LABEL_RATE_Y + wrapShift) * scale,
 						...fade,
 					},
 					icon: hasIcon
 						? {
+							class: detailClass,
 							'xlink:href': label.iconUrl,
 							width: EDGE_ICON_SIZE * scale,
 							height: EDGE_ICON_SIZE * scale,
@@ -1570,6 +1643,18 @@ export class PlannerGraphService implements OnDestroy
 							...fade,
 						}
 						: {'xlink:href': '', width: 0, height: 0},
+					zoomedOutIcon: hasIcon
+						? {
+							class: EDGE_ZOOMED_OUT_ICON_CLASS,
+							'xlink:href': label.iconUrl,
+							width: zoomedOutIconSize,
+							height: zoomedOutIconSize,
+							x: -zoomedOutIconSize / 2,
+							y: -zoomedOutIconSize / 2,
+							display: 'none',
+							...fade,
+						}
+						: {'xlink:href': '', width: 0, height: 0, display: 'none'},
 					// Sized explicitly: the default rect follows the text bbox, which drifts with font metrics and load timing. Hidden stays transparent to keep the hit area.
 					rect: {
 						class: showBox ? LABEL_BOX_CLASS : '',
@@ -1578,15 +1663,15 @@ export class PlannerGraphService implements OnDestroy
 						refY: null,
 						refWidth: null,
 						refHeight: null,
-						x: -size.width / 2,
+						x: -size.width / 2 - boxPad,
 						y: -size.height / 2,
-						width: size.width,
+						width: size.width + boxPad * 2,
 						height: size.height,
 						fill: showBox ? LABEL_BOX_FILL : 'transparent',
 						stroke: showBox ? LABEL_BOX_STROKE : 'none',
 						strokeWidth: showBox ? LABEL_BOX_STROKE_WIDTH : 0,
-						rx: LABEL_BOX_RADIUS,
-						ry: LABEL_BOX_RADIUS,
+						rx: size.height / 2,
+						ry: size.height / 2,
 						...fade,
 					},
 				},
@@ -1608,7 +1693,7 @@ export class PlannerGraphService implements OnDestroy
 	{
 		const item = this.itemFor(edge);
 		return {
-			name: item?.name ?? edge.itemClassName,
+			name: this.wrapLabelName(item?.name ?? edge.itemClassName),
 			rate: this.rateFormatter.rate(edge.amount, item),
 			iconUrl: this.iconUrls.url(item?.icon ?? null, 64),
 		};
@@ -1616,13 +1701,34 @@ export class PlannerGraphService implements OnDestroy
 
 	private labelSizeFor(label: {name: string; rate: string; iconUrl: string | null}): {width: number; height: number}
 	{
-		const textWidth = Math.max(label.name.length * LABEL_NAME_CHAR_WIDTH, label.rate.length * LABEL_CHAR_WIDTH);
+		const nameLines = label.name.split('\n');
+		const textWidth = Math.max(...nameLines.map(line => line.length * LABEL_NAME_CHAR_WIDTH), label.rate.length * LABEL_CHAR_WIDTH);
 		const iconWidth = label.iconUrl ? EDGE_ICON_SIZE + EDGE_ICON_GAP : 0;
 		const scale = this.edgeScale();
 		return {
 			width: (textWidth + LABEL_PADDING_X + iconWidth) * scale,
-			height: LABEL_HEIGHT * scale,
+			height: (LABEL_HEIGHT + (nameLines.length - 1) * LABEL_NAME_LINE_HEIGHT) * scale,
 		};
+	}
+
+	private wrapLabelName(name: string): string
+	{
+		if (name.length * LABEL_NAME_CHAR_WIDTH <= LABEL_NAME_WRAP_WIDTH) {
+			return name;
+		}
+		const words = name.split(' ');
+		let best = name;
+		let bestLongest = name.length;
+		for (let split = 1; split < words.length; split++) {
+			const first = words.slice(0, split).join(' ');
+			const second = words.slice(split).join(' ');
+			const longest = Math.max(first.length, second.length);
+			if (longest < bestLongest) {
+				best = `${first}\n${second}`;
+				bestLongest = longest;
+			}
+		}
+		return best;
 	}
 
 	private onSelectionChanged(x6Graph: X6Graph, selected: Cell[]): void
@@ -1857,7 +1963,7 @@ export class PlannerGraphService implements OnDestroy
 
 	private applyLabelBoxStyle(edge: X6Edge, highlighted: boolean): void
 	{
-		if (!this.settings.graph().showEdgeLabelBox || !edge.getLabelAt(0)) {
+		if (!this.settings.graph().showEdgeLabelBoxes || !edge.getLabelAt(0)) {
 			return;
 		}
 		edge.prop('labels/0/attrs/rect/stroke', highlighted ? SELECTED_STROKE : LABEL_BOX_STROKE);
@@ -2218,6 +2324,15 @@ export class PlannerGraphService implements OnDestroy
 		return {width: base.width * scale, height: base.height * scale};
 	}
 
+	/** A container class rather than cell attrs: attr writes re-fetch every icon, and this runs on each zoom step. */
+	private applyZoomDetail(x6Graph: X6Graph): void
+	{
+		const enabled = this.settings.graph().simplifyWhenZoomedOut;
+		const zoom = x6Graph.zoom();
+		x6Graph.container.classList.toggle(ZOOMED_OUT_NODES_CLASS, enabled && zoom * this.nodeScale() < ZOOMED_OUT_SCALE);
+		x6Graph.container.classList.toggle(ZOOMED_OUT_EDGES_CLASS, enabled && zoom * this.edgeScale() < ZOOMED_OUT_SCALE);
+	}
+
 	private nodeScale(): number
 	{
 		return this.settings.graph().nodeScale;
@@ -2294,9 +2409,10 @@ export class PlannerGraphService implements OnDestroy
 	private baseStyleFor(node: Node): NodeStyle
 	{
 		const accent = this.accentColor(node);
+		const fill = NodeFillResolver.fill(accent, this.settings.graph().nodeFillStrength);
 		const colors = node.done
-			? {bodyFill: DONE_FILL, bodyStroke: DONE_STROKE}
-			: {bodyFill: this.darken(accent), bodyStroke: accent};
+			? {bodyFill: DONE_FILL, bodyStroke: DONE_STROKE, darkText: false}
+			: {bodyFill: fill, bodyStroke: accent, darkText: NodeFillResolver.needsDarkText(fill)};
 		const icons = {lock: '', done: node.done ? this.doneIconUri : '', inputWarning: '', outputWarning: '', capacityWarning: ''};
 
 		if (node instanceof SubplanNode) {
@@ -2347,16 +2463,9 @@ export class PlannerGraphService implements OnDestroy
 		return '#666666';
 	}
 
-	private darken(hex: string, factor = 0.2): string
+	private textFill(style: NodeStyle, dark: string): {fill?: string}
 	{
-		const clean = hex.replace('#', '');
-		const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean;
-		const channel = (offset: number): string => {
-			const value = parseInt(full.slice(offset, offset + 2), 16);
-			const scaled = Math.round(Math.max(0, Math.min(255, (Number.isNaN(value) ? 0 : value) * factor)));
-			return scaled.toString(16).padStart(2, '0');
-		};
-		return `#${channel(0)}${channel(2)}${channel(4)}`;
+		return style.darkText ? {fill: dark} : {};
 	}
 
 	/** Delegated: x6 renders views asynchronously, so indicators may not exist yet after restore(). */

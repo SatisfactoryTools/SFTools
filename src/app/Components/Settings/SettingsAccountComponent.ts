@@ -4,6 +4,7 @@ import {RouterLink} from '@angular/router';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {SettingResetButtonComponent} from '@src/Components/Settings/SettingResetButtonComponent';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faUser} from '@fortawesome/free-solid-svg-icons';
@@ -13,7 +14,7 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 	selector: 'settings-account',
 	templateUrl: './SettingsAccountComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, RouterLink, SettingsSectionComponent, InfoNoteComponent],
+	imports: [SettingResetButtonComponent, FormsModule, RouterLink, SettingsSectionComponent, InfoNoteComponent],
 })
 export class SettingsAccountComponent
 {
