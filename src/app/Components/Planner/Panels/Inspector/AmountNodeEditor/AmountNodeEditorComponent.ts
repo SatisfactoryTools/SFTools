@@ -4,6 +4,7 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faLock, faLockOpen} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -30,7 +31,7 @@ const TYPE_LABELS: Record<string, string> = {
 	selector: 'amount-node-editor',
 	templateUrl: './AmountNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent],
+	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
 })
 export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 {

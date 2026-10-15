@@ -630,6 +630,35 @@ export class PlannerGraphService implements OnDestroy
 		this.selection?.reset(cell);
 	}
 
+	/** Several nodes are fitted into the visible area (never zoomed past 1:1 or the current zoom); one node keeps focusNode's behaviour. */
+	public focusNodes(ids: string[]): void
+	{
+		const x6Graph = this.x6Graph;
+		if (!x6Graph) {
+			return;
+		}
+		const cells = ids
+			.map(id => x6Graph.getCellById(id))
+			.filter((cell): cell is Cell => cell !== null && cell.isNode());
+		if (cells.length === 0) {
+			return;
+		}
+		if (cells.length === 1) {
+			this.focusNode(cells[0].id);
+			return;
+		}
+		const insets = this.panelLayout.canvasInsets();
+		const padding = {
+			left: insets.left + 40,
+			right: insets.right + 40,
+			top: insets.top + 40,
+			bottom: insets.bottom + 40,
+		};
+		x6Graph.zoomToRect(x6Graph.getCellsBBox(cells) ?? cells[0].getBBox(), {padding, maxScale: Math.max(1, x6Graph.zoom())});
+		x6Graph.translateBy((padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2);
+		this.selection?.reset(cells);
+	}
+
 	private buildWarningEntries(graph: Graph): GraphWarningEntry[]
 	{
 		const entries: GraphWarningEntry[] = [];

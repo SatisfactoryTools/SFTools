@@ -11,4 +11,7 @@ export interface ResourceUsageRow
 
 	readonly disabled: boolean;
 
+	/** Empty when the row is not on this plan's canvas (folder views, buildings inside subplans). */
+	readonly nodeIds: string[];
+
 }

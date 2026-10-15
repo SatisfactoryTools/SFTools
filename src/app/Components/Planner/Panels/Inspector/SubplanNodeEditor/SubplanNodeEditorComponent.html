@@ -9,6 +9,7 @@
 			}
 			<span class="fw-semibold flex-grow-1 text-truncate" [title]="displayName">{{ displayName }}</span>
 			<span class="badge text-bg-secondary">Subplan</span>
+			<go-to-node [nodeIds]="[node.id]" placement="left"></go-to-node>
 			<span
 				class="text-warning"
 				tooltip="Subplans are always kept by the calculation - it builds the rest of the plan around them."

@@ -6,6 +6,7 @@ import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
+import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {SubplanIORateDraft} from '@src/Components/Planner/Panels/Inspector/SubplanNodeEditor/SubplanIORateDraft';
 import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
@@ -22,7 +23,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'subplan-node-editor',
 	templateUrl: './SubplanNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent],
+	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
 	styles: [`
 		.io-tiles {
 			display: flex;

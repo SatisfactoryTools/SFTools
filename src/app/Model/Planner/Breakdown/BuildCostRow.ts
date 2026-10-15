@@ -19,4 +19,7 @@ export interface BuildCostRow
 
 	readonly materials: BuildCostMaterialRow[];
 
+	/** Empty when the row is not on this plan's canvas (folder views, buildings inside subplans). */
+	readonly nodeIds: string[];
+
 }

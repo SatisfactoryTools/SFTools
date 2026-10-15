@@ -107,10 +107,13 @@
 														@for (row of resources(); track row.item.className) {
 															<tr [class.resource-off]="row.disabled" [class.has-limit-bar]="!!limitFraction(row)">
 																<td>
-																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
-																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
-																		{{ row.item.name }}
-																	</span>
+																	<div class="d-flex align-items-center gap-1">
+																		<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
+																			<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
+																			{{ row.item.name }}
+																		</span>
+																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
+																	</div>
 																</td>
 																<td class="text-end">
 																	<span class="text-nowrap" [class.text-secondary]="rateFormatter.isZero(row.used)" [class.text-danger]="exceedsLimit(row)">{{ rateFormatter.rate(row.used, row.item) }}</span>&ngsp;
@@ -237,13 +240,16 @@
 														@for (row of production(); track row.kind + row.item.className) {
 															<tr>
 																<td>
-																	<span class="d-inline-flex flex-wrap align-items-center gap-1">
-																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
-																		{{ row.item.name }}
-																		@if (row.kind === 'byproduct') {
-																			<span class="badge text-bg-secondary">byproduct</span>
-																		}
-																	</span>
+																	<div class="d-flex align-items-center gap-1">
+																		<span class="d-inline-flex flex-wrap align-items-center gap-1">
+																			<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
+																			{{ row.item.name }}
+																			@if (row.kind === 'byproduct') {
+																				<span class="badge text-bg-secondary">byproduct</span>
+																			}
+																		</span>
+																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
+																	</div>
 																</td>
 																<td class="text-end text-nowrap" [class.text-success]="row.kind === 'product'">{{ rateFormatter.rate(row.amount, row.item) }}</td>
 															</tr>
@@ -291,13 +297,16 @@
 														@for (row of buildings(); track row.key) {
 															<tr>
 																<td>
-																	<span class="d-inline-flex align-items-center gap-1">
-																		<game-icon [hash]="row.icon" [size]="18" [alt]="row.name"></game-icon>
-																		@if (row.kind === 'subplan') {
-																			<span class="text-secondary">Subplan:</span>
-																		}
-																		{{ row.name }}
-																	</span>
+																	<div class="d-flex align-items-center gap-1">
+																		<span class="d-inline-flex align-items-center gap-1">
+																			<game-icon [hash]="row.icon" [size]="18" [alt]="row.name"></game-icon>
+																			@if (row.kind === 'subplan') {
+																				<span class="text-secondary">Subplan:</span>
+																			}
+																			{{ row.name }}
+																		</span>
+																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
+																	</div>
 																</td>
 																<td class="text-end">{{ rateFormatter.amount(row.machines) }}</td>
 															</tr>
@@ -418,13 +427,16 @@
 														@for (row of recipes(); track row.recipe.className) {
 															<tr>
 																<td>
-																	<span class="d-inline-flex align-items-center gap-1">
-																		<game-icon [hash]="row.recipe.products[0]?.item?.icon ?? null" [size]="18" [alt]="row.recipe.name"></game-icon>
-																		{{ row.recipe.name }}
-																		@if (row.recipe.alternate && showAllRecipes()) {
-																			<span class="badge text-bg-secondary">alt</span>
-																		}
-																	</span>
+																	<div class="d-flex align-items-center gap-1">
+																		<span class="d-inline-flex align-items-center gap-1">
+																			<game-icon [hash]="row.recipe.products[0]?.item?.icon ?? null" [size]="18" [alt]="row.recipe.name"></game-icon>
+																			{{ row.recipe.name }}
+																			@if (row.recipe.alternate && showAllRecipes()) {
+																				<span class="badge text-bg-secondary">alt</span>
+																			}
+																		</span>
+																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
+																	</div>
 																</td>
 																<td class="text-end">{{ rateFormatter.amount(row.machines) }}×</td>
 															</tr>

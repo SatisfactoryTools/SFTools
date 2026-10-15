@@ -3,6 +3,7 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {BuildCostBreakdown} from '@src/Model/Planner/Breakdown/BuildCostBreakdown';
 import {BuildCostMaterialRow} from '@src/Model/Planner/Breakdown/BuildCostMaterialRow';
 import {BuildCostRow} from '@src/Model/Planner/Breakdown/BuildCostRow';
@@ -16,7 +17,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'planner-build-cost',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerBuildCostComponent.html',
-	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent],
+	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, GoToNodeButtonComponent],
 })
 export class PlannerBuildCostComponent
 {

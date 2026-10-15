@@ -3,6 +3,7 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {PowerDrawComponent} from '@src/Components/Common/PowerDrawComponent';
 import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
 import {PowerBreakdown} from '@src/Model/Planner/Breakdown/PowerBreakdown';
@@ -15,7 +16,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'planner-power',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPowerComponent.html',
-	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, PowerDrawComponent],
+	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, PowerDrawComponent, GoToNodeButtonComponent],
 })
 export class PlannerPowerComponent
 {

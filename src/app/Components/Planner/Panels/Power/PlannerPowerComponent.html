@@ -45,6 +45,7 @@
 									}
 									{{ row.name }}
 								</span>
+								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 							</div>
 						</td>
 						<td class="text-end" data-label="Count">{{ rateFormatter.amount(row.machines) }}</td>
@@ -54,7 +55,10 @@
 						@for (entry of row.entries; track entry.key) {
 							<tr class="stack-sub">
 								<td class="ps-4 stack-full">
-									{{ entry.name }}
+									<div class="d-flex align-items-center gap-1">
+										<span class="flex-grow-1">{{ entry.name }}</span>
+										<go-to-node [nodeIds]="entry.nodeIds"></go-to-node>
+									</div>
 									@if (entry.detail !== '') {
 										<small class="text-secondary d-block ps-3">{{ entry.detail }}</small>
 									}

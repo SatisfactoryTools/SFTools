@@ -2,6 +2,7 @@ import {Component, ChangeDetectionStrategy, Signal, computed, signal} from '@ang
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight, faRecycle} from '@fortawesome/free-solid-svg-icons';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {PowerDrawComponent} from '@src/Components/Common/PowerDrawComponent';
 import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
 import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
@@ -32,7 +33,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'planner-overview',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerOverviewComponent.html',
-	imports: [FaIconComponent, GameIconComponent, CollapsibleCardComponent, InfoNoteComponent, PowerDrawComponent],
+	imports: [FaIconComponent, GameIconComponent, CollapsibleCardComponent, InfoNoteComponent, PowerDrawComponent, GoToNodeButtonComponent],
 	styles: [`
 		.overview-grid {
 			container-type: inline-size;

@@ -1,0 +1,8 @@
+@if (nodeIds.length > 0) {
+	<button
+		class="btn btn-sm btn-link p-0 text-secondary lh-1"
+		type="button"
+		[tooltip]="label" container="body" [placement]="placement"
+		(click)="go($event)"
+	><fa-icon [icon]="faLocationCrosshairs"></fa-icon><span class="visually-hidden">{{ label }}</span></button>
+}

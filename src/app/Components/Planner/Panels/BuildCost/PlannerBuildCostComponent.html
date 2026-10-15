@@ -50,6 +50,7 @@
 									}
 									{{ row.name }}
 								</span>
+								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 							</div>
 						</td>
 						<td class="text-end" data-label="Count">{{ rateFormatter.amount(row.machines) }}</td>

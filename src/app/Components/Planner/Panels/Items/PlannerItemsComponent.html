@@ -31,6 +31,7 @@
 								></fa-icon>
 								<game-icon [hash]="row.item.icon" [size]="20" [alt]="row.item.name"></game-icon>
 								<span>{{ row.item.name }}</span>
+								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 							</div>
 						</td>
 						<td class="text-end text-success" data-label="Sources">{{ rateFormatter.amount(row.totalSources) }}<wbr>{{ unitText(row.item) }}</td>
@@ -39,14 +40,24 @@
 					@if (isExpanded(row)) {
 						@for (flow of row.sources; track flow.key) {
 							<tr class="stack-sub">
-								<td class="ps-4 stack-grow">{{ flow.name }}</td>
+								<td class="ps-4 stack-grow">
+									<div class="d-flex align-items-center gap-1">
+										<span class="flex-grow-1">{{ flow.name }}</span>
+										<go-to-node [nodeIds]="flow.nodeIds"></go-to-node>
+									</div>
+								</td>
 								<td class="text-end text-secondary">{{ rateFormatter.amount(flow.amount) }}<wbr>{{ unitText(row.item) }}</td>
 								<td></td>
 							</tr>
 						}
 						@for (flow of row.targets; track flow.key) {
 							<tr class="stack-sub">
-								<td class="ps-4 stack-grow">{{ flow.name }}</td>
+								<td class="ps-4 stack-grow">
+									<div class="d-flex align-items-center gap-1">
+										<span class="flex-grow-1">{{ flow.name }}</span>
+										<go-to-node [nodeIds]="flow.nodeIds"></go-to-node>
+									</div>
+								</td>
 								<td></td>
 								<td class="text-end text-secondary">{{ rateFormatter.amount(flow.amount) }}<wbr>{{ unitText(row.item) }}</td>
 							</tr>

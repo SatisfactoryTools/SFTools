@@ -3,6 +3,7 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {ItemRow} from '@src/Model/Planner/Breakdown/ItemRow';
 import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
@@ -13,7 +14,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'planner-items',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerItemsComponent.html',
-	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent],
+	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, GoToNodeButtonComponent],
 })
 export class PlannerItemsComponent
 {
