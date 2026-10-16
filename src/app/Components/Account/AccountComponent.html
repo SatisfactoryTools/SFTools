@@ -27,6 +27,13 @@
 						}
 						· member since {{ profile.createdAt | date:'mediumDate' }}
 					</div>
+					@if (profile.supporter; as supporter) {
+						<div class="small mt-1">
+							<fa-icon class="supporter-heart" [icon]="faHeart"></fa-icon>
+							Supporter since {{ supporter.since | date:'mediumDate' }} - thank you!
+							<a routerLink="/settings/supporter">Supporter settings</a>
+						</div>
+					}
 
 					<label class="form-label small mb-1 mt-3" for="display-name">Display name</label>
 					<div class="input-group input-group-sm" style="max-width: 460px;">

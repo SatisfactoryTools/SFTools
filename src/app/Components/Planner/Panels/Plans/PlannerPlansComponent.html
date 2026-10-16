@@ -300,6 +300,9 @@
 							<fa-icon [icon]="faFileLines"></fa-icon>
 						}
 					</span>
+					@if (share.sharedBySupporter) {
+						<supporter-badge class="tree-supporter-badge" placement="right"/>
+					}
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="visitedShareName(share)">{{ visitedShareName(share) }}</span>
 					<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Shared plan menu" (click)="onVisitedShareContextMenu($event, share)">
 						<fa-icon [icon]="faEllipsisVertical"></fa-icon>

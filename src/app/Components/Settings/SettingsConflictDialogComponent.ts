@@ -73,6 +73,7 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 		format: value => (value as CalculatorTab[]).map(tab => CalculatorTabDefinitions.labelOf(tab)).join(', ') || 'None',
 	},
 	helpButtons: {label: 'Help buttons next to settings and tools', format: YES_NO},
+	supporterHearts: {label: 'Hearts on plans shared by supporters', format: YES_NO},
 };
 
 const PLAN_DEFAULTS_LABELS: Record<keyof PlanDefaultsSettings, SettingsFieldLabel> = {

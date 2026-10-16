@@ -82,6 +82,22 @@
 			</div>
 		</fieldset>
 
+		<div class="subsection-title">Shared plans</div>
+		<div class="form-check mb-3">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="supporter-hearts"
+				[ngModel]="supporterHearts"
+				(ngModelChange)="setSupporterHearts($event)"
+			/>
+			<label class="form-check-label" for="supporter-hearts">Show hearts on plans shared by supporters</label><setting-reset-button category="planner" field="supporterHearts"/>
+			<div class="form-text">
+				People who support Satisfactory Tools get a small heart next to the plans they share. Turn this off
+				to hide the hearts in your plan list and on shared plans you open.
+			</div>
+		</div>
+
 		<div class="subsection-title">Help</div>
 		<div class="form-check mb-3">
 			<input

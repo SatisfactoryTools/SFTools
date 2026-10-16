@@ -3,6 +3,7 @@ import {DatePipe, NgTemplateOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
+import {SupporterBadgeComponent} from '@src/Components/Supporters/SupporterBadgeComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {CalculatorTabsMode} from '@src/Components/Planner/Panels/Calculator/CalculatorTabsMode';
 import {faCopy, faDownload, faEllipsis, faFileImport, faLock, faPlay, faRotateLeft, faShareNodes, faSitemap, faSliders, faXmark} from '@fortawesome/free-solid-svg-icons';
@@ -72,6 +73,7 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 		InfoNoteComponent,
 		LoadFromSaveDialogComponent,
 		AppTooltipDirective,
+		SupporterBadgeComponent,
 	],
 	styles: [`
 		.req-controls {

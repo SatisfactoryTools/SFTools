@@ -2,6 +2,9 @@
 
 	<div class="p-3">
 		<div class="d-flex align-items-center gap-2 mb-1">
+			@if (share.sharedBySupporter) {
+				<supporter-badge/>
+			}
 			<span class="fw-semibold">{{ share.type === 'plan' ? planNames.displayNameOf(share.root.name) : share.root.name }}</span>
 			<span class="badge bg-secondary">shared {{ share.sharedAt | date: 'mediumDate' }}</span>
 		</div>
@@ -23,6 +26,9 @@
 
 	<div class="p-3">
 		<div class="d-flex align-items-center gap-2 mb-1">
+			@if (link.sharedBySupporter) {
+				<supporter-badge/>
+			}
 			<span class="fw-semibold">{{ planNames.displayNameOf(link.root.name) }}</span>
 			<span class="badge bg-secondary">shared by link</span>
 		</div>

@@ -17,4 +17,7 @@ export interface PlannerSettings
 
 	readonly helpButtons: boolean;
 
+	/** Viewer-side only: the hearts on supporters' shared plans. Link previews are not affected. */
+	readonly supporterHearts: boolean;
+
 }

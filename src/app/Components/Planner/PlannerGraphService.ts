@@ -113,8 +113,8 @@ const SUBPLAN_NAME_FONT_SIZE = 18;
 const SUBPLAN_NAME_CHAR_WIDTH = 9.8;
 const SUBPLAN_STATS_CHAR_WIDTH = 7.4;
 const SUBPLAN_MAX_WIDTH = 520;
-// Below this on-screen scale the 13px stats are under 5px; the CSS classes swap in the zoomed-out view.
-const ZOOMED_OUT_SCALE = 0.37;
+
+const ZOOMED_OUT_SCALE = 0.53;
 const ZOOMED_OUT_NODES_CLASS = 'pg-zoomed-out-nodes';
 const ZOOMED_OUT_EDGES_CLASS = 'pg-zoomed-out-edges';
 const ZOOMED_OUT_NAME_MAX_FONT = 24;

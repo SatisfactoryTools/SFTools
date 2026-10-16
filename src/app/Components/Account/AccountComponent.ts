@@ -1,10 +1,10 @@
 import {Component, ChangeDetectionStrategy, effect} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {DatePipe} from '@angular/common';
-import {ActivatedRoute} from '@angular/router';
+import {ActivatedRoute, RouterLink} from '@angular/router';
 import {HttpErrorResponse} from '@angular/common/http';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faCircleUser} from '@fortawesome/free-solid-svg-icons';
+import {faCircleUser, faHeart} from '@fortawesome/free-solid-svg-icons';
 import {OAuthApiService} from '@src/Model/API/OAuthApiService';
 import {OAuthConnection} from '@src/Model/API/Schema/Auth/OAuthConnection';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
@@ -17,8 +17,11 @@ import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 @Component({
 	templateUrl: './AccountComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [DatePipe, FormsModule, FaIconComponent, BackLinkComponent],
+	imports: [DatePipe, FormsModule, FaIconComponent, BackLinkComponent, RouterLink],
 	styles: [`
+		.supporter-heart {
+			color: #e8b83f;
+		}
 		.avatar {
 			width: 64px;
 			height: 64px;
@@ -45,6 +48,7 @@ export class AccountComponent
 
 	public readonly allProviders = OAuthProviders.ALL;
 	public readonly faCircleUser = faCircleUser;
+	public readonly faHeart = faHeart;
 
 	public displayNameDraft = '';
 	private draftTouched = false;

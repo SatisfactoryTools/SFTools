@@ -11,6 +11,7 @@ import {MobileSearchComponent} from '@src/Components/Root/MobileSearchComponent'
 import {NavbarCommunityLinksComponent} from '@src/Components/Root/NavbarCommunityLinksComponent';
 import {NavbarUserDropdownComponent} from '@src/Components/Root/NavbarUserDropdownComponent';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
+import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HotkeyRegistration} from '@src/Model/Hotkeys/HotkeyRegistration';
@@ -34,6 +35,9 @@ import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 		AppTooltipDirective,
 	],
 	styles: `
+		.navbar-supporter {
+			background: linear-gradient(100deg, #8a5d0e 0%, #a87a19 45%, #b98a24 70%, #976a12 100%);
+		}
 		.navbar-shortcut,
 		.navbar-toggler {
 			--bs-btn-color: #fff;
@@ -146,6 +150,7 @@ export class NavbarComponent implements OnDestroy
 	protected readonly helpAvailable = computed(() => this.help.hasArticles());
 
 	public constructor(
+		protected readonly account: AccountProfileService,
 		protected readonly versionManager: VersionManager,
 		private readonly help: HelpManager,
 		private readonly backToPlanner: BackToPlannerResolver,

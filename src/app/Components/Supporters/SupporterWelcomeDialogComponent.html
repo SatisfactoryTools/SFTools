@@ -1,0 +1,38 @@
+@if (welcome.visible()) {
+	<div class="welcome-backdrop" hotkeyBlock (click)="welcome.dismiss()">
+		<div class="welcome-dialog card border-secondary" role="dialog" aria-modal="true" aria-labelledby="supporter-welcome-title" (click)="$event.stopPropagation()">
+			<button type="button" class="btn-close welcome-close" aria-label="Close" (click)="welcome.dismiss()"></button>
+
+			<div class="welcome-hero">
+				<div class="welcome-heart"><fa-icon [icon]="faHeart"></fa-icon></div>
+				<h4 id="supporter-welcome-title" class="mb-2">Thank you for your support!</h4>
+				<p class="text-secondary small mb-0">
+					Your support helps pay for the servers and keeps Satisfactory Tools free for everyone.
+					As a small thank-you, your account now has a gold top bar, a heart next to your name,
+					and a heart on the plans you share.
+				</p>
+			</div>
+
+			<form class="card-body" (ngSubmit)="save()">
+				<div class="form-check mb-2">
+					<input class="form-check-input" type="checkbox" id="supporter-welcome-listed" name="listed" [(ngModel)]="listed">
+					<label class="form-check-label" for="supporter-welcome-listed">Show my name on the supporters list (About page and home page)</label>
+				</div>
+				@if (listed) {
+					<label class="form-label small text-secondary mb-1" for="supporter-welcome-name">Name on the list</label>
+					<input class="form-control form-control-sm" id="supporter-welcome-name" name="listName" maxlength="50" [(ngModel)]="listName" required>
+				}
+				<div class="form-text">
+					You can change this, and turn the gold bar and hearts off, in
+					<a routerLink="/settings/supporter" (click)="welcome.dismiss()">Settings → Supporter</a>.
+				</div>
+				@if (error(); as message) {
+					<div class="text-danger small mt-2">{{ message }}</div>
+				}
+				<div class="d-flex justify-content-end mt-3">
+					<button type="submit" class="btn btn-sm btn-primary" [disabled]="!canSave">Save</button>
+				</div>
+			</form>
+		</div>
+	</div>
+}

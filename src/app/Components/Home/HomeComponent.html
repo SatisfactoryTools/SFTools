@@ -11,35 +11,49 @@
 				A production planner for Satisfactory that finds the best setup for you. It works for every factory,
 				from your first smelter to a 1 TW nuclear grid.
 			</p>
-			<div class="hero-actions" [class.with-wide]="desktopAppLink">
-				@if (continueLink; as link) {
-					<a class="btn btn-primary btn-lg" [routerLink]="link">
-						<fa-icon [icon]="faPlay"></fa-icon>
-						<span>Continue planning <span class="hero-sub">{{ lastVisitedVersion?.name }}</span></span>
+			<div class="hero-cta">
+				<div class="hero-actions" [class.with-wide]="desktopAppLink">
+					@if (continueLink; as link) {
+						<a class="btn btn-primary btn-lg" [routerLink]="link">
+							<fa-icon [icon]="faPlay"></fa-icon>
+							<span>Continue planning <span class="hero-sub">{{ lastVisitedVersion?.name }}</span></span>
+						</a>
+					} @else if (featuredVersion; as featured) {
+						<a class="btn btn-primary btn-lg" [routerLink]="plannerLink(featured)">
+							<fa-icon [icon]="faPlay"></fa-icon>
+							<span>Open the planner <span class="hero-sub">{{ featured.name }}</span></span>
+						</a>
+					}
+					@if (desktopAppLink) {
+						<a routerLink="/settings/desktop" class="btn btn-outline-light btn-lg">
+							<fa-icon [icon]="faDesktop"></fa-icon>
+							<span>Get the desktop app <span class="hero-sub">Windows, Linux &amp; macOS, works offline</span></span>
+						</a>
+					}
+					<a routerLink="/create-version" class="btn btn-outline-light btn-lg" [class.hero-wide]="desktopAppLink">
+						<fa-icon [icon]="faSliders"></fa-icon>
+						<span>
+							Create custom version
+							@if (!desktopAppLink) {
+								<span class="hero-sub">recipe and power costs, mods, modded worlds</span>
+							} @else {
+								<span class="hero-sub">play with game modifiers: recipe and power costs, custom nodes, and mods</span>
+							}
+						</span>
 					</a>
-				} @else if (featuredVersion; as featured) {
-					<a class="btn btn-primary btn-lg" [routerLink]="plannerLink(featured)">
-						<fa-icon [icon]="faPlay"></fa-icon>
-						<span>Open the planner <span class="hero-sub">{{ featured.name }}</span></span>
-					</a>
-				}
-				@if (desktopAppLink) {
-					<a routerLink="/settings/desktop" class="btn btn-outline-light btn-lg">
-						<fa-icon [icon]="faDesktop"></fa-icon>
-						<span>Get the desktop app <span class="hero-sub">Windows, Linux &amp; macOS, works offline</span></span>
-					</a>
-				}
-				<a routerLink="/create-version" class="btn btn-outline-light btn-lg" [class.hero-wide]="desktopAppLink">
-					<fa-icon [icon]="faSliders"></fa-icon>
-					<span>
-						Create custom version
-						@if (!desktopAppLink) {
-							<span class="hero-sub">recipe and power costs, mods, modded worlds</span>
-						} @else {
-							<span class="hero-sub">play with game modifiers: recipe and power costs, custom nodes, and mods</span>
-						}
-					</span>
-				</a>
+				</div>
+				<div class="hero-support">
+					<fa-icon class="hero-support-icon" [icon]="faHeart"></fa-icon>
+					<div class="hero-support-text">
+						<span class="hero-donate">
+							Free to use - support it via
+							@for (link of donationLinks; track link.key; let last = $last) {
+								<a [href]="link.url" target="_blank" rel="noopener">{{ link.label }}</a>{{ last ? '' : ' or ' }}
+							}
+						</span>
+						<supporter-ticker/>
+					</div>
+				</div>
 			</div>
 			<div class="hero-links">
 				@for (link of communityLinks; track link.key) {
@@ -47,12 +61,6 @@
 				}
 				<a routerLink="/help"><fa-icon [icon]="faCircleQuestion" [fixedWidth]="true"></fa-icon>Help</a>
 				<a routerLink="/about"><fa-icon [icon]="faCircleInfo" [fixedWidth]="true"></fa-icon>About</a>
-				<span class="hero-donate">
-					<fa-icon [icon]="faHeart" [fixedWidth]="true"></fa-icon>Free to use - support it via
-					@for (link of donationLinks; track link.key; let last = $last) {
-						<a [href]="link.url" target="_blank" rel="noopener">{{ link.label }}</a>{{ last ? '' : ' or ' }}
-					}
-				</span>
 			</div>
 		</div>
 

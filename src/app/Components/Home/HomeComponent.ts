@@ -3,6 +3,7 @@ import {RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faArrowRight, faBookOpen, faCircleInfo, faCircleQuestion, faDesktop, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faUser, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
+import {SupporterTickerComponent} from '@src/Components/Supporters/SupporterTickerComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {HomeFeature} from '@src/Components/Home/HomeFeature';
 import {VersionTag} from '@src/Components/Home/VersionTag';
@@ -45,7 +46,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 @Component({
 	templateUrl: './HomeComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [RouterLink, FaIconComponent, OAuthProviderButtonsComponent, InfoNoteComponent, HelpButtonComponent],
+	imports: [RouterLink, FaIconComponent, OAuthProviderButtonsComponent, InfoNoteComponent, HelpButtonComponent, SupporterTickerComponent],
 	styles: [`
 		:host {
 			display: block;
@@ -152,6 +153,9 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			text-align: left;
 		}
 		@media (max-width: 575.98px) {
+			.hero-cta {
+				width: 100%;
+			}
 			.hero-actions {
 				flex-direction: column;
 				align-items: stretch;
@@ -185,7 +189,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			flex-wrap: wrap;
 			align-items: center;
 			gap: 0.35rem 1.25rem;
-			margin-top: 1.25rem;
+			margin-top: 1rem;
 			font-size: 0.9rem;
 			color: #9fb0c0;
 		}
@@ -200,18 +204,52 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			color: #fff;
 			text-decoration: underline;
 		}
+		.hero-cta {
+			display: grid;
+			gap: 0.75rem;
+			width: fit-content;
+			max-width: 100%;
+		}
+		/* Width 0 + min-width 100%: the box takes the buttons' width and never widens the column itself. */
+		.hero-support {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			width: 0;
+			min-width: 100%;
+			padding: 0.5rem 0.9rem 0.5rem 0.75rem;
+			background: rgba(232, 184, 63, 0.07);
+			border: 1px solid rgba(232, 184, 63, 0.25);
+			border-left: 3px solid #e8b83f;
+		}
+		.hero-support-icon {
+			color: #e8b83f;
+			font-size: 1.25rem;
+			flex-shrink: 0;
+		}
+		.hero-support-text {
+			display: flex;
+			flex-direction: column;
+			gap: 0.15rem;
+			flex: 1 1 auto;
+			min-width: 0;
+		}
 		.hero-donate {
 			display: inline-flex;
 			align-items: center;
 			gap: 0.35rem;
 			flex-wrap: wrap;
-			flex-basis: 100%;
 		}
-		.hero-donate fa-icon {
-			color: #e05c8a;
+		.hero-support-text {
+			font-size: 0.9rem;
+			color: #c5d0db;
 		}
 		.hero-donate a {
 			color: #f7d08a;
+			text-decoration: none;
+		}
+		.hero-donate a:hover {
+			text-decoration: underline;
 		}
 		.side-note {
 			font-size: 0.8rem;

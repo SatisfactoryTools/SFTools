@@ -1,8 +1,10 @@
-import {Component, ChangeDetectionStrategy} from '@angular/core';
-import {RouterLink} from '@angular/router';
+import {Component, ChangeDetectionStrategy, effect} from '@angular/core';
+import {ActivatedRoute, RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faBookOpen, faDesktop, faDiagramProject, faHeart, faPuzzlePiece, faSliders} from '@fortawesome/free-solid-svg-icons';
+import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {CommunityLinks} from '@src/Model/CommunityLinks';
+import {SupporterListService} from '@src/Model/Supporters/SupporterListService';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HomeFeature} from '@src/Components/Home/HomeFeature';
 import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
@@ -125,6 +127,30 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 		.link-row .donation fa-icon {
 			color: #e05c8a;
 		}
+		#supporters {
+			scroll-margin-top: 4.5rem;
+		}
+		.supporter-list {
+			list-style: none;
+			padding: 0;
+			margin: 0;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+		.supporter-list li {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.45rem;
+			padding: 0.3rem 0.75rem;
+			background: #20374c;
+			border: 1px solid rgba(232, 184, 63, 0.45);
+			overflow-wrap: anywhere;
+		}
+		.supporter-list fa-icon {
+			color: #e8b83f;
+			font-size: 0.8em;
+		}
 	`],
 })
 export class AboutComponent
@@ -136,8 +162,23 @@ export class AboutComponent
 
 	public readonly features: HomeFeature[];
 
-	public constructor(platform: AppPlatform)
+	public constructor(platform: AppPlatform, protected readonly supporterList: SupporterListService, account: AccountProfileService, route: ActivatedRoute)
 	{
+		// The home page links to #supporters, which only exists once the list is there - too late for the router.
+		let scrolled = route.snapshot.fragment !== 'supporters';
+		effect(() => {
+			if (!scrolled && supporterList.names().length > 0) {
+				scrolled = true;
+				setTimeout(() => document.getElementById('supporters')?.scrollIntoView({block: 'start'}));
+			}
+		});
+
+		// Reloaded when the viewer changes their own entry (e.g. in the thank-you dialog over this page).
+		effect(() => {
+			account.supporter();
+			supporterList.reload();
+		});
+
 		this.features = [
 			{
 				icon: faDiagramProject,

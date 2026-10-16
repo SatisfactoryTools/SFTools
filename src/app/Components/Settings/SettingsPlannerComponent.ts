@@ -138,6 +138,16 @@ export class SettingsPlannerComponent
 		this.settings.updatePlanner({helpButtons: value});
 	}
 
+	public get supporterHearts(): boolean
+	{
+		return this.settings.planner().supporterHearts;
+	}
+
+	public setSupporterHearts(value: boolean): void
+	{
+		this.settings.updatePlanner({supporterHearts: value});
+	}
+
 	public get unmakeableItemsDescription(): string
 	{
 		return this.unmakeableItemsOptions.find(option => option.value === this.unmakeableItems)?.description ?? '';

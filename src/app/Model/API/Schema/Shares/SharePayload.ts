@@ -10,4 +10,6 @@ export interface SharePayload
 	sharedAt: string;
 	version: ShareVersion;
 	root: SharedFolderNode | SharedPlanNode;
+	/** Missing on an older backend. */
+	sharedBySupporter?: boolean;
 }

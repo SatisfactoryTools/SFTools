@@ -1,7 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {Router, RouterLink, RouterLinkActive} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faCircleUser, faRightFromBracket, faRightToBracket, faUser} from '@fortawesome/free-solid-svg-icons';
+import {faCircleUser, faHeart, faRightFromBracket, faRightToBracket, faUser} from '@fortawesome/free-solid-svg-icons';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {AuthService} from '@src/Model/Auth/AuthService';
@@ -22,6 +22,15 @@ import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 			vertical-align: -5px;
 			margin-right: 0.25rem;
 		}
+		.nav-link .supporter-heart {
+			color: #ffd56b;
+		}
+		:host-context(.navbar-supporter) .nav-link .supporter-heart {
+			color: #fff;
+		}
+		.dropdown-item .supporter-heart {
+			color: #e8b83f;
+		}
 	`],
 	imports: [
 		BsDropdownModule,
@@ -35,6 +44,7 @@ export class NavbarUserDropdownComponent
 
 	public readonly faCircleUser = faCircleUser;
 	public readonly faUser = faUser;
+	public readonly faHeart = faHeart;
 	public readonly faRightFromBracket = faRightFromBracket;
 	public readonly faRightToBracket = faRightToBracket;
 

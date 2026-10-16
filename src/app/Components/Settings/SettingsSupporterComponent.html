@@ -1,0 +1,101 @@
+<settings-section title="Supporter" [icon]="sectionIcon" description="Thank you for supporting Satisfactory Tools. Choose what others see, and how the app looks for you.">
+	@if (account.supporter(); as supporter) {
+		<p class="mb-0">
+			<fa-icon class="supporter-heart" [icon]="faHeart"></fa-icon>
+			Supporter since {{ supporter.since | date: 'mediumDate' }}. Thank you - it keeps the servers running and the tools free for everyone.
+		</p>
+
+		@if (!connectivity.online()) {
+			<info-note kind="warning" class="mt-3">You are offline. These settings can be changed once you are back online.</info-note>
+		}
+
+		<div class="subsection-title">Supporters list</div>
+		<div class="form-check">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="supporter-listed"
+				[ngModel]="supporter.listed"
+				(ngModelChange)="setListed($event)"
+				[disabled]="saving() || !connectivity.online()"
+			/>
+			<label class="form-check-label" for="supporter-listed">Show my name on the supporters list</label>
+			<div class="form-text">
+				Your name appears in the list on the <a routerLink="/about">About</a> page and takes its turn in the
+				"Supported by" line on the <a routerLink="/">home page</a>.
+			</div>
+		</div>
+		<div class="mt-2" style="max-width: 320px;">
+			<label class="form-label small text-secondary mb-1" for="supporter-list-name">Name on the list</label>
+			<input
+				class="form-control form-control-sm"
+				id="supporter-list-name"
+				maxlength="50"
+				[(ngModel)]="listName"
+				(blur)="saveListName()"
+				(keydown.enter)="saveListName()"
+				[disabled]="!connectivity.online()"
+			/>
+		</div>
+
+		<div class="subsection-title">Shared plans</div>
+		<div class="form-check">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="supporter-share-badge"
+				[ngModel]="supporter.shareBadge"
+				(ngModelChange)="save({shareBadge: $event})"
+				[disabled]="saving() || !connectivity.online()"
+			/>
+			<label class="form-check-label" for="supporter-share-badge">Show a heart on plans I share</label>
+			<div class="form-text">
+				People who open your shared plans and plan links see a heart next to the name, and link previews
+				(for example on Discord) say the plan was shared by a supporter. This also changes plans you shared before.
+				Viewers can hide the hearts for themselves in Settings → Planner.
+			</div>
+		</div>
+
+		<div class="subsection-title">Look</div>
+		<div class="form-check">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="supporter-accent"
+				[ngModel]="supporter.accent"
+				(ngModelChange)="save({accent: $event})"
+				[disabled]="saving() || !connectivity.online()"
+			/>
+			<label class="form-check-label" for="supporter-accent">Gold top bar</label>
+			<div class="form-text">Only you see it.</div>
+		</div>
+		<div class="form-check mt-2">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="supporter-name-heart"
+				[ngModel]="supporter.nameHeart"
+				(ngModelChange)="save({nameHeart: $event})"
+				[disabled]="saving() || !connectivity.online()"
+			/>
+			<label class="form-check-label" for="supporter-name-heart">Heart next to my name</label>
+			<div class="form-text">In the top bar. Only you see it.</div>
+		</div>
+	} @else if (account.profile() === null && auth.isAuthenticated()) {
+		<p class="text-secondary mb-0">Loading…</p>
+	} @else {
+		<p>
+			This page is for people who support Satisfactory Tools on PayPal or Patreon. Everything in the tools stays free -
+			supporters get a heart on the plans they share, a gold top bar, and a place on the supporters list.
+		</p>
+		<p class="mb-2">
+			Already supported? Sign in with an account whose email matches the one you paid with
+			(sign in with Discord, GitHub or Google). If it still does not show up, tell me on Discord.
+		</p>
+		<div class="d-flex flex-wrap gap-2">
+			@for (link of donationLinks; track link.key) {
+				<a class="btn btn-sm btn-outline-secondary" [href]="link.url" target="_blank" rel="noopener"><fa-icon [icon]="link.icon"></fa-icon> {{ link.label }}</a>
+			}
+		</div>
+	}
+</settings-section>

@@ -7,6 +7,9 @@
 				<fa-icon [icon]="faCircleUser"></fa-icon>
 			}
 			{{ account.name() ?? authService.currentLogin() }}
+			@if (account.supporterNameHeart()) {
+				<fa-icon class="supporter-heart ms-1" [icon]="faHeart"></fa-icon>
+			}
 		</a>
 		<ul *dropdownMenu class="dropdown-menu dropdown-menu-end">
 			<li>
@@ -15,6 +18,14 @@
 					Account
 				</a>
 			</li>
+			@if (account.supporter() !== null) {
+				<li>
+					<a class="dropdown-item" routerLink="/settings/supporter">
+						<fa-icon class="supporter-heart" [icon]="faHeart"></fa-icon>
+						Supporter
+					</a>
+				</li>
+			}
 			<li>
 				<button class="dropdown-item" type="button" [disabled]="!connectivity.online()" (click)="logout()">
 					<fa-icon [icon]="faRightFromBracket"></fa-icon>

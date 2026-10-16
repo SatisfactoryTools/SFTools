@@ -86,7 +86,7 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 		});
 	}
 
-	/** A repeat visit keeps visitedAt as is, so it neither re-syncs nor reorders the list; it only fills in a missing icon. */
+	/** A repeat visit keeps visitedAt as is, so it neither re-syncs nor reorders the list; it only fills in a missing icon and the supporter flag. */
 	public recordVisit(payload: SharePayload): void
 	{
 		if (!this.loaded()) {
@@ -95,9 +95,11 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 		}
 		const existing = this.data().shares.find(share => share.share === payload.share);
 		if (existing) {
-			if (existing.iconClassName === undefined && payload.type === 'plan') {
-				const iconClassName = this.shareTrees.buildTree(payload).iconClassName;
-				this.persist({shares: this.data().shares.map(share => share === existing ? {...share, iconClassName} : share)});
+			const sharedBySupporter = payload.sharedBySupporter === true;
+			const fillIcon = existing.iconClassName === undefined && payload.type === 'plan';
+			if (fillIcon || (existing.sharedBySupporter === true) !== sharedBySupporter) {
+				const iconClassName = fillIcon ? this.shareTrees.buildTree(payload).iconClassName : existing.iconClassName;
+				this.persist({shares: this.data().shares.map(share => share === existing ? {...share, iconClassName, sharedBySupporter} : share)});
 			}
 			return;
 		}
@@ -109,6 +111,7 @@ export class VisitedSharesManager extends SyncableService<VisitedShareStore>
 			visitedAt: new Date().toISOString(),
 			version: payload.version,
 			iconClassName: payload.type === 'plan' ? this.shareTrees.buildTree(payload).iconClassName : undefined,
+			sharedBySupporter: payload.sharedBySupporter === true,
 		};
 		this.persist({shares: [entry, ...this.data().shares].slice(0, VISITED_SHARES_CAP)});
 	}

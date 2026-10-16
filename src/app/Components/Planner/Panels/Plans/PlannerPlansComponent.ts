@@ -5,6 +5,7 @@ import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faAnglesDown, faAnglesUp, faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
+import {SupporterBadgeComponent} from '@src/Components/Supporters/SupporterBadgeComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
 import {LongPressDragDirective} from '@src/Components/Common/LongPressDragDirective';
@@ -135,7 +136,7 @@ const AUTO_SCROLL_INTERVAL_MS = 16;
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPlansComponent.html',
 	styleUrl: './PlannerPlansComponent.scss',
-	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective, LongPressDragDirective],
+	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective, LongPressDragDirective, SupporterBadgeComponent],
 })
 export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanTreeMenuHost, HotkeyItemSource
 {

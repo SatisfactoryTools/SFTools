@@ -11,4 +11,5 @@ export interface VisitedShare
 	readonly version: ShareVersion;
 	/** null = none, undefined = unknown (folder shares, rows from the API) - the ShareTreeCache snapshot then supplies it. */
 	readonly iconClassName?: string | null;
+	readonly sharedBySupporter?: boolean;
 }

@@ -5,7 +5,7 @@
 	<div class="row g-3">
 		<div class="col-12 col-md-4 col-lg-3 d-flex flex-column gap-3">
 			<nav class="settings-nav" aria-label="Settings sections">
-				@for (section of sections; track section.id) {
+				@for (section of visibleSections(); track section.id) {
 					<button
 						type="button"
 						[class.active]="activeSection() === section.id"
@@ -54,6 +54,9 @@
 				}
 				@case ('desktop') {
 					<settings-desktop></settings-desktop>
+				}
+				@case ('supporter') {
+					<settings-supporter></settings-supporter>
 				}
 			}
 		</div>

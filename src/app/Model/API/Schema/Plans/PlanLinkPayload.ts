@@ -8,4 +8,6 @@ export interface PlanLinkPayload
 	updatedAt: string;
 	version: ShareVersion;
 	root: SharedPlanNode;
+	/** Missing on an older backend. */
+	sharedBySupporter?: boolean;
 }

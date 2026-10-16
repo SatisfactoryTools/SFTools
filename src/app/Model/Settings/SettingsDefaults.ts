@@ -49,6 +49,7 @@ export class SettingsDefaults
 			groupTabs: true,
 			moreTabs: CalculatorTabDefinitions.DEFAULT_MORE,
 			helpButtons: true,
+			supporterHearts: true,
 		},
 		planDefaults: {
 			alternateRecipes: false,

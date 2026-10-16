@@ -52,6 +52,16 @@
 		}
 	</div>
 
+	@if (supporterList.names().length > 0) {
+		<div class="section-title" id="supporters">Supporters</div>
+		<p class="text-secondary">Thank you to everyone who keeps the tools running:</p>
+		<ul class="supporter-list">
+			@for (name of supporterList.names(); track $index) {
+				<li><fa-icon [icon]="faHeart"></fa-icon>{{ name }}</li>
+			}
+		</ul>
+	}
+
 	<div class="section-title">Credits</div>
 	<div class="credits">
 		<div class="credit">
