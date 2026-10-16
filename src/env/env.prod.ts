@@ -1,8 +1,8 @@
 export const env = {
 	production: true,
-	webUrl: 'https://new.satisfactorytools.com',
+	webUrl: 'https://www.satisfactorytools.com',
 	apiUrl: 'https://api.new.satisfactorytools.com',
-	desktopAppPublic: false,
+	desktopAppPublic: true,
 	matomo: {
 		url: 'https://analytics.greeny.dev/',
 		siteId: 7,
