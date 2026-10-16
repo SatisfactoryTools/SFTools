@@ -8,4 +8,7 @@ export interface HelpLinkResolver
 
 	panelHref(panelId: string): string;
 
+	/** Null when no planner is open to show the panel in. */
+	panelLabel(panelId: string): string | null;
+
 }

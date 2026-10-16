@@ -1,6 +1,9 @@
-import {Component, ChangeDetectionStrategy, ElementRef, HostListener, Input, Optional, computed, effect, signal} from '@angular/core';
+import {Component, ChangeDetectionStrategy, ElementRef, HostListener, Input, OnDestroy, Optional, Renderer2, ViewContainerRef, computed, effect, signal} from '@angular/core';
 import {DomSanitizer, SafeHtml} from '@angular/platform-browser';
 import {Router} from '@angular/router';
+import {ComponentLoader, ComponentLoaderFactory} from 'ngx-bootstrap/component-loader';
+import {PositioningService} from 'ngx-bootstrap/positioning';
+import {TooltipConfig, TooltipContainerComponent} from 'ngx-bootstrap/tooltip';
 import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -11,11 +14,14 @@ import {HelpMarkdownRenderer} from '@src/Model/Help/HelpMarkdownRenderer';
 
 const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 
+let tooltipCounter = 0;
+
 /** HelpMarkdownRenderer drops raw HTML and emits only known markup - hence the sanitizer bypass, without which Angular would strip the data attributes the click handler needs. */
 @Component({
 	selector: 'help-content',
 	templateUrl: './HelpContentComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
+	providers: [ComponentLoaderFactory, PositioningService],
 	styles: `
 		:host {
 			display: block;
@@ -147,6 +153,19 @@ const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 		:host ::ng-deep .help-callout-tip .help-callout-icon {
 			fill: #5cb85c;
 		}
+		:host ::ng-deep .help-link-icon {
+			width: 0.8em;
+			height: 0.8em;
+			margin: 0 0.3em 0 0.2em;
+			vertical-align: -0.05em;
+			fill: currentColor;
+			opacity: 0.75;
+		}
+		:host ::ng-deep .help-link-icon-external {
+			width: 0.7em;
+			height: 0.7em;
+			margin: 0 0 0 0.25em;
+		}
 		:host ::ng-deep .help-callout-body > *:last-child {
 			margin-bottom: 0;
 		}
@@ -171,8 +190,10 @@ const FILE_NAME = /\.(png|jpe?g|gif|webp|avif|svg)$/i;
 		}
 	`,
 })
-export class HelpContentComponent implements HelpLinkResolver
+export class HelpContentComponent implements HelpLinkResolver, OnDestroy
 {
+
+	private tooltip: {anchor: HTMLElement, loader: ComponentLoader<TooltipContainerComponent>} | null = null;
 
 	private readonly markdownSignal = signal('');
 
@@ -195,15 +216,81 @@ export class HelpContentComponent implements HelpLinkResolver
 		private readonly versionManager: VersionManager,
 		private readonly backToPlanner: BackToPlannerResolver,
 		private readonly imageViewer: HelpImageViewerService,
+		private readonly loaders: ComponentLoaderFactory,
+		private readonly positioning: PositioningService,
+		private readonly tooltipConfig: TooltipConfig,
+		private readonly viewContainer: ViewContainerRef,
+		private readonly domRenderer: Renderer2,
 		@Optional() private readonly panelLayout: PanelLayoutService | null,
 	)
 	{
+		effect(() => {
+			// Re-rendering replaces the link a tooltip is attached to.
+			this.html();
+			this.hideTooltip();
+		});
 		effect(() => {
 			const anchor = this.navigation.anchor();
 			this.html();
 			// The headings only exist once the rendered Markdown has been written through innerHTML.
 			requestAnimationFrame(() => this.markCurrentSection(anchor));
 		});
+	}
+
+	public ngOnDestroy(): void
+	{
+		this.hideTooltip();
+	}
+
+	/** The links live in rendered HTML, where the tooltip directive cannot go, so the same tooltip is driven by hand. */
+	@HostListener('mouseover', ['$event'])
+	@HostListener('focusin', ['$event'])
+	protected onTooltipEnter(event: Event): void
+	{
+		const anchor = (event.target as HTMLElement | null)?.closest<HTMLElement>('a[data-help-tooltip]') ?? null;
+		if (anchor === null || anchor === this.tooltip?.anchor) {
+			return;
+		}
+		this.hideTooltip();
+
+		const id = `help-tooltip-${++tooltipCounter}`;
+		const loader = this.loaders
+			.createLoader<TooltipContainerComponent>(new ElementRef(anchor), this.viewContainer, this.domRenderer)
+			.provide({provide: TooltipConfig, useValue: this.tooltipConfig});
+		// Same boundary as AppTooltipDirective.
+		this.positioning.setOptions({modifiers: {flip: {enabled: true}, preventOverflow: {enabled: true, boundariesElement: 'viewport'}}});
+		loader
+			.attach(TooltipContainerComponent)
+			.to(this.tooltipConfig.container ?? 'body')
+			.position({attachment: 'top'})
+			.show({content: anchor.getAttribute('data-help-tooltip') ?? '', placement: 'top', id});
+		anchor.setAttribute('aria-describedby', id);
+		this.tooltip = {anchor, loader};
+	}
+
+	@HostListener('mouseout', ['$event'])
+	@HostListener('focusout', ['$event'])
+	protected onTooltipLeave(event: MouseEvent | FocusEvent): void
+	{
+		const anchor = this.tooltip?.anchor;
+		if (anchor === undefined || !anchor.contains(event.target as Node | null)) {
+			return;
+		}
+		// Moving between the text and the icon inside the same link is not leaving it.
+		if (event.relatedTarget instanceof Node && anchor.contains(event.relatedTarget)) {
+			return;
+		}
+		this.hideTooltip();
+	}
+
+	private hideTooltip(): void
+	{
+		if (this.tooltip === null) {
+			return;
+		}
+		this.tooltip.anchor.removeAttribute('aria-describedby');
+		this.tooltip.loader.dispose();
+		this.tooltip = null;
 	}
 
 	private markCurrentSection(anchor: string): void
@@ -233,6 +320,11 @@ export class HelpContentComponent implements HelpLinkResolver
 			: this.router.serializeUrl(this.router.createUrlTree(planner, {queryParams: {panel: panelId}}));
 	}
 
+	public panelLabel(panelId: string): string | null
+	{
+		return this.panelLayout?.registered().find(panel => panel.id === panelId)?.label ?? null;
+	}
+
 	private plannerLink(): string[] | null
 	{
 		const remembered = this.backToPlanner.link();
@@ -246,6 +338,8 @@ export class HelpContentComponent implements HelpLinkResolver
 	@HostListener('click', ['$event'])
 	protected onClick(event: MouseEvent): boolean
 	{
+		this.hideTooltip();
+
 		if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
 			return true;
 		}

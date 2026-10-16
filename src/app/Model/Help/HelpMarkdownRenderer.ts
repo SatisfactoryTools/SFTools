@@ -1,9 +1,18 @@
 import {Injectable} from '@angular/core';
-import {IconDefinition, faCircleInfo, faLightbulb, faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {
+	IconDefinition,
+	faArrowUpRightFromSquare,
+	faCircleInfo,
+	faCircleQuestion,
+	faLightbulb,
+	faTableColumns,
+	faTriangleExclamation,
+} from '@fortawesome/free-solid-svg-icons';
 import {Marked, TextRenderer} from 'marked';
 import {HelpApiService} from '@src/Model/API/HelpApiService';
 import {HelpArticleSection} from '@src/Model/API/Schema/Help/HelpArticleSection';
 import {HelpLinkResolver} from '@src/Model/Help/HelpLinkResolver';
+import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HotkeyAction} from '@src/Model/Hotkeys/HotkeyAction';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 
@@ -12,6 +21,13 @@ const CALLOUT_ICONS: Record<string, IconDefinition> = {
 	warning: faTriangleExclamation,
 	tip: faLightbulb,
 };
+
+/** Article and panel links would otherwise look identical, though one changes the article and the other moves focus in the planner. */
+const LINK_ICONS = {
+	article: faCircleQuestion,
+	panel: faTableColumns,
+	external: faArrowUpRightFromSquare,
+} satisfies Record<string, IconDefinition>;
 
 const SAFE_PROTOCOLS = ['http:', 'https:', 'mailto:'];
 
@@ -23,6 +39,7 @@ export class HelpMarkdownRenderer
 	public constructor(
 		private readonly api: HelpApiService,
 		private readonly hotkeys: HotkeyService,
+		private readonly help: HelpManager,
 	)
 	{
 	}
@@ -135,18 +152,22 @@ export class HelpMarkdownRenderer
 	{
 		const icon = CALLOUT_ICONS[kind] ?? faCircleInfo;
 		return `<div class="help-callout help-callout-${this.escape(kind)}">`
-			+ `${this.icon(icon)}<div class="help-callout-body">${content}</div></div>\n`;
+			+ `${this.icon(icon, 'help-callout-icon')}<div class="help-callout-body">${content}</div></div>\n`;
 	}
 
 	private link(href: string, title: string | null, text: string, links: HelpLinkResolver): string
 	{
-		const titleAttribute = title !== null && title !== '' ? ` title="${this.escape(title)}"` : '';
+		// An author's own title wins; otherwise the tooltip says where the link goes. HelpContentComponent shows it as a Bootstrap tooltip.
+		const tooltipAttribute = (fallback: string): string => {
+			const tooltip = title !== null && title !== '' ? title : fallback;
+			return tooltip === '' ? '' : ` data-help-tooltip="${this.escape(tooltip)}"`;
+		};
 
 		const article = /^help:(.+)$/.exec(href);
 		if (article !== null) {
 			const [slug, anchor = ''] = article[1].split('#');
 			return `<a href="${this.escape(links.articleHref(slug, anchor))}" data-help-article="${this.escape(slug)}"`
-				+ ` data-help-anchor="${this.escape(anchor)}"${titleAttribute}>${text}</a>`;
+				+ ` data-help-anchor="${this.escape(anchor)}"${tooltipAttribute(this.articleTooltip(slug, anchor))}>${this.linkIcon('article')}${text}</a>`;
 		}
 
 		const panel = /^panel:(.+)$/.exec(href);
@@ -157,18 +178,46 @@ export class HelpMarkdownRenderer
 				return text;
 			}
 			return `<a href="${this.escape(target)}" data-help-panel="${this.escape(panel[1])}"`
-				+ `${titleAttribute}>${text}</a>`;
+				+ `${tooltipAttribute(this.panelTooltip(links.panelLabel(panel[1])))}>${this.linkIcon('panel')}${text}</a>`;
 		}
 
 		if (href.startsWith('/')) {
-			return `<a href="${this.escape(href)}" data-help-route="${this.escape(href)}"${titleAttribute}>${text}</a>`;
+			return `<a href="${this.escape(href)}" data-help-route="${this.escape(href)}"${tooltipAttribute('')}>${text}</a>`;
 		}
 
 		if (!this.isSafe(href)) {
 			return text;
 		}
 
-		return `<a href="${this.escape(href)}" target="_blank" rel="noopener noreferrer"${titleAttribute}>${text}</a>`;
+		return `<a href="${this.escape(href)}" target="_blank" rel="noopener noreferrer"${tooltipAttribute(this.externalTooltip(href))}>${text}${this.linkIcon('external')}</a>`;
+	}
+
+	private articleTooltip(slug: string, anchor: string): string
+	{
+		const summary = this.help.summary(slug);
+		if (summary === null) {
+			return 'Open a help article';
+		}
+		const section = anchor === '' ? undefined : summary.sections.find(candidate => candidate.id === anchor);
+		return section === undefined
+			? `Open help article “${summary.title}”`
+			: `Open “${section.title}” in help article “${summary.title}”`;
+	}
+
+	/** Without a label the reader is outside the planner, so the link first has to take them there. */
+	private panelTooltip(label: string | null): string
+	{
+		return label === null
+			? 'Open the planner and show this panel'
+			: `Show the ${label} panel in the planner`;
+	}
+
+	private externalTooltip(href: string): string
+	{
+		const url = new URL(href, document.baseURI);
+		return url.protocol === 'mailto:'
+			? `Send an email to ${decodeURIComponent(url.pathname)}`
+			: `Open ${url.hostname} in a new tab`;
 	}
 
 	private image(href: string, title: string | null, alt: string): string
@@ -234,12 +283,17 @@ export class HelpMarkdownRenderer
 			.replace(/"/g, '&quot;');
 	}
 
+	private linkIcon(kind: keyof typeof LINK_ICONS): string
+	{
+		return this.icon(LINK_ICONS[kind], `help-link-icon help-link-icon-${kind}`);
+	}
+
 	/** A Font Awesome icon as inline SVG - rendered HTML cannot host components. */
-	private icon(icon: IconDefinition): string
+	private icon(icon: IconDefinition, className: string): string
 	{
 		const [width, height, , , path] = icon.icon;
 		const paths = Array.isArray(path) ? path : [path];
-		return `<svg class="help-callout-icon" viewBox="0 0 ${width} ${height}" aria-hidden="true">`
+		return `<svg class="${className}" viewBox="0 0 ${width} ${height}" aria-hidden="true">`
 			+ paths.map(definition => `<path d="${this.escape(definition)}"/>`).join('')
 			+ '</svg>';
 	}
