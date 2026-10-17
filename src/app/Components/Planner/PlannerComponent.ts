@@ -107,8 +107,6 @@ import {GraphExportDialogService} from '@src/Components/Planner/Export/GraphExpo
 // Matches the reconciler's absolute warning tolerance.
 const FLOW_TOLERANCE = 0.001;
 const RATIO_TOLERANCE = 1e-4;
-// Below every resource, power and machine weight, so the solver prefers the input to making the item - but not free, which would let it pull unused inputs into byproducts.
-const ADDED_INPUT_WEIGHT = 0.001;
 
 @Component({
 	templateUrl: './PlannerComponent.html',
@@ -1449,7 +1447,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setInputs(plan.id, plan.inputs.filter(input => input.itemClassName !== itemClassName));
 	}
 
-	/** The node is unlocked, or the next solve would keep it next to the input. */
+	/** Free, so the solver uses the input instead of making the item. The node is unlocked, or the next solve would keep it next to the input. */
 	private addInput(node: RecipeNode): void
 	{
 		const plan = this.planManager.activePlan();
@@ -1468,7 +1466,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		const existing = plan.inputs.find(input => input.itemClassName === item.className);
 		this.planManager.setInputs(plan.id, existing
 			? plan.inputs.map(input => input === existing ? {...input, amount: input.amount + amount} : input)
-			: [...plan.inputs, {itemClassName: item.className, amount, weight: ADDED_INPUT_WEIGHT}]);
+			: [...plan.inputs, {itemClassName: item.className, amount, weight: 0}]);
 	}
 
 	/** Leaves the dirty flag as is, like manual node drags. */

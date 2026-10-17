@@ -49,6 +49,9 @@ export class ProductionSolverService
 
 	private static readonly MAXIMISE_EPSILON = 0.001;
 
+	/** Far below any real weight (water: 0.01), far above the 1e-9 dual tolerance - it only breaks ties. */
+	private static readonly INPUT_TIE_BREAK = 1e-6;
+
 	public constructor(
 		private readonly solver: SolverService,
 		private readonly versionManager: VersionManager,
@@ -489,13 +492,11 @@ export class ProductionSolverService
 				}
 			})
 
-			if (request.optimisation.inputs) {
-				request.inputs.forEach(input => {
-					if (input.weight > 0) {
-						optimisation.push(input.weight + ' ' + input.item.className + '@Input');
-					}
-				});
-			}
+			// Never free, even at weight 0: byproducts cost nothing, so a free input the plan does not need could be drawn and dumped into one.
+			request.inputs.forEach(input => {
+				const weight = request.optimisation.inputs ? input.weight : 0;
+				optimisation.push((weight + ProductionSolverService.INPUT_TIE_BREAK) + ' ' + input.item.className + '@Input');
+			});
 
 			if (request.optimisation.power > 0 || request.optimisation.machines > 0) {
 				request.recipes.forEach(recipe => {
