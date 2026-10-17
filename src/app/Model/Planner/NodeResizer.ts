@@ -1,4 +1,6 @@
 import {Injectable} from '@angular/core';
+import {Building} from '@src/Model/Data/Entities/Building';
+import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
@@ -15,7 +17,7 @@ import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 
-/** Resizing is a manual edit, so replacements come back locked - except withAmount, which serves elastic bookkeeping. */
+/** Resizing and recipe swaps are manual edits, so replacements come back locked - except withAmount, which serves elastic bookkeeping. */
 @Injectable({providedIn: 'root'})
 export class NodeResizer
 {
@@ -108,6 +110,24 @@ export class NodeResizer
 		return this.placed(node, new GeneratorNode(node.id, amount, node.generator, node.fuel, clockSpeed), true);
 	}
 
+	/** Keeps the node's output of `itemClassName`, and its machine when the new recipe can run in it. */
+	public withRecipe(node: RecipeNode, recipe: Recipe, itemClassName: string): RecipeNode | null
+	{
+		const machine = recipe.producedIn.find(candidate => candidate.className === node.machine.className) ?? recipe.producedIn[0];
+		const product = recipe.products.find(entry => entry.item.className === itemClassName);
+		if (!machine || !product) {
+			return null;
+		}
+		const sloops = this.normalizer.clampSloops(this.uniformSloops(node.groups), machine);
+		const perTarget = product.amount
+			* Formulas.referenceCycles(recipe, machine)
+			* Formulas.sloopOutputMultiplier(machine, sloops);
+		if (perTarget <= 0) {
+			return null;
+		}
+		return this.rebuiltRecipe(node, this.outputTotal(node, itemClassName) / perTarget, sloops, recipe, machine);
+	}
+
 	public edgeRatios(node: Node, edges: GraphEdge[]): number[]
 	{
 		const ratios: number[] = [];
@@ -132,13 +152,13 @@ export class NodeResizer
 		});
 	}
 
-	private rebuiltRecipe(node: RecipeNode, target: number, sloops: number): RecipeNode | null
+	private rebuiltRecipe(node: RecipeNode, target: number, sloops: number, recipe: Recipe = node.recipe, machine: Building = node.machine): RecipeNode | null
 	{
 		if (target <= 0) {
 			return null;
 		}
-		const groups = this.normalizer.generateForTarget(target, this.clocks.forRecipe(node.recipe, node.machine), sloops, node.groupingMode);
-		const replacement = new RecipeNode(node.id, target, groups, node.machine, node.recipe);
+		const groups = this.normalizer.generateForTarget(target, this.clocks.forRecipe(recipe, machine), sloops, node.groupingMode);
+		const replacement = new RecipeNode(node.id, target, groups, machine, recipe);
 		replacement.groupingMode = node.groupingMode;
 		return this.placed(node, replacement, true);
 	}

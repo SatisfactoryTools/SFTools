@@ -18,6 +18,7 @@ import {NodeSplitOptions} from '@src/Components/Planner/ContextMenu/NodeSplitOpt
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlannerContextMenuComponent} from '@src/Components/Planner/ContextMenu/PlannerContextMenuComponent';
 import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
+import {RecipeSwapMenu} from '@src/Components/Planner/ContextMenu/RecipeSwapMenu';
 import {CalculatorTabHotkeys} from '@src/Components/Planner/Panels/Calculator/CalculatorTabHotkeys';
 import {CalculatorTabStateService} from '@src/Components/Planner/Panels/Calculator/CalculatorTabStateService';
 import {HotkeyAction} from '@src/Model/Hotkeys/HotkeyAction';
@@ -77,6 +78,7 @@ import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
+import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {SubplanBuildCountRequest} from '@src/Components/Planner/SubplanBuildCountRequest';
@@ -710,8 +712,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		const items: HotkeyItem[] = [...new BlankContextMenu(this.actions, this.plannerGraph.canvasCenter()).getItems()];
 		const nodes = this.plannerGraph.selectedNodes();
 		if (nodes.length === 1) {
-			items.push(...new NodeContextMenu(nodes[0], this.nodeResizeOptions(nodes[0]), this.nodeSplitOptions(nodes[0]),
-				this.actions, this.panelLayout, this.plannerGraph).getItems());
+			items.push(...new NodeContextMenu(nodes[0], this.nodeResizeOptions(nodes[0]), this.nodeSplitOptions(nodes[0]), this.recipeSwapMenu(nodes[0]),
+				this.actions, this.panelLayout, this.plannerGraph, this.contextMenu).getItems());
 		} else if (nodes.length > 1) {
 			items.push(...new MultiNodeContextMenu(nodes, this.actions).getItems());
 		}
@@ -783,7 +785,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			menu = new BlankContextMenu(this.actions, request.local);
 		} else if (request.nodes.length === 1) {
 			menu = new NodeContextMenu(request.nodes[0], this.nodeResizeOptions(request.nodes[0]), this.nodeSplitOptions(request.nodes[0]),
-				this.actions, this.panelLayout, this.plannerGraph);
+				this.recipeSwapMenu(request.nodes[0]), this.actions, this.panelLayout, this.plannerGraph, this.contextMenu);
 		} else {
 			menu = new MultiNodeContextMenu(request.nodes, this.actions);
 		}
@@ -851,6 +853,25 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			minimise: minRatio < 1 - RATIO_TOLERANCE ? this.nodeResizer.scaled(node, minRatio) : null,
 			maximise: maxRatio > 1 + RATIO_TOLERANCE ? this.nodeResizer.scaled(node, maxRatio) : null,
 		};
+	}
+
+	/** Other recipes for the node's main product, each sized to keep that product's output. */
+	private recipeSwapMenu(node: Node): RecipeSwapMenu | null
+	{
+		const data = this.versionManager.activeVersionData();
+		if (!(node instanceof RecipeNode) || !data) {
+			return null;
+		}
+		const product = node.recipe.products[0]?.item;
+		if (!product) {
+			return null;
+		}
+		const options = data.getRecipesProducingItem(product.className)
+			.filter(recipe => recipe.className !== node.recipe.className && recipe.producedIn.length > 0)
+			.sort((a, b) => a.name.localeCompare(b.name))
+			.map(recipe => this.nodeResizer.withRecipe(node, recipe, product.className))
+			.filter(option => option !== null);
+		return options.length > 0 ? new RecipeSwapMenu(options, this.rateFormatter, option => this.applyRecipeSwap(option)) : null;
 	}
 
 	private nodeSplitOptions(node: Node): NodeSplitOptions
@@ -952,6 +973,17 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
 		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [updated.id]);
 		this.planManager.setGraph(plan.id, reconciled, true);
+	}
+
+	/** A swap leaves the graph unbalanced, so automatic mode re-solves at once - unless that would discard earlier hand edits. The swapped node is locked, so the solve keeps it. */
+	private applyRecipeSwap(node: RecipeNode): void
+	{
+		const plan = this.planManager.activePlan();
+		const resolve = plan !== null && this.modeOf(plan) === 'automatic' && !(plan.metadata?.graphDirty ?? false);
+		this.applyNodeUpdate(node);
+		if (resolve) {
+			this.calculate();
+		}
 	}
 
 	private applyEdgeAdd(request: GraphEdgeAddRequest): void
