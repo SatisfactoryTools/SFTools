@@ -1,8 +1,10 @@
-import {faArrowsSplitUpAndLeft, faBan, faCheck, faCompress, faCrosshairs, faDiagramProject, faExpand, faFolderOpen, faLock, faLockOpen, faRotateLeft, faTrashCan, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faArrowsSplitUpAndLeft, faBan, faCheck, faCompress, faCrosshairs, faDiagramProject, faExpand, faFolderOpen, faLock, faLockOpen, faRightLeft, faRotateLeft, faTrashCan, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {NodeResizeOptions} from '@src/Components/Planner/ContextMenu/NodeResizeOptions';
 import {NodeSplitOptions} from '@src/Components/Planner/ContextMenu/NodeSplitOptions';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
+import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
+import {RecipeSwapMenu} from '@src/Components/Planner/ContextMenu/RecipeSwapMenu';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
@@ -24,9 +26,11 @@ export class NodeContextMenu extends PlannerContextMenu
 		private readonly node: Node,
 		private readonly resize: NodeResizeOptions,
 		private readonly splits: NodeSplitOptions,
+		private readonly recipeSwap: RecipeSwapMenu | null,
 		private readonly actions: PlannerActionsService,
 		private readonly panelLayout: PanelLayoutService,
 		private readonly plannerGraph: PlannerGraphService,
+		private readonly contextMenu: PlannerContextMenuService,
 	)
 	{
 		super();
@@ -117,7 +121,21 @@ export class NodeContextMenu extends PlannerContextMenu
 		const node = this.node;
 
 		if (node instanceof RecipeNode) {
+			const recipeSwap = this.recipeSwap;
 			return [
+				{
+					label: 'Change recipe…',
+					icon: faRightLeft,
+					disabled: recipeSwap === null,
+					hint: recipeSwap === null ? `No other recipe makes ${node.recipe.products[0]?.item.name ?? 'this'}.` : undefined,
+					action: () => {
+						if (recipeSwap) {
+							// Opens where this menu was, which closed just before the action ran.
+							const {x, y} = this.contextMenu.position();
+							this.contextMenu.open(recipeSwap, x, y);
+						}
+					},
+				},
 				{
 					label: 'Disable recipe',
 					icon: faBan,
