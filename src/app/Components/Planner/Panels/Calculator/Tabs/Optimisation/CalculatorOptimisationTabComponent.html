@@ -1,10 +1,10 @@
 <div class="p-2 d-flex flex-column gap-2">
 
-	<info-note>The calculation keeps the weighted total of the enabled goals as low as possible.</info-note>
+	<info-note>The calculation keeps the total cost of the enabled goals as low as possible.</info-note>
 
 	@if (noneEnabled) {
 		<info-note kind="warning">
-			At least one goal must be enabled, otherwise nothing can be calculated.
+			Enable at least one goal. Otherwise nothing can be calculated.
 			@if (inputsEnabled && !hasInputs) {
 				Input weights only matter when the plan has inputs.
 			}

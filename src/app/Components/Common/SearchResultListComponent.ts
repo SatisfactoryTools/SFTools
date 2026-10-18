@@ -21,7 +21,7 @@ import {SearchResultGroup} from '@src/Model/Search/SearchResultGroup';
 		}
 		.search-result.highlighted {
 			background: rgba(255, 255, 255, 0.1);
-			box-shadow: inset 2px 0 0 #4c9be8;
+			box-shadow: inset 2px 0 0 var(--bs-primary);
 		}
 	`,
 })

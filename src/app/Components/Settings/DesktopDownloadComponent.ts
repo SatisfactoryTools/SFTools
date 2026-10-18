@@ -24,12 +24,12 @@ import {VisitorPlatformService} from '@src/Model/Desktop/VisitorPlatformService'
 			display: flex;
 			gap: 1rem;
 			padding: 1rem 1.1rem;
-			background: #20374c;
+			background: var(--bs-dark);
 			border: 1px solid #4e5d6c;
 		}
 		.download-block.primary {
-			background: rgba(76, 155, 232, 0.1);
-			border-color: #4c9be8;
+			background: rgba(var(--bs-primary-rgb), 0.1);
+			border-color: var(--bs-primary);
 		}
 		.download-block + .download-block {
 			margin-top: 0.75rem;
@@ -42,8 +42,7 @@ import {VisitorPlatformService} from '@src/Model/Desktop/VisitorPlatformService'
 			align-items: center;
 			justify-content: center;
 			font-size: 1.75rem;
-			background: rgba(76, 155, 232, 0.16);
-			color: #4c9be8;
+			color: var(--bs-primary);
 		}
 		.download-body {
 			flex: 1 1 14rem;
@@ -96,13 +95,13 @@ import {VisitorPlatformService} from '@src/Model/Desktop/VisitorPlatformService'
 			margin-top: 0.75rem;
 			padding: 0.5rem 1rem;
 			border: 1px solid #4e5d6c;
-			background: #20374c;
+			background: var(--bs-dark);
 			color: inherit;
 			text-align: left;
 			transition: border-color 0.15s, background 0.15s;
 		}
 		.download-others-toggle:hover {
-			border-color: #4c9be8;
+			border-color: var(--bs-primary);
 			background: #243e56;
 		}
 		.download-others-toggle .text-secondary {

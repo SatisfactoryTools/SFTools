@@ -27,8 +27,7 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			background: rgba(76, 155, 232, 0.16);
-			color: #4c9be8;
+			color: var(--bs-primary);
 			font-size: 0.85rem;
 			flex-shrink: 0;
 		}
@@ -61,7 +60,7 @@ export class SettingsSectionComponent
 
 	public reset(): void
 	{
-		const message = `Put every setting on the "${this.title}" page back to its default?` + (this.resetWarning !== '' ? `\n\n${this.resetWarning}` : '');
+		const message = `Reset all "${this.title}" settings to their defaults?` + (this.resetWarning !== '' ? `\n\n${this.resetWarning}` : '');
 		if (confirm(message)) {
 			this.settings.reset(this.resetCategories);
 		}

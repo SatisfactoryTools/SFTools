@@ -33,12 +33,11 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 		.prompt-hero {
 			padding: 1.75rem 1.5rem 0.5rem;
 			text-align: center;
-			background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(76, 155, 232, 0.22), transparent 70%);
 		}
 		.prompt-hero img {
 			height: 48px;
 			margin-bottom: 0.75rem;
-			filter: drop-shadow(0 4px 12px rgba(76, 155, 232, 0.35));
+			filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
 		}
 		.prompt-close {
 			position: absolute;
@@ -66,8 +65,8 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			background: rgba(76, 155, 232, 0.15);
-			color: #4c9be8;
+			background: rgba(var(--bs-primary-rgb), 0.15);
+			color: var(--bs-primary);
 		}
 		.card-body {
 			padding: 0.75rem 1.5rem 1.25rem;

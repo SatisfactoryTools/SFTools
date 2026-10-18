@@ -31,8 +31,8 @@
 			</div>
 			@if (producePowerForFactory && maxSloops > 0) {
 				<info-note kind="warning">
-					Producing power for the factory together with somersloops
-					(Sloops tab) makes the calculation much harder. It can take a very long time.
+					Producing power for the factory with somersloops makes the calculation much slower.
+					It can take a very long time.
 				</info-note>
 			}
 		</div>
@@ -123,8 +123,8 @@
 				}
 				@if (!hasGeyserCaps) {
 					<info-note>
-						This version has no map data, so the number of geysers is not known.
-						Enter what your own map has.
+						This version has no map data, so the number of geysers is unknown.
+						Enter what your map has.
 					</info-note>
 				}
 			</div>
@@ -144,10 +144,9 @@
 			@if (foldState.isOpen('augmenters')) {
 			<div class="card-body p-2 d-flex flex-column gap-2">
 				<info-note>
-					Each one adds {{ flatPerAugmenterText }} and then raises all the power the plan makes
-					by {{ sharePerAugmenterText }}. A boosted one raises it by {{ sharePerBoostedText }} instead,
-					but burns {{ matrixPerBoostedText }} of {{ matrixName }}, which the plan has to make.
-					Building one costs {{ sloopsPerAugmenter }} somersloops.
+					Each one adds {{ flatPerAugmenterText }} and raises all the plan's power by {{ sharePerAugmenterText }}.
+					A boosted one raises it by {{ sharePerBoostedText }} but burns {{ matrixPerBoostedText }} of {{ matrixName }}.
+					Each costs {{ sloopsPerAugmenter }} somersloops to build.
 				</info-note>
 				<div class="d-flex align-items-center gap-2">
 					<label class="flex-grow-1 mb-0" for="augmenter-count">How many to build</label>

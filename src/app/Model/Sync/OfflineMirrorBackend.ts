@@ -99,7 +99,7 @@ export class OfflineMirrorBackend<T> implements DataBackend<T>
 		this.notifications.show(
 			conflicts === 0
 				? `The changes to your ${this.label} made while offline were saved to your account.`
-				: `The changes to your ${this.label} made while offline were saved to your account. ${conflicts} of them had also been changed elsewhere - both versions were kept.`,
+				: `The changes to your ${this.label} made while offline were saved to your account. ${conflicts} of them were also changed elsewhere. Both versions were kept.`,
 			10_000,
 		);
 		return data;

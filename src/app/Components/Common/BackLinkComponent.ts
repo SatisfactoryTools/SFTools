@@ -31,11 +31,11 @@ import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 		a:hover,
 		a:focus-visible {
 			color: #fff;
-			background: rgba(76, 155, 232, 0.18);
-			border-color: #4c9be8;
+			background: rgba(var(--bs-primary-rgb), 0.18);
+			border-color: var(--bs-primary);
 		}
 		fa-icon {
-			color: #4c9be8;
+			color: var(--bs-primary);
 			transition: transform 0.15s;
 		}
 		a:hover fa-icon {

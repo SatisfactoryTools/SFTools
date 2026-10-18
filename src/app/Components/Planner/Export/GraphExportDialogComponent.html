@@ -12,7 +12,7 @@
 					Preparing the graph…
 				</div>
 			} @else if (snapshot() === null && error() === null) {
-				<info-note kind="info">There is nothing to export - the graph is empty.</info-note>
+				<info-note kind="info">The graph is empty. There is nothing to export.</info-note>
 			} @else if (snapshot(); as snapshot) {
 
 				<div class="mb-3">
@@ -23,9 +23,9 @@
 					</div>
 					<div class="form-text">
 						@if (format() === 'svg') {
-							Stays sharp at any size and can be edited in a vector editor.
+							Sharp at any size. Can be edited in a vector editor.
 						} @else {
-							A plain picture that opens anywhere. Pick how large it should be below.
+							A plain picture that opens anywhere.
 						}
 					</div>
 				</div>
@@ -33,7 +33,7 @@
 				<div class="form-check form-switch mb-3">
 					<input class="form-check-input" type="checkbox" role="switch" id="graph-export-background" [checked]="background()" (change)="toggleBackground()">
 					<label class="form-check-label" for="graph-export-background">Include the background</label>
-					<div class="form-text">The same dark colour as the website. Without it the picture is transparent.</div>
+					<div class="form-text">Without it the picture is transparent.</div>
 				</div>
 
 				@if (format() === 'png') {
@@ -61,7 +61,7 @@
 						</div>
 					</div>
 
-					<div class="small text-secondary mb-1">One node at this size, as an image viewer shows it at 100&nbsp;%:</div>
+					<div class="small text-secondary mb-1">Preview of one node at this size:</div>
 					<div class="preview-box">
 						@if (preview(); as url) {
 							<img [src]="url" alt="Preview of one node" [style.width.px]="previewCssWidth()">

@@ -1,6 +1,6 @@
 <auth-layout [title]="error ? 'Sign-in failed' : completedForDesktop ? 'Signed in' : 'Signing in'">
 	@if (completedForDesktop) {
-		<p class="text-center py-2 mb-2">You are signed in to the Satisfactory Tools desktop app. You can close this tab and go back to the app.</p>
+		<p class="text-center py-2 mb-2">You are signed in to the desktop app. You can close this tab.</p>
 		<a href="sftools://" class="btn btn-sm btn-primary w-100">Open the desktop app</a>
 	} @else if (error; as message) {
 		<div class="alert alert-danger py-2">{{ message }}</div>

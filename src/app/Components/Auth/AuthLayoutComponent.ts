@@ -8,8 +8,6 @@ import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 		:host {
 			display: block;
 			padding: 2.5rem 0.75rem 3rem;
-			background:
-				radial-gradient(ellipse 60% 45% at 50% 0%, rgba(76, 155, 232, 0.18), transparent 70%);
 		}
 		.auth-card {
 			width: min(440px, 100%);
@@ -23,7 +21,7 @@ import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 		.auth-head img {
 			height: 48px;
 			margin-bottom: 0.75rem;
-			filter: drop-shadow(0 4px 12px rgba(76, 155, 232, 0.35));
+			filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.45));
 		}
 		.card-body {
 			padding: 1rem 1.5rem 1.5rem;

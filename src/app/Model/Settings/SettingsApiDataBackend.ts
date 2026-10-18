@@ -33,7 +33,7 @@ export class SettingsApiDataBackend implements DataBackend<Settings>, SyncReport
 					if (this.connectionLossExpected && err instanceof HttpErrorResponse && err.status === 0) {
 						return of(void 0);
 					}
-					this.notifications.show('Could not save your settings to your account. They apply here, but they will be lost if you close the page.', 10_000);
+					this.notifications.show('Could not save your settings to your account. They work here, but are lost when you close the page.', 10_000);
 					return of(void 0);
 				}),
 			)),

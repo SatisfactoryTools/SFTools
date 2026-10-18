@@ -1973,7 +1973,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		try {
 			result$ = this.productionSolver.solve({...plan, requests: validRequests}, lockedNodes);
 		} catch (err) {
-			this.actions.setSolveError('error', 'Could not start the calculation: ' + String(err));
+			this.actions.setSolveError('error', 'Could not start the calculation: ' + String(err) + '. This is a bug, please tell me on Discord.');
 			return;
 		}
 
@@ -1993,7 +1993,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 					// Undefined clears stale maximise results.
 					this.planManager.setAchievedMaximums(plan.id, result.achievedMaximums);
 				}).catch(err => {
-					this.actions.setSolveError('error', 'Could not draw the graph: ' + String(err));
+					this.actions.setSolveError('error', 'Could not draw the graph: ' + String(err) + '. This is a bug, please tell me on Discord.');
 				});
 			},
 			error: err => {

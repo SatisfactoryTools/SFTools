@@ -34,17 +34,16 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 		.toggle-cell .form-check-input { display: block; margin: 0 auto; float: none; }
 		/* As wide as "m³/min", so the numbers line up. */
 		.unit-addon { min-width: 4.6em; justify-content: flex-start; }
-		.pool-bar { height: 8px; background: #1d2733; }
+		.pool-bar { height: 8px; background: #1d2833; }
 		.pool-others { background: #d9a441; }
 		.pool-plan { background: #5bc0de; }
-		.pool-free { background: #1d2733; border: 1px solid #4e5d6c; }
+		.pool-free { background: #1d2833; border: 1px solid #4e5d6c; }
 		.pool-legend {
 			display: inline-block;
 			width: 12px;
 			height: 8px;
 			margin-right: 4px;
 			vertical-align: middle;
-			border-radius: 2px;
 		}
 	`],
 })
@@ -56,10 +55,10 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 	public rows: ResourceLimitRow[] = [];
 
 	public readonly modeOptions: ResourceWeightModeOption[] = [
-		{mode: 'map', label: 'Automatic (from map resources)', description: 'The most abundant resource on the map weighs 1; rarer ones weigh more in proportion. Water and other unlimited resources weigh 0.01.'},
-		{mode: 'limits', label: 'Automatic (from limits)', description: 'The resource with the largest limit gets weight 1. Rarer resources get a higher weight in proportion. Unlimited resources get 0.01.'},
-		{mode: 'equal', label: 'All equal', description: 'Every resource has weight 1. The plan mines as little as possible in total.'},
-		{mode: 'manual', label: 'Manual', description: 'Your own weights. They start from the values of the previous mode.'},
+		{mode: 'map', label: 'Automatic (from map resources)', description: 'The most common resource on the map has weight 1. Rarer ones weigh more. Unlimited resources, like water, weigh 0.01.'},
+		{mode: 'limits', label: 'Automatic (from limits)', description: 'The resource with the largest limit has weight 1. Rarer ones weigh more. Unlimited resources weigh 0.01.'},
+		{mode: 'equal', label: 'All equal', description: 'Every resource has weight 1. The plan mines as little as possible.'},
+		{mode: 'manual', label: 'Manual', description: 'Your own weights. They start from the previous mode\'s values.'},
 	];
 
 	public readonly poolStatus: Signal<PoolResourceStatus[] | null> = computed(() => {

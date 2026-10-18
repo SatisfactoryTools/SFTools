@@ -4,8 +4,7 @@
 
 		@if (activeFolder(); as folder) {
 			<info-note>
-				Starting values for the folder "{{ folder.name }}": new plans and subfolders made inside it begin with these
-				settings. Plans already in the folder keep their own.
+				Starting values for new plans in "{{ folder.name }}". Plans already in the folder keep their own.
 			</info-note>
 		} @else if (readOnly()) {
 			<info-note>{{ readOnlyNote() }}</info-note>
@@ -71,10 +70,8 @@
 						>
 					</div>
 
-					@if (activeFolder()) {
-						<info-note>New plans made in this folder are arranged this way.</info-note>
-					} @else {
-						<info-note>Used the next time the graph is arranged. New subplans copy these settings.</info-note>
+					@if (!activeFolder()) {
+						<info-note>Used the next time the graph is arranged.</info-note>
 					}
 
 				</fieldset>
@@ -97,8 +94,6 @@
 							<option value="no-clocking">Whole machines only</option>
 						</select>
 					</div>
-
-					<info-note>You can change this for each node in the Inspector.</info-note>
 
 				</fieldset>
 			}
@@ -150,10 +145,7 @@
 	} @else if (activeFolder(); as folder) {
 
 		<!-- The same step as in the calculator, so people can start from either panel. -->
-		<info-note>
-			"{{ folder.name }}" uses the settings of {{ parentLabel() }}. Give it its own to set the layout, machine
-			groups and colours that new plans inside start with.
-		</info-note>
+		<info-note>"{{ folder.name }}" uses the settings of {{ parentLabel() }}.</info-note>
 		@if (customSettingsBlocker(); as blocker) {
 			<span class="text-warning">{{ blocker }}</span>
 		} @else {

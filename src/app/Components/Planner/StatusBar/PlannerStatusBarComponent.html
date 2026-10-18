@@ -1,12 +1,12 @@
-<span class="stat" [title]="'Power consumption' + (powerRangeText() ? ' - varies ' + powerRangeText() : '')"><fa-icon class="stat-icon" [icon]="faBolt"></fa-icon><span class="lbl">Power </span><b>{{ powerText() }}</b>@if (powerRangeText()) {<small class="range">{{ powerRangeText() }}</small>}</span>
+<span class="stat" [title]="'Power consumption' + (powerRangeText() ? ', varies ' + powerRangeText() : '')"><fa-icon class="stat-icon" [icon]="faBolt"></fa-icon><span class="lbl">Power </span><b>{{ powerText() }}</b>@if (powerRangeText()) {<small class="range">{{ powerRangeText() }}</small>}</span>
 @if (hasProduction()) {
 	<span class="stat" title="Power production"><span class="lbl">Production </span><span class="abbr">Prod. </span><b class="production">{{ productionText() }}</b></span>
-	<span class="stat" [title]="'Production minus consumption' + (netRangeText() ? ' - varies ' + netRangeText() : '')">Net <b [class.production]="netIsSurplus()" [class.deficit]="!netIsSurplus()">{{ netText() }}</b>@if (netRangeText()) {<small class="range">{{ netRangeText() }}</small>}</span>
+	<span class="stat" [title]="'Production minus consumption' + (netRangeText() ? ', varies ' + netRangeText() : '')">Net <b [class.production]="netIsSurplus()" [class.deficit]="!netIsSurplus()">{{ netText() }}</b>@if (netRangeText()) {<small class="range">{{ netRangeText() }}</small>}</span>
 }
 @if (subplanBuilds() > 1) {
 	<span class="stat" [title]="subplanBuildsText()"><fa-icon class="stat-icon" [icon]="faLayerGroup"></fa-icon><span class="lbl">Built </span><b>{{ subplanBuilds() }}×</b></span>
 }
-<span class="stat" [title]="builtBuildings() > 0 ? 'Buildings - ' + rateFormatter.amount(builtBuildings()) + ' already built (marked as done)' : 'Buildings'"><fa-icon class="stat-icon" [icon]="faIndustry"></fa-icon><span class="lbl">Buildings </span><b>{{ rateFormatter.amount(buildings()) }}</b>@if (builtBuildings() > 0) {<small class="range">{{ rateFormatter.amount(builtBuildings()) }} built</small>}</span>
+<span class="stat" [title]="builtBuildings() > 0 ? 'Buildings, ' + rateFormatter.amount(builtBuildings()) + ' already built' : 'Buildings'"><fa-icon class="stat-icon" [icon]="faIndustry"></fa-icon><span class="lbl">Buildings </span><b>{{ rateFormatter.amount(buildings()) }}</b>@if (builtBuildings() > 0) {<small class="range">{{ rateFormatter.amount(builtBuildings()) }} built</small>}</span>
 <span class="stat" [class.zero]="sloops() === 0" title="Somersloops"><game-icon [hash]="sloopIcon()" [size]="16" alt="Sloops"></game-icon> <b>{{ sloops() }}</b></span>
 <span class="stat" [class.zero]="shards() === 0" title="Power shards"><game-icon [hash]="shardIcon()" [size]="16" alt="Shards"></game-icon> <b>{{ shards() }}</b></span>
 
@@ -58,10 +58,10 @@
 						</div>
 					}
 					@if (visiblePoolWarnings().length > 0) {
-						<div class="warnings-hint">Recalculate the plan (or the whole folder) so it fits into the shared pool again.</div>
+						<div class="warnings-hint">Recalculate the plan or the folder to fit the shared pool.</div>
 					}
 					@for (entry of visibleEntries(); track entry.nodeId) {
-						<button class="warning-group group-button" type="button" (click)="focusWarning(entry); warnings.hide()" title="Show this node on the canvas">
+						<button class="warning-group group-button" type="button" (click)="focusWarning(entry); warnings.hide()" title="Show on the graph">
 							<span class="group-head">
 								@if (entry.nodeIcon) {
 									<game-icon [hash]="entry.nodeIcon" [size]="20" [alt]="entry.nodeName"></game-icon>
@@ -98,13 +98,13 @@
 	} @else if (actions.solveError(); as error) {
 		<span class="state state-error" [tooltip]="error" container="body" placement="top"><span class="dot"></span><span class="state-text">{{ error }}</span></span>
 	} @else if (hasGraph() && automaticPaused()) {
-		<span class="state state-modified" tooltip="You edited the graph by hand, so it is not built again on its own. Press Calculate to build it again - locked nodes are kept." container="body" placement="top"><span class="dot"></span><span class="state-text">edited by hand · calculation paused</span></span>
+		<span class="state state-modified" tooltip="Press Calculate to build the graph again. Locked nodes are kept." container="body" placement="top"><span class="dot"></span><span class="state-text">edited by hand · calculation paused</span></span>
 	} @else if (hasGraph() && graphDirty()) {
 		<span class="state state-modified" tooltip="calculated · edited by hand" container="body" placement="top"><span class="dot"></span><span class="state-text">calculated · edited by hand</span></span>
 	} @else if (hasGraph() && recalculationNeeded()) {
-		<span class="state state-modified" tooltip="The folder changed the settings of this plan - recalculate" container="body" placement="top"><span class="dot"></span><span class="state-text">settings changed · recalculate</span></span>
+		<span class="state state-modified" tooltip="The folder changed the settings of this plan." container="body" placement="top"><span class="dot"></span><span class="state-text">settings changed · recalculate</span></span>
 	} @else if (hasGraph() && poolWarnings().length > 0) {
-		<span class="state state-error" tooltip="Other plans in the folder took some of the raw resources this plan uses - recalculate" container="body" placement="top"><span class="dot"></span><span class="state-text">over the shared limit · recalculate</span></span>
+		<span class="state state-error" tooltip="Other plans in the folder now use raw resources this plan needs." container="body" placement="top"><span class="dot"></span><span class="state-text">over the shared limit · recalculate</span></span>
 	} @else if (hasGraph()) {
 		<span class="state state-solved" tooltip="calculated · up to date" container="body" placement="top"><span class="dot"></span><span class="state-text">calculated · up to date</span></span>
 	} @else {

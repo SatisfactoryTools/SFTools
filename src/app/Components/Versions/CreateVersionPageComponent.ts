@@ -70,8 +70,7 @@ const EMPTY_COUNTS: PurityCounts = {impure: 0, normal: 0, pure: 0};
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			background: rgba(76, 155, 232, 0.16);
-			color: #4c9be8;
+			color: var(--bs-primary);
 			font-size: 0.8rem;
 			flex-shrink: 0;
 		}
@@ -103,7 +102,7 @@ const EMPTY_COUNTS: PurityCounts = {impure: 0, normal: 0, pure: 0};
 		.summary-name {
 			padding: 0.5rem 0.75rem;
 			background: rgba(255, 255, 255, 0.05);
-			border-left: 3px solid #4c9be8;
+			border-left: 3px solid var(--bs-primary);
 			word-break: break-word;
 		}
 	`,
@@ -243,7 +242,7 @@ export class CreateVersionPageComponent
 		if (this.worldLoading || !this.worldSeedValid) {
 			return;
 		}
-		if (this.worldDirty && !confirm('Load the node counts from the world settings again? Your own edits will be replaced.')) {
+		if (this.worldDirty && !confirm('Load the node counts again? Your edits will be replaced.')) {
 			return;
 		}
 		const base = this.baseVersions.find(version => version.id === this.baseId);

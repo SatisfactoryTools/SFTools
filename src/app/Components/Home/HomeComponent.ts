@@ -1,7 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faArrowRight, faBookOpen, faCircleInfo, faCircleQuestion, faDesktop, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faUser, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faArrowRight, faBookOpen, faCircleInfo, faCircleQuestion, faDesktop, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
 import {SupporterTickerComponent} from '@src/Components/Supporters/SupporterTickerComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
@@ -63,8 +63,6 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			height: 640px;
 			pointer-events: none;
 			background:
-				radial-gradient(ellipse 45% 55% at 18% 0%, rgba(76, 155, 232, 0.22), transparent 70%),
-				radial-gradient(ellipse 35% 40% at 88% 8%, rgba(240, 173, 78, 0.14), transparent 70%),
 				repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 36px),
 				repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 36px);
 			mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 1), rgba(0, 0, 0, 0));
@@ -117,10 +115,6 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			font-weight: 700;
 			line-height: 1.15;
 			margin-bottom: 0.75rem;
-		}
-		.hero-title em {
-			font-style: normal;
-			color: #f0ad4e;
 		}
 		.hero-lead {
 			font-size: 1.1rem;
@@ -175,9 +169,6 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			--bs-btn-hover-bg: rgba(255, 255, 255, 0.12);
 			--bs-btn-hover-border-color: rgba(255, 255, 255, 0.8);
 		}
-		.hero-actions .btn-primary {
-			box-shadow: 0 0.5rem 1.5rem rgba(76, 155, 232, 0.35);
-		}
 		.hero-sub {
 			display: block;
 			font-size: 0.75rem;
@@ -188,21 +179,28 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			display: flex;
 			flex-wrap: wrap;
 			align-items: center;
-			gap: 0.35rem 1.25rem;
+			gap: 0.5rem;
 			margin-top: 1rem;
 			font-size: 0.9rem;
-			color: #9fb0c0;
 		}
 		.hero-links a {
 			display: inline-flex;
 			align-items: center;
-			gap: 0.35rem;
-			color: #c5d0db;
+			gap: 0.4rem;
+			padding: 0.3rem 0.75rem;
+			color: #dfe5ec;
 			text-decoration: none;
+			background: rgba(255, 255, 255, 0.05);
+			border: 1px solid rgba(255, 255, 255, 0.25);
+			transition: border-color 0.15s, background 0.15s;
 		}
 		.hero-links a:hover {
 			color: #fff;
-			text-decoration: underline;
+			border-color: var(--bs-primary);
+			background: rgba(var(--bs-primary-rgb), 0.15);
+		}
+		.hero-links fa-icon {
+			color: var(--bs-primary);
 		}
 		.hero-cta {
 			display: grid;
@@ -291,8 +289,8 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			transition: border-color 0.15s, background 0.15s;
 		}
 		.quick-links a:hover {
-			background: rgba(76, 155, 232, 0.12);
-			border-color: #4c9be8;
+			background: rgba(var(--bs-primary-rgb), 0.12);
+			border-color: var(--bs-primary);
 		}
 
 		.features {
@@ -305,14 +303,14 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			align-items: flex-start;
 			gap: 0.75rem;
 			padding: 0.75rem 0.9rem;
-			background: rgba(32, 55, 76, 0.7);
+			background: rgba(var(--bs-dark-rgb), 0.7);
 			border: 1px solid rgba(78, 93, 108, 0.7);
 			color: inherit;
 			text-decoration: none;
 			transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 		}
 		a.feature:hover {
-			border-color: #4c9be8;
+			border-color: var(--bs-primary);
 			transform: translateY(-2px);
 			box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.35);
 		}
@@ -323,8 +321,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			background: rgba(76, 155, 232, 0.16);
-			color: #4c9be8;
+			color: var(--bs-primary);
 			font-size: 0.95rem;
 		}
 		.feature-title {
@@ -355,7 +352,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			bottom: -1px;
 			width: 3rem;
 			height: 2px;
-			background: #4c9be8;
+			background: var(--bs-primary);
 		}
 		.section-head h2 {
 			font-size: 1.35rem;
@@ -379,22 +376,22 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			gap: 0.75rem;
 			min-height: 84px;
 			padding: 0.85rem 1rem;
-			background: #20374c;
+			background: var(--bs-dark);
 			border: 1px solid #4e5d6c;
-			border-left: 4px solid #4c9be8;
+			border-left: 4px solid var(--bs-primary);
 			color: inherit;
 			text-decoration: none;
 			transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 		}
 		.version-card:hover {
-			border-color: #4c9be8;
+			border-color: var(--bs-primary);
 			transform: translateY(-2px);
 			box-shadow: 0 0.6rem 1.5rem rgba(0, 0, 0, 0.4);
 		}
 		.version-card.experimental { border-left-color: #f0ad4e; }
 		.version-card.custom { border-left-color: #5bc0de; }
 		.version-card.featured {
-			background: linear-gradient(135deg, rgba(76, 155, 232, 0.22), #20374c 65%);
+			background: rgba(var(--bs-primary-rgb), 0.12);
 		}
 		.version-main {
 			flex-grow: 1;
@@ -426,7 +423,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 		}
 		.version-card-new:hover {
 			color: #fff;
-			background: rgba(76, 155, 232, 0.08);
+			background: rgba(var(--bs-primary-rgb), 0.08);
 		}
 		.version-card-new .new-hint {
 			display: block;
@@ -474,7 +471,7 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			color: #c5d0db;
 			white-space: nowrap;
 		}
-		.tag-official { background: rgba(76, 155, 232, 0.25); color: #9ccdf7; }
+		.tag-official { background: rgba(var(--bs-primary-rgb), 0.25); color: var(--sf-primary-light); }
 		.tag-experimental { background: rgba(240, 173, 78, 0.25); color: #f7d08a; }
 		.tag-ficsmas { background: rgba(217, 83, 79, 0.28); color: #f3a6a3; }
 		.tag-custom { background: rgba(91, 192, 222, 0.22); color: #a6e3f2; }
@@ -511,12 +508,10 @@ export class HomeComponent
 	public readonly faArrowRight = faArrowRight;
 	public readonly faPlus = faPlus;
 	public readonly faXmark = faXmark;
-	public readonly faPuzzlePiece = faPuzzlePiece;
 	public readonly faSliders = faSliders;
-	public readonly faUser = faUser;
 	public readonly faCircleInfo = faCircleInfo;
-	public readonly faDesktop = faDesktop;
 	public readonly faCircleQuestion = faCircleQuestion;
+	public readonly faDesktop = faDesktop;
 	public readonly faHeart = faHeart;
 	public readonly faRightFromBracket = faRightFromBracket;
 	public readonly communityLinks = CommunityLinks.COMMUNITY;
@@ -614,32 +609,32 @@ export class HomeComponent
 			{
 				icon: faDiagramProject,
 				title: 'Planner',
-				text: 'Say what you want to produce and the planner works out the factory for you. Then edit the graph by hand.',
+				text: 'Enter what you want to make and get the whole production chain. Then change anything by hand.',
 				link: slug === null ? null : ['/', slug, 'planner'],
 			},
 			{
 				icon: faBookOpen,
 				title: 'Codex',
-				text: 'Every item, recipe, building and milestone of each game version, with search.',
+				text: 'Look up any item, recipe, building or milestone.',
 				link: slug === null ? null : ['/', slug, 'codex'],
 			},
 			{
 				icon: faSliders,
 				title: 'Custom versions',
-				text: 'Your own rules: recipe and power cost multipliers, mods, changed resource nodes.',
+				text: 'Change recipe and power costs or resource nodes, or add mods.',
 				link: ['/create-version'],
 			},
 			this.desktopAppLink
 				? {
 					icon: faDesktop,
 					title: 'Desktop app',
-					text: 'The same planner as an app for Windows, Linux and macOS. Works offline, keeps your plans in files on your computer.',
+					text: 'The planner as an app for Windows, Linux and macOS. Works offline and saves plans as files.',
 					link: ['/settings', 'desktop'],
 				}
 				: {
 					icon: faPuzzlePiece,
 					title: 'Mods',
-					text: 'Create sets of changes to the game data - new or changed items, recipes and buildings - and share them.',
+					text: 'Add or change items, recipes and buildings, and share them with others.',
 					link: ['/mods'],
 				},
 		];
@@ -747,7 +742,7 @@ export class HomeComponent
 	/** Only removes the user's link (or localStorage entry) - the version itself is shared and keeps existing. */
 	public removeVersion(version: Version): void
 	{
-		if (confirm(`Remove "${version.name}" from your versions? Plans that use it keep working. Creating a version with the same settings brings it back.`)) {
+		if (confirm(`Remove "${version.name}" from your versions? Plans that use it keep working.`)) {
 			this.versionManager.removeCustomVersion(version);
 		}
 	}

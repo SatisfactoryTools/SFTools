@@ -230,7 +230,7 @@
 														} @empty {
 															<tr><td class="text-secondary fst-italic">
 																@if (hasFolderGraphs()) {
-																	These plans make no items - see the Power card for what they generate.
+																	These plans make no items. See the Power card.
 																} @else {
 																	Calculate the plans to see their production.
 																}
@@ -256,7 +256,7 @@
 														} @empty {
 															<tr><td class="text-secondary fst-italic">
 																@if (hasGraph()) {
-																	This plan makes no items - see the Power card for what it generates.
+																	This plan makes no items. See the Power card.
 																} @else {
 																	Calculate the plan to see its production.
 																}
@@ -358,7 +358,7 @@
 																<td class="stack-full">
 																	<a class="link-light link-underline-opacity-0 link-underline-opacity-75-hover" role="button" (click)="openPlan(plan.planId)">{{ plan.name }}</a>
 																	@if (plan.outdated) {
-																		<span class="badge text-bg-warning ms-1" title="Settings or the shared resources changed after this plan was calculated">outdated</span>
+																		<span class="badge text-bg-warning ms-1" title="Settings or shared resources changed since the last calculation">outdated</span>
 																	}
 																</td>
 																<td class="text-end text-nowrap text-warning" data-label="Usage"><power-draw [draw]="plan.consumption"></power-draw></td>

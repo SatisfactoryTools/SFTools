@@ -17,9 +17,8 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 		:host {
 			display: flex;
 			flex-direction: column;
-			background: #10141d;
-			border: 1px solid #222b3e;
-			border-radius: 6px;
+			background: #1b2834;
+			border: 1px solid #34475a;
 			overflow: hidden;
 		}
 		.zb {
@@ -29,16 +28,16 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 			align-items: center;
 			justify-content: center;
 			border: none;
-			border-bottom: 1px solid #222b3e;
+			border-bottom: 1px solid #34475a;
 			background: transparent;
-			color: #8899bb;
+			color: #9fb0c0;
 			font-size: 15px;
 			line-height: 1;
 			cursor: pointer;
 		}
 		.zb:last-child { border-bottom: none; }
 		.zb:hover:not(:disabled) { background: rgba(255,255,255,0.08); color: #fff; }
-		.zb:disabled { color: #3a4654; cursor: default; }
+		.zb:disabled { color: #4a5d71; cursor: default; }
 	`],
 })
 export class PlannerZoomControlsComponent

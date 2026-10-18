@@ -44,7 +44,7 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 			gap: 1rem;
 			padding-bottom: 0.9rem;
 			margin-bottom: 1.1rem;
-			border-bottom: 1px solid #2b3444;
+			border-bottom: 1px solid #3a4d60;
 		}
 		.filter {
 			max-width: 360px;
@@ -78,7 +78,7 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 			content: '';
 			flex-grow: 1;
 			height: 1px;
-			background: #2b3444;
+			background: #3a4d60;
 		}
 		.article-grid {
 			display: grid;
@@ -113,7 +113,7 @@ import {HelpManager} from '@src/Model/Help/HelpManager';
 				max-height: calc(100vh - var(--help-sticky-top, 0.75rem) - 2rem);
 				overflow-y: auto;
 				padding-right: 0.25rem;
-				border-right: 1px solid #222b3e;
+				border-right: 1px solid #34475a;
 			}
 			.article-shell .back {
 				display: none;

@@ -10,7 +10,7 @@
 
 @if (!connectivity.online()) {
     <div class="position-fixed bottom-0 start-0 m-3" style="z-index: 1056;">
-        <button type="button" class="badge rounded-pill text-bg-secondary border-0 py-2 px-3 shadow-sm" title="The server cannot be reached. Click to check again." (click)="connectivity.check()">
+        <button type="button" class="badge text-bg-secondary border-0 py-2 px-3 shadow-sm" title="The server cannot be reached. Click to check again." (click)="connectivity.check()">
             <fa-icon [icon]="faPlugCircleXmark" class="me-1"></fa-icon>Offline
         </button>
     </div>

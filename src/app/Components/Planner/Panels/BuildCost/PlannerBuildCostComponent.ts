@@ -2,7 +2,6 @@ import {Component, ChangeDetectionStrategy, Signal, computed, signal} from '@ang
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
-import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {BuiltMarkComponent} from '@src/Components/Planner/Panels/BuiltMark/BuiltMarkComponent';
 import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {BuildCostBreakdown} from '@src/Model/Planner/Breakdown/BuildCostBreakdown';
@@ -13,12 +12,13 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {PlanResultHintComponent} from '@src/Components/Planner/Panels/ResultHint/PlanResultHintComponent';
 
 @Component({
 	selector: 'planner-build-cost',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerBuildCostComponent.html',
-	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, GoToNodeButtonComponent, BuiltMarkComponent],
+	imports: [FaIconComponent, GameIconComponent, PlanResultHintComponent, GoToNodeButtonComponent, BuiltMarkComponent],
 })
 export class PlannerBuildCostComponent
 {

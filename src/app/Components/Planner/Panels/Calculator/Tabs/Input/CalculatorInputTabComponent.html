@@ -1,5 +1,5 @@
 <div class="p-2 d-flex flex-column gap-2">
-	<info-note>Items you already have, for example from another factory. The plan may use up to the amount given.</info-note>
+	<info-note>Items you already have, for example from another factory. The plan uses up to this amount.</info-note>
 	@if (!weightsEnabled()) {
 		<info-note kind="warning">
 			Input weights are turned off in the Optimisation tab. Every input is free and the weights below are ignored.
@@ -47,7 +47,7 @@
 							[name]="'input-weight-' + i"
 							[(ngModel)]="row.weight"
 							(ngModelChange)="sync()"
-							[title]="'Default ' + defaultWeightFor(row.itemClassName) + (weightsEnabled() ? '' : ' - ignored while input weights are disabled')"
+							[title]="'Default ' + defaultWeightFor(row.itemClassName) + (weightsEnabled() ? '' : '. Ignored while input weights are off.')"
 							min="0"
 							step="any"
 						>

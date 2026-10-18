@@ -89,14 +89,14 @@ export class NodeContextMenu extends PlannerContextMenu
 
 		if (!(this.node instanceof SubplanNode)) {
 			items.push(this.splitItem('inputs', 'graph.splitByInputs', 'Split by inputs', this.splits.inputs,
-				'one for each incoming connection',
-				'Nothing to split: nothing this node takes in comes from more than one place.'));
+				'one per incoming connection',
+				'Nothing to split. Each input comes from one place.'));
 			items.push(this.splitItem('outputs', 'graph.splitByOutputs', 'Split by outputs', this.splits.outputs,
-				'one for each outgoing connection',
-				'Nothing to split: nothing this node sends out goes to more than one place.'));
+				'one per outgoing connection',
+				'Nothing to split. Each output goes to one place.'));
 			items.push(this.splitItem('both', 'graph.splitByBoth', 'Split by inputs and outputs', this.splits.both,
-				'the fewest where each one has a single source and a single target',
-				'Nothing to split: no item here comes from, or goes to, more than one place.'));
+				'each with one source and one target',
+				'Nothing to split. Each item comes from and goes to one place.'));
 		}
 
 		items.push(this.resizeItem('graph.shrinkToConnections', 'Shrink to connections', faCompress, this.resize.minimise));
@@ -201,7 +201,7 @@ export class NodeContextMenu extends PlannerContextMenu
 			disabled: count < 2,
 			hint: count < 2
 				? nothingToSplit
-				: `Splits this node into ${count} nodes - ${description}. Together they produce exactly what this one does.`,
+				: `Splits into ${count} nodes, ${description}.`,
 			action: () => this.actions.requestNodeSplit({nodeId: this.node.id, mode}),
 		};
 	}

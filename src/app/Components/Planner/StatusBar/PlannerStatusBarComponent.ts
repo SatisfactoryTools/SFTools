@@ -36,10 +36,10 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			min-width: 0;
 			padding: 0 16px;
 			overflow: hidden;
-			background: #10141d;
-			border-top: 1px solid #222b3e;
+			background: #1b2834;
+			border-top: 1px solid #34475a;
 			font-size: 1rem;
-			color: #8899bb;
+			color: #9fb0c0;
 			user-select: none;
 			container-type: inline-size;
 		}
@@ -47,7 +47,7 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 		.stat b { color: #dfe5ec; font-weight: 600; }
 		.stat-icon { display: none; opacity: 0.8; }
 		.stat .abbr { display: none; }
-		.stat .range { margin-left: 4px; font-size: 0.8em; color: #6f7f99; }
+		.stat .range { margin-left: 4px; font-size: 0.8em; color: #6f8599; }
 		.stat b.production { color: #7bc98a; }
 		.stat b.deficit { color: #e0b56a; }
 		.right {
@@ -97,14 +97,13 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 		.state-busy .dot { background: #d0a45e; }
 		.state-error { color: #e58a72; }
 		.state-error .dot { background: #d4663f; }
-		.state-idle .dot { background: #3a4654; }
+		.state-idle .dot { background: #4a5d71; }
 		.warnings-toggle {
 			display: inline-flex;
 			align-items: center;
 			gap: 6px;
 			background: rgba(224, 181, 106, 0.12);
 			border: 1px solid rgba(224, 181, 106, 0.35);
-			border-radius: 999px;
 			padding: 1px 10px;
 			font-size: 0.95rem;
 			font-weight: 600;
@@ -119,9 +118,8 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			width: min(440px, calc(100vw - 24px));
 			padding: 0;
 			overflow: hidden;
-			background: #151b26;
-			border: 1px solid #2b3648;
-			border-radius: 8px;
+			background: #151e26;
+			border: 1px solid #2b3a48;
 			box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 		}
 		.warnings-head {
@@ -129,15 +127,14 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			align-items: center;
 			gap: 8px;
 			padding: 10px 12px;
-			background: #1b2231;
-			border-bottom: 1px solid #2b3648;
+			background: #1b2631;
+			border-bottom: 1px solid #2b3a48;
 			color: #e0b56a;
 		}
 		.warnings-title { flex: 1; font-weight: 600; color: #dfe5ec; }
 		.warnings-total {
 			min-width: 24px;
 			padding: 0 7px;
-			border-radius: 999px;
 			background: rgba(224, 181, 106, 0.18);
 			text-align: center;
 			font-weight: 600;
@@ -147,24 +144,23 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			flex-wrap: wrap;
 			gap: 6px;
 			padding: 8px 12px;
-			border-bottom: 1px solid #222b3a;
+			border-bottom: 1px solid #222e3a;
 		}
 		.kind-chip {
 			display: inline-flex;
 			align-items: center;
 			gap: 5px;
 			padding: 2px 9px;
-			border: 1px solid #33405a;
-			border-radius: 999px;
+			border: 1px solid #33475a;
 			background: transparent;
 			font-size: 0.8rem;
 			line-height: 1.5;
-			color: #9fb0c8;
+			color: #9fb4c8;
 			cursor: pointer;
 		}
 		.kind-chip b { color: #dfe5ec; font-weight: 600; }
-		.kind-chip:hover { background: #1f2836; color: #dfe5ec; }
-		.kind-chip.active { background: #2a3547; border-color: #4a5c7c; color: #dfe5ec; }
+		.kind-chip:hover { background: #1f2b36; color: #dfe5ec; }
+		.kind-chip.active { background: #2a3947; border-color: #4a647c; color: #dfe5ec; }
 		.warnings-list {
 			max-height: min(52vh, 420px);
 			overflow-y: auto;
@@ -177,21 +173,20 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			margin-bottom: 4px;
 			padding: 6px;
 			border: 1px solid transparent;
-			border-radius: 6px;
-			background: #1a2130;
+			background: #1a2530;
 			text-align: left;
 			color: inherit;
 		}
 		.warning-group:last-child { margin-bottom: 0; }
 		.group-button { cursor: pointer; }
-		.group-button:hover { background: #222c3d; border-color: #38465e; }
+		.group-button:hover { background: #22303d; border-color: #384c5e; }
 		.group-head {
 			display: flex;
 			align-items: center;
 			gap: 7px;
 			padding: 0 2px 5px;
 		}
-		.group-icon { color: #8fa4c2; }
+		.group-icon { color: #8fa9c2; }
 		.group-name {
 			flex: 1;
 			min-width: 0;
@@ -206,11 +201,10 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			flex-shrink: 0;
 			min-width: 20px;
 			padding: 0 6px;
-			border-radius: 999px;
-			background: #2a3547;
+			background: #2a3947;
 			font-size: 0.75rem;
 			text-align: center;
-			color: #9fb0c8;
+			color: #9fb4c8;
 		}
 		.warning-row {
 			display: flex;
@@ -218,12 +212,12 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			gap: 8px;
 			padding: 4px 6px;
 			margin-top: 2px;
-			border-left: 3px solid #4a5c7c;
+			border-left: 3px solid #4a647c;
 			border-radius: 0 4px 4px 0;
-			background: #141a25;
+			background: #141d25;
 		}
 		.row-icon { flex-shrink: 0; width: 24px; text-align: center; }
-		.row-icon-fa { color: #8fa4c2; }
+		.row-icon-fa { color: #8fa9c2; }
 		.row-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 		.row-title {
 			overflow: hidden;
@@ -232,7 +226,7 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			font-size: 0.9rem;
 			color: #dfe5ec;
 		}
-		.row-text { font-size: 0.8rem; line-height: 1.35; color: #8a9ab3; }
+		.row-text { font-size: 0.8rem; line-height: 1.35; color: #9fb0c0; }
 		.row-kind {
 			flex-shrink: 0;
 			align-self: center;
@@ -240,18 +234,18 @@ import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFi
 			text-transform: uppercase;
 			letter-spacing: 0.04em;
 			white-space: nowrap;
-			color: #7d8ca5;
+			color: #7d92a5;
 		}
 		.warning-row.kind-input, .warning-row.kind-output, .warning-row.kind-pool { border-left-color: #d4663f; }
 		.warning-row.kind-input .row-kind, .warning-row.kind-output .row-kind, .warning-row.kind-pool .row-kind { color: #e58a72; }
 		.warning-row.kind-capacity { border-left-color: #c9962e; }
 		.warning-row.kind-capacity .row-kind { color: #e0b56a; }
 		.warning-row.kind-surplus { border-left-color: #4a6a8c; }
-		.warning-row.kind-surplus .row-kind { color: #8fa4c2; }
+		.warning-row.kind-surplus .row-kind { color: #8fa9c2; }
 		.warnings-hint {
 			padding: 2px 8px 8px;
 			font-size: 0.8rem;
-			color: #8a9ab3;
+			color: #9fb0c0;
 		}
 		@media (max-width: 480px) {
 			.row-kind { display: none; }
@@ -384,7 +378,7 @@ export class PlannerStatusBarComponent
 		const parent = this.subplanBuildCounter.parentOf(this.planManager.activePlan());
 		const builds = this.subplanBuilds();
 		return parent
-			? `This subplan is built ${builds} times in ${parent.name}, so everything in it counts ${builds} times there.`
+			? `This subplan is built ${builds} times in ${parent.name}.`
 			: `This subplan is built ${builds} times in its parent plan.`;
 	});
 

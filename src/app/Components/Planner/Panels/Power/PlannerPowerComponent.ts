@@ -2,7 +2,6 @@ import {Component, ChangeDetectionStrategy, Signal, computed, signal} from '@ang
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronDown, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
-import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {BuiltMarkComponent} from '@src/Components/Planner/Panels/BuiltMark/BuiltMarkComponent';
 import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
 import {PowerDrawComponent} from '@src/Components/Common/PowerDrawComponent';
@@ -12,12 +11,13 @@ import {PowerRow} from '@src/Model/Planner/Breakdown/PowerRow';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {PlanResultHintComponent} from '@src/Components/Planner/Panels/ResultHint/PlanResultHintComponent';
 
 @Component({
 	selector: 'planner-power',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPowerComponent.html',
-	imports: [FaIconComponent, GameIconComponent, InfoNoteComponent, PowerDrawComponent, GoToNodeButtonComponent, BuiltMarkComponent],
+	imports: [FaIconComponent, GameIconComponent, PlanResultHintComponent, PowerDrawComponent, GoToNodeButtonComponent, BuiltMarkComponent],
 })
 export class PlannerPowerComponent
 {

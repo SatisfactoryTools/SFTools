@@ -555,8 +555,8 @@ export class PlanManager extends SyncableService<PlanStore>
 			.map(id => folders.find(f => f.id === id))
 			.filter((f): f is Folder => f !== undefined && f.settings !== null);
 		if (custom.length > 0) {
-			return `Remove the custom settings of ${custom.map(f => `"${f.name}"`).join(', ')} first - `
-				+ 'a folder that fixes settings cannot contain folders with their own settings.';
+			return `Remove the custom settings of ${custom.map(f => `"${f.name}"`).join(', ')} first. `
+				+ 'A folder that fixes settings cannot contain folders with their own settings.';
 		}
 		return null;
 	}
@@ -565,7 +565,7 @@ export class PlanManager extends SyncableService<PlanStore>
 	{
 		const folder = this.folders().find(f => f.id === folderId);
 		const fixed = this.fixedFolderForFolder(folder?.parentId ?? null);
-		return fixed ? `"${fixed.name}" sets the settings for everything inside it, so this folder cannot have its own.` : null;
+		return fixed ? `"${fixed.name}" fixes the settings for everything inside it. This folder cannot have its own.` : null;
 	}
 
 	public enableFolderSettings(folderId: string): void

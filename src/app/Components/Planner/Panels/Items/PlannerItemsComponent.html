@@ -1,7 +1,7 @@
 <div class="p-2 d-flex flex-column gap-2">
 
 	@if (!hasRows()) {
-		<info-note>{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its item flows.' }}</info-note>
+		<plan-result-hint subject="its item flows" [folderView]="isFolderView()"/>
 	} @else {
 		<input
 			type="search"

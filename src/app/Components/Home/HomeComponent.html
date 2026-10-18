@@ -6,10 +6,10 @@
 				<img src="/assets/satisfactory.png" alt="Satisfactory">
 				<img src="/assets/tools.png" alt="Tools">
 			</div>
-			<h1 class="hero-title">Plan factories that <em>actually work</em>.</h1>
+			<h1 class="hero-title">Production planner for Satisfactory</h1>
 			<p class="hero-lead">
-				A production planner for Satisfactory that finds the best setup for you. It works for every factory,
-				from your first smelter to a 1 TW nuclear grid.
+				Tell it what you want to make and it works out the machines, recipes and resources you need.
+				Made by <a href="https://github.com/greeny" target="_blank">greeny</a>, with help from Satisfactory&nbsp;community.
 			</p>
 			<div class="hero-cta">
 				<div class="hero-actions" [class.with-wide]="desktopAppLink">
@@ -27,26 +27,19 @@
 					@if (desktopAppLink) {
 						<a routerLink="/settings/desktop" class="btn btn-outline-light btn-lg">
 							<fa-icon [icon]="faDesktop"></fa-icon>
-							<span>Get the desktop app <span class="hero-sub">Windows, Linux &amp; macOS, works offline</span></span>
+							<span>Get the desktop app <span class="hero-sub">Windows, Linux &amp; macOS</span></span>
 						</a>
 					}
 					<a routerLink="/create-version" class="btn btn-outline-light btn-lg" [class.hero-wide]="desktopAppLink">
 						<fa-icon [icon]="faSliders"></fa-icon>
-						<span>
-							Create custom version
-							@if (!desktopAppLink) {
-								<span class="hero-sub">recipe and power costs, mods, modded worlds</span>
-							} @else {
-								<span class="hero-sub">play with game modifiers: recipe and power costs, custom nodes, and mods</span>
-							}
-						</span>
+						<span>Create custom version <span class="hero-sub">change costs, resource nodes or add mods</span></span>
 					</a>
 				</div>
 				<div class="hero-support">
 					<fa-icon class="hero-support-icon" [icon]="faHeart"></fa-icon>
 					<div class="hero-support-text">
 						<span class="hero-donate">
-							Free to use - support it via
+							It's free. If it saves you time, you can chip in on
 							@for (link of donationLinks; track link.key; let last = $last) {
 								<a [href]="link.url" target="_blank" rel="noopener">{{ link.label }}</a>{{ last ? '' : ' or ' }}
 							}
@@ -67,8 +60,8 @@
 		@if (signInPrompt.enabled()) {
 			<aside class="card border-secondary side-card">
 				<div class="card-header">
-					<div class="fw-semibold">Keep your factories safe</div>
-					<div class="small text-secondary">Sign in to sync plans, custom versions and settings across devices.</div>
+					<div class="fw-semibold">Sign in</div>
+					<div class="small text-secondary">Sync your plans, custom versions and settings between devices.</div>
 				</div>
 				<div class="card-body">
 					<oauth-provider-buttons verb="Sign in with" returnUrl="/"></oauth-provider-buttons>
@@ -80,7 +73,7 @@
 					</div>
 				</div>
 				<div class="card-footer d-flex justify-content-between align-items-center small">
-					<span class="text-secondary">Everything also works without an account.</span>
+					<span class="text-secondary">You don't need an account.</span>
 					<button type="button" class="btn btn-link btn-sm p-0 text-secondary" (click)="signInPrompt.disable()">Don't remind me</button>
 				</div>
 			</aside>
@@ -96,9 +89,9 @@
 					</div>
 				</div>
 				<div class="card-body quick-links">
-					<a routerLink="/create-version"><fa-icon [icon]="faSliders" [fixedWidth]="true" class="text-info"></fa-icon> Create a custom version</a>
-					<a routerLink="/mods"><fa-icon [icon]="faPuzzlePiece" [fixedWidth]="true" class="text-info"></fa-icon> Manage mods</a>
-					<a routerLink="/account"><fa-icon [icon]="faUser" [fixedWidth]="true" class="text-info"></fa-icon> Account &amp; sign-in methods</a>
+					<a routerLink="/create-version">Create a custom version</a>
+					<a routerLink="/mods">Manage mods</a>
+					<a routerLink="/account">Account &amp; sign-in methods</a>
 				</div>
 				<div class="card-footer d-flex justify-content-end">
 					<button type="button" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center gap-2" (click)="logout()">
@@ -112,11 +105,11 @@
 	<section>
 		<div class="section-head">
 			<h2 class="d-inline-flex align-items-center gap-2">Game versions <help-button topic="versions.game"/></h2>
-			<p>Pick the version you play. Each one has its own codex, recipes and planner.</p>
+			<p>Pick the game version you play.</p>
 		</div>
 		@if (versionsFailed) {
 			<div class="alert alert-danger d-flex flex-wrap align-items-center gap-3" role="alert">
-				<span class="flex-grow-1">The game versions could not be loaded. The server may be updating, which usually takes less than a minute.</span>
+				<span class="flex-grow-1">Could not load the game versions. The server may be updating. Try again in a minute.</span>
 				<button type="button" class="btn btn-outline-light btn-sm flex-shrink-0" (click)="retryVersions()" [disabled]="versionsLoading">
 					{{ versionsLoading ? 'Trying…' : 'Try again' }}
 				</button>
@@ -164,7 +157,7 @@
 	<section>
 		<div class="section-head">
 			<h2 class="d-inline-flex align-items-center gap-2">Your custom versions <help-button topic="versions.custom"/></h2>
-			<p>Based on a public version, with your own cost multipliers, custom nodes, and mods.</p>
+			<p>A game version with your own costs, resource nodes or mods.</p>
 		</div>
 		<div class="version-grid">
 			@for (version of customVersions; track version.id) {
@@ -202,7 +195,7 @@
 				<span>
 					Create custom version
 					@if (customVersions.length === 0) {
-						<span class="new-hint">Starts from a public version and adds your cost multipliers, custom nodes, and mods.</span>
+						<span class="new-hint">Change costs, resource nodes or add mods.</span>
 					}
 				</span>
 			</a>
@@ -211,8 +204,7 @@
 
 	<section>
 		<div class="section-head">
-			<h2>What's inside</h2>
-			<p>The four main parts of the tools.</p>
+			<h2>What's here</h2>
 		</div>
 		<div class="features">
 		@for (feature of features; track feature.title) {

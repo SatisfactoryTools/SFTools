@@ -79,7 +79,7 @@ export class CalculatorRecipesTabComponent
 	public get conversionTooltip(): string
 	{
 		const count = this.conversionRecipes.length;
-		return `${count} standard Converter recipe${count === 1 ? '' : 's'} turning one raw resource plus Reanimated SAM into another raw resource`;
+		return `${count} Converter recipe${count === 1 ? '' : 's'} that turn one raw resource into another`;
 	}
 
 	public toggleConversions(): void
@@ -109,7 +109,7 @@ export class CalculatorRecipesTabComponent
 			return '';
 		}
 		const names = recipe.producedIn.filter(building => building !== undefined).map(building => building.name);
-		return `Cannot be used - ${names.join(', ')} ${names.length > 1 ? 'are' : 'is'} disabled in the Machines tab`;
+		return `Cannot be used. ${names.join(', ')} ${names.length > 1 ? 'are' : 'is'} disabled in the Machines tab.`;
 	}
 
 	public toggle(recipe: Recipe): void

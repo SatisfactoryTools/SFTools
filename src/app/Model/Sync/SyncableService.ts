@@ -126,7 +126,7 @@ export abstract class SyncableService<T> implements OnDestroy
 		if (this.unsavedWarned) return;
 		this.unsavedWarned = true;
 		this.notifications.show(
-			`Your ${this.label} could not be loaded from the server, so changes are not being saved. Please reload the page in a moment.`,
+			`Could not load your ${this.label} from the server. Changes are not saved. Reload the page in a moment.`,
 			10_000,
 		);
 	}

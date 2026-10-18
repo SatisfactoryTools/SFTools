@@ -41,7 +41,7 @@ export class BuiltMarkComponent
 	public get label(): string
 	{
 		if (this.state === 'full') {
-			return 'Built - marked as done on the graph';
+			return 'Built';
 		}
 		return this.share
 			? `${this.rateFormatter.percent(this.built / this.total)} built`

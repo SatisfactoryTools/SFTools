@@ -54,8 +54,7 @@ import {NotificationService} from '@src/Model/NotificationService';
 			resize: vertical;
 		}
 		.preview {
-			border: 1px solid #2b3444;
-			border-radius: 4px;
+			border: 1px solid #3a4d60;
 			padding: 1rem 1.1rem;
 			overflow-y: auto;
 			/* The reader's header queries this container, so the title shrinks here as in a docked panel. */
@@ -84,8 +83,7 @@ import {NotificationService} from '@src/Model/NotificationService';
 			width: 48px;
 			height: 36px;
 			object-fit: cover;
-			border: 1px solid #2b3444;
-			border-radius: 3px;
+			border: 1px solid #3a4d60;
 		}
 	`,
 })

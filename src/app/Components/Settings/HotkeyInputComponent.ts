@@ -14,20 +14,19 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 		.key-btn {
 			min-width: 8.5rem;
 			padding: 0.15rem 0.6rem;
-			border: 1px solid #3a4658;
-			border-radius: 5px;
-			background: #1b2231;
+			border: 1px solid #3a4958;
+			background: #1b2631;
 			font-size: 0.85rem;
 			font-family: inherit;
 			color: #dfe5ec;
 			cursor: pointer;
 		}
-		.key-btn:hover { border-color: #4f627f; }
+		.key-btn:hover { border-color: #4f687f; }
 		.key-btn.recording {
 			border-color: #e0b56a;
 			color: #e0b56a;
 		}
-		.key-btn.empty { color: #7d8ca5; }
+		.key-btn.empty { color: #7d92a5; }
 		.key-btn.conflict { border-color: #d4663f; color: #e58a72; }
 	`],
 })

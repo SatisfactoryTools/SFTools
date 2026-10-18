@@ -18,16 +18,16 @@ import {OAuthProviders} from '@src/Model/Auth/OAuthProviders';
 	styles: [`
 		.provider-btn {
 			--bs-btn-color: #fff;
-			--bs-btn-bg: #2a4661;
-			--bs-btn-border-color: #5d7189;
+			--bs-btn-bg: #4a5d71;
+			--bs-btn-border-color: #6a7d91;
 			--bs-btn-hover-color: #fff;
 			--bs-btn-hover-bg: #365879;
 			--bs-btn-hover-border-color: #7e95af;
 			--bs-btn-active-bg: #3f668c;
 			--bs-btn-active-border-color: #7e95af;
 			--bs-btn-disabled-color: #9fb0c0;
-			--bs-btn-disabled-bg: #2a4661;
-			--bs-btn-disabled-border-color: #5d7189;
+			--bs-btn-disabled-bg: #4a5d71;
+			--bs-btn-disabled-border-color: #6a7d91;
 			display: flex;
 			align-items: center;
 			gap: 0.75rem;

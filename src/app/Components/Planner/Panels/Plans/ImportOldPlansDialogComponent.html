@@ -6,9 +6,8 @@
 		</div>
 		<div class="card-body d-flex flex-column gap-2">
 			<info-note>
-				Paste share links (one per line) or pick an exported .sft file, then choose
-				which production lines to import. Each one becomes a plan with the same items,
-				inputs and recipes as the original.
+				Paste share links (one per line) or pick an .sft file. Then choose the
+				production lines to import.
 			</info-note>
 
 			<textarea
@@ -59,7 +58,7 @@
 								<game-icon [hash]="row.iconHash" [size]="20" [alt]="row.plan.name"></game-icon>
 								<span class="text-truncate">{{ row.plan.name }}</span>
 								@if (row.madeFor !== null) {
-									<span class="badge bg-secondary" tooltip="Made for an older game version - items and recipes that no longer exist are skipped" container="body" placement="top">{{ row.madeFor }}</span>
+									<span class="badge bg-secondary" tooltip="Made for an older game version. Missing items and recipes are skipped." container="body" placement="top">{{ row.madeFor }}</span>
 								}
 								@if (row.unknownCount > 0) {
 									<span class="text-warning small text-nowrap">
@@ -72,8 +71,8 @@
 					}
 				</div>
 				<info-note>
-					Plans are calculated the way the old tools did it, so they arrive as you had them.
-					Calculating them again here may give a different factory.
+					Plans are calculated the way the old tools did it.
+					Calculating them again here may give a different result.
 				</info-note>
 			}
 		</div>

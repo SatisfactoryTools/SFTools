@@ -45,7 +45,7 @@
 							} @else {
 								<span
 									class="input-group-text bg-dark text-secondary border-secondary flex-grow-1"
-									[title]="achievedFor(row) === null ? 'Calculated after the next solve' : 'Achieved by the last calculation'"
+									[title]="achievedFor(row) === null ? 'Shown after the next calculation' : 'Result of the last calculation'"
 								>{{ achievedFor(row) ?? '?' }}</span>
 							}
 							@if (row.itemClassName === powerTargetClass) {
@@ -93,7 +93,7 @@
 
 	@if (showSloopWarning) {
 		<info-note kind="warning" class="mt-2">
-			Using somersloops together with a maximised item makes the calculation much harder.
+			Somersloops with a maximised item make the calculation much slower.
 			It can take a very long time.
 		</info-note>
 	}

@@ -27,7 +27,7 @@ export class ShareCreator
 	{
 		const version = this.versionManager.activeVersion();
 		if (!version) {
-			return throwError(() => new Error('Could not create the link - no game version is open.'));
+			return throwError(() => new Error('Could not create the link. No game version is open.'));
 		}
 
 		const onServer = this.authService.isAuthenticated() && !deviceStore;
@@ -35,7 +35,7 @@ export class ShareCreator
 			? {version: version.id, type, id}
 			: this.treeRequest(version.id, type, id, store);
 		if (!request) {
-			return throwError(() => new Error('Could not create the link - this plan could not be read.'));
+			return throwError(() => new Error('Could not create the link. This plan could not be read.'));
 		}
 
 		return this.sharesApi.createShare(request).pipe(

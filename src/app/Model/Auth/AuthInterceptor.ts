@@ -82,7 +82,7 @@ export class AuthInterceptor implements HttpInterceptor
 					const rescued = this.authService.clearSession();
 					this.notificationService.show(rescued === 0
 						? 'You were signed out. Please sign in again.'
-						: `You were signed out. ${rescued} plan${rescued === 1 ? '' : 's'} changed offline had not been saved to your account yet - they are kept on this computer.`, 10_000);
+						: `You were signed out. ${rescued} plan${rescued === 1 ? '' : 's'} changed offline were not saved to your account yet. They are kept on this computer.`, 10_000);
 				}
 				return throwError(() => err);
 			}),

@@ -48,12 +48,13 @@ import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogServi
 import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
 import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
+import {CalculatorQuickStartComponent} from '@src/Components/Planner/Panels/Calculator/CalculatorQuickStartComponent';
 
 @Component({
 	selector: 'planner-calculator',
 	templateUrl: './CalculatorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [
+	imports: [CalculatorQuickStartComponent, 
 		BsDropdownModule,
 		DatePipe,
 		NgTemplateOutlet,
@@ -95,11 +96,11 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 			padding: 8px 10px 0;
 		}
 		.calc-tabs {
-			--bs-nav-tabs-border-color: #5d7189;
-			--bs-nav-tabs-link-active-bg: #2a4661;
+			--bs-nav-tabs-border-color: #6a7d91;
+			--bs-nav-tabs-link-active-bg: #4a5d71;
 			--bs-nav-tabs-link-active-color: #fff;
-			--bs-nav-tabs-link-active-border-color: #5d7189 #5d7189 #2a4661;
-			--bs-nav-tabs-link-hover-border-color: #5d7189 #5d7189 transparent;
+			--bs-nav-tabs-link-active-border-color: #6a7d91 #6a7d91 #4a5d71;
+			--bs-nav-tabs-link-hover-border-color: #6a7d91 #6a7d91 transparent;
 			gap: 2px;
 		}
 		.calc-tabs .nav-link {
@@ -119,10 +120,10 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 		}
 		.calc-tabs .nav-link.active {
 			font-weight: 600;
-			box-shadow: inset 0 2px 0 #4c9be8;
+			box-shadow: inset 0 2px 0 var(--bs-primary);
 		}
 		.calc-tabs .nav-link.active fa-icon {
-			color: #4c9be8;
+			color: var(--bs-primary);
 		}
 		.calc-tabs.icons .nav-link {
 			padding: 5px 8px;
@@ -146,7 +147,7 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 		}
 		.nav-link.active .tab-badge,
 		.calc-tab-select .tab-badge {
-			background: rgba(76, 155, 232, 0.35);
+			background: rgba(var(--bs-primary-rgb), 0.35);
 			color: #fff;
 		}
 		.calc-tabs-wrap.menu {
@@ -155,8 +156,8 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 			border-top: 1px solid rgba(255, 255, 255, 0.08);
 		}
 		.calc-tab-select {
-			background: #2a4661;
-			border-color: #5d7189;
+			background: #4a5d71;
+			border-color: #6a7d91;
 			color: #fff;
 			font-weight: 600;
 			padding: 0.45rem 0.75rem;
@@ -168,7 +169,7 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 			color: #fff;
 		}
 		.calc-tab-select .tab-select-icon {
-			color: #4c9be8;
+			color: var(--bs-primary);
 		}
 	`],
 })
@@ -207,7 +208,7 @@ export class CalculatorComponent implements OnDestroy
 	public readonly moreTabActive: Signal<boolean>;
 
 	public readonly modeOptions: CalculationModeOption[] = [
-		{mode: 'automatic', label: 'Automatic', description: 'Recalculates every time you change something'},
+		{mode: 'automatic', label: 'Automatic', description: 'Recalculates after every change'},
 		{mode: 'manual-fresh', label: 'Manual (replace)', description: 'Replaces the current graph'},
 		{mode: 'manual-upgrade', label: 'Manual (merge)', description: 'Adds to the current graph. Matching nodes are combined.'},
 		{mode: 'manual-append', label: 'Manual (add)', description: 'Adds the result next to the current graph. Nothing is combined.'},
@@ -219,7 +220,6 @@ export class CalculatorComponent implements OnDestroy
 	public readonly mode: Signal<CalculationMode>;
 	public readonly graphDirty: Signal<boolean>;
 	public readonly buttonLabel: Signal<string>;
-	public readonly automaticPaused: Signal<boolean>;
 	public readonly calculateHint: Signal<string>;
 	public readonly hasGraph: Signal<boolean>;
 
@@ -336,9 +336,8 @@ export class CalculatorComponent implements OnDestroy
 			}
 		});
 		this.hasGraph = computed(() => (this.activePlan()?.graph?.nodes.length ?? 0) > 0);
-		this.automaticPaused = computed(() => this.mode() === 'automatic' && this.graphDirty());
 		this.calculateHint = computed(() => this.graphDirty()
-			? 'Build the graph again. Locked nodes are kept, everything else you changed by hand is lost.'
+			? 'Build the graph again. Only locked nodes keep your hand edits.'
 			: this.modeOptions.find(option => option.mode === this.mode())?.description ?? '');
 		this.folderHasCustomSettings = computed(() => (this.activeFolder()?.settings ?? null) !== null);
 		this.parentLabel = computed(() => {
@@ -491,7 +490,7 @@ export class CalculatorComponent implements OnDestroy
 
 	public resetSettings(): void
 	{
-		if (!confirm('Set all settings (mode, recipes, resources, power) back to the defaults?')) {
+		if (!confirm('Set all settings back to the defaults?')) {
 			return;
 		}
 		this.planManager.updateActiveSettings(this.planManager.defaultSettings());
@@ -516,7 +515,7 @@ export class CalculatorComponent implements OnDestroy
 	public disableFolderSettings(): void
 	{
 		const folder = this.activeFolder();
-		if (!folder || !confirm('Remove this folder\'s own settings? It will use the settings of its parent again.')) {
+		if (!folder || !confirm('Remove this folder\'s own settings? It will use its parent\'s settings again.')) {
 			return;
 		}
 		this.planManager.setFolderSettings(folder.id, null);
@@ -622,7 +621,7 @@ export class CalculatorComponent implements OnDestroy
 		if (this.groupMode(group) === 'default') {
 			const count = this.innerPlans().length;
 			if (count > 0 && !confirm(`Apply the folder's ${this.groupLabel(group)} settings to the ${count} plan${count === 1 ? '' : 's'} inside "${folder.name}"? `
-				+ `Their own ${this.groupLabel(group)} settings are overwritten.`)) {
+				+ `Their own ${this.groupLabel(group)} settings are replaced.`)) {
 				return;
 			}
 		}

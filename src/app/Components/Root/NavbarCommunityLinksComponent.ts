@@ -27,7 +27,7 @@ import {CommunityLinks} from '@src/Model/CommunityLinks';
 			min-width: 300px;
 			padding: 0;
 			overflow: hidden;
-			border: 1px solid #5d7189;
+			border: 1px solid #5d7489;
 			box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.45);
 		}
 		.support-head {

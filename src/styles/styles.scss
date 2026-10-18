@@ -32,6 +32,12 @@ html {
 	overflow-x: clip;
 }
 
+:root {
+	--sf-primary-light: #{tint-color($primary, 40%)};
+	--sf-blue: #{$blue};
+	--sf-blue-hover: #{shade-color($blue, 15%)};
+}
+
 // App-like selection: a click-drag or double-click anywhere would otherwise highlight labels,
 // icons and buttons. Text that is worth copying opts back in with `.selectable`.
 // The arrow cursor stops plain text from showing the text-selection I-beam it can no longer select.
@@ -157,23 +163,23 @@ input[type="number"].form-control {
 	text-align: right;
 }
 
-// Dark controls sat on the same #20374c as the cards around them. !important matches the
+// Dark controls sat on the same $dark as the cards around them. !important matches the
 // bg-dark / border-secondary utilities they are combined with.
 .form-control.bg-dark,
 .form-select.bg-dark,
 .input-group-text.bg-dark {
-	background-color: #2a4661 !important;
-	border-color: #5d7189 !important;
+	background-color: #4a5d71 !important;
+	border-color: #6a7d91 !important;
 }
 .form-control.bg-dark:focus,
 .form-select.bg-dark:focus {
-	border-color: #4c9be8 !important;
-	box-shadow: 0 0 0 0.2rem rgba(76, 155, 232, 0.25);
+	border-color: var(--bs-primary) !important;
+	box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
 }
 .form-control.bg-dark:disabled,
 .form-select.bg-dark:disabled {
-	background-color: #24384f !important;
-	border-color: #46576b !important;
+	background-color: #3f5165 !important;
+	border-color: #46596b !important;
 }
 
 // The vertices tool sets a pointer cursor as a presentation attribute; once a drag starts the
@@ -231,11 +237,11 @@ input[type="number"].form-control {
 // CSS for the same reason as .pn-body. The class comes from the hover handler, not :hover: the
 // corner-handle tool covers a hovered edge with a path of its own outside the edge element.
 .x6-edge.pg-edge-hovered path.pg-edge-line:not(.pg-edge-highlighted) {
-	stroke: #8ea9c9;
+	stroke: #91acc6;
 	stroke-width: 2.5px;
 }
 .x6-edge.pg-edge-hovered rect.pg-label-box:not(.pg-label-box-highlighted) {
-	stroke: #8ea9c9;
+	stroke: #91acc6;
 	stroke-width: 1.5px;
 }
 

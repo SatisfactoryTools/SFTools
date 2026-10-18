@@ -61,8 +61,8 @@ export class PlannerSettingsComponent
 		this.editedSettings = planManager.activeSettings;
 		this.readOnly = planManager.activePlanReadOnly;
 		this.readOnlyNote = computed(() => planManager.activePlanShared()
-			? 'Shared plan - read-only. You can look at the settings but not change them.'
-			: 'Plan on this device - read-only. Add it to your plans to change the settings.');
+			? 'This shared plan is read-only.'
+			: 'This plan is only on this device. Add it to your plans to edit it.');
 		this.graphSettings = computed(() => graphLayout.resolve(this.editedSettings()?.graph));
 		this.parentLabel = computed(() => {
 			const folder = this.activeFolder();
@@ -99,14 +99,14 @@ export class PlannerSettingsComponent
 
 	public machineColor(machine: Building): string
 	{
-		return this.graphSettings().machineColors[machine.className] ?? this.appSettings.graph().nodeColors.recipe;
+		return this.graphSettings().machineColors[machine.className] ?? this.appSettings.graph().nodeAccentColors.recipe;
 	}
 
 	public setMachineEnabled(machine: Building, enabled: boolean): void
 	{
 		const machineColors = {...this.graphSettings().machineColors};
 		if (enabled) {
-			machineColors[machine.className] = this.appSettings.graph().nodeColors.recipe;
+			machineColors[machine.className] = this.appSettings.graph().nodeAccentColors.recipe;
 		} else {
 			delete machineColors[machine.className];
 		}

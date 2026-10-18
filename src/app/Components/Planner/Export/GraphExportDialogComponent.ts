@@ -18,7 +18,7 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 
 /** The website's background, for when the page colour cannot be read. */
-const FALLBACK_BACKGROUND = '#0f2537';
+const FALLBACK_BACKGROUND = '#2b3e50';
 const SCALES = [0.5, 0.75, 1, 1.25, 1.5];
 
 @Component({
@@ -48,13 +48,12 @@ const SCALES = [0.5, 0.75, 1, 1.25, 1.5];
 		.preview-box {
 			max-height: 240px;
 			overflow: auto;
-			border-radius: 0.375rem;
 			border: 1px solid rgba(255, 255, 255, 0.15);
 			/* A checkerboard, so a transparent picture reads as transparent. */
-			background-color: #3a4654;
+			background-color: #4a5d71;
 			background-image:
-				linear-gradient(45deg, #2a3442 25%, transparent 25%, transparent 75%, #2a3442 75%),
-				linear-gradient(45deg, #2a3442 25%, transparent 25%, transparent 75%, #2a3442 75%);
+				linear-gradient(45deg, #3a4d60 25%, transparent 25%, transparent 75%, #3a4d60 75%),
+				linear-gradient(45deg, #3a4d60 25%, transparent 25%, transparent 75%, #3a4d60 75%);
 			background-size: 16px 16px;
 			background-position: 0 0, 8px 8px;
 		}

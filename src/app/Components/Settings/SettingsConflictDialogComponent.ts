@@ -34,7 +34,7 @@ const NUMBER_LABELS: Record<keyof NumberSettings, SettingsFieldLabel> = {
 	showFluidUnit: {label: 'Show fluid m³ unit', format: YES_NO},
 };
 
-const GRAPH_LABELS: Record<Exclude<keyof GraphSettings, 'nodeColors'>, SettingsFieldLabel> = {
+const GRAPH_LABELS: Record<Exclude<keyof GraphSettings, 'nodeAccentColors'>, SettingsFieldLabel> = {
 	sloopGlow: {label: 'Sloop glow', format: YES_NO},
 	simplifyWhenZoomedOut: {label: 'Simplify the graph when zoomed out', format: YES_NO},
 	showEdgeItemIcons: {label: 'Item icons on connections', format: YES_NO},
@@ -54,7 +54,7 @@ const GRAPH_LABELS: Record<Exclude<keyof GraphSettings, 'nodeColors'>, SettingsF
 	},
 	nodeScale: {label: 'Node size', format: PERCENT},
 	edgeScale: {label: 'Connection label size', format: PERCENT},
-	nodeFillStrength: {label: 'Node fill strength', format: PERCENT},
+	nodeFillAmount: {label: 'Node fill strength', format: PERCENT},
 };
 
 const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
@@ -160,13 +160,12 @@ const NODE_COLOR_LABELS: Record<keyof NodeColors, string> = {
 			align-items: center;
 			gap: 0.4rem;
 		}
-		.side-head.account { color: #9ccdf7; }
+		.side-head.account { color: var(--sf-primary-light); }
 		.side-head.device { color: #f7d08a; }
 		.swatch {
 			display: inline-block;
 			width: 14px;
 			height: 14px;
-			border-radius: 3px;
 			vertical-align: -2px;
 			margin-right: 6px;
 			border: 1px solid rgba(255, 255, 255, 0.3);
@@ -200,8 +199,8 @@ export class SettingsConflictDialogComponent
 			return [];
 		}
 		const {remote, local} = conflict;
-		const {nodeColors: remoteColors, ...remoteGraph} = remote.graph;
-		const {nodeColors: localColors, ...localGraph} = local.graph;
+		const {nodeAccentColors: remoteColors, ...remoteGraph} = remote.graph;
+		const {nodeAccentColors: localColors, ...localGraph} = local.graph;
 
 		return [
 			...this.diff('Numbers', remote.numbers, local.numbers, NUMBER_LABELS),

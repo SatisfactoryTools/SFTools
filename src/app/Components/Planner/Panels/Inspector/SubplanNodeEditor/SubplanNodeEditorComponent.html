@@ -12,7 +12,7 @@
 			<go-to-node [nodeIds]="[node.id]" placement="left"></go-to-node>
 			<span
 				class="text-warning"
-				tooltip="Subplans are always kept by the calculation - it builds the rest of the plan around them."
+				tooltip="Subplans are always locked."
 				container="body"
 				placement="left"
 			><fa-icon [icon]="faLock" [fixedWidth]="true"></fa-icon></span>
@@ -20,7 +20,7 @@
 				class="btn btn-sm btn-outline-primary py-0 px-1 flex-shrink-0"
 				type="button"
 				[disabled]="!subplanExists"
-				tooltip="Open the subplan to edit what is inside it" container="body" placement="left"
+				tooltip="Open subplan" container="body" placement="left"
 				(click)="openSubplan()"
 			><fa-icon [icon]="faArrowUpRightFromSquare" [fixedWidth]="true"></fa-icon><span class="visually-hidden">Open the subplan</span></button>
 		</div>
@@ -45,7 +45,7 @@
 			</div>
 
 			@if (isEmpty) {
-				<div class="fst-italic text-secondary small">This subplan is still empty. Open it to build something first.</div>
+				<div class="fst-italic text-secondary small">This subplan is empty.</div>
 			} @else {
 				<div>
 					<div class="text-secondary small mb-1">Inputs</div>

@@ -48,7 +48,7 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 					if (this.connectionLossExpected && err instanceof HttpErrorResponse && err.status === 0) {
 						return of(void 0);
 					}
-					this.notifications.show('Could not save your plans to your account. They are still open here, but they will be lost if you close the page.', 10_000);
+					this.notifications.show('Could not save your plans to your account. Keep this page open or they will be lost.', 10_000);
 					return of(void 0);
 				}),
 			)),

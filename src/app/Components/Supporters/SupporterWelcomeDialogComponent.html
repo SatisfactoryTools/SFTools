@@ -7,8 +7,7 @@
 				<div class="welcome-heart"><fa-icon [icon]="faHeart"></fa-icon></div>
 				<h4 id="supporter-welcome-title" class="mb-2">Thank you for your support!</h4>
 				<p class="text-secondary small mb-0">
-					Your support helps pay for the servers and keeps Satisfactory Tools free for everyone.
-					As a small thank-you, your account now has a gold top bar, a heart next to your name,
+					It helps pay for the servers. Your account now has a gold top bar, a heart next to your name
 					and a heart on the plans you share.
 				</p>
 			</div>
@@ -23,7 +22,7 @@
 					<input class="form-control form-control-sm" id="supporter-welcome-name" name="listName" maxlength="50" [(ngModel)]="listName" required>
 				}
 				<div class="form-text">
-					You can change this, and turn the gold bar and hearts off, in
+					You can change this later in
 					<a routerLink="/settings/supporter" (click)="welcome.dismiss()">Settings → Supporter</a>.
 				</div>
 				@if (error(); as message) {

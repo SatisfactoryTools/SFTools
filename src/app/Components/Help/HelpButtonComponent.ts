@@ -22,13 +22,13 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			display: inline-flex;
 		}
 		.help-button {
-			color: var(--bs-blue);
+			color: #9fb0c0;
 			font-size: 0.85em;
 			line-height: 1;
 			cursor: pointer;
 		}
 		.help-button:hover {
-			color: #85c0f5;
+			color: var(--bs-primary);
 		}
 	`,
 })

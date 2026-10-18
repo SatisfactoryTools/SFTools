@@ -1,4 +1,4 @@
-<settings-section [resetCategories]="['planner']" resetWarning="Panel positions and sizes stay as they are. They have their own reset button at the bottom of the page." helpTopic="settings.planner" title="Planner" [icon]="sectionIcon" description="How item lists, tabs and panels in the planner behave.">
+<settings-section [resetCategories]="['planner']" resetWarning="Panel positions and sizes stay. They have their own reset button." helpTopic="settings.planner" title="Planner" [icon]="sectionIcon">
 		<div class="subsection-title">Items</div>
 		<div style="max-width: 480px;">
 			<label class="form-label" for="unmakeable-items">Items the plan cannot produce</label><setting-reset-button category="planner" field="unmakeableItems"/>
@@ -14,8 +14,6 @@
 			</select>
 			<div class="form-text">
 				{{ unmakeableItemsDescription }}
-				Applies to the item lists in the production request, inputs and the add-node dialog. Based on the recipes,
-				machines and generator fuels enabled in each plan.
 			</div>
 		</div>
 
@@ -43,10 +41,6 @@
 				(ngModelChange)="setTabBadges($event)"
 			/>
 			<label class="form-check-label" for="tab-badges">Show counts on the tabs</label><setting-reset-button category="planner" field="tabBadges"/>
-			<div class="form-text">
-				A small number on each tab shows what is set there: how many items are requested, how many recipes are
-				enabled, how many clock speeds are changed, and so on.
-			</div>
 		</div>
 		<div class="form-check mt-3">
 			<input
@@ -58,7 +52,7 @@
 			/>
 			<label class="form-check-label" for="group-tabs">Put less-used tabs under More</label><setting-reset-button category="planner" field="groupTabs"/>
 			<div class="form-text">
-				Keeps the tab row short. On narrow panels all tabs are in one list anyway.
+				On narrow panels all tabs are in one list anyway.
 			</div>
 		</div>
 		<fieldset class="more-tabs" [disabled]="!groupTabs">
@@ -92,10 +86,6 @@
 				(ngModelChange)="setSupporterHearts($event)"
 			/>
 			<label class="form-check-label" for="supporter-hearts">Show hearts on plans shared by supporters</label><setting-reset-button category="planner" field="supporterHearts"/>
-			<div class="form-text">
-				People who support Satisfactory Tools get a small heart next to the plans they share. Turn this off
-				to hide the hearts in your plan list and on shared plans you open.
-			</div>
 		</div>
 
 		<div class="subsection-title">Help</div>
@@ -109,8 +99,7 @@
 			/>
 			<label class="form-check-label" for="help-buttons">Show help buttons</label><setting-reset-button category="planner" field="helpButtons"/>
 			<div class="form-text">
-				A small question mark next to a setting or a tool opens the help article about it. Turn this off to
-				keep the screen clean; the Help panel and the search still find every article.
+				The Help panel and the search still find every article.
 			</div>
 		</div>
 

@@ -58,7 +58,7 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			align-items: center;
 			gap: 0.35rem;
 			font-size: 0.85rem;
-			color: #8a9ab3;
+			color: #9fb0c0;
 		}
 		.hotkey-row {
 			display: flex;
@@ -75,7 +75,7 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 		.hotkey-hint {
 			display: block;
 			font-size: 0.8rem;
-			color: #8a9ab3;
+			color: #9fb0c0;
 		}
 		.hotkey-warning {
 			display: block;
@@ -92,11 +92,11 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			background: none;
 			padding: 0 0.25rem;
 			font-size: 0.8rem;
-			color: #8a9ab3;
+			color: #9fb0c0;
 			cursor: pointer;
 		}
 		.row-actions button:hover:not(:disabled) { color: #dfe5ec; }
-		.row-actions button:disabled { color: #4a5464; cursor: default; }
+		.row-actions button:disabled { color: #4a5764; cursor: default; }
 		@media (max-width: 575.98px) {
 			.hotkey-row { flex-wrap: wrap; }
 			.hotkey-label { flex-basis: 100%; }

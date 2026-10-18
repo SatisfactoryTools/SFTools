@@ -1,4 +1,4 @@
-<div class="p-2">
+<div class="p-2 tree-root" (click)="onBlankClick($event)">
 
 	<div
 		class="tree-section"
@@ -17,18 +17,14 @@
 		<span class="tree-section-label">Your plans</span>
 		<span class="tree-section-count">{{ planCount() }}</span>
 		<span class="tree-section-actions" (click)="$event.stopPropagation()">
-			@if (rootFoldableIds().length > 0) {
-				<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(rootFoldableIds(), true)" tooltip="Expand all" placement="top"><fa-icon [icon]="faAnglesDown"></fa-icon></button>
-				<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(rootFoldableIds(), false)" tooltip="Collapse all" placement="top"><fa-icon [icon]="faAnglesUp"></fa-icon></button>
-			}
-			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreateFolder(currentFolderId())" tooltip="New folder" placement="top"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
-			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="startCreatePlan(currentFolderId())" tooltip="New plan" placement="top"><fa-icon [icon]="faPlus"></fa-icon></button>
-			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="openImportDialog()" [tooltip]="'Import from old Satisfactory Tools' + hotkeys.suffix('plans.importOldTools')" placement="top"><fa-icon [icon]="faFileImport"></fa-icon></button>
+			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" aria-label="Your plans menu" (click)="onSectionMenu($event, 'root')"><fa-icon [icon]="faEllipsisVertical"></fa-icon></button>
+			<button class="btn btn-outline-success btn-sm tree-create" type="button" (click)="startCreateFolder(currentFolderId())" [tooltip]="'New folder' + hotkeys.suffix('plans.newFolder')" placement="top" aria-label="New folder"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
+			<button class="btn btn-success btn-sm tree-create" type="button" (click)="startCreatePlan(currentFolderId())" [tooltip]="'New plan' + hotkeys.suffix('plans.newPlan')" placement="top" aria-label="New plan"><fa-icon [icon]="faPlus"></fa-icon></button>
 		</span>
 	</div>
 
 	@if (rootOpen() && rootEmpty() && !editState()) {
-		<div class="tree-empty">No plans yet. Use <fa-icon [icon]="faPlus"></fa-icon> above to create one.</div>
+		<div class="tree-empty">No plans yet. Press New plan above to start your first factory.</div>
 	}
 
 	@for (item of treeItems(); track item.type + ':' + (item.type === 'plan' ? item.plan.id : item.type === 'folder' ? item.id : item.parentId + ':' + item.mode)) {
@@ -179,14 +175,13 @@
 			<span class="tree-section-count">{{ localPlanCount() }}</span>
 			@if (localFoldableIds().length > 0) {
 				<span class="tree-section-actions" (click)="$event.stopPropagation()">
-					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(localFoldableIds(), true)" tooltip="Expand all" placement="top"><fa-icon [icon]="faAnglesDown"></fa-icon></button>
-					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(localFoldableIds(), false)" tooltip="Collapse all" placement="top"><fa-icon [icon]="faAnglesUp"></fa-icon></button>
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" aria-label="On this device menu" (click)="onSectionMenu($event, 'local')"><fa-icon [icon]="faEllipsisVertical"></fa-icon></button>
 				</span>
 			}
 		</div>
 
 		@if (localOpen()) {
-			<info-note class="tree-section-note">Made while you were signed out. They are saved only on {{ platform.device }}. Click a plan to look at it. Drag a plan or folder onto &ldquo;Your plans&rdquo; (or use its menu) to move it into your account and edit it.</info-note>
+			<info-note class="tree-section-note">Made while signed out. Saved only on {{ platform.device }}. To edit one, drag it onto &ldquo;Your plans&rdquo; or use its menu.</info-note>
 
 			@for (item of localTreeItems(); track item.kind + ':' + item.id) {
 				<div
@@ -247,8 +242,7 @@
 			<span class="tree-section-count">{{ sharedList().length }}</span>
 			@if (sharedFoldableIds().length > 0) {
 				<span class="tree-section-actions" (click)="$event.stopPropagation()">
-					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(sharedFoldableIds(), true)" tooltip="Expand all" placement="top"><fa-icon [icon]="faAnglesDown"></fa-icon></button>
-					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" (click)="setAllFolds(sharedFoldableIds(), false)" tooltip="Collapse all" placement="top"><fa-icon [icon]="faAnglesUp"></fa-icon></button>
+					<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" aria-label="Shared with you menu" (click)="onSectionMenu($event, 'shared')"><fa-icon [icon]="faEllipsisVertical"></fa-icon></button>
 				</span>
 			}
 		</div>
@@ -256,12 +250,12 @@
 		@if (sharedOpen()) {
 			@if (sharedList().length === 0) {
 				<info-note class="tree-section-note">
-					No shared plans opened for {{ activeVersionName() }} yet.
+					No shared plans for {{ activeVersionName() }} yet.
 					{{ otherVersionShareCount() }} {{ otherVersionShareCount() === 1 ? 'share' : 'shares' }} from other versions
-					{{ otherVersionShareCount() === 1 ? 'is' : 'are' }} listed in the planner of {{ otherVersionShareCount() === 1 ? 'its' : 'their' }} own version.
+					{{ otherVersionShareCount() === 1 ? 'is' : 'are' }} in the planner of {{ otherVersionShareCount() === 1 ? 'its' : 'their' }} version.
 				</info-note>
 			} @else {
-				<info-note class="tree-section-note">Opened from share links. They are read-only and never change. Drag one onto &ldquo;Your plans&rdquo; (or use its menu) to get your own copy that you can edit.</info-note>
+				<info-note class="tree-section-note">Opened from share links. They are read-only and never change. To edit one, drag it onto &ldquo;Your plans&rdquo; to get a copy.</info-note>
 			}
 
 			@for (share of sharedList(); track share.share) {

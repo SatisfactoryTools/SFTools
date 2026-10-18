@@ -6,7 +6,7 @@
 		<div>
 			<h2 class="mb-1">About Satisfactory Tools</h2>
 			<p class="text-secondary mb-0">
-				An all-in-one planner for Satisfactory. Works with or without an account.
+				A production planner and codex for Satisfactory. Works with or without an account.
 			</p>
 		</div>
 	</div>
@@ -44,7 +44,7 @@
 
 	<div class="section-title">Support the project</div>
 	<p class="text-secondary">
-		Satisfactory Tools is free and stays free. If it saves you time and you want to give something back, a donation helps pay for the servers.
+		Satisfactory Tools is free and stays free. Donations help pay for the servers.
 	</p>
 	<div class="link-row">
 		@for (link of donationLinks; track link.key) {
@@ -77,6 +77,16 @@
 			<p class="credit-text">Satisfactory is made by Coffee Stain Studios. Game icons and names are used with their permission and remain their copyrighted property. This site is a fan project, not affiliated with Coffee Stain Studios.</p>
 		</div>
 	</div>
+
+	@for (group of creditGroups; track group.key) {
+		<div class="section-title">{{ group.title }}</div>
+		<p class="text-secondary">{{ group.text }}</p>
+		<ul class="name-list">
+			@for (name of group.names; track $index) {
+				<li>{{ name }}</li>
+			}
+		</ul>
+	}
 
 	<div class="section-title">Feedback</div>
 	<p class="text-secondary mb-0">

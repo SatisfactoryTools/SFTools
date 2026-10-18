@@ -16,8 +16,7 @@
 		<info-note>{{ modeDescription }}</info-note>
 	} @else {
 		<info-note kind="warning">
-			Raw resource weights are turned off in the Optimisation tab. The weights below are ignored and the plan
-			does not try to mine less.
+			Raw resource weights are turned off in the Optimisation tab. The weights below are ignored.
 		</info-note>
 	}
 
@@ -56,7 +55,7 @@
 									other plans {{ rateFormatter.rate(status.usedByOthers, status.item) }} · {{ status.available === null ? '∞' : rateFormatter.rate(status.available, status.item) }} available
 								</small>
 								@if (status.overUse) {
-									<small class="text-danger d-block">Uses more than its share - recalculate this plan.</small>
+									<small class="text-danger d-block">Uses more than its share. Recalculate this plan.</small>
 								}
 							} @else if (status.limit === 0) {
 								<small class="text-secondary">cannot be mined</small>
@@ -96,7 +95,7 @@
 				<button
 					type="button"
 					class="btn btn-sm btn-outline-info py-0 text-nowrap ms-auto"
-					tooltip="Cap every resource at what this version's map can supply - the limits a new plan starts with. Water stays unlimited."
+					tooltip="Limit every resource to what the map can supply. Water stays unlimited."
 					container="body"
 					placement="top"
 					(click)="setFromMapLimits()"
@@ -129,7 +128,7 @@
 								class="form-check-input"
 								[ngModel]="row.enabled"
 								(ngModelChange)="setEnabled(row, $event)"
-								[tooltip]="row.enabled ? 'Enabled - untick to forbid mining this resource' : 'Disabled - tick to allow mining it again'"
+								[tooltip]="row.enabled ? 'Untick to stop mining this resource' : 'Tick to allow mining it'"
 								container="body"
 								placement="top"
 							>
@@ -159,7 +158,7 @@
 									class="btn btn-outline-secondary px-2"
 									[class.active]="row.infinite"
 									[disabled]="!row.enabled"
-									[tooltip]="row.infinite ? 'Unlimited - click to set a limit' : 'Limited - click to make unlimited'"
+									[tooltip]="row.infinite ? 'Set a limit' : 'Make unlimited'"
 									container="body"
 									placement="top"
 									(click)="toggleInfinite(row)"

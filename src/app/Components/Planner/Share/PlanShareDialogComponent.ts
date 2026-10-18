@@ -39,7 +39,6 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 			text-align: left;
 			padding: 0.65rem 0.8rem;
 			border: 1px solid rgba(255, 255, 255, 0.15);
-			border-radius: 0.375rem;
 			background: rgba(255, 255, 255, 0.03);
 			color: inherit;
 			transition: background 0.15s, border-color 0.15s;

@@ -111,8 +111,8 @@ export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 	public get lockTooltip(): string
 	{
 		return this.node.locked
-			? 'Locked - the calculation keeps this node as it is. Click to unlock.'
-			: 'Unlocked - the calculation may change or replace this node. Click to lock it.';
+			? 'Locked. Click to unlock.'
+			: 'Not locked. Click to lock.';
 	}
 
 	public get amountLabel(): string

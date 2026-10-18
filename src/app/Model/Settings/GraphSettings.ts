@@ -26,9 +26,9 @@ export interface GraphSettings
 
 	readonly edgeScale: number;
 
-	readonly nodeColors: NodeColors;
+	readonly nodeAccentColors: NodeColors;
 
 	/** Node fill = accent colour × this (0-1). */
-	readonly nodeFillStrength: number;
+	readonly nodeFillAmount: number;
 
 }

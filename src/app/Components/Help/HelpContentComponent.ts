@@ -38,7 +38,7 @@ let tooltipCounter = 0;
 			font-size: 1.3rem;
 			margin: 2rem 0 0.6rem;
 			padding-bottom: 0.3rem;
-			border-bottom: 1px solid #2b3444;
+			border-bottom: 1px solid #3a4d60;
 		}
 		:host ::ng-deep .help-content h3 {
 			font-size: 1.08rem;
@@ -52,7 +52,7 @@ let tooltipCounter = 0;
 		}
 		:host ::ng-deep .help-content .help-anchor {
 			margin-right: 0.35rem;
-			color: #4a566b;
+			color: #4a5b6b;
 			text-decoration: none;
 			font-weight: 400;
 		}
@@ -82,9 +82,8 @@ let tooltipCounter = 0;
 		/* Bootstrap's own kbd is inverted (dark on light), which disappears in this theme. */
 		:host ::ng-deep .help-content kbd {
 			color: #e9eef5;
-			background: #2b3444;
-			border: 1px solid #4a566b;
-			border-radius: 3px;
+			background: #3a4d60;
+			border: 1px solid #4a5b6b;
 			padding: 0.1em 0.4em;
 			font-size: 0.85em;
 			font-family: var(--bs-font-monospace);
@@ -95,12 +94,10 @@ let tooltipCounter = 0;
 		}
 		:host ::ng-deep .help-content code {
 			background: rgba(255, 255, 255, 0.07);
-			border-radius: 3px;
 			padding: 0.05em 0.3em;
 		}
 		:host ::ng-deep .help-content pre {
 			background: rgba(0, 0, 0, 0.25);
-			border-radius: 4px;
 			padding: 0.6rem 0.8rem;
 			overflow-x: auto;
 		}
@@ -112,7 +109,7 @@ let tooltipCounter = 0;
 			color: #e9eef5;
 		}
 		:host ::ng-deep .help-content blockquote {
-			border-left: 3px solid #3d4757;
+			border-left: 3px solid #3d4a57;
 			padding-left: 0.75rem;
 			color: #c5d0db;
 		}
@@ -123,7 +120,6 @@ let tooltipCounter = 0;
 			gap: 0.5rem;
 			padding: 0.55rem 0.75rem;
 			margin: 1.1rem 0;
-			border-radius: 0 4px 4px 0;
 			font-size: 0.875rem;
 			line-height: 1.4;
 			color: #c5d0db;
@@ -174,8 +170,7 @@ let tooltipCounter = 0;
 		}
 		:host ::ng-deep .help-figure img {
 			max-width: 100%;
-			border: 1px solid #2b3444;
-			border-radius: 4px;
+			border: 1px solid #3a4d60;
 			box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
 			cursor: zoom-in;
 		}

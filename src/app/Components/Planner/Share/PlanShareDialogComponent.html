@@ -17,10 +17,9 @@
 				</div>
 				<div class="text-secondary mb-2">
 					@if (kind === 'snapshot') {
-						A frozen copy. It never changes, even when you keep working on the
-						{{ target()?.type === 'folder' ? 'folder' : 'plan' }}.
+						A copy that never changes.
 					} @else {
-						The plan as it is now, and as it will be later - the other person always sees your newest work.
+						Always shows your newest work.
 					}
 				</div>
 
@@ -50,11 +49,10 @@
 					</div>
 					<div class="form-text">
 						@if (kind === 'snapshot') {
-							Anyone with the link can look at the copy and add it to their own plans. Share again to send
+							Anyone with the link can view the copy and add it to their plans. Share again to send
 							a newer copy.
 						} @else {
-							This is the plan's own address, the one in the address bar. Other people see it read-only
-							and can copy it into their own plans. Subplans follow this plan.
+							Others see the plan read-only and can copy it into their plans. Subplans are included.
 						}
 					</div>
 				}
@@ -79,9 +77,8 @@
 							<span class="badge text-bg-primary">Recommended</span>
 						</div>
 						<div class="small text-secondary mt-1">
-							A frozen copy of the {{ target()?.type === 'folder' ? 'folder' : 'plan' }} as it is now. It
-							never changes, even when you keep working, and the other person can add it to their own
-							plans. Works without an account.
+							A copy of the {{ target()?.type === 'folder' ? 'folder' : 'plan' }} as it is now. It
+							never changes. Works without an account.
 						</div>
 					</button>
 
@@ -92,13 +89,11 @@
 						</div>
 						<div class="small text-secondary mt-1">
 							@if (hasOwnLink()) {
-								The plan's own address. The other person sees it read-only, and your later changes show
-								up for them too.
+								The other person sees it read-only, with your later changes.
 							} @else if (target()?.type === 'folder') {
 								A folder has no address of its own, so only a snapshot can be sent.
 							} @else {
-								This plan is saved only on {{ platform.device }}, so it has no address of its own. Only a
-								snapshot can be sent.
+								This plan is saved only on {{ platform.device }}. Only a snapshot can be sent.
 							}
 						</div>
 					</button>

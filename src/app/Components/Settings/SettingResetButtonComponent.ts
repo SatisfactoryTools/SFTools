@@ -15,8 +15,8 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			<button
 				type="button"
 				class="btn btn-link btn-sm p-0 lh-1 setting-reset"
-				tooltip="Back to the default" container="body" placement="top"
-				aria-label="Back to the default"
+				tooltip="Reset to default" container="body" placement="top"
+				aria-label="Reset to default"
 				(click)="$event.preventDefault(); reset()"
 			><fa-icon [icon]="faRotateLeft"></fa-icon></button>
 		}
@@ -33,7 +33,7 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			text-decoration: none;
 		}
 		.setting-reset:hover {
-			color: #4c9be8;
+			color: var(--bs-primary);
 		}
 	`],
 })

@@ -6,41 +6,30 @@ export class NodeColorPresets
 
 	public static readonly ALL: readonly NodeColorPreset[] = [
 		{
-			id: 'default',
-			label: 'Default',
-			description: 'The standard colours.',
-			colors: SettingsDefaults.SETTINGS.graph.nodeColors,
-			fillStrength: SettingsDefaults.SETTINGS.graph.nodeFillStrength,
+			id: 'old-tools',
+			label: 'Old tools',
+			description: 'Solid nodes in the colours of the old Satisfactory Tools.',
+			colors: SettingsDefaults.SETTINGS.graph.nodeAccentColors,
+			fillStrength: SettingsDefaults.SETTINGS.graph.nodeFillAmount,
+		},
+		{
+			id: 'new-tools',
+			label: 'New tools',
+			description: 'The lighter nodes the new tools started with.',
+			colors: SettingsDefaults.NEW_TOOLS_NODE_COLORS,
+			fillStrength: SettingsDefaults.NEW_TOOLS_NODE_FILL,
 		},
 		{
 			id: 'beta',
 			label: 'Beta tools',
-			description: 'The darker nodes of the new tools while they were in beta.',
-			colors: SettingsDefaults.SETTINGS.graph.nodeColors,
+			description: 'The darker nodes from the beta of the new tools.',
+			colors: SettingsDefaults.NEW_TOOLS_NODE_COLORS,
 			fillStrength: 0.2,
-		},
-		{
-			id: 'old-tools',
-			label: 'Old tools',
-			description: 'Solid nodes in the colours of the old Satisfactory Tools.',
-			// The old tools had no augmenter or subplan nodes; those two are picked to sit well next to the rest.
-			colors: {
-				recipe: '#df691a',
-				generator: '#5377e3',
-				augmenter: '#7e57c2',
-				sink: '#d9534f',
-				mine: '#4e5d6c',
-				input: '#af6d0e',
-				product: '#50a050',
-				byproduct: '#8b4513',
-				subplan: '#2a9d8f',
-			},
-			fillStrength: 1,
 		},
 		{
 			id: 'colour-blind',
 			label: 'Colour-blind safe',
-			description: 'The Okabe-Ito colours, which stay apart for the common kinds of colour blindness.',
+			description: 'Okabe-Ito colours. Easy to tell apart with common colour blindness.',
 			colors: {
 				recipe: '#56b4e9',
 				generator: '#f0e442',
@@ -52,12 +41,12 @@ export class NodeColorPresets
 				byproduct: '#cc79a7',
 				subplan: '#bbbbbb',
 			},
-			fillStrength: SettingsDefaults.SETTINGS.graph.nodeFillStrength,
+			fillStrength: SettingsDefaults.NEW_TOOLS_NODE_FILL,
 		},
 		{
 			id: 'high-contrast',
 			label: 'High contrast',
-			description: 'Very bright, saturated colours that are easy to tell apart on a dim or glaring screen.',
+			description: 'Bright colours that are easy to tell apart.',
 			colors: {
 				recipe: '#00b0ff',
 				generator: '#ffea00',
@@ -69,7 +58,7 @@ export class NodeColorPresets
 				byproduct: '#f06292',
 				subplan: '#ffffff',
 			},
-			fillStrength: SettingsDefaults.SETTINGS.graph.nodeFillStrength,
+			fillStrength: SettingsDefaults.NEW_TOOLS_NODE_FILL,
 		},
 	];
 

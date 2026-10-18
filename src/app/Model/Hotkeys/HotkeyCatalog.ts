@@ -7,9 +7,9 @@ export class HotkeyCatalog
 {
 
 	public static readonly DEFINITIONS: HotkeyDefinition[] = [
-		{action: 'graph.addNode', group: 'graph', label: 'Add node', hint: 'Opens the add-node dialog in the middle of the canvas.', default: {key: 'a'}},
+		{action: 'graph.addNode', group: 'graph', label: 'Add node', hint: 'Opens in the middle of the canvas.', default: {key: 'a'}},
 		{action: 'graph.createSubplan', group: 'graph', label: 'Create empty subplan', default: {key: 'a', shift: true}},
-		{action: 'graph.inspectNode', group: 'graph', label: 'Inspect node', hint: 'Opens the Inspector panel on the selected node.', default: {key: 'i'}},
+		{action: 'graph.inspectNode', group: 'graph', label: 'Inspect node', default: {key: 'i'}},
 		{action: 'graph.openSubplan', group: 'graph', label: 'Open subplan', default: {key: 'o'}},
 		{action: 'graph.convertToSubplan', group: 'graph', label: 'Convert selection to subplan', default: {key: 'g'}},
 		{action: 'graph.toggleLock', group: 'graph', label: 'Lock or unlock node', default: {key: 'l'}},
@@ -36,7 +36,7 @@ export class HotkeyCatalog
 		{action: 'planner.zoomIn', group: 'planner', label: 'Zoom in', default: {key: '+', ctrl: true}},
 		{action: 'planner.zoomOut', group: 'planner', label: 'Zoom out', default: {key: '-', ctrl: true}},
 		{action: 'planner.zoomFit', group: 'planner', label: 'Fit the graph to the screen', default: {key: 'f'}},
-		{action: 'planner.export', group: 'planner', label: 'Export the graph as an image', hint: 'Opens the export window, where you pick SVG or PNG.', default: {key: 'e'}},
+		{action: 'planner.export', group: 'planner', label: 'Export the graph as an image', default: {key: 'e'}},
 
 		{action: 'calculator.request', group: 'calculator', label: 'Request', default: {key: '1'}},
 		{action: 'calculator.resources', group: 'calculator', label: 'Resources', default: {key: '2'}},
@@ -78,16 +78,16 @@ export class HotkeyCatalog
 		{action: 'app.search', group: 'app', label: 'Search', default: {key: 'q', ctrl: true}},
 		{action: 'app.settings', group: 'app', label: 'Open settings', default: {key: '/'}},
 		{action: 'app.home', group: 'app', label: 'Go to the start page', default: null},
-		{action: 'app.back', group: 'app', label: 'Go back', hint: 'Follows the page\'s back link - "Back to planner" where the navbar offers it.', default: {key: 'Escape'}},
+		{action: 'app.back', group: 'app', label: 'Go back', hint: 'Follows the back link on the page, like "Back to planner".', default: {key: 'Escape'}},
 	];
 
 	public static readonly GROUPS: {group: HotkeyGroup; label: string; description: string}[] = [
-		{group: 'graph', label: 'Canvas', description: 'Work on the node or nodes selected on the canvas.'},
+		{group: 'graph', label: 'Canvas', description: 'Act on the selected nodes.'},
 		{group: 'planner', label: 'Plan', description: 'Calculating, undo and moving around the canvas.'},
-		{group: 'calculator', label: 'Production request', description: 'Open the production request panel on one of its tabs.'},
-		{group: 'panels', label: 'Panels', description: 'Open a panel, or close it when it is already in front.'},
-		{group: 'plans', label: 'Plans', description: 'Work on the plan that is open, and on the folder it sits in.'},
-		{group: 'app', label: 'Everywhere', description: 'Work on every page of the site.'},
+		{group: 'calculator', label: 'Production request', description: 'Open a tab of the production request panel.'},
+		{group: 'panels', label: 'Panels', description: 'Open a panel, or close it if it is in front.'},
+		{group: 'plans', label: 'Plans', description: 'Act on the open plan and its folder.'},
+		{group: 'app', label: 'Everywhere', description: 'Work on every page.'},
 	];
 
 	private static byAction: Map<HotkeyAction, HotkeyDefinition> | null = null;

@@ -19,7 +19,7 @@
 				<div class="support-sub">Satisfactory Tools is free and stays free.</div>
 			</div>
 		</div>
-		<div class="support-text">If it saves you time and you want to give something back, a donation helps keep the servers running.</div>
+		<div class="support-text">Donations help keep the servers running.</div>
 		@for (link of donations; track link.key) {
 			<a class="support-link" [href]="link.url" target="_blank" rel="noopener">
 				<span class="brand" [style.color]="link.color"><fa-icon [icon]="link.icon" [fixedWidth]="true"></fa-icon></span>
@@ -39,7 +39,7 @@
 	</button>
 	@if (inlineOpen) {
 		<div class="support-inline-body">
-			<div class="support-inline-sub">Satisfactory Tools is free and stays free. If it saves you time, a donation helps keep the servers running.</div>
+			<div class="support-inline-sub">Satisfactory Tools is free and stays free. Donations help keep the servers running.</div>
 			@for (link of donations; track link.key) {
 				<a class="nav-link support-inline-link" [href]="link.url" target="_blank" rel="noopener">
 					<span class="brand" [style.color]="link.color"><fa-icon [icon]="link.icon" [fixedWidth]="true"></fa-icon></span>

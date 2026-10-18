@@ -11,6 +11,13 @@
 
 <!-- The wrapper span carries the tooltip: a disabled button has no pointer events of its own. -->
 <div class="rail-sep"></div>
+<button
+	class="rail-btn rail-btn-new"
+	type="button"
+	[tooltip]="'New plan' + hotkeys.suffix('plans.newPlan')"
+	placement="right"
+	(click)="planCreator.createPlan()"
+><fa-icon [icon]="faPlus"></fa-icon></button>
 <span [tooltip]="shareTooltip()" placement="right">
 	<button
 		class="rail-btn rail-btn-accent"

@@ -13,7 +13,7 @@
 		} @else {
 			<info-note kind="warning" class="mb-2">
 				You are not signed in. Plans, custom versions and these settings are saved only on {{ platform.device }}.
-				If you {{ platform.desktop ? 'lose this computer' : 'clear the browser data' }} or use another device, they are gone.
+				If you {{ platform.desktop ? 'lose this computer' : 'clear the browser data' }}, they are gone.
 			</info-note>
 			<a routerLink="/auth/login" [queryParams]="{returnUrl: '/settings'}" class="btn btn-sm btn-primary">Sign in</a>
 		}
@@ -29,9 +29,8 @@
 			/>
 			<label class="form-check-label" for="sign-in-prompts">Remind me to sign in</label><setting-reset-button category="account" field="signInPrompts"/>
 			<div class="form-text">
-				While you are signed out, the planner asks you once per visit if you want to sign in, and the home
-				page shows a sign-in box. Turn this off to work without an account in peace. The sign-in link
-				in the top bar stays either way.
+				While you are signed out, the planner asks once per visit if you want to sign in.
+				The home page also shows a sign-in box.
 			</div>
 		</div>
 </settings-section>

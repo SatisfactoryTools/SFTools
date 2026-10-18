@@ -131,7 +131,7 @@ export class ModDetailComponent
 
 	public clearData(version: ModVersion): void
 	{
-		if (!this.mod || !confirm(`Remove the uploaded data of version "${version.name}"? The version itself stays.`)) {
+		if (!this.mod || !confirm(`Clear the data of version "${version.name}"? The version stays.`)) {
 			return;
 		}
 		this.modsApi.updateModVersion(this.mod.id, version.id, {data: null}).subscribe({

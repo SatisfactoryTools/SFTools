@@ -50,7 +50,7 @@ export class SettingsPlannerComponent
 		{
 			value: 'hide',
 			label: 'Hide items the plan cannot produce (no spoilers)',
-			description: 'Items that no enabled recipe or generator can produce are not shown at all. Nothing is spoiled before you unlock it.',
+			description: 'Items that no enabled recipe or generator can produce are not shown.',
 		},
 	];
 
@@ -155,7 +155,7 @@ export class SettingsPlannerComponent
 
 	public resetPanels(): void
 	{
-		if (confirm('Put all planner panels back to their default positions and sizes?')) {
+		if (confirm('Reset all planner panel positions and sizes?')) {
 			this.settings.updatePanels(null);
 		}
 	}

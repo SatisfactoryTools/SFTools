@@ -7,8 +7,7 @@
 				<input class="form-check-input" type="checkbox" id="open-in-desktop" [ngModel]="handoff.enabled()" (ngModelChange)="handoff.setEnabled($event)"/>
 				<label class="form-check-label" for="open-in-desktop">Open shared plans and plan links in the desktop app</label>
 				<div class="form-text">
-					Only in this browser. When a link to a shared plan or a plan opens the website here, it is passed on to the
-					desktop app instead - with a button to stay in the browser.
+					Only in this browser. You can still choose to stay in the browser.
 				</div>
 			</div>
 		</settings-section>
@@ -48,9 +47,8 @@
 			<input class="form-check-input" type="checkbox" id="open-links" [ngModel]="preferences.preferences().openLinks" (ngModelChange)="preferences.update({openLinks: $event})"/>
 			<label class="form-check-label" for="open-links">Open Satisfactory Tools links in this app</label>
 			<div class="form-text">
-				Shared plans and plan links open here when the website hands them over (turn on "Open shared plans and
-				plan links in the desktop app" in the website's settings, in each browser you use). Links to other
-				sites always open in your browser.
+				The website passes links here when "Open shared plans and plan links in the desktop app" is on.
+				Turn it on in the website's settings in each browser you use.
 			</div>
 		</div>
 		<form class="d-flex gap-2" (ngSubmit)="openLink()">
@@ -60,8 +58,8 @@
 
 		<div class="subsection-title">Offline</div>
 		<p class="mb-2">
-			Download the game versions you want to use without a connection. Versions you open are kept for offline
-			use too, but only the parts you looked at.
+			Download the game versions you want to use offline. Versions you open are also kept, but only the
+			parts you looked at.
 		</p>
 		<div class="mb-2">
 			@for (version of versions(); track version.id) {
@@ -97,8 +95,8 @@
 
 		<div class="subsection-title">Your data</div>
 		<p class="mb-1">
-			Plans and settings made without signing in are saved in this folder. Back it up to keep them safe; signed-in
-			plans are in your account.
+			Plans and settings made without signing in are saved in this folder. Back it up so you do not lose them.
+			Signed-in plans are in your account.
 		</p>
 		<p class="small data-path mb-2"><code>{{ dataDir }}</code></p>
 		<div class="d-flex flex-wrap align-items-center gap-2">

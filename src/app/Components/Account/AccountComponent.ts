@@ -36,8 +36,8 @@ import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 			display: inline-flex;
 			align-items: center;
 			justify-content: center;
-			background: rgba(76, 155, 232, 0.16);
-			color: #4c9be8;
+			background: rgba(var(--bs-primary-rgb), 0.16);
+			color: var(--bs-primary);
 			font-size: 2rem;
 			flex-shrink: 0;
 		}

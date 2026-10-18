@@ -66,7 +66,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 		.limit-bar > div { height: 100%; }
 		tr.resource-off td:first-child { opacity: 0.5; }
 		.conversion-note {
-			border-top: 2px solid #5d7189;
+			border-top: 2px solid #5d7489;
 			background: rgba(0, 0, 0, 0.15);
 		}
 	`],

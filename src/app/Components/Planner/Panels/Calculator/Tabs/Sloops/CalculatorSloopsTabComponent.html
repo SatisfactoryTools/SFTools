@@ -1,10 +1,9 @@
 <div class="p-2 d-flex flex-column gap-2">
 
 	<info-note>
-		Up to this many somersloops can be placed in machines to boost their output.
+		Up to this many somersloops can go into machines to boost their output.
 		@if (sloopsUsedByLocked > 0) {
-			Locked nodes already use <span class="text-light">{{ sloopsUsedByLocked }}</span>,
-			so <span class="text-light">{{ sloopsRemaining }}</span> are left for the calculation.
+			Locked nodes already use <span class="text-light">{{ sloopsUsedByLocked }}</span>.
 		}
 	</info-note>
 
@@ -34,7 +33,7 @@
 	<div class="card" [class.opacity-50]="maxSloops === 0">
 		<div class="card-header py-1 px-2 fw-semibold">Accuracy</div>
 		<div class="card-body p-2 d-flex flex-column gap-2">
-			<info-note>How close the result must be to the best possible one. Only matters when somersloops are available.</info-note>
+			<info-note>How close the result must be to the best one. Only used when somersloops are available.</info-note>
 			<div>
 				@for (option of accuracyOptions; track option.value) {
 					<div class="form-check">
@@ -59,22 +58,22 @@
 
 	@if (maxSloops > 0 && accuracy === 'high') {
 		<info-note kind="warning">
-			High accuracy can take a long time, even a few minutes on larger plans.
-			You can cancel the calculation with the button next to Calculate.
+			High accuracy can take a few minutes on larger plans.
+			You can cancel it with the button next to Calculate.
 		</info-note>
 	}
 
 	@if (maxSloops > 0 && producePowerForFactory) {
 		<info-note kind="warning">
-			Using somersloops together with &ldquo;Produce power to run the factory&rdquo; (Power tab)
-			makes the calculation much harder. It can take a very long time.
+			Somersloops with &ldquo;Produce power to run the factory&rdquo; (Power tab)
+			make the calculation much slower. It can take a very long time.
 		</info-note>
 	}
 
 	@if (maxSloops > 0 && hasMaximiseRequest) {
 		<info-note kind="warning">
-			Using somersloops together with a maximised item (Request tab)
-			makes the calculation much harder. It can take a very long time.
+			Somersloops with a maximised item (Request tab)
+			make the calculation much slower. It can take a very long time.
 		</info-note>
 	}
 

@@ -1,4 +1,4 @@
-<settings-section [resetCategories]="['graph']" helpTopic="settings.graph" title="Graph" [icon]="sectionIcon" description="How the production graph draws its nodes and connections.">
+<settings-section [resetCategories]="['graph']" helpTopic="settings.graph" title="Graph" [icon]="sectionIcon">
 		<div class="subsection-title">Icons</div>
 		<div class="row g-2">
 			@for (item of iconToggles; track item.key) {
@@ -49,7 +49,7 @@
 				(ngModelChange)="setToggle('simplifyWhenZoomedOut', $event)"
 			/>
 			<label class="form-check-label" for="simplifyWhenZoomedOut">Simplify the graph when zoomed out</label><setting-reset-button category="graph" field="simplifyWhenZoomedOut"/>
-			<div class="form-text">Shows bigger node names and connection icons when the small text would be too small to read.</div>
+			<div class="form-text">Bigger names and icons when the normal text gets too small to read.</div>
 		</div>
 
 		<div class="subsection-title">Recipe nodes</div>
@@ -70,7 +70,7 @@
 			</div>
 			<div class="col-12 col-lg-6">
 				<div class="form-label">Preview</div>
-				<div class="node-preview" [style.border-color]="graph.nodeColors.recipe" [style.background]="previewFill" [class.dark-text]="previewDarkText">
+				<div class="node-preview" [style.border-color]="graph.nodeAccentColors.recipe" [style.background]="previewFill" [class.dark-text]="previewDarkText">
 					<div class="fw-bold">Iron Plate</div>
 					@if (previewBoldLine !== '') {
 						<div class="fw-bold small">{{ previewBoldLine }}</div>
@@ -96,7 +96,6 @@
 						<option [ngValue]="option.value">{{ option.label }}</option>
 					}
 				</select>
-				<div class="form-text">Nodes, their text, icons and connection points grow or shrink together.</div>
 			</div>
 			<div class="col-12 col-lg-6">
 				<label class="form-label" for="edge-scale">Connection label size</label><setting-reset-button category="graph" field="edgeScale"/>
@@ -116,7 +115,7 @@
 		<info-note>Existing graphs keep their layout until you press Rearrange in the planner. Until then, bigger nodes may overlap.</info-note>
 
 		<div class="subsection-title">Node colours</div>
-		<div class="small mb-2">Fill all node colours from a preset. You can still change single colours afterwards.</div>
+		<div class="small mb-2">Pick a preset, then change single colours if you want.</div>
 		<div class="preset-list mb-3">
 			@for (preset of presets; track preset.id) {
 				<button type="button" class="preset" [class.active]="isActivePreset(preset)" [tooltip]="preset.description" container="body" placement="top" (click)="applyPreset(preset)">
@@ -133,8 +132,8 @@
 			<label class="form-label d-flex justify-content-between" for="node-fill-strength">
 				<span>Node fill strength</span>
 				<span class="d-flex align-items-center">
-					{{ graph.nodeFillStrength * 100 | number: '1.0-0' }}%
-					<setting-reset-button category="graph" field="nodeFillStrength"/>
+					{{ graph.nodeFillAmount * 100 | number: '1.0-0' }}%
+					<setting-reset-button category="graph" field="nodeFillAmount"/>
 				</span>
 			</label>
 			<input
@@ -144,23 +143,23 @@
 				min="0.1"
 				max="1"
 				step="0.02"
-				[ngModel]="graph.nodeFillStrength"
+				[ngModel]="graph.nodeFillAmount"
 				(ngModelChange)="setNodeFillStrength($event)"
 			/>
-			<div class="form-text">How much of each node's colour fills its inside. Low keeps nodes dark with a coloured border; 100% fills them solid. Text turns dark on fills too light for white.</div>
+			<div class="form-text">How much colour fills each node. Low values keep nodes dark with a coloured border. 100% fills them solid.</div>
 		</div>
 		<div class="row g-2">
 			@for (type of nodeTypes; track type.key) {
 				<div class="col-6 col-md-4 col-xl-3">
 					<label class="form-label small mb-1 d-flex align-items-center" [for]="'color-' + type.key">
 						<span>{{ type.label }}</span>
-						<setting-reset-button category="graph" field="nodeColors" [key]="type.key"/>
+						<setting-reset-button category="graph" field="nodeAccentColors" [key]="type.key"/>
 					</label>
 					<input
 						[id]="'color-' + type.key"
 						type="color"
 						class="form-control form-control-color w-100"
-						[ngModel]="graph.nodeColors[type.key]"
+						[ngModel]="graph.nodeAccentColors[type.key]"
 						(ngModelChange)="setNodeColor(type.key, $event)"
 					/>
 				</div>

@@ -36,7 +36,7 @@ export class VersionDataResolver
 				catchError((err: unknown) => {
 					// A 404 is a dead link and going home says it all; a server that did not answer must not look like the version was deleted.
 					if (!(err instanceof HttpErrorResponse) || err.status !== 404) {
-						this.notifications.show('Could not reach the server, so this version could not be opened. Please try again in a moment.', 10_000);
+						this.notifications.show('Could not reach the server to open this version. Try again in a moment.', 10_000);
 					}
 					this.router.navigate(['/']);
 					return EMPTY;

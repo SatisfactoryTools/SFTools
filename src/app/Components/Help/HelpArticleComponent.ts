@@ -42,7 +42,7 @@ import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 		.article-section {
 			padding-top: 1.25rem;
 			margin-top: 1.75rem;
-			border-top: 1px solid #2b3444;
+			border-top: 1px solid #3a4d60;
 		}
 		.related-grid {
 			display: grid;
@@ -56,7 +56,7 @@ import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 			gap: 0.6rem;
 			padding-top: 1.25rem;
 			margin-top: 1.75rem;
-			border-top: 1px solid #2b3444;
+			border-top: 1px solid #3a4d60;
 		}
 		a.step-next {
 			grid-column: 2;
@@ -129,7 +129,7 @@ import {HelpRelatedArticle} from '@src/Components/Help/HelpRelatedArticle';
 				max-height: calc(100vh - var(--help-sticky-top, 0.75rem) - 2rem);
 				overflow-y: auto;
 				padding-left: 0.85rem;
-				border-left: 1px solid #222b3e;
+				border-left: 1px solid #34475a;
 			}
 		}
 		.toc-title {

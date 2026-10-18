@@ -6,7 +6,7 @@ export class MetaText
 	public static readonly TITLE_SUFFIX = ' - ' + MetaText.SITE_NAME;
 	public static readonly DESCRIPTION_MAX_LENGTH = 200;
 
-	public static readonly DEFAULT_DESCRIPTION = 'Plan factories that actually work. An optimising production and logistics planner for Satisfactory, supporting every factory - from the first smelter to a 1 TW nuclear grid. Includes a searchable codex, custom versions and mods.';
+	public static readonly DEFAULT_DESCRIPTION = 'Production planner for Satisfactory. Tell it what you want to make and it works out the machines, recipes and resources you need. Also a searchable codex, custom versions and mods. Free to use.';
 
 	/** Tag-like markup only (`<b>`, `</color>`, `<img src=…/>`), so a bare "<" in text survives. */
 	private static readonly TAG_PATTERN = /<\/?[A-Za-z][^<>]*>/gu;

@@ -28,11 +28,11 @@ import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 			min-width: 200px;
 			padding: 8px 24px;
 			border-radius: 5px;
-			background: #10141d;
+			background: #1b2834;
 			border: 1.5px solid #4a90d9;
 			color: #dde4ef;
 		}
-		.node-preview .group-line { color: #aab8cc; }
+		.node-preview .group-line { color: #aabccc; }
 		.node-preview.dark-text { color: #0b1520; }
 		.node-preview.dark-text .group-line { color: #22303f; }
 		.preset-list {
@@ -47,7 +47,7 @@ import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 			padding: 0.5rem 0.6rem;
 			text-align: left;
 			color: #dde4ef;
-			background: #20374c;
+			background: var(--bs-dark);
 			border: 1px solid #4e5d6c;
 		}
 		/* ngx-bootstrap's hover trigger listens to mouseover/mouseout, which fire on every swatch edge and make the tooltip flicker. */
@@ -55,11 +55,11 @@ import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 			pointer-events: none;
 		}
 		.preset:hover {
-			border-color: #4c9be8;
+			border-color: var(--bs-primary);
 		}
 		.preset.active {
-			border-color: #4c9be8;
-			box-shadow: inset 0 0 0 1px #4c9be8;
+			border-color: var(--bs-primary);
+			box-shadow: inset 0 0 0 1px var(--bs-primary);
 		}
 		.preset-swatches {
 			display: flex;
@@ -68,7 +68,6 @@ import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 		.preset-swatch {
 			width: 14px;
 			height: 14px;
-			border-radius: 3px;
 			border: 1.5px solid;
 		}
 	`],
@@ -203,8 +202,8 @@ export class SettingsGraphComponent
 
 	public isActivePreset(preset: NodeColorPreset): boolean
 	{
-		return this.nodeTypes.every(type => this.graph.nodeColors[type.key].toLowerCase() === preset.colors[type.key].toLowerCase())
-			&& this.graph.nodeFillStrength === preset.fillStrength;
+		return this.nodeTypes.every(type => this.graph.nodeAccentColors[type.key].toLowerCase() === preset.colors[type.key].toLowerCase())
+			&& this.graph.nodeFillAmount === preset.fillStrength;
 	}
 
 	public applyPreset(preset: NodeColorPreset): void
@@ -214,20 +213,20 @@ export class SettingsGraphComponent
 		if (ownColours && !confirm(`Replace your node colours with the "${preset.label}" colours?`)) {
 			return;
 		}
-		this.settings.updateGraph({nodeColors: {...preset.colors}, nodeFillStrength: preset.fillStrength});
+		this.settings.updateGraph({nodeAccentColors: {...preset.colors}, nodeFillAmount: preset.fillStrength});
 	}
 
 	public setNodeFillStrength(value: number | string): void
 	{
 		const strength = Number(value);
 		if (!Number.isNaN(strength)) {
-			this.settings.updateGraph({nodeFillStrength: Math.min(1, Math.max(0.1, strength))});
+			this.settings.updateGraph({nodeFillAmount: Math.min(1, Math.max(0.1, strength))});
 		}
 	}
 
 	public get previewFill(): string
 	{
-		return NodeFillResolver.fill(this.graph.nodeColors.recipe, this.graph.nodeFillStrength);
+		return NodeFillResolver.fill(this.graph.nodeAccentColors.recipe, this.graph.nodeFillAmount);
 	}
 
 	public get previewDarkText(): boolean
@@ -237,7 +236,7 @@ export class SettingsGraphComponent
 
 	public setNodeColor(key: keyof NodeColors, color: string): void
 	{
-		this.settings.updateGraph({nodeColors: {...this.graph.nodeColors, [key]: color}});
+		this.settings.updateGraph({nodeAccentColors: {...this.graph.nodeAccentColors, [key]: color}});
 	}
 
 }

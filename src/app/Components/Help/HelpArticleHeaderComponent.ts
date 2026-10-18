@@ -11,7 +11,7 @@ import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 		.article-head {
 			padding-bottom: 0.9rem;
 			margin-bottom: 1.25rem;
-			border-bottom: 1px solid #2b3444;
+			border-bottom: 1px solid #3a4d60;
 		}
 		.eyebrow {
 			margin-bottom: 0.2rem;

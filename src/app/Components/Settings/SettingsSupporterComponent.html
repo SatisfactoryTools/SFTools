@@ -1,8 +1,8 @@
-<settings-section title="Supporter" [icon]="sectionIcon" description="Thank you for supporting Satisfactory Tools. Choose what others see, and how the app looks for you.">
+<settings-section title="Supporter" [icon]="sectionIcon" description="Choose what others see and how the app looks for you.">
 	@if (account.supporter(); as supporter) {
 		<p class="mb-0">
 			<fa-icon class="supporter-heart" [icon]="faHeart"></fa-icon>
-			Supporter since {{ supporter.since | date: 'mediumDate' }}. Thank you - it keeps the servers running and the tools free for everyone.
+			Supporter since {{ supporter.since | date: 'mediumDate' }}. Thank you!
 		</p>
 
 		@if (!connectivity.online()) {
@@ -21,7 +21,7 @@
 			/>
 			<label class="form-check-label" for="supporter-listed">Show my name on the supporters list</label>
 			<div class="form-text">
-				Your name appears in the list on the <a routerLink="/about">About</a> page and takes its turn in the
+				Shown on the <a routerLink="/about">About</a> page and in the
 				"Supported by" line on the <a routerLink="/">home page</a>.
 			</div>
 		</div>
@@ -50,9 +50,8 @@
 			/>
 			<label class="form-check-label" for="supporter-share-badge">Show a heart on plans I share</label>
 			<div class="form-text">
-				People who open your shared plans and plan links see a heart next to the name, and link previews
-				(for example on Discord) say the plan was shared by a supporter. This also changes plans you shared before.
-				Viewers can hide the hearts for themselves in Settings → Planner.
+				People who open your shared plans see a heart next to your name. Link previews say the plan was shared
+				by a supporter. This also changes plans you shared before.
 			</div>
 		</div>
 
@@ -85,12 +84,12 @@
 		<p class="text-secondary mb-0">Loading…</p>
 	} @else {
 		<p>
-			This page is for people who support Satisfactory Tools on PayPal or Patreon. Everything in the tools stays free -
-			supporters get a heart on the plans they share, a gold top bar, and a place on the supporters list.
+			This page is for people who support Satisfactory Tools on PayPal or Patreon. Everything stays free.
+			Supporters get a heart on the plans they share, a gold top bar and a place on the supporters list.
 		</p>
 		<p class="mb-2">
-			Already supported? Sign in with an account whose email matches the one you paid with
-			(sign in with Discord, GitHub or Google). If it still does not show up, tell me on Discord.
+			Already supported? Sign in with Discord, GitHub or Google, using the email you paid with.
+			If it still does not show up, tell me on Discord.
 		</p>
 		<div class="d-flex flex-wrap gap-2">
 			@for (link of donationLinks; track link.key) {

@@ -1,4 +1,4 @@
-<settings-section [resetCategories]="['numbers']" helpTopic="settings.numbers" title="Numbers" [icon]="sectionIcon" description="How amounts, clock speeds and power are shown in the planner.">
+<settings-section [resetCategories]="['numbers']" helpTopic="settings.numbers" title="Numbers" [icon]="sectionIcon">
 		<div class="subsection-title">Format</div>
 		<div class="row g-3">
 			<div class="col-12 col-lg-6">
@@ -39,7 +39,6 @@
 					[ngModel]="numbers.itemAmountPrecision"
 					(ngModelChange)="setItemAmountPrecision($event)"
 				/>
-				<div class="form-text">How many decimal places amounts and rates show, for example on graph connections.</div>
 			</div>
 
 			<div class="col-12 col-lg-6">
@@ -54,7 +53,7 @@
 					[ngModel]="numbers.clockSpeedPrecision"
 					(ngModelChange)="setClockSpeedPrecision($event)"
 				/>
-				<div class="form-text">How many decimal places clock speeds show. The game allows at most 4.</div>
+				<div class="form-text">The game allows at most 4.</div>
 			</div>
 
 			<div class="col-12 col-lg-6">
@@ -69,7 +68,7 @@
 					[ngModel]="numbers.machineCountPrecision"
 					(ngModelChange)="setMachineCountPrecision($event)"
 				/>
-				<div class="form-text">How many decimal places machine counts show, when the graph shows them as decimals (see Graph).</div>
+				<div class="form-text">Only used when the graph shows machine counts as decimals (see Graph).</div>
 			</div>
 
 			<div class="col-12">

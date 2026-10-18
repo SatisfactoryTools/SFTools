@@ -9,7 +9,7 @@
 	</div>
 } @else if (selectedNodes().length > 1) {
 	<div class="p-2">
-		<info-note>{{ selectedNodes().length }} nodes selected - multi-node editing is coming later.</info-note>
+		<info-note>{{ selectedNodes().length }} nodes selected. Select one node to edit it.</info-note>
 	</div>
 } @else if (singleRecipeNode(); as node) {
 	<fieldset class="border-0 p-0 m-0" [disabled]="readOnly()">
@@ -24,10 +24,7 @@
 	</fieldset>
 } @else if (isAugmenterNode()) {
 	<div class="p-2">
-		<info-note>
-			Alien power augmenters come from the Power tab. Change how many you build
-			(and how many are boosted) there, and the plan is calculated again.
-		</info-note>
+		<info-note>Alien power augmenters are set in the Power tab.</info-note>
 	</div>
 } @else {
 	<div class="p-2">

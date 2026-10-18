@@ -8,6 +8,7 @@ import {MOBILE_NAV_HEIGHT, PanelLayoutService, RAIL_WIDTH, STATUS_BAR_HEIGHT} fr
 import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelSide} from '@src/Components/Planner/Panel/PanelSide';
+import {PlannerCanvasHintComponent} from '@src/Components/Planner/CanvasHint/PlannerCanvasHintComponent';
 import {PlannerFloatingWindowComponent} from '@src/Components/Planner/Panel/PlannerFloatingWindowComponent';
 import {PlannerRailComponent} from '@src/Components/Planner/Panel/PlannerRailComponent';
 import {PlannerStatusBarComponent} from '@src/Components/Planner/StatusBar/PlannerStatusBarComponent';
@@ -26,6 +27,7 @@ const MOBILE_BREAKPOINT = 768;
 		FaIconComponent,
 		NgComponentOutlet,
 		PanelContentAreaComponent,
+		PlannerCanvasHintComponent,
 		PlannerFloatingWindowComponent,
 		PlannerRailComponent,
 		PlannerStatusBarComponent,
@@ -35,16 +37,15 @@ const MOBILE_BREAKPOINT = 768;
 	changeDetection: ChangeDetectionStrategy.Eager,
 	styles: [`
 		.fw-merge {
-			outline: 2px dashed rgba(100,150,255,0.8);
+			outline: 2px dashed rgba(var(--bs-primary-rgb), 0.8);
 			outline-offset: 2px;
-			border-radius: 8px;
 		}
 		.rail {
 			position: absolute;
 			left: 0; top: 0; bottom: 0;
 			width: ${RAIL}px;
-			background: #10141d;
-			border-right: 1px solid #222b3e;
+			background: #1b2834;
+			border-right: 1px solid #34475a;
 			pointer-events: auto;
 			z-index: 10;
 		}
@@ -53,8 +54,8 @@ const MOBILE_BREAKPOINT = 768;
 			position: absolute;
 			left: 0; right: 0; bottom: 0;
 			height: ${MOBILE_NAV}px;
-			background: #10141d;
-			border-top: 1px solid #222b3e;
+			background: #1b2834;
+			border-top: 1px solid #34475a;
 			pointer-events: auto;
 			z-index: 12;
 		}
@@ -73,7 +74,7 @@ const MOBILE_BREAKPOINT = 768;
 			width: 36px;
 			display: flex;
 			align-items: center;
-			color: #8899bb;
+			color: #9fb0c0;
 			font-size: 0.8rem;
 			pointer-events: none;
 		}
@@ -81,13 +82,13 @@ const MOBILE_BREAKPOINT = 768;
 			left: 0;
 			justify-content: flex-start;
 			padding-left: 4px;
-			background: linear-gradient(to right, #10141d 35%, rgba(16,20,29,0));
+			background: linear-gradient(to right, #1b2834 35%, rgba(16,20,29,0));
 		}
 		.mob-nav-fade.right {
 			right: 0;
 			justify-content: flex-end;
 			padding-right: 4px;
-			background: linear-gradient(to left, #10141d 35%, rgba(16,20,29,0));
+			background: linear-gradient(to left, #1b2834 35%, rgba(16,20,29,0));
 		}
 		.mob-tab {
 			flex: none;
@@ -100,21 +101,20 @@ const MOBILE_BREAKPOINT = 768;
 			gap: 3px;
 			border: none;
 			background: transparent;
-			color: #8899bb;
+			color: #9fb0c0;
 			font-size: 0.7rem;
 			white-space: nowrap;
 			cursor: pointer;
 		}
 		.mob-tab fa-icon { font-size: 1.05rem; }
-		.mob-tab.active { color: #fff; box-shadow: inset 0 2px 0 rgba(100,150,255,0.7); }
+		.mob-tab.active { color: #fff; box-shadow: inset 0 2px 0 rgba(var(--bs-primary-rgb), 0.7); }
 		.mob-menu-btn {
 			position: absolute;
 			top: 10px; left: 10px;
 			width: 36px; height: 36px;
-			border: 1px solid #222b3e;
-			border-radius: 6px;
-			background: #10141d;
-			color: #ccd6ee;
+			border: 1px solid #34475a;
+			background: #1b2834;
+			color: #d5dde6;
 			font-size: 16px;
 			cursor: pointer;
 			pointer-events: auto;
@@ -124,10 +124,9 @@ const MOBILE_BREAKPOINT = 768;
 			position: absolute;
 			top: 10px; right: 10px;
 			width: 36px; height: 36px;
-			border: 1px solid #222b3e;
-			border-radius: 6px;
-			background: #10141d;
-			color: #ccd6ee;
+			border: 1px solid #34475a;
+			background: #1b2834;
+			color: #d5dde6;
 			font-size: 16px;
 			cursor: pointer;
 			pointer-events: auto;
@@ -148,26 +147,25 @@ const MOBILE_BREAKPOINT = 768;
 			align-items: center;
 			gap: 8px;
 			padding: 0 8px;
-			background: #10141d;
-			border-bottom: 1px solid #222b3e;
-			color: #ccd6ee;
+			background: #1b2834;
+			border-bottom: 1px solid #34475a;
+			color: #d5dde6;
 			font-weight: 600;
 			pointer-events: auto;
 			z-index: 10;
 		}
 		.mob-head-btn {
 			width: 32px; height: 32px;
-			border: 1px solid #222b3e;
-			border-radius: 6px;
+			border: 1px solid #34475a;
 			background: transparent;
-			color: #ccd6ee;
+			color: #d5dde6;
 			cursor: pointer;
 		}
 		.mob-head-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 		.mob-view {
 			position: absolute;
 			left: 0; right: 0; top: ${MOBILE_HEAD}px; bottom: ${MOBILE_NAV}px;
-			background: #141824;
+			background: #213040;
 			overflow-y: auto;
 			overflow-x: hidden;
 			container-type: inline-size;
@@ -187,8 +185,8 @@ const MOBILE_BREAKPOINT = 768;
 			left: 0; top: 0; bottom: 0;
 			width: 78%;
 			max-width: 320px;
-			background: #141824;
-			border-right: 1px solid #222b3e;
+			background: #213040;
+			border-right: 1px solid #34475a;
 			overflow-y: auto;
 			overflow-x: hidden;
 			container-type: inline-size;
@@ -346,6 +344,15 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		return `position:absolute;left:${l}px;right:${r}px;bottom:0;height:${STATUS}px;pointer-events:auto;z-index:8;`;
 	}
 
+	public get canvasHintStyle(): string
+	{
+		const sizes = this.layout.sizes();
+		const l = RAIL + (this.leftOpen() ? sizes.left : 0);
+		const r = this.rightOpen() ? sizes.right : 0;
+		const t = this.topOpen() ? sizes.top : 0;
+		return `position:absolute;left:${l}px;right:${r}px;top:${t}px;bottom:${STATUS}px;pointer-events:none;z-index:6;`;
+	}
+
 	public get zoomStyle(): string
 	{
 		const sizes = this.layout.sizes();
@@ -363,8 +370,8 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	public dockPreviewStyle(side: PanelSide): string
 	{
 		const sizes = this.layout.sizes();
-		const base = 'position:absolute;background:rgba(100,150,255,0.14);'
-			+ 'border:2px dashed rgba(100,150,255,0.65);pointer-events:none;z-index:20;';
+		const base = 'position:absolute;background:rgba(var(--bs-primary-rgb), 0.14);'
+			+ 'border:2px dashed rgba(var(--bs-primary-rgb), 0.65);pointer-events:none;z-index:20;';
 		if (side === 'left') {
 			return base + `left:${RAIL}px;top:0;bottom:0;width:${sizes.left}px;`;
 		}

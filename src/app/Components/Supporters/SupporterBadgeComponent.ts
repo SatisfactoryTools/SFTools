@@ -28,7 +28,7 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 export class SupporterBadgeComponent
 {
 
-	@Input() public tooltip = 'Shared by a supporter of Satisfactory Tools';
+	@Input() public tooltip = 'Shared by a supporter';
 
 	@Input() public placement: 'top' | 'bottom' | 'left' | 'right' = 'top';
 

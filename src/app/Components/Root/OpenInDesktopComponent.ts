@@ -14,11 +14,11 @@ import {WebLinkHandoffService} from '@src/Model/Desktop/WebLinkHandoffService';
 			align-items: center;
 			justify-content: center;
 			padding: 1rem;
-			background: rgba(15, 37, 55, 0.92);
+			background: rgba(var(--bs-body-bg-rgb), 0.92);
 		}
 		.handoff-card {
 			max-width: 440px;
-			background: #20374c;
+			background: var(--bs-dark);
 			padding: 1.5rem 1.75rem;
 			box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .3);
 		}

@@ -82,17 +82,17 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		{
 			mode: 'underclock-last',
 			label: 'Underclock the last machine',
-			description: 'All machines run at the default clock speed, only the last one runs slower.',
+			description: 'All at the default clock. The last one runs slower.',
 		},
 		{
 			mode: 'clock-equally',
 			label: 'Same clock for all',
-			description: 'All machines run at the same clock speed, at most the default one.',
+			description: 'All at the same clock, up to the default.',
 		},
 		{
 			mode: 'no-clocking',
 			label: 'Whole machines only',
-			description: 'Only whole machines at the default clock speed. Simpler to build, but may make more than needed.',
+			description: 'All at the default clock. May make more than needed.',
 		},
 	];
 
@@ -163,8 +163,8 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	public get lockTooltip(): string
 	{
 		return this.node.locked
-			? 'Locked - the calculation keeps this node as it is. Click to unlock.'
-			: 'Unlocked - the calculation may change or replace this node. Click to lock it.';
+			? 'Locked. Click to unlock.'
+			: 'Not locked. Click to lock.';
 	}
 
 	public get selectedMachine(): Building | null

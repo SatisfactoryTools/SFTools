@@ -1,7 +1,7 @@
 <div class="p-2 d-flex flex-column gap-2">
 
 	@if (!hasRows()) {
-		<info-note>{{ isFolderView() ? 'No plans in this folder yet.' : 'Calculate the plan to see its build cost.' }}</info-note>
+		<plan-result-hint subject="its build cost" [folderView]="isFolderView()"/>
 	} @else {
 		<input
 			type="search"
@@ -80,7 +80,7 @@
 						}
 					}
 				} @empty {
-					<tr><td colspan="4" class="text-secondary fst-italic">{{ hideBuilt() && searchTerm().trim() === '' ? 'Everything is built.' : 'Nothing matches the filter.' }}</td></tr>
+					<tr><td colspan="4" class="text-secondary fst-italic">{{ hideBuilt() && searchTerm().trim() === '' ? 'Everything is built. Nice work!' : 'Nothing matches the filter.' }}</td></tr>
 				}
 			</tbody>
 		</table>
@@ -91,7 +91,7 @@
 					<th>Total materials</th>
 					<th class="text-end" style="width: 90px;">Amount</th>
 					@if (hasBuilt()) {
-						<th class="text-end" style="width: 90px;" title="Still needed for the buildings not built yet">Left</th>
+						<th class="text-end" style="width: 90px;" title="Still needed for buildings not built yet">Left</th>
 					}
 				</tr>
 			</thead>

@@ -9,7 +9,6 @@ import {SupporterBadgeComponent} from '@src/Components/Supporters/SupporterBadge
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
 import {LongPressDragDirective} from '@src/Components/Common/LongPressDragDirective';
-import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSectionsService';
 import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {IconPickerDialogComponent} from '@src/Components/Common/IconPickerDialogComponent';
@@ -49,6 +48,9 @@ import {VisitedShare} from '@src/Model/Shares/VisitedShare';
 import {VisitedSharesManager} from '@src/Model/Shares/VisitedSharesManager';
 import {PublicUrlService} from '@src/Model/Desktop/PublicUrlService';
 import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
+import {PlanCreator} from '@src/Components/Planner/Panels/Plans/PlanCreator';
+import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
+import {PlanSectionContextMenu} from '@src/Components/Planner/Panels/Plans/PlanSectionContextMenu';
 
 interface FolderItem
 {
@@ -123,7 +125,7 @@ interface EditState
 	readonly parentId: string | null;
 }
 
-const ROOT_ID = '__root__';
+const ROOT_ID = PlanCreator.ROOT_SECTION;
 const LOCAL_ID = '__local__';
 const SHARED_ID = '__shared__';
 
@@ -142,12 +144,9 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 {
 
 	public readonly faCaretDown = faCaretDown;
-	public readonly faAnglesDown = faAnglesDown;
-	public readonly faAnglesUp = faAnglesUp;
 	public readonly faCaretRight = faCaretRight;
 	public readonly faDiagramProject = faDiagramProject;
 	public readonly faEllipsisVertical = faEllipsisVertical;
-	public readonly faFileImport = faFileImport;
 	public readonly faFileLines = faFileLines;
 	public readonly faFolder = faFolder;
 	public readonly faFolderOpen = faFolderOpen;
@@ -226,10 +225,10 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 				isOpen,
 				isEditing: isFolderEditing(node.folder.id),
 				fixedSummary: node.folder.fixedGroups.length > 0
-					? 'This folder fixes ' + node.folder.fixedGroups
+					? 'Fixed for every plan inside: ' + node.folder.fixedGroups
 						.map(group => group === 'resources' && node.folder.resourcePool ? 'Resources (shared pool)' : SettingsGroups.labelOf(group))
 						.join(', ')
-						+ ' for every plan inside. The plans cannot change these settings and follow the folder.'
+						+ '.'
 					: null,
 			});
 			if (!isOpen) return;
@@ -493,11 +492,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		private readonly elementRef: ElementRef<HTMLElement>,
 		private readonly oldPlanImporter: OldPlanImporter,
 		oldToolsImports: OldToolsImportRequestService,
-		collapsedSections: CollapsedSectionsService,
 		private readonly publicUrls: PublicUrlService,
+		private readonly planCreator: PlanCreator,
 	)
 	{
-		this.foldState = new CollapsibleSections(collapsedSections, 'plans');
+		this.foldState = planCreator.foldState;
 		// The old-tools link parks its import request before this panel exists.
 		effect(() => {
 			const request = oldToolsImports.pending();
@@ -752,6 +751,22 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		return this.foldState.isOpen(shareId);
 	}
 
+	public onSectionMenu(event: MouseEvent, section: 'root' | 'local' | 'shared'): void
+	{
+		event.preventDefault();
+		event.stopPropagation();
+		const foldable = section === 'root' ? this.rootFoldableIds() : section === 'local' ? this.localFoldableIds() : this.sharedFoldableIds();
+		const items: ContextMenuItem[] = foldable.length === 0 ? [] : [
+			{label: 'Expand all', icon: faAnglesDown, action: () => this.setAllFolds(foldable, true)},
+			{label: 'Collapse all', icon: faAnglesUp, action: () => this.setAllFolds(foldable, false)},
+		];
+		if (section === 'root') {
+			items.push({label: 'Import from old Satisfactory Tools', icon: faFileImport, hotkey: 'plans.importOldTools', action: () => this.openImportDialog()});
+		}
+		const title = section === 'root' ? 'Your plans' : section === 'local' ? 'On this device' : 'Shared with you';
+		this.contextMenu.open(new PlanSectionContextMenu(title, items), event.clientX, event.clientY);
+	}
+
 	public onVisitedShareContextMenu(event: MouseEvent, share: VisitedShare): void
 	{
 		event.preventDefault();
@@ -819,43 +834,28 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.planManager.setActivePlan(plan.id);
 	}
 
+	/** A second click on the selected folder goes back to the top level, the only way out when there are no plans to pick. */
 	public selectFolder(id: string): void
 	{
-		this.planManager.setActiveFolder(id);
+		this.planManager.setActiveFolder(this.planManager.activeFolderId() === id ? null : id);
+	}
+
+	public onBlankClick(event: MouseEvent): void
+	{
+		const target = event.target as HTMLElement;
+		if (target === event.currentTarget || target.classList.contains('tree-empty')) {
+			this.planManager.setActiveFolder(null);
+		}
 	}
 
 	public currentFolderId(): string | null
 	{
-		const folder = this.planManager.activeFolder();
-		if (folder !== null) {
-			return folder.id;
-		}
-		const plan = this.planManager.activePlan();
-		if (plan === null || this.planManager.activePlanReadOnly()) {
-			return null;
-		}
-		return this.rootPlanOf(plan).folderId;
-	}
-
-	private rootPlanOf(plan: Plan): Plan
-	{
-		let current = plan;
-		const seen = new Set<string>([current.id]);
-		while (current.parentPlanId !== null) {
-			const parent = this.planManager.findPlan(current.parentPlanId);
-			// A dangling or looping parent id would otherwise spin forever.
-			if (parent === null || seen.has(parent.id)) {
-				break;
-			}
-			seen.add(parent.id);
-			current = parent;
-		}
-		return current;
+		return this.planCreator.currentFolderId();
 	}
 
 	public startCreateFolder(parentId: string | null): void
 	{
-		this.expandFolder(parentId);
+		this.planCreator.reveal(parentId);
 		this.editValue = '';
 		this.editStateSignal.set({mode: 'new-folder', targetId: null, parentId});
 		this.needsFocus = true;
@@ -863,18 +863,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	public startCreatePlan(parentId: string | null): void
 	{
-		this.expandFolder(parentId);
-		const plan = this.planManager.createPlan('', parentId);
-		this.planManager.setActivePlan(plan.id);
-	}
-
-	/** A collapsed folder would hide the new row / inline input added inside it. */
-	private expandFolder(folderId: string | null): void
-	{
-		if (folderId === null) {
-			return;
-		}
-		this.foldState.set(folderId, true);
+		this.planCreator.createPlan(parentId);
 	}
 
 	public cloneFolder(id: string): void
@@ -1340,7 +1329,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			return true;
 		}
 		const groups = fixed.fixedGroups.map(group => SettingsGroups.labelOf(group)).join(', ');
-		return confirm(`Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings are replaced by the settings fixed by the folder.`);
+		return confirm(`Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings will be replaced by the folder's settings.`);
 	}
 
 	private confirmFolderMove(folderId: string, newParentId: string | null): boolean
@@ -1356,8 +1345,8 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			return true;
 		}
 		const names = withSettings.map(f => `"${f.name}"`).join(', ');
-		return confirm(`Move "${moved.name}" into "${fixed.name}"? ${names} ${withSettings.length === 1 ? 'loses its' : 'lose their'} custom settings - `
-			+ `"${fixed.name}" sets the settings for everything inside it.`);
+		return confirm(`Move "${moved.name}" into "${fixed.name}"? ${names} ${withSettings.length === 1 ? 'loses its' : 'lose their'} custom settings. `
+			+ `"${fixed.name}" fixes the settings for everything inside it.`);
 	}
 
 	private isInside(folder: Folder, ancestorId: string, folders: Folder[]): boolean

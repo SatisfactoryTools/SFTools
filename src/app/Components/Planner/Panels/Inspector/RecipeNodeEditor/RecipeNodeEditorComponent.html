@@ -101,7 +101,7 @@
 				<button
 					class="btn btn-sm btn-outline-primary py-0"
 					type="button"
-					[tooltip]="'Calculate machine groups from the target - ' + groupingLabel" container="body" placement="bottom"
+					[tooltip]="'Calculate machine groups (' + groupingLabel + ')'" container="body" placement="bottom"
 					(click)="calculate()"
 				>Calculate</button>
 				<button
@@ -131,7 +131,7 @@
 			<label
 				class="form-label text-secondary mb-0 text-nowrap"
 				for="node-default-clock"
-				tooltip="The clock speed Calculate, Autofill and new groups build at. It starts at what the Overclocking tab asks for this recipe; changing it here only affects this node."
+				tooltip="Used by Calculate, Autofill and new groups. Changes here affect only this node."
 				container="body"
 				placement="top"
 			>Default clock speed</label>
@@ -226,12 +226,12 @@
 			</button>
 			@if (hasCapacityShortage) {
 				<info-note kind="warning">
-					Not enough machines to reach the target. Use Autofill, add machines or raise the clock speeds.
+					Not enough machines to reach the target.
 				</info-note>
 				<button
 					class="btn btn-sm btn-outline-primary w-100"
 					type="button"
-					[tooltip]="'Add the missing machines, arranged per the grouping mode - ' + groupingLabel" container="body" placement="bottom"
+					[tooltip]="'Add the missing machines (' + groupingLabel + ')'" container="body" placement="bottom"
 					(click)="autofill()"
 				>Autofill</button>
 			}
