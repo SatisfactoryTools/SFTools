@@ -215,13 +215,15 @@ jobs:
                     CONFIG=$(node -e '
                       const config = {version: process.env.DESKTOP_VERSION, build: {beforeBuildCommand: ""}};
                       if (process.env.SIGN_WITH_CERTUM === "true") {
-                        config.bundle = {windows: {signCommand: {cmd: "ssign", args: ["-n", "Satisfactory Tools", "-u", "https://satisfactorytools.com", "%1"]}}};
+                        config.bundle = {windows: {signCommand: {cmd: "ssign", args: ["-v", "-n", "Satisfactory Tools", "-u", "https://satisfactorytools.com", "%1"]}}};
                       } else if (process.env.THUMBPRINT) {
                         config.bundle = {windows: {certificateThumbprint: process.env.THUMBPRINT, timestampUrl: "http://timestamp.digicert.com"}};
                       }
                       console.log(JSON.stringify(config));
                     ')
-                    npx tauri build --bundles ${{ matrix.bundles }} ${{ matrix.build-args }} --config "$CONFIG"
+                    # Tauri prints a failing signCommand's stderr only with --verbose.
+                    VERBOSE=$([ "$SIGN_WITH_CERTUM" = true ] && echo --verbose || true)
+                    npx tauri build --bundles ${{ matrix.bundles }} ${{ matrix.build-args }} --config "$CONFIG" $VERBOSE
 
             # The disk image is the download, not an updater artifact, so it gets its manifest
             # signature here (every manifest entry carries one).
