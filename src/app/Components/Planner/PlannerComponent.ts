@@ -101,6 +101,9 @@ import {PlanLinkUnavailableDialogComponent} from '@src/Components/Planner/Share/
 import {PlanShareDialogComponent} from '@src/Components/Planner/Share/PlanShareDialogComponent';
 import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {GraphExportDialogComponent} from '@src/Components/Planner/Export/GraphExportDialogComponent';
+import {PlanExportDialogComponent} from '@src/Components/Planner/PlanFiles/PlanExportDialogComponent';
+import {PlanImportDialogComponent} from '@src/Components/Planner/PlanFiles/PlanImportDialogComponent';
+import {PlanFileDialogService} from '@src/Model/PlanFiles/PlanFileDialogService';
 import {GraphExportDialogService} from '@src/Components/Planner/Export/GraphExportDialogService';
 
 // Matches the reconciler's absolute warning tolerance.
@@ -109,7 +112,7 @@ const RATIO_TOLERANCE = 1e-4;
 
 @Component({
 	templateUrl: './PlannerComponent.html',
-	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent, PlanShareDialogComponent, PlanLinkUnavailableDialogComponent, GraphExportDialogComponent],
+	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent, PlanShareDialogComponent, PlanLinkUnavailableDialogComponent, GraphExportDialogComponent, PlanExportDialogComponent, PlanImportDialogComponent],
 	providers: [
 		FolderRecalculationService,
 		PlannerGraphService,
@@ -138,6 +141,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 	private readonly subscription = new Subscription();
 	private calcSubscription: Subscription | null = null;
 	private renderedPlanId: string | null = null;
+	private keepViewportForPlanId: string | null = null;
 
 	/** Keeps a stale URL param (State → URL navigation is async) from re-activating the plan just left. */
 	private urlAppliedPlanId: string | null = null;
@@ -187,6 +191,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		public readonly planLink: ActivePlanLinkManager,
 		public readonly shareDialog: ShareDialogService,
 		public readonly exportDialog: GraphExportDialogService,
+		public readonly planFiles: PlanFileDialogService,
 		private readonly folderRecalculation: FolderRecalculationService,
 		private readonly signInPrompt: SignInPromptService,
 		private readonly oldToolsImports: OldToolsImportRequestService,
@@ -644,10 +649,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 	public ngAfterViewInit(): void
 	{
-		const plan = this.planManager.activePlan();
-		if (plan) {
-			this.renderPlan(plan);
-		}
+		this.renderPlan(this.planManager.activePlan());
 		this.openRequestedPanel();
 	}
 
@@ -707,7 +709,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (this.planManager.activePlanReadOnly()) {
 			return [];
 		}
-		const items: HotkeyItem[] = [...new BlankContextMenu(this.actions, this.plannerGraph.canvasCenter()).getItems()];
+		const items: HotkeyItem[] = [...new BlankContextMenu(this.actions, this.plannerGraph.canvasCenter(), this.planManager.activePlan() !== null).getItems()];
 		const nodes = this.plannerGraph.selectedNodes();
 		if (nodes.length === 1) {
 			items.push(...new NodeContextMenu(nodes[0], this.nodeResizeOptions(nodes[0]), this.nodeSplitOptions(nodes[0]),
@@ -780,7 +782,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			const amounts = this.edgeAmountActions(request.edge);
 			menu = new EdgeContextMenu(request.edge, this.edgeMenuTitle(request.edge), amounts.minimise, amounts.maximise, this.actions);
 		} else if (request.nodes.length === 0) {
-			menu = new BlankContextMenu(this.actions, request.local);
+			menu = new BlankContextMenu(this.actions, request.local, this.planManager.activePlan() !== null);
 		} else if (request.nodes.length === 1) {
 			menu = new NodeContextMenu(request.nodes[0], this.nodeResizeOptions(request.nodes[0]), this.nodeSplitOptions(request.nodes[0]),
 				this.actions, this.panelLayout, this.plannerGraph);
@@ -1607,7 +1609,11 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 
 		const plan = this.planManager.activePlan();
-		if (!plan || plan.id !== this.renderedPlanId) {
+		if (!plan) {
+			this.startPlanWithNode(node, position);
+			return;
+		}
+		if (plan.id !== this.renderedPlanId) {
 			return;
 		}
 
@@ -1636,6 +1642,17 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
 		this.plannerGraph.selectNodeById(node.id);
 		this.planManager.setGraph(plan.id, updated, true);
+	}
+
+	/** Adding a node with no plan open starts one, so building by hand does not need New plan first. */
+	private startPlanWithNode(node: Node, position: GraphPoint): void
+	{
+		const plan = this.planManager.createPlan('', this.planManager.activeFolderId());
+		this.placeAddedNode(node, position, null, false);
+		// The graph is set before the plan switch renders, so the render picks it up.
+		this.planManager.setGraph(plan.id, {nodes: [node], edges: []}, true);
+		this.keepViewportForPlanId = plan.id;
+		this.planManager.setActivePlan(plan.id);
 	}
 
 	/** For connect gestures the border facing the origin lands on the point, so the edge ends at the drop; plain adds center on it. */
@@ -1915,9 +1932,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 	private renderPlan(plan: Plan | null): void
 	{
 		this.history.clear();
+		const keepViewport = plan !== null && plan.id === this.keepViewportForPlanId;
+		this.keepViewportForPlanId = null;
 		if (!plan) {
+			// An empty canvas still takes right-click and double-click, so a node added there starts a plan.
 			this.renderedPlanId = null;
-			this.plannerGraph.clear();
+			this.plannerGraph.readOnly = false;
+			this.plannerGraph.restore(this.graphContainerRef.nativeElement, {nodes: [], edges: []});
 			return;
 		}
 		// Read-only plans render as saved: their subplans share the read-only store, and nothing is written back.
@@ -1947,7 +1968,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (!readOnly && graph !== plan.graph) {
 			this.planManager.setGraph(plan.id, graph);
 		}
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph);
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, !keepViewport);
 	}
 
 	private calculate(): void

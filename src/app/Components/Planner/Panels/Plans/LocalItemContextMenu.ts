@@ -1,4 +1,4 @@
-import {faDownload, faShareNodes} from '@fortawesome/free-solid-svg-icons';
+import {faDownload, faFileExport, faShareNodes} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
@@ -33,6 +33,11 @@ export class LocalItemContextMenu extends PlannerContextMenu
 				label: 'Share…',
 				icon: faShareNodes,
 				action: () => this.host.shareLocalItem(this.id, this.kind, this.name),
+			},
+			{
+				label: 'Export to a file…',
+				icon: faFileExport,
+				action: () => this.host.exportLocalItem(this.id, this.kind),
 			},
 		];
 	}

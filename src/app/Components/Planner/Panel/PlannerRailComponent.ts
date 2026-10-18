@@ -11,6 +11,10 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 	selector: 'planner-rail',
 	templateUrl: './PlannerRailComponent.html',
 	imports: [FaIconComponent, AppTooltipDirective],
+	host: {
+		'[style.--rail-button.px]': 'layout.rail().button',
+		'[style.--rail-icon.px]': 'layout.rail().icon',
+	},
 	changeDetection: ChangeDetectionStrategy.Eager,
 	styles: [`
 		:host {
@@ -19,20 +23,23 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 			align-items: center;
 			width: 100%;
 			height: 100%;
-			padding-top: 8px;
-			gap: 4px;
+			padding: calc(var(--rail-button) / 4) 0;
+			overflow-y: auto;
+			scrollbar-width: none;
+			gap: calc(var(--rail-button) / 8);
 			user-select: none;
 		}
 		.rail-btn {
-			width: 32px;
-			height: 32px;
+			flex-shrink: 0;
+			width: var(--rail-button);
+			height: var(--rail-button);
 			display: flex;
 			align-items: center;
 			justify-content: center;
 			border: none;
 			background: transparent;
 			color: #9fb0c0;
-			font-size: 16px;
+			font-size: var(--rail-icon);
 			cursor: pointer;
 			transition: background 0.15s, color 0.15s;
 		}
@@ -52,9 +59,9 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 		.rail-btn-accent:hover { background: var(--sf-blue-hover); color: #fff; }
 		.rail-btn-accent:disabled:hover { background: var(--sf-blue); color: #fff; }
 		.rail-sep {
-			width: 20px;
+			width: calc(var(--rail-button) * 0.625);
 			height: 1px;
-			margin: 4px 0;
+			margin: calc(var(--rail-button) / 8) 0;
 			background: rgba(255,255,255,0.12);
 		}
 	`],

@@ -9,10 +9,10 @@ export class FileDownloader
 	{
 	}
 
-	public async download(blob: Blob, fileName: string): Promise<string | null>
+	public async download(blob: Blob, fileName: string, reveal: boolean = false): Promise<string | null>
 	{
 		if (this.desktop !== null) {
-			return this.desktop.saveDownload(blob, fileName);
+			return this.desktop.saveDownload(blob, fileName, reveal);
 		}
 		const url = URL.createObjectURL(blob);
 		const anchor = document.createElement('a');

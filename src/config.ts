@@ -1,9 +1,10 @@
-import {ApplicationConfig, isDevMode, importProvidersFrom} from '@angular/core';
+import {ApplicationConfig, ErrorHandler, isDevMode, importProvidersFrom, provideBrowserGlobalErrorListeners} from '@angular/core';
 import {HTTP_INTERCEPTORS, provideHttpClient, withFetch, withInterceptorsFromDi} from '@angular/common/http';
 import {TitleStrategy, provideRouter, withComponentInputBinding, withInMemoryScrolling} from '@angular/router';
 import {AppPositioningService} from '@src/AppPositioningService';
 import {AppTooltipConfig} from '@src/AppTooltipConfig';
 import {AuthInterceptor} from '@src/Model/Auth/AuthInterceptor';
+import {AppErrorHandler} from '@src/Model/Errors/AppErrorHandler';
 import {RetryInterceptor} from '@src/Model/API/RetryInterceptor';
 import {ConnectivityInterceptor} from '@src/Model/Network/ConnectivityInterceptor';
 import {OfflineCacheInterceptor} from '@src/Model/Network/OfflineCacheInterceptor';
@@ -37,5 +38,9 @@ export const config: ApplicationConfig = {
 			CollapseModule,
 			BsDropdownModule,
 		]),
+		// After importProvidersFrom: BrowserModule (pulled in by BrowserAnimationsModule) provides the default handler.
+		{provide: ErrorHandler, useClass: AppErrorHandler},
+		// Also creates the handler at startup, so the first error that reaches it is not the one that broke rendering.
+		provideBrowserGlobalErrorListeners(),
 	],
 };

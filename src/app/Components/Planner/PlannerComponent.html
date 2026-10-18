@@ -27,6 +27,14 @@
 	<graph-export-dialog></graph-export-dialog>
 }
 
+@if (planFiles.exportRequest(); as request) {
+	<plan-export-dialog [request]="request"></plan-export-dialog>
+}
+
+@if (planFiles.importFile(); as file) {
+	<plan-import-dialog [file]="file"></plan-import-dialog>
+}
+
 @if (planLink.unavailable()) {
 	<plan-link-unavailable-dialog></plan-link-unavailable-dialog>
 }

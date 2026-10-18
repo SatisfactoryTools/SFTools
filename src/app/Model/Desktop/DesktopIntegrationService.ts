@@ -4,6 +4,8 @@ import {AppLinks} from '@src/Model/Desktop/AppLinks';
 import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
 import {DesktopPreferencesService} from '@src/Model/Desktop/DesktopPreferencesService';
 import {DesktopUpdateService} from '@src/Model/Desktop/DesktopUpdateService';
+import {PlanFileContent} from '@src/Model/PlanFiles/PlanFileContent';
+import {PlanFileOpenService} from '@src/Model/PlanFiles/PlanFileOpenService';
 import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 
 @Injectable({providedIn: 'root'})
@@ -20,6 +22,7 @@ export class DesktopIntegrationService
 		private readonly router: Router,
 		private readonly zone: NgZone,
 		private readonly injector: Injector,
+		private readonly planFiles: PlanFileOpenService,
 	)
 	{
 	}
@@ -39,6 +42,10 @@ export class DesktopIntegrationService
 		void desktop.listen<string>('deep-link', url => this.zone.run(() => this.open(url)))
 			.then(() => desktop.invoke<string[]>('deep_link_ready'))
 			.then(urls => this.zone.run(() => urls.forEach(url => this.open(url))));
+
+		void desktop.listen<PlanFileContent>('open-file', file => this.zone.run(() => void this.planFiles.open(file)))
+			.then(() => desktop.invoke<PlanFileContent[]>('opened_files_ready'))
+			.then(files => this.zone.run(() => files.forEach(file => void this.planFiles.open(file))));
 
 		// Re-registered on every start: an AppImage moves with every update.
 		effect(() => {

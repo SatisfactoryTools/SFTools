@@ -2,10 +2,13 @@ import {Injectable} from '@angular/core';
 import {SharedFolderNode} from '@src/Model/API/Schema/Shares/SharedFolderNode';
 import {SharedPlanNode} from '@src/Model/API/Schema/Shares/SharedPlanNode';
 import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
+import {PlanFileRoot} from '@src/Model/PlanFiles/PlanFileRoot';
 import {Folder} from '@src/Model/Planner/Folder';
 import {Plan} from '@src/Model/Planner/Plan';
 import {ShareHydration} from '@src/Model/Shares/ShareHydration';
 import {SharedPlanData} from '@src/Model/Shares/SharedPlanData';
+import {PortableFolderNode} from '@src/Model/Shares/PortableFolderNode';
+import {PortablePlanNode} from '@src/Model/Shares/PortablePlanNode';
 
 /** Fresh ids even for read-only viewing: the originals would collide with the live plans when the sharer opens their own link. */
 @Injectable({providedIn: 'root'})
@@ -55,21 +58,37 @@ export class SharePayloadHydrator
 		return {folders: [], plans, idMap};
 	}
 
-	private mapFolderIds(node: SharedFolderNode, idMap: Map<string, string>): void
+	public hydrateRoots(roots: readonly PlanFileRoot[]): ShareHydration
+	{
+		const idMap = new Map<string, string>();
+		roots.forEach(root => root.type === 'folder'
+			? this.mapFolderIds(root.node as PortableFolderNode, idMap)
+			: this.mapPlanIds(root.node as PortablePlanNode, idMap));
+
+		const folders: Folder[] = [];
+		const plans: Plan[] = [];
+		roots.forEach(root => root.type === 'folder'
+			? this.copyFolder(root.node as PortableFolderNode, null, idMap, folders, plans)
+			: this.copyPlan(root.node as PortablePlanNode, null, null, idMap, plans));
+
+		return {folders, plans, idMap};
+	}
+
+	private mapFolderIds(node: PortableFolderNode, idMap: Map<string, string>): void
 	{
 		idMap.set(node.id, crypto.randomUUID());
 		node.children.forEach(child => this.mapFolderIds(child, idMap));
 		node.plans.forEach(plan => this.mapPlanIds(plan, idMap));
 	}
 
-	private mapPlanIds(node: SharedPlanNode, idMap: Map<string, string>, fresh = true): void
+	private mapPlanIds(node: PortablePlanNode, idMap: Map<string, string>, fresh = true): void
 	{
 		idMap.set(node.id, fresh ? crypto.randomUUID() : node.id);
 		node.subplans.forEach(sub => this.mapPlanIds(sub, idMap, fresh));
 	}
 
 	private copyFolder(
-		node: SharedFolderNode,
+		node: PortableFolderNode,
 		parentId: string | null,
 		idMap: Map<string, string>,
 		folders: Folder[],
@@ -97,7 +116,7 @@ export class SharePayloadHydrator
 	}
 
 	private copyPlan(
-		node: SharedPlanNode,
+		node: PortablePlanNode,
 		folderId: string | null,
 		parentPlanId: string | null,
 		idMap: Map<string, string>,

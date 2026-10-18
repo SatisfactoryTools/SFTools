@@ -2,12 +2,14 @@ mod cache;
 mod deep_links;
 mod exports;
 mod links;
+mod opened_files;
 mod state;
 mod storage;
 mod updates;
 
 use serde::Serialize;
 use std::collections::HashMap;
+use std::path::Path;
 use tauri::webview::PageLoadEvent;
 use tauri::{Manager, WebviewWindowBuilder};
 
@@ -53,7 +55,8 @@ pub fn run() {
 	tauri::Builder::default()
 		// Must be the first plugin: a second launch (e.g. by an sftools:// link)
 		// hands its arguments to the running instance and exits.
-		.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+		.plugin(tauri_plugin_single_instance::init(|app, args, cwd| {
+			opened_files::open(app, opened_files::paths_from_args(&args, Path::new(&cwd)));
 			deep_links::focus_main(app);
 		}))
 		.plugin(tauri_plugin_deep_link::init())
@@ -76,6 +79,7 @@ pub fn run() {
 			exports::export_save,
 			deep_links::deep_link_ready,
 			deep_links::deep_link_set_enabled,
+			opened_files::opened_files_ready,
 			updates::update_check,
 			updates::update_install,
 		])
@@ -106,14 +110,29 @@ pub fn run() {
 				.on_page_load(|window, payload| {
 					if payload.event() == PageLoadEvent::Started {
 						deep_links::page_loading(window.app_handle());
+						opened_files::page_loading(window.app_handle());
 					}
 				})
 				.build()?;
 			deep_links::setup(app.handle());
+			let args: Vec<String> = std::env::args().collect();
+			let cwd = std::env::current_dir().unwrap_or_default();
+			opened_files::open(app.handle(), opened_files::paths_from_args(&args, &cwd));
 			Ok(())
 		})
-		.run(context)
-		.expect("error while running the Satisfactory Tools desktop app");
+		.build(context)
+		.expect("error while building the Satisfactory Tools desktop app")
+		.run(|app, event| {
+			// macOS hands double-clicked files over as an event instead of arguments.
+			#[cfg(any(target_os = "macos", target_os = "ios"))]
+			if let tauri::RunEvent::Opened { urls } = event {
+				let paths = urls.iter().filter_map(|url| url.to_file_path().ok()).collect();
+				opened_files::open(app, paths);
+				deep_links::focus_main(app);
+			}
+			#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+			let _ = (app, event);
+		});
 }
 
 pub(crate) fn main_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow> {

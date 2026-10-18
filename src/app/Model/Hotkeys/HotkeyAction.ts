@@ -63,6 +63,8 @@ export type HotkeyAction =
 	| 'plans.shareFolder'
 	| 'plans.deleteFolder'
 	| 'plans.importOldTools'
+	| 'plans.importFile'
+	| 'plans.exportFile'
 	| 'app.search'
 	| 'app.settings'
 	| 'app.home'

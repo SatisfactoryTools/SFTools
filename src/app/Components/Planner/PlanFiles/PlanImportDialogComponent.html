@@ -1,0 +1,107 @@
+<div class="plan-file-backdrop" hotkeyBlock>
+	<div class="plan-file-dialog card" (click)="$event.stopPropagation()">
+		<div class="card-header d-flex align-items-center gap-2">
+			<fa-icon [icon]="faFileImport" class="opacity-75"></fa-icon>
+			<span class="fw-semibold flex-grow-1 text-truncate">Import plans from a file</span>
+			<button type="button" class="btn-close" aria-label="Close" [disabled]="importing()" (click)="close()"></button>
+		</div>
+		<div class="card-body d-flex flex-column gap-2">
+			<div class="small text-secondary text-truncate">File: {{ file.name }}</div>
+
+			@if (error(); as message) {
+				<div class="alert alert-danger py-2 mb-0">{{ message }}</div>
+			} @else if (preview(); as preview) {
+				@if (preview.sameVersion) {
+					<div>Made for {{ targetVersionName() }}, the version you are using. Nothing needs to change.</div>
+				} @else {
+					<div>
+						Made for <span class="fw-semibold">{{ preview.file.version.name }}</span>,
+						importing into <span class="fw-semibold">{{ targetVersionName() }}</span>.
+					</div>
+					@if (!preview.sourceLoaded) {
+						<info-note kind="warning">
+							The game data of {{ preview.file.version.name }} could not be loaded. Removed recipes, items and
+							buildings are still found, but changes to existing recipes cannot be detected.
+						</info-note>
+					}
+				}
+
+				<div class="d-flex flex-column">
+					@for (row of rows(); track row.id) {
+						<div
+							class="import-row d-flex align-items-center gap-2"
+							[class.import-row-toggle]="row.issues.length > 0"
+							[class.import-row-subplan]="row.subplan"
+							[style.padding-left.rem]="row.depth * 1.25"
+							(click)="row.issues.length > 0 && toggleExpanded(row.id)"
+						>
+							@if (row.issues.length > 0) {
+								<fa-icon [icon]="isExpanded(row.id) ? faCaretDown : faCaretRight" class="text-secondary" [fixedWidth]="true"></fa-icon>
+							} @else {
+								<fa-icon [icon]="faCaretRight" class="invisible" [fixedWidth]="true"></fa-icon>
+							}
+							<plan-tree-icon [kind]="row.kind" [open]="true" [iconHash]="row.iconHash" [subplan]="row.subplan" [alt]="row.name"></plan-tree-icon>
+							<span class="import-row-label text-truncate flex-grow-1">{{ row.name }}</span>
+							@if (row.warningCount > 0) {
+								<span class="text-warning small text-nowrap">
+									<fa-icon [icon]="faTriangleExclamation"></fa-icon>
+									{{ row.warningCount }} {{ row.warningCount === 1 ? 'change' : 'changes' }}
+								</span>
+							}
+							@if (row.infoCount > 0) {
+								<span class="text-info small text-nowrap">
+									<fa-icon [icon]="faCircleInfo"></fa-icon>
+									{{ row.infoCount }} {{ row.infoCount === 1 ? 'note' : 'notes' }}
+								</span>
+							}
+							@if (row.issues.length === 0 && row.kind === 'plan') {
+								<fa-icon [icon]="faCircleCheck" class="text-success small"></fa-icon>
+							}
+						</div>
+						@if (isExpanded(row.id)) {
+							<ul class="import-issues small selectable" [style.margin-left.rem]="row.depth * 1.25 + 1">
+								@for (issue of row.issues; track issue.text) {
+									<li [class.text-warning]="issue.level === 'warning'" [class.text-secondary]="issue.level === 'info'">
+										{{ issue.text }}@if (issue.count > 1) { <span class="text-nowrap"> ({{ issue.count }}×)</span> }
+									</li>
+								}
+							</ul>
+						}
+					}
+				</div>
+
+				@if (plansWithWarnings() > 0) {
+					<info-note kind="warning">
+						{{ plansWithWarnings() }} {{ plansWithWarnings() === 1 ? 'plan changes' : 'plans change' }} on import.
+						Their graphs keep the machines you built, but the numbers may no longer add up. Calculate them again
+						after the import.
+					</info-note>
+				}
+			} @else {
+				<div class="d-flex align-items-center gap-2 text-secondary py-1">
+					<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+					Checking the file&hellip;
+				</div>
+			}
+		</div>
+		<div class="card-footer d-flex align-items-center gap-2">
+			@if (preview()) {
+				<span class="text-secondary small flex-grow-1">Goes into a new "Import" folder.</span>
+			} @else {
+				<div class="flex-grow-1"></div>
+			}
+			<button type="button" class="btn btn-sm btn-secondary" [disabled]="importing()" (click)="close()">Cancel</button>
+			@if (error() === null) {
+				@if (plansWithWarnings() > 0) {
+					<button type="button" class="btn btn-sm btn-warning text-dark fw-semibold" [disabled]="!canImport()" (click)="import()">
+						Import anyway ({{ plansWithWarnings() }} {{ plansWithWarnings() === 1 ? 'plan' : 'plans' }} with changes)
+					</button>
+				} @else {
+					<button type="button" class="btn btn-sm btn-primary" [disabled]="!canImport()" (click)="import()">
+						Import {{ planCount() }} {{ planCount() === 1 ? 'plan' : 'plans' }}
+					</button>
+				}
+			}
+		</div>
+	</div>
+</div>

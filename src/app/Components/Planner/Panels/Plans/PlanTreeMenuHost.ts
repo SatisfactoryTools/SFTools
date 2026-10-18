@@ -17,6 +17,9 @@ export interface PlanTreeMenuHost
 	sharePlan(plan: Plan): void;
 	shareFolder(id: string, name: string): void;
 	shareLocalItem(id: string, kind: 'plan' | 'folder', name: string): void;
+	exportPlan(plan: Plan): void;
+	exportFolder(id: string): void;
+	exportLocalItem(id: string, kind: 'plan' | 'folder'): void;
 	copyShareLink(share: VisitedShare): void;
 	removeVisitedShare(share: VisitedShare): void;
 	isShareVersionActive(share: VisitedShare): boolean;

@@ -52,7 +52,10 @@ pub fn export_save(app: tauri::AppHandle, request: Request<'_>) -> Result<String
 	let path = unique_path(&dir, &safe_file_name(&name));
 	write_atomic(&path, bytes)?;
 	let shown = path.to_string_lossy().into_owned();
-	if let Err(error) = app.opener().open_path(&shown, None::<&str>) {
+	// Plan exports are only revealed: this app opens .sft files, so opening one would import it straight back.
+	let reveal = request.headers().get("x-after-save").and_then(|value| value.to_str().ok()) == Some("reveal");
+	let result = if reveal { app.opener().reveal_item_in_dir(&path) } else { app.opener().open_path(&shown, None::<&str>) };
+	if let Err(error) = result {
 		eprintln!("Could not open {shown}: {error}");
 	}
 	Ok(shown)

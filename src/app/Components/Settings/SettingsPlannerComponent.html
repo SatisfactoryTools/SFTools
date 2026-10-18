@@ -17,6 +17,24 @@
 			</div>
 		</div>
 
+		<div class="subsection-title">Action bar</div>
+		<div style="max-width: 480px;">
+			<label class="form-label" for="rail-size">Action bar size</label><setting-reset-button category="planner" field="railSize"/>
+			<select
+				id="rail-size"
+				class="form-select"
+				[ngModel]="railSize"
+				(ngModelChange)="setRailSize($event)"
+			>
+				@for (option of railSizeOptions; track option.value) {
+					<option [value]="option.value">{{ option.label }}</option>
+				}
+			</select>
+			<div class="form-text">
+				The bar on the left of the planner, with the panel buttons. Its icons grow with it.
+			</div>
+		</div>
+
 		<div class="subsection-title">Production request</div>
 		<div class="mb-3" style="max-width: 480px;">
 			<label class="form-label" for="tab-labels">Tab labels</label><setting-reset-button category="planner" field="tabLabels"/>

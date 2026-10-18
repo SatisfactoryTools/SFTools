@@ -1,0 +1,111 @@
+<div class="plan-file-backdrop" hotkeyBlock>
+	<div class="plan-file-dialog card" (click)="$event.stopPropagation()">
+		<div class="card-header d-flex align-items-center gap-2">
+			<fa-icon [icon]="faFileExport" class="opacity-75"></fa-icon>
+			<span class="fw-semibold flex-grow-1 text-truncate">Export plans to a file</span>
+			<button type="button" class="btn-close" aria-label="Close" [disabled]="saving()" (click)="close()"></button>
+		</div>
+		<div class="card-body d-flex flex-column gap-2">
+			<info-note>
+				Choose what to save. The file can be imported into any game version. Anything that changed in that version
+				is listed before the import.
+			</info-note>
+
+			@if (rows().length === 0) {
+				<div class="text-secondary">There are no plans to export.</div>
+			} @else {
+				<div class="d-flex align-items-center gap-2">
+					<div class="input-group input-group-sm flex-grow-1">
+						<span class="input-group-text bg-dark border-secondary text-secondary"><fa-icon [icon]="faMagnifyingGlass"></fa-icon></span>
+						<input
+							type="search"
+							class="form-control bg-dark text-light border-secondary"
+							placeholder="Search plans and folders"
+							aria-label="Search plans and folders"
+							[ngModel]="querySignal()"
+							(ngModelChange)="querySignal.set($event)"
+						/>
+					</div>
+					<div class="btn-group btn-group-sm flex-shrink-0" role="group" aria-label="Select">
+						<button type="button" class="btn btn-outline-secondary" [disabled]="saving()" (click)="selectAll()">All</button>
+						<button type="button" class="btn btn-outline-secondary" [disabled]="saving()" (click)="selectNone()">None</button>
+					</div>
+				</div>
+
+				<div class="export-rows d-flex flex-column">
+					@for (row of visibleRows(); track row.kind + ':' + row.id) {
+						<div
+							class="export-row form-check d-flex align-items-center gap-2 mb-0"
+							[class.export-row-subplan]="row.plan !== null && row.plan.parentPlanId !== null"
+							[class.export-row-match]="isMatch(row.id)"
+							[style.padding-left.rem]="1.5 + row.depth * 1.25"
+						>
+							@if (row.kind === 'folder') {
+								<input
+									class="form-check-input mt-0"
+									type="checkbox"
+									id="export-row-{{ row.id }}"
+									[checked]="folderState(row.id) === 'checked'"
+									[indeterminate]="folderState(row.id) === 'mixed'"
+									[disabled]="saving()"
+									(change)="toggleFolder(row.id)"
+								/>
+								<label class="form-check-label d-flex align-items-center gap-2 text-truncate flex-grow-1" for="export-row-{{ row.id }}">
+									<plan-tree-icon kind="folder" [open]="true"></plan-tree-icon>
+									<span class="export-row-label text-truncate">{{ row.name }}</span>
+								</label>
+							} @else {
+								<input
+									class="form-check-input mt-0"
+									type="checkbox"
+									id="export-row-{{ row.id }}"
+									[checked]="isPlanSelected(row.id)"
+									[disabled]="saving() || isPlanCovered(row.id)"
+									(change)="togglePlan(row.id)"
+								/>
+								<label class="form-check-label d-flex align-items-center gap-2 text-truncate flex-grow-1" for="export-row-{{ row.id }}">
+									<plan-tree-icon [iconHash]="planIconHash(row)" [subplan]="row.plan !== null && row.plan.parentPlanId !== null" [alt]="row.name"></plan-tree-icon>
+									<span class="export-row-label text-truncate">{{ row.name }}</span>
+								</label>
+							}
+						</div>
+					} @empty {
+						<div class="text-secondary small py-1">Nothing matches the search.</div>
+					}
+				</div>
+				<div class="form-text mt-0">A plan always includes its subplans. Folders keep their settings.</div>
+
+				<div>
+					<label class="form-label mb-1" for="export-file-name">File name</label>
+					<div class="input-group input-group-sm">
+						<input
+							id="export-file-name"
+							type="text"
+							class="form-control bg-dark text-light border-secondary"
+							maxlength="120"
+							[placeholder]="suggestedName()"
+							[ngModel]="nameSignal()"
+							(ngModelChange)="nameSignal.set($event)"
+							(keydown.enter)="save()"
+						/>
+						<span class="input-group-text bg-dark border-secondary text-secondary">.sft</span>
+					</div>
+				</div>
+			}
+
+			@if (error(); as message) {
+				<div class="alert alert-danger py-2 mb-0">{{ message }}</div>
+			}
+		</div>
+		<div class="card-footer d-flex align-items-center gap-2">
+			<span class="text-secondary small flex-grow-1">{{ selectedCount() }} {{ selectedCount() === 1 ? 'plan' : 'plans' }} selected</span>
+			<button type="button" class="btn btn-sm btn-secondary" [disabled]="saving()" (click)="close()">Cancel</button>
+			<button type="button" class="btn btn-sm btn-primary" [disabled]="!canSave()" (click)="save()">
+				@if (saving()) {
+					<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+				}
+				Save file
+			</button>
+		</div>
+	</div>
+</div>

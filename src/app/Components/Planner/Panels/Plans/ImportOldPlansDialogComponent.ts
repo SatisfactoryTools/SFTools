@@ -16,6 +16,9 @@ import {OldToolsImportRequest} from '@src/Model/OldTools/OldToolsImportRequest';
 import {OldToolsLocalStorageService} from '@src/Model/OldTools/OldToolsLocalStorageService';
 import {OldToolsShareService} from '@src/Model/OldTools/OldToolsShareService';
 import {SftFileParser} from '@src/Model/OldTools/SftFileParser';
+import {PlanFileContent} from '@src/Model/PlanFiles/PlanFileContent';
+import {PlanFileDialogService} from '@src/Model/PlanFiles/PlanFileDialogService';
+import {SftContainer} from '@src/Model/PlanFiles/SftContainer';
 import {AnalyticsService} from '@src/Model/Analytics/AnalyticsService';
 import {Version} from '@src/Model/API/Schema/Version';
 import {Plan} from '@src/Model/Planner/Plan';
@@ -108,6 +111,7 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 		private readonly planIcons: PlanIconResolver,
 		private readonly localStorageLines: OldToolsLocalStorageService,
 		private readonly analytics: AnalyticsService,
+		private readonly planFiles: PlanFileDialogService,
 	)
 	{
 		this.ficsmas = versionManager.activeVersion()?.ficsmas ?? false;
@@ -130,6 +134,7 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 		if (request.localLines) {
 			this.loadLocalLines();
 		}
+		request.files?.forEach(file => void this.loadFile(file));
 	}
 
 	public loadLinks(): void
@@ -191,15 +196,28 @@ export class ImportOldPlansDialogComponent implements OnInit, OnDestroy
 
 		this.pendingSignal.update(count => count + 1);
 		file.text()
-			.then(content => this.sftFileParser.parse(content))
-			.then(tabs => {
-				if (tabs.length === 0) {
-					this.addError(`"${file.name}" contains no production lines.`);
-				}
-				tabs.forEach(tab => this.addProductionLine(tab));
-			})
+			.then(content => this.loadFile({name: file.name, content}))
 			.catch((error: Error) => this.addError(`${file.name}: ${error.message}`))
 			.finally(() => this.pendingSignal.update(count => count - 1));
+	}
+
+	private async loadFile(file: PlanFileContent): Promise<void>
+	{
+		// A file exported by this app belongs to the plan import, which converts between game versions.
+		if (SftContainer.format(file.content) === SftContainer.planFormat) {
+			this.planFiles.openFile(file);
+			this.requestClose();
+			return;
+		}
+		try {
+			const tabs = await this.sftFileParser.parse(file.content);
+			if (tabs.length === 0) {
+				this.addError(`"${file.name}" contains no production lines.`);
+			}
+			tabs.forEach(tab => this.addProductionLine(tab));
+		} catch (error) {
+			this.addError(`${file.name}: ${(error as Error).message}`);
+		}
 	}
 
 	public toggleRow(planId: string): void

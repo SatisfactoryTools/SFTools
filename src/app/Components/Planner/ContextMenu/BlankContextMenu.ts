@@ -10,6 +10,7 @@ export class BlankContextMenu extends PlannerContextMenu
 	public constructor(
 		private readonly actions: PlannerActionsService,
 		private readonly position: GraphPoint,
+		private readonly hasPlan: boolean,
 	)
 	{
 		super();
@@ -17,20 +18,23 @@ export class BlankContextMenu extends PlannerContextMenu
 
 	public getItems(): ContextMenuItem[]
 	{
-		return [
+		const items: ContextMenuItem[] = [
 			{
 				label: 'Add node…',
 				icon: faPlus,
 				hotkey: 'graph.addNode',
 				action: () => this.actions.requestNodeAdd(this.position),
 			},
-			{
+		];
+		if (this.hasPlan) {
+			items.push({
 				label: 'Create subplan',
 				icon: faDiagramProject,
 				hotkey: 'graph.createSubplan',
 				action: () => this.actions.requestSubplanCreate(this.position),
-			},
-		];
+			});
+		}
+		return items;
 	}
 
 }

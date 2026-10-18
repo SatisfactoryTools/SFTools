@@ -73,6 +73,8 @@ export class HotkeyCatalog
 		{action: 'plans.cloneFolder', group: 'plans', label: 'Clone the open folder', default: null},
 		{action: 'plans.shareFolder', group: 'plans', label: 'Share the open folder', default: null},
 		{action: 'plans.deleteFolder', group: 'plans', label: 'Delete the open folder', default: null},
+		{action: 'plans.importFile', group: 'plans', label: 'Import plans from a file', default: {key: 'o', ctrl: true}},
+		{action: 'plans.exportFile', group: 'plans', label: 'Export the open plan or folder to a file', hint: 'With nothing open, all plans are offered.', default: {key: 'e', ctrl: true}},
 		{action: 'plans.importOldTools', group: 'plans', label: 'Import from the old Satisfactory Tools', default: {key: 'i', alt: true}},
 
 		{action: 'app.search', group: 'app', label: 'Search', default: {key: 'q', ctrl: true}},

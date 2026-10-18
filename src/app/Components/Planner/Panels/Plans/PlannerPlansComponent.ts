@@ -1,16 +1,15 @@
-import {AfterViewChecked, Component, ElementRef, OnDestroy, Signal, ViewChild, ChangeDetectionStrategy, computed, effect, signal, untracked} from '@angular/core';
+import {AfterViewChecked, Component, ElementRef, HostListener, OnDestroy, Signal, ViewChild, ChangeDetectionStrategy, computed, effect, signal, untracked} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faAnglesDown, faAnglesUp, faCaretDown, faCaretRight, faDiagramProject, faEllipsisVertical, faFileImport, faFileLines, faFolder, faFolderOpen, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes} from '@fortawesome/free-solid-svg-icons';
+import {faCaretDown, faCaretRight, faClockRotateLeft, faEllipsisVertical, faFileExport, faFileImport, faFileLines, faFolder, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes, faSquareMinus, faSquarePlus} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {SupporterBadgeComponent} from '@src/Components/Supporters/SupporterBadgeComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {LongPressContextMenuDirective} from '@src/Components/Common/LongPressContextMenuDirective';
 import {LongPressDragDirective} from '@src/Components/Common/LongPressDragDirective';
 import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
-import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {IconPickerDialogComponent} from '@src/Components/Common/IconPickerDialogComponent';
 import {TruncateTitleDirective} from '@src/Components/Common/TruncateTitleDirective';
 import {ImportOldPlansDialogComponent} from '@src/Components/Planner/Panels/Plans/ImportOldPlansDialogComponent';
@@ -51,6 +50,9 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 import {PlanCreator} from '@src/Components/Planner/Panels/Plans/PlanCreator';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlanSectionContextMenu} from '@src/Components/Planner/Panels/Plans/PlanSectionContextMenu';
+import {PlanTreeIconComponent} from '@src/Components/Planner/Panels/Plans/PlanTreeIconComponent';
+import {ImportFolderName} from '@src/Model/PlanFiles/ImportFolderName';
+import {PlanFileDialogService} from '@src/Model/PlanFiles/PlanFileDialogService';
 
 interface FolderItem
 {
@@ -138,18 +140,17 @@ const AUTO_SCROLL_INTERVAL_MS = 16;
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPlansComponent.html',
 	styleUrl: './PlannerPlansComponent.scss',
-	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, IconPickerDialogComponent, ImportOldPlansDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective, LongPressDragDirective, SupporterBadgeComponent],
+	imports: [FormsModule, FaIconComponent, AppTooltipDirective, IconPickerDialogComponent, ImportOldPlansDialogComponent, TruncateTitleDirective, InfoNoteComponent, LongPressContextMenuDirective, LongPressDragDirective, SupporterBadgeComponent, PlanTreeIconComponent],
 })
 export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanTreeMenuHost, HotkeyItemSource
 {
 
 	public readonly faCaretDown = faCaretDown;
 	public readonly faCaretRight = faCaretRight;
-	public readonly faDiagramProject = faDiagramProject;
 	public readonly faEllipsisVertical = faEllipsisVertical;
+	public readonly faFileImport = faFileImport;
 	public readonly faFileLines = faFileLines;
 	public readonly faFolder = faFolder;
-	public readonly faFolderOpen = faFolderOpen;
 	public readonly faFolderPlus = faFolderPlus;
 	public readonly faLaptop = faLaptop;
 	public readonly faLayerGroup = faLayerGroup;
@@ -470,6 +471,9 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	private hotkeyRegistration: HotkeyRegistration | null = null;
 
+	private readonly fileDragOverSignal = signal(false);
+	public readonly fileDragOver: Signal<boolean> = this.fileDragOverSignal.asReadonly();
+
 	private readonly importDialogOpenSignal = signal(false);
 	public readonly importDialogOpen: Signal<boolean> = this.importDialogOpenSignal.asReadonly();
 	private readonly importDialogRequestSignal = signal<OldToolsImportRequest | null>(null);
@@ -494,6 +498,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		oldToolsImports: OldToolsImportRequestService,
 		private readonly publicUrls: PublicUrlService,
 		private readonly planCreator: PlanCreator,
+		private readonly planFiles: PlanFileDialogService,
 	)
 	{
 		this.foldState = planCreator.foldState;
@@ -528,9 +533,12 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		// Importing is not about any one plan, so it stays outside the read-only gate.
 		const items: HotkeyItem[] = [
 			{hotkey: 'plans.importOldTools', action: () => this.openImportDialog()},
+			{hotkey: 'plans.importFile', action: () => this.planFiles.pickFile()},
 		];
+		// Lookups take the first match, so this fallback must stay behind the open plan's and folder's own export.
+		const exportAll: HotkeyItem = {hotkey: 'plans.exportFile', action: () => this.exportAll('account')};
 		if (this.planManager.activePlanReadOnly()) {
-			return items;
+			return [...items, exportAll];
 		}
 		const folder = this.planManager.activeFolder();
 		if (folder) {
@@ -543,6 +551,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		items.push(
 			{hotkey: 'plans.newPlan', action: () => this.startCreatePlan(this.currentFolderId())},
 			{hotkey: 'plans.newFolder', action: () => this.startCreateFolder(this.currentFolderId())},
+			exportAll,
 		);
 		return items;
 	}
@@ -562,6 +571,57 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		this.shareDialog.open({type: kind, id, name, device: true});
 	}
 
+	public exportPlan(plan: Plan): void
+	{
+		this.planFiles.openExport({source: 'account', target: {type: 'plan', id: plan.id}});
+	}
+
+	public exportFolder(id: string): void
+	{
+		this.planFiles.openExport({source: 'account', target: {type: 'folder', id}});
+	}
+
+	public exportLocalItem(id: string, kind: 'plan' | 'folder'): void
+	{
+		this.planFiles.openExport({source: 'local', target: {type: kind, id}});
+	}
+
+	public exportAll(source: 'account' | 'local'): void
+	{
+		this.planFiles.openExport({source, target: null});
+	}
+
+	/** Internal tree drags carry no files, so they never reach here as a file drop. */
+	@HostListener('dragover', ['$event'])
+	public onFileDragOver(event: DragEvent): void
+	{
+		if (this.dragItem === null && event.dataTransfer?.types.includes('Files')) {
+			event.preventDefault();
+			event.dataTransfer.dropEffect = 'copy';
+			this.fileDragOverSignal.set(true);
+		}
+	}
+
+	@HostListener('dragleave', ['$event'])
+	public onFileDragLeave(event: DragEvent): void
+	{
+		const related = event.relatedTarget as Node | null;
+		if (related === null || !this.elementRef.nativeElement.contains(related)) {
+			this.fileDragOverSignal.set(false);
+		}
+	}
+
+	@HostListener('drop', ['$event'])
+	public onFileDrop(event: DragEvent): void
+	{
+		this.fileDragOverSignal.set(false);
+		const file = event.dataTransfer?.files?.[0];
+		if (this.dragItem === null && file) {
+			event.preventDefault();
+			void this.planFiles.openBlob(file);
+		}
+	}
+
 	public openImportDialog(request: OldToolsImportRequest | null = null): void
 	{
 		this.importDialogRequestSignal.set(request);
@@ -579,14 +639,8 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		if (plans.length === 0) {
 			return;
 		}
-		const folder = this.oldPlanImporter.fileIntoFolder(plans, `Import (${this.formatImportTimestamp(new Date())})`);
+		const folder = this.oldPlanImporter.fileIntoFolder(plans, ImportFolderName.forDate(new Date()));
 		this.oldPlanImporter.announce(plans.length, folder.name, 'Imported');
-	}
-
-	private formatImportTimestamp(date: Date): string
-	{
-		const pad = (value: number): string => String(value).padStart(2, '0');
-		return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 	}
 
 	public planIconHash(plan: Plan): string | null
@@ -757,11 +811,17 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		event.stopPropagation();
 		const foldable = section === 'root' ? this.rootFoldableIds() : section === 'local' ? this.localFoldableIds() : this.sharedFoldableIds();
 		const items: ContextMenuItem[] = foldable.length === 0 ? [] : [
-			{label: 'Expand all', icon: faAnglesDown, action: () => this.setAllFolds(foldable, true)},
-			{label: 'Collapse all', icon: faAnglesUp, action: () => this.setAllFolds(foldable, false)},
+			{label: 'Expand all', icon: faSquarePlus, action: () => this.setAllFolds(foldable, true)},
+			{label: 'Collapse all', icon: faSquareMinus, action: () => this.setAllFolds(foldable, false)},
 		];
 		if (section === 'root') {
-			items.push({label: 'Import from old Satisfactory Tools', icon: faFileImport, hotkey: 'plans.importOldTools', action: () => this.openImportDialog()});
+			items.push(
+				{label: 'Import from a file…', icon: faFileImport, hotkey: 'plans.importFile', action: () => this.planFiles.pickFile()},
+				{label: 'Export to a file…', icon: faFileExport, action: () => this.exportAll('account'), disabled: this.planCount() === 0},
+				{label: 'Import from old Satisfactory Tools', icon: faClockRotateLeft, hotkey: 'plans.importOldTools', action: () => this.openImportDialog()},
+			);
+		} else if (section === 'local') {
+			items.push({label: 'Export to a file…', icon: faFileExport, action: () => this.exportAll('local')});
 		}
 		const title = section === 'root' ? 'Your plans' : section === 'local' ? 'On this device' : 'Shared with you';
 		this.contextMenu.open(new PlanSectionContextMenu(title, items), event.clientX, event.clientY);

@@ -33,6 +33,15 @@
 		"targets": ["nsis", "appimage", "deb", "rpm", "dmg"],
 		"createUpdaterArtifacts": true,
 		"category": "Utility",
+		"fileAssociations": [
+			{
+				"ext": ["sft"],
+				"name": "Satisfactory Tools plans",
+				"description": "Satisfactory Tools plans export",
+				"mimeType": "application/x-satisfactory-tools",
+				"role": "Editor"
+			}
+		],
 		"shortDescription": "Production planner for Satisfactory",
 		"longDescription": "An optimising production and logistics planner for Satisfactory, with a searchable codex, custom versions and mods. Works offline once a game version has been downloaded.",
 		"publisher": "greeny",

@@ -148,6 +148,8 @@ const EDGE_STROKE_WIDTH = 1.5;
 const PARALLEL_EDGE_GAP = 40;
 const SELECTED_STROKE = '#f0ad4e';
 const EXPORT_MARGIN = 40;
+// Fitting a plan with one or a few nodes would otherwise blow them up to fill the canvas.
+const FIT_MAX_SCALE = 1;
 const EXPORT_SAMPLE_MARGIN = 12;
 const SELECTED_STROKE_WIDTH = 3;
 const SELECTED_EDGE_STROKE_WIDTH = 2.5;
@@ -774,7 +776,7 @@ export class PlannerGraphService implements OnDestroy
 			top: insets.top + 40,
 			bottom: insets.bottom + 40,
 		};
-		x6Graph.zoomToFit({padding});
+		x6Graph.zoomToFit({padding, maxScale: FIT_MAX_SCALE});
 		x6Graph.translateBy((padding.left - padding.right) / 2, (padding.top - padding.bottom) / 2);
 	}
 

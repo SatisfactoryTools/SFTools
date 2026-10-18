@@ -63,6 +63,7 @@ export class SettingsDefaults
 		},
 		planner: {
 			unmakeableItems: 'show',
+			railSize: 'small',
 			tabBadges: true,
 			tabLabels: 'auto',
 			groupTabs: true,

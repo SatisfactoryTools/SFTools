@@ -1,10 +1,10 @@
-import {AfterViewInit, Component, computed, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
+import {AfterViewInit, Component, computed, effect, ElementRef, HostListener, OnDestroy, signal, untracked, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {NgComponentOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faBars, faChevronLeft, faChevronRight, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {FloatingGroup} from '@src/Components/Planner/Panel/FloatingGroup';
 import {PanelContentAreaComponent} from '@src/Components/Planner/Panel/PanelContentAreaComponent';
-import {MOBILE_NAV_HEIGHT, PanelLayoutService, RAIL_WIDTH, STATUS_BAR_HEIGHT} from '@src/Components/Planner/Panel/PanelLayoutService';
+import {MOBILE_NAV_HEIGHT, PanelLayoutService, STATUS_BAR_HEIGHT} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelSide} from '@src/Components/Planner/Panel/PanelSide';
@@ -14,7 +14,6 @@ import {PlannerRailComponent} from '@src/Components/Planner/Panel/PlannerRailCom
 import {PlannerStatusBarComponent} from '@src/Components/Planner/StatusBar/PlannerStatusBarComponent';
 import {PlannerZoomControlsComponent} from '@src/Components/Planner/ZoomControls/PlannerZoomControlsComponent';
 
-const RAIL = RAIL_WIDTH;
 const STATUS = STATUS_BAR_HEIGHT;
 const MOBILE_NAV = MOBILE_NAV_HEIGHT;
 const MOBILE_HEAD = 44;
@@ -43,7 +42,6 @@ const MOBILE_BREAKPOINT = 768;
 		.rail {
 			position: absolute;
 			left: 0; top: 0; bottom: 0;
-			width: ${RAIL}px;
 			background: #1b2834;
 			border-right: 1px solid #34475a;
 			pointer-events: auto;
@@ -236,16 +234,25 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	public readonly mobilePanels = computed<PanelDefinition[]>(() =>
 		this.layout.registered().filter(panel => panel.id !== 'plans'));
 
+	private viewReady = false;
+
 	public constructor(
 		public readonly layout: PanelLayoutService,
 		public readonly shareDialog: ShareDialogService,
 		private readonly elementRef: ElementRef<HTMLElement>,
 	)
 	{
+		effect(() => {
+			this.layout.railWidth();
+			if (this.viewReady) {
+				untracked(() => this.measureAndUpdate());
+			}
+		});
 	}
 
 	public ngAfterViewInit(): void
 	{
+		this.viewReady = true;
 		this.measureAndUpdate();
 	}
 
@@ -269,9 +276,9 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		if (!mobile) {
 			const rect = el.getBoundingClientRect();
 			this.layout.updateAvailableSpace(
-				el.clientWidth - RAIL,
+				el.clientWidth - this.layout.railWidth(),
 				el.clientHeight - STATUS,
-				rect.left + RAIL,
+				rect.left + this.layout.railWidth(),
 				rect.top,
 			);
 		}
@@ -319,7 +326,7 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	public get leftPanelStyle(): string
 	{
 		const w = this.layout.sizes().left;
-		return `position:absolute;left:${RAIL}px;top:0;bottom:0;width:${w}px;pointer-events:auto;z-index:9;`;
+		return `position:absolute;left:${this.layout.railWidth()}px;top:0;bottom:0;width:${w}px;pointer-events:auto;z-index:9;`;
 	}
 
 	public get rightPanelStyle(): string
@@ -331,7 +338,7 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	public get topPanelStyle(): string
 	{
 		const sizes = this.layout.sizes();
-		const l = RAIL + (this.leftOpen() ? sizes.left : 0);
+		const l = this.layout.railWidth() + (this.leftOpen() ? sizes.left : 0);
 		const r = this.rightOpen() ? sizes.right : 0;
 		return `position:absolute;left:${l}px;right:${r}px;top:0;height:${sizes.top}px;pointer-events:auto;z-index:8;`;
 	}
@@ -339,7 +346,7 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	public get statusBarStyle(): string
 	{
 		const sizes = this.layout.sizes();
-		const l = RAIL + (this.leftOpen() ? sizes.left : 0);
+		const l = this.layout.railWidth() + (this.leftOpen() ? sizes.left : 0);
 		const r = this.rightOpen() ? sizes.right : 0;
 		return `position:absolute;left:${l}px;right:${r}px;bottom:0;height:${STATUS}px;pointer-events:auto;z-index:8;`;
 	}
@@ -347,7 +354,7 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	public get canvasHintStyle(): string
 	{
 		const sizes = this.layout.sizes();
-		const l = RAIL + (this.leftOpen() ? sizes.left : 0);
+		const l = this.layout.railWidth() + (this.leftOpen() ? sizes.left : 0);
 		const r = this.rightOpen() ? sizes.right : 0;
 		const t = this.topOpen() ? sizes.top : 0;
 		return `position:absolute;left:${l}px;right:${r}px;top:${t}px;bottom:${STATUS}px;pointer-events:none;z-index:6;`;
@@ -356,13 +363,13 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 	public get zoomStyle(): string
 	{
 		const sizes = this.layout.sizes();
-		const l = RAIL + (this.leftOpen() ? sizes.left : 0) + 12;
+		const l = this.layout.railWidth() + (this.leftOpen() ? sizes.left : 0) + 12;
 		return `position:absolute;left:${l}px;bottom:${STATUS + 12}px;pointer-events:auto;z-index:7;`;
 	}
 
 	public floatWrapStyle(group: FloatingGroup, stackIndex: number): string
 	{
-		return `position:absolute;left:${RAIL + group.x}px;top:${group.y}px;`
+		return `position:absolute;left:${this.layout.railWidth() + group.x}px;top:${group.y}px;`
 			+ `width:${group.width}px;height:${group.height}px;`
 			+ `pointer-events:auto;z-index:${15 + stackIndex};`;
 	}
@@ -373,12 +380,12 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		const base = 'position:absolute;background:rgba(var(--bs-primary-rgb), 0.14);'
 			+ 'border:2px dashed rgba(var(--bs-primary-rgb), 0.65);pointer-events:none;z-index:20;';
 		if (side === 'left') {
-			return base + `left:${RAIL}px;top:0;bottom:0;width:${sizes.left}px;`;
+			return base + `left:${this.layout.railWidth()}px;top:0;bottom:0;width:${sizes.left}px;`;
 		}
 		if (side === 'right') {
 			return base + `right:0;top:0;bottom:0;width:${sizes.right}px;`;
 		}
-		const l = RAIL + (this.leftOpen() ? sizes.left : 0);
+		const l = this.layout.railWidth() + (this.leftOpen() ? sizes.left : 0);
 		const r = this.rightOpen() ? sizes.right : 0;
 		return base + `left:${l}px;right:${r}px;top:0;height:${sizes.top}px;`;
 	}

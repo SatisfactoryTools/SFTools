@@ -17,9 +17,9 @@
 		<span class="tree-section-label">Your plans</span>
 		<span class="tree-section-count">{{ planCount() }}</span>
 		<span class="tree-section-actions" (click)="$event.stopPropagation()">
-			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" aria-label="Your plans menu" (click)="onSectionMenu($event, 'root')"><fa-icon [icon]="faEllipsisVertical"></fa-icon></button>
 			<button class="btn btn-outline-success btn-sm tree-create" type="button" (click)="startCreateFolder(currentFolderId())" [tooltip]="'New folder' + hotkeys.suffix('plans.newFolder')" placement="top" aria-label="New folder"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
 			<button class="btn btn-success btn-sm tree-create" type="button" (click)="startCreatePlan(currentFolderId())" [tooltip]="'New plan' + hotkeys.suffix('plans.newPlan')" placement="top" aria-label="New plan"><fa-icon [icon]="faPlus"></fa-icon></button>
+			<button class="btn btn-link btn-sm py-0 text-secondary tree-action" type="button" aria-label="Your plans menu" (click)="onSectionMenu($event, 'root')"><fa-icon [icon]="faEllipsisVertical"></fa-icon></button>
 		</span>
 	</div>
 
@@ -72,7 +72,7 @@
 					<fa-icon [icon]="item.isOpen ? faCaretDown : faCaretRight"></fa-icon>
 				</button>
 				@if (item.isEditing) {
-					<span class="tree-folder-icon"><fa-icon [icon]="item.isOpen ? faFolderOpen : faFolder"></fa-icon></span>
+					<plan-tree-icon kind="folder" [open]="item.isOpen"></plan-tree-icon>
 					<input
 						#editInput
 						class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"
@@ -82,7 +82,7 @@
 						(blur)="commitEdit()"
 					/>
 				} @else {
-					<span class="tree-folder-icon"><fa-icon [icon]="item.isOpen ? faFolderOpen : faFolder"></fa-icon></span>
+					<plan-tree-icon kind="folder" [open]="item.isOpen"></plan-tree-icon>
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name"><span (dblclick)="startRenameFolder(item.id, item.name)">{{ item.name }}</span></span>
 					@if (item.fixedSummary; as summary) {
 						<span class="small text-secondary flex-shrink-0" [tooltip]="summary" container="body" placement="top"><fa-icon [icon]="faLock"></fa-icon></span>
@@ -129,15 +129,8 @@
 					<span class="tree-toggle"></span>
 				}
 				@if (item.isEditing) {
-					<span class="text-secondary tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
-						@if (planIconHash(item.plan); as hash) {
-							<game-icon [hash]="hash" [size]="18" [alt]="planDisplayName(item.plan)"></game-icon>
-						} @else {
-							<fa-icon [icon]="faFileLines"></fa-icon>
-						}
-						@if (item.isSubplan) {
-							<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
-						}
+					<span class="tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
+						<plan-tree-icon [iconHash]="planIconHash(item.plan)" [subplan]="item.isSubplan" [alt]="planDisplayName(item.plan)"></plan-tree-icon>
 					</span>
 					<input
 						#editInput
@@ -148,15 +141,8 @@
 						(blur)="commitEdit()"
 					/>
 				} @else {
-					<span class="text-secondary tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
-						@if (planIconHash(item.plan); as hash) {
-							<game-icon [hash]="hash" [size]="18" [alt]="planDisplayName(item.plan)"></game-icon>
-						} @else {
-							<fa-icon [icon]="faFileLines"></fa-icon>
-						}
-						@if (item.isSubplan) {
-							<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
-						}
+					<span class="tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
+						<plan-tree-icon [iconHash]="planIconHash(item.plan)" [subplan]="item.isSubplan" [alt]="planDisplayName(item.plan)"></plan-tree-icon>
 					</span>
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="planDisplayName(item.plan)"><span (dblclick)="startRenamePlan(item.plan.id, item.plan.name)">{{ planDisplayName(item.plan) }}</span></span>
 					<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Plan menu" (click)="onPlanContextMenu($event, item.plan)">
@@ -211,17 +197,8 @@
 					} @else {
 						<span class="tree-toggle"></span>
 					}
-					<span class="text-secondary tree-plan-icon">
-						@if (item.kind === 'folder') {
-							<fa-icon class="tree-folder-icon" [icon]="item.isOpen && item.hasChildren ? faFolderOpen : faFolder"></fa-icon>
-						} @else if (item.iconHash) {
-							<game-icon [hash]="item.iconHash" [size]="18" [alt]="item.name"></game-icon>
-						} @else {
-							<fa-icon [icon]="faFileLines"></fa-icon>
-						}
-						@if (item.isSubplan) {
-							<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
-						}
+					<span class="tree-plan-icon">
+						<plan-tree-icon [kind]="item.kind" [open]="item.isOpen && item.hasChildren" [iconHash]="item.iconHash" [subplan]="item.isSubplan" [alt]="item.name"></plan-tree-icon>
 					</span>
 					<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>
 					@if (!item.isSubplan) {
@@ -285,14 +262,8 @@
 					} @else {
 						<span class="tree-toggle"></span>
 					}
-					<span class="text-secondary tree-plan-icon">
-						@if (share.type === 'folder') {
-							<fa-icon class="tree-folder-icon" [icon]="isShareExpanded(share.share) ? faFolderOpen : faFolder"></fa-icon>
-						} @else if (visitedShareIconHash(share); as hash) {
-							<game-icon [hash]="hash" [size]="18" [alt]="visitedShareName(share)"></game-icon>
-						} @else {
-							<fa-icon [icon]="faFileLines"></fa-icon>
-						}
+					<span class="tree-plan-icon">
+						<plan-tree-icon [kind]="share.type" [open]="isShareExpanded(share.share)" [iconHash]="visitedShareIconHash(share)" [alt]="visitedShareName(share)"></plan-tree-icon>
 					</span>
 					@if (share.sharedBySupporter) {
 						<supporter-badge class="tree-supporter-badge" placement="right"/>
@@ -320,7 +291,7 @@
 								} @else {
 									<span class="tree-toggle"></span>
 								}
-								<span class="tree-folder-icon"><fa-icon [icon]="item.isOpen && item.hasChildren ? faFolderOpen : faFolder"></fa-icon></span>
+								<plan-tree-icon kind="folder" [open]="item.isOpen && item.hasChildren"></plan-tree-icon>
 								<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>
 								<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Shared plan menu" (click)="onVisitedShareContextMenu($event, share)">
 									<fa-icon [icon]="faEllipsisVertical"></fa-icon>
@@ -345,15 +316,8 @@
 								} @else {
 									<span class="tree-toggle"></span>
 								}
-								<span class="text-secondary tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
-									@if (item.iconHash; as hash) {
-										<game-icon [hash]="hash" [size]="18" [alt]="item.name"></game-icon>
-									} @else {
-										<fa-icon [icon]="faFileLines"></fa-icon>
-									}
-									@if (item.isSubplan) {
-										<fa-icon [icon]="faDiagramProject" class="tree-subplan-badge"></fa-icon>
-									}
+								<span class="tree-plan-icon" [tooltip]="item.isSubplan ? 'Subplan' : ''" placement="top">
+									<plan-tree-icon [iconHash]="item.iconHash" [subplan]="item.isSubplan" [alt]="item.name"></plan-tree-icon>
 								</span>
 								<span class="flex-grow-1 text-truncate tree-label" [truncateTitle]="item.name">{{ item.name }}</span>
 								<button class="btn btn-link btn-sm py-0 text-secondary tree-action tree-menu" type="button" aria-label="Shared plan menu" (click)="onVisitedShareContextMenu($event, share)">
@@ -375,4 +339,8 @@
 
 @if (importDialogOpen()) {
 	<import-old-plans-dialog [initialRequest]="importDialogRequest()" (apply)="onImportApply($event)" (close)="closeImportDialog()"></import-old-plans-dialog>
+}
+
+@if (fileDragOver()) {
+	<div class="file-drop-overlay"><fa-icon [icon]="faFileImport"></fa-icon> Drop the .sft file to import it</div>
 }

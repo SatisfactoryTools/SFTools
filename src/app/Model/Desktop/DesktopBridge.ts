@@ -40,10 +40,14 @@ export class DesktopBridge
 		this.invoke('open_external', {url}).catch(error => console.error(`Could not open ${url}:`, error));
 	}
 
-	public async saveDownload(blob: Blob, fileName: string): Promise<string>
+	/** `reveal` shows the file in its folder instead of opening it - opening an .sft would hand it straight back to this app. */
+	public async saveDownload(blob: Blob, fileName: string, reveal: boolean = false): Promise<string>
 	{
 		const bytes = new Uint8Array(await blob.arrayBuffer());
-		return this.tauri.core.invoke<string>('export_save', bytes, {headers: {'x-file-name': encodeURIComponent(fileName)}});
+		return this.tauri.core.invoke<string>('export_save', bytes, {headers: {
+			'x-file-name': encodeURIComponent(fileName),
+			'x-after-save': reveal ? 'reveal' : 'open',
+		}});
 	}
 
 }

@@ -373,3 +373,21 @@ circle.pg-port-adsorbed {
 .pg-zoomed-out-edges .x6-edge image.pg-edge-zoomed-out-icon {
 	display: inline;
 }
+
+.app-error-popup {
+	position: fixed;
+	right: 16px;
+	bottom: 16px;
+	z-index: 1090;
+	width: min(460px, calc(100vw - 32px));
+	max-height: calc(100vh - 32px);
+	overflow-y: auto;
+}
+
+.app-error-popup-details {
+	max-height: 200px;
+	overflow: auto;
+	white-space: pre-wrap;
+	word-break: break-word;
+	font-size: 0.75rem;
+}

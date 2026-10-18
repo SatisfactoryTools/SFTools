@@ -8,6 +8,8 @@ import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelLayoutState} from '@src/Components/Planner/Panel/PanelLayoutState';
 import {PanelRuntimeState} from '@src/Components/Planner/Panel/PanelRuntimeState';
 import {PanelSide} from '@src/Components/Planner/Panel/PanelSide';
+import {RailMetrics} from '@src/Components/Planner/Panel/RailMetrics';
+import {RailSizes} from '@src/Components/Planner/Panel/RailSizes';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
 const MIN_SIZE = 100;
@@ -19,7 +21,6 @@ const FLOAT_MIN_WIDTH = 220;
 const FLOAT_MIN_HEIGHT = 140;
 const TAB_BAR_HEIGHT = 36;
 
-export const RAIL_WIDTH = 40;
 export const STATUS_BAR_HEIGHT = 32;
 export const MOBILE_NAV_HEIGHT = 56;
 
@@ -73,13 +74,16 @@ export class PanelLayoutService implements OnDestroy
 	private readonly mobileSignal = signal(false);
 	public readonly isMobile = this.mobileSignal.asReadonly();
 
+	public readonly rail = computed<RailMetrics>(() => RailSizes.of(this.settings.planner().railSize));
+	public readonly railWidth = computed(() => this.rail().width);
+
 	public readonly canvasInsets = computed<CanvasInsets>(() => {
 		if (this.mobileSignal()) {
 			return {left: 0, right: 0, top: 0, bottom: MOBILE_NAV_HEIGHT};
 		}
 		const sizes = this.sizes();
 		return {
-			left: RAIL_WIDTH + (this.activeLeft() !== null ? sizes.left : 0),
+			left: this.railWidth() + (this.activeLeft() !== null ? sizes.left : 0),
 			right: this.activeRight() !== null ? sizes.right : 0,
 			top: this.activeTop() !== null ? sizes.top : 0,
 			bottom: STATUS_BAR_HEIGHT,

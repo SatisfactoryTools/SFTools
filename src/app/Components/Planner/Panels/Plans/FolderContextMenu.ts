@@ -1,4 +1,4 @@
-import {faClone, faFolderPlus, faPen, faPlus, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faClone, faFileExport, faFolderPlus, faPen, faPlus, faShareNodes, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlanTreeMenuHost} from '@src/Components/Planner/Panels/Plans/PlanTreeMenuHost';
@@ -55,6 +55,13 @@ export class FolderContextMenu extends PlannerContextMenu
 			icon: faShareNodes,
 			hotkey: 'plans.shareFolder',
 			action: () => this.host.shareFolder(this.folderId, this.folderName),
+		});
+
+		items.push({
+			label: 'Export to a file…',
+			icon: faFileExport,
+			hotkey: 'plans.exportFile',
+			action: () => this.host.exportFolder(this.folderId),
 		});
 
 		items.push({

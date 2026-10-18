@@ -2,10 +2,18 @@ use std::sync::Mutex;
 use std::time::Duration;
 use tauri_plugin_updater::Update;
 
+use crate::opened_files::OpenedFile;
+
 #[derive(Default)]
 pub struct LinkQueue {
 	pub ready: bool,
 	pub pending: Vec<String>,
+}
+
+#[derive(Default)]
+pub struct FileQueue {
+	pub ready: bool,
+	pub pending: Vec<OpenedFile>,
 }
 
 pub struct AppState {
@@ -14,6 +22,7 @@ pub struct AppState {
 	pub http: reqwest::Client,
 	pub pending_update: Mutex<Option<Update>>,
 	pub links: Mutex<LinkQueue>,
+	pub files: Mutex<FileQueue>,
 }
 
 impl AppState {
@@ -29,6 +38,7 @@ impl AppState {
 				.expect("the HTTP client builds"),
 			pending_update: Mutex::new(None),
 			links: Mutex::new(LinkQueue::default()),
+			files: Mutex::new(FileQueue::default()),
 		}
 	}
 

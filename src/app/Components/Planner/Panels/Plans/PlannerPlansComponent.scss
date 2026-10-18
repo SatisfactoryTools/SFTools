@@ -76,19 +76,6 @@
 	flex-shrink: 0;
 }
 
-.tree-subplan-badge {
-	position: absolute;
-	right: -0.4rem;
-	bottom: -0.25rem;
-	font-size: 0.6rem;
-	line-height: 1;
-	padding: 0.1rem;
-	border-radius: 50%;
-	color: rgb(120, 175, 235);
-	background-color: rgba(20, 30, 40, 0.95);
-	pointer-events: none;
-}
-
 .tree-subplan .tree-label {
 	font-size: 0.9rem;
 	opacity: 0.8;
@@ -157,6 +144,10 @@
 	flex-shrink: 0;
 }
 
+.tree-create + .tree-action {
+	margin-left: 0.1rem;
+}
+
 @container panel (max-width: 260px) {
 	.tree-section-icon,
 	.tree-section-count {
@@ -214,13 +205,9 @@
 	font-style: italic;
 }
 
-.tree-folder-icon {
-	color: #d7a955;
-	flex-shrink: 0;
-}
-
 // Fills the panel so a click on the empty space under the list can clear the selection.
 :host {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	min-height: 100%;
@@ -228,4 +215,20 @@
 
 .tree-root {
 	flex-grow: 1;
+}
+
+.file-drop-overlay {
+	position: absolute;
+	inset: 0.25rem;
+	z-index: 5;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.5rem;
+	border: 2px dashed var(--bs-primary);
+	background: rgba(0, 0, 0, 0.6);
+	color: var(--bs-light);
+	font-weight: 600;
+	// The overlay must not swallow the dragleave/drop events meant for the panel.
+	pointer-events: none;
 }

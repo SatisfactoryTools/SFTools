@@ -62,6 +62,10 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 		label: 'Items the plan cannot produce',
 		format: CHOICE({show: 'Show all', strike: 'Cross out', hide: 'Hide'}),
 	},
+	railSize: {
+		label: 'Action bar size',
+		format: CHOICE({tiny: 'Tiny', small: 'Small', normal: 'Normal', large: 'Large', huge: 'Huge'}),
+	},
 	tabBadges: {label: 'Counts on the production request tabs', format: YES_NO},
 	tabLabels: {
 		label: 'Production request tab labels',

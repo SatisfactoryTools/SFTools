@@ -1,0 +1,15 @@
+<div class="p-3 quick-start">
+	<div class="fw-semibold mb-2">What do you want to make?</div>
+	<item-picker
+		[options]="itemOptions"
+		placeholder="- select item -"
+		(valueChange)="start($event)"
+	></item-picker>
+	<div class="small text-secondary mt-2">
+		@if (hasPlans) {
+			This starts a new plan. To continue an old one, open it in the Plans panel.
+		} @else {
+			This starts your first plan. To build one by hand instead, add nodes on the canvas.
+		}
+	</div>
+</div>
