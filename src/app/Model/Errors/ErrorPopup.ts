@@ -11,7 +11,7 @@ import {ErrorReport} from '@src/Model/Errors/ErrorReport';
 export class ErrorPopup
 {
 
-	private readonly entries: {report: ErrorReport; count: number}[] = [];
+	private readonly entries: {report: ErrorReport; count: number; reported: boolean}[] = [];
 	private readonly closedSignatures = new Set<string>();
 	private ignoreAll = false;
 	private detailsOpen = false;
@@ -35,8 +35,22 @@ export class ErrorPopup
 			entry.count++;
 			return;
 		}
-		this.entries.push({report, count: 1});
+		this.entries.push({report, count: 1, reported: false});
 		this.zone.runOutsideAngular(() => this.render());
+	}
+
+	/** Updates the open popup in place: re-rendering would drop a selection made for copying. */
+	public markReported(signature: string): void
+	{
+		const entry = this.entries.find(candidate => candidate.report.signature === signature);
+		if (entry === undefined || entry.reported) {
+			return;
+		}
+		entry.reported = true;
+		const note = this.element?.querySelector<HTMLElement>('.app-error-popup-reported');
+		if (note !== null && note !== undefined) {
+			this.fillReportedNote(note);
+		}
 	}
 
 	private close(ignoreAll: boolean): void
@@ -66,6 +80,9 @@ export class ErrorPopup
 			body.append(this.create('p', 'mb-0', 'Part of the page could not load because the site was updated. Reload the page to get the new version.'));
 		} else {
 			body.append(this.create('p', 'mb-2', 'Part of the page may have stopped working. Reloading the page usually fixes it.'));
+			const reported = this.create('p', 'app-error-popup-reported small text-secondary mb-2');
+			this.fillReportedNote(reported);
+			body.append(reported);
 			const help = this.create('p', 'small text-secondary mb-2', 'If it keeps happening, copy the details and send them to us on ');
 			help.append(this.link(CommunityLinks.DISCORD.label, CommunityLinks.DISCORD.url), ' or ', this.link(CommunityLinks.GITHUB.label, CommunityLinks.GITHUB.url), '.');
 			body.append(help);
@@ -94,6 +111,19 @@ export class ErrorPopup
 			this.element.replaceWith(popup);
 		}
 		this.element = popup;
+	}
+
+	private fillReportedNote(note: HTMLElement): void
+	{
+		const count = this.entries.filter(entry => entry.reported).length;
+		note.hidden = count === 0;
+		if (count === 0) {
+			return;
+		}
+		const settings = this.create('a', '', 'Turn off error reports');
+		// A full page load on purpose: the router may be what broke.
+		settings.href = '/settings/account';
+		note.replaceChildren(count === this.entries.length ? 'An error report was sent to us automatically. ' : 'Some of these errors were reported to us automatically. ', settings);
 	}
 
 	private detailsText(): string

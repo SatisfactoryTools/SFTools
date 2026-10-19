@@ -1,4 +1,4 @@
-<settings-section [resetCategories]="['account']" helpTopic="settings.account" title="Account" [icon]="sectionIcon" description="Where your data is saved, and sign-in reminders.">
+<settings-section [resetCategories]="['account']" helpTopic="settings.account" title="Account" [icon]="sectionIcon" description="Where your data is saved, sign-in reminders and error reports.">
 		<div class="subsection-title">Status</div>
 		@if (auth.isAuthenticated()) {
 			<p class="mb-2">
@@ -31,6 +31,23 @@
 			<div class="form-text">
 				While you are signed out, the planner asks once per visit if you want to sign in.
 				The home page also shows a sign-in box.
+			</div>
+		</div>
+
+		<div class="subsection-title">Error reports</div>
+		<div class="form-check">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="error-reports"
+				[ngModel]="errorReports"
+				(ngModelChange)="setErrorReports($event)"
+			/>
+			<label class="form-check-label" for="error-reports">Send error reports</label><setting-reset-button category="account" field="errorReports"/>
+			<div class="form-text">
+				When something breaks, a report is sent to us so we can fix it. It holds the error, the page address,
+				your browser and app version, and a list of the last requests to our server. Passwords, sign-in codes,
+				email addresses and plan links are removed first.
 			</div>
 		</div>
 </settings-section>

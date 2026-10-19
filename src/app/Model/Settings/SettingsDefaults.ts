@@ -82,6 +82,7 @@ export class SettingsDefaults
 		},
 		account: {
 			signInPrompts: true,
+			errorReports: true,
 		},
 		hotkeys: {},
 		panels: null,

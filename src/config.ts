@@ -4,6 +4,7 @@ import {TitleStrategy, provideRouter, withComponentInputBinding, withInMemoryScr
 import {AppPositioningService} from '@src/AppPositioningService';
 import {AppTooltipConfig} from '@src/AppTooltipConfig';
 import {AuthInterceptor} from '@src/Model/Auth/AuthInterceptor';
+import {ApiCallLogInterceptor} from '@src/Model/Errors/ApiCallLogInterceptor';
 import {AppErrorHandler} from '@src/Model/Errors/AppErrorHandler';
 import {RetryInterceptor} from '@src/Model/API/RetryInterceptor';
 import {ConnectivityInterceptor} from '@src/Model/Network/ConnectivityInterceptor';
@@ -30,6 +31,7 @@ export const config: ApplicationConfig = {
 		{provide: HTTP_INTERCEPTORS, useClass: RetryInterceptor, multi: true},
 		{provide: HTTP_INTERCEPTORS, useClass: ConnectivityInterceptor, multi: true},
 		{provide: HTTP_INTERCEPTORS, useClass: AuthInterceptor, multi: true},
+		{provide: HTTP_INTERCEPTORS, useClass: ApiCallLogInterceptor, multi: true},
 		{provide: TooltipConfig, useClass: AppTooltipConfig},
 		{provide: PositioningService, useClass: AppPositioningService},
 		{provide: TitleStrategy, useClass: AppTitleStrategy},

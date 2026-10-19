@@ -40,4 +40,14 @@ export class SettingsAccountComponent
 		this.settings.updateAccount({signInPrompts: value});
 	}
 
+	public get errorReports(): boolean
+	{
+		return this.settings.account().errorReports;
+	}
+
+	public setErrorReports(value: boolean): void
+	{
+		this.settings.updateAccount({errorReports: value});
+	}
+
 }
