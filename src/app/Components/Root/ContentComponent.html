@@ -4,7 +4,7 @@
 	<!-- Drops below the root component's "server is not responding" banner while that is up. -->
 	<div
 		class="position-fixed top-0 start-50 translate-middle-x"
-		[style.margin-top]="serverStatus.retrying() ? '108px' : '60px'"
+		[style.margin-top]="serverStatus.retrying() ? 'calc(var(--navbar-height, 56px) + 52px)' : 'calc(var(--navbar-height, 56px) + 4px)'"
 		style="z-index: 1055; min-width: 320px; max-width: 600px;"
 	>
 		<div
@@ -22,7 +22,7 @@
 }
 
 <!-- Padding, not margin: a margin would swallow the pages' own top margins (margin collapsing). -->
-<div class="container-fluid" style="padding-top: 56px;">
+<div class="container-fluid" style="padding-top: var(--navbar-height, 56px);">
 	<router-outlet/>
 </div>
 

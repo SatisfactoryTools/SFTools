@@ -16,7 +16,7 @@ import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 			container-type: inline-size;
 			container-name: panel;
 			/* The window scrolls under the fixed navbar, so sticky elements and scrolled-to headings stop there. */
-			--help-sticky-top: 4.25rem;
+			--help-sticky-top: calc(var(--navbar-height, 56px) + 0.75rem);
 		}
 	`,
 })

@@ -1,4 +1,4 @@
-import {Component, ChangeDetectionStrategy, OnDestroy, ViewChild, computed} from '@angular/core';
+import {AfterViewInit, Component, ChangeDetectionStrategy, ElementRef, OnDestroy, ViewChild, computed} from '@angular/core';
 import {NavigationEnd, Router, RouterLink, RouterLinkActive} from '@angular/router';
 import {Subscription} from 'rxjs';
 import {filter} from 'rxjs/operators';
@@ -85,7 +85,7 @@ import {BackToPlannerResolver} from '@src/Model/Planner/BackToPlannerResolver';
 		}
 	`,
 })
-export class NavbarComponent implements OnDestroy
+export class NavbarComponent implements AfterViewInit, OnDestroy
 {
 
 	public readonly faGear = faGear;
@@ -100,6 +100,12 @@ export class NavbarComponent implements OnDestroy
 
 	@ViewChild('mobileSearch') private mobileSearch: MobileSearchComponent | undefined;
 
+	@ViewChild('navbar') private navbar!: ElementRef<HTMLElement>;
+
+	@ViewChild('menu') private menu!: ElementRef<HTMLElement>;
+
+	private resizeObserver: ResizeObserver | null = null;
+
 	public collapsed = true;
 
 	/** The navbar sits on every page, so it is where the app-wide hotkeys live. */
@@ -109,8 +115,32 @@ export class NavbarComponent implements OnDestroy
 
 	public readonly backToPlannerLink = computed(() => this.backToPlanner.link());
 
+	public ngAfterViewInit(): void
+	{
+		this.resizeObserver = new ResizeObserver(() => this.publishHeight());
+		this.resizeObserver.observe(this.navbar.nativeElement);
+		this.resizeObserver.observe(this.menu.nativeElement);
+		this.publishHeight();
+	}
+
+	/**
+	 * The page below is offset by this rather than a fixed 56px: OS-level text
+	 * scaling (Windows "Text size") grows the navbar and it would cover the top
+	 * of the page. The unfolded mobile menu is left out so it overlays the page
+	 * instead of pushing it down.
+	 */
+	private publishHeight(): void
+	{
+		let height = this.navbar.nativeElement.getBoundingClientRect().height;
+		if (window.innerWidth < NavbarComponent.WIDE_SCREEN) {
+			height -= this.menu.nativeElement.getBoundingClientRect().height;
+		}
+		document.documentElement.style.setProperty('--navbar-height', `${Math.round(height)}px`);
+	}
+
 	public ngOnDestroy(): void
 	{
+		this.resizeObserver?.disconnect();
 		this.hotkeyRegistrations.forEach(registration => registration.unregister());
 		this.subscription.unsubscribe();
 	}

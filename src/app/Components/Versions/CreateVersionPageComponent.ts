@@ -79,7 +79,7 @@ const EMPTY_COUNTS: PurityCounts = {impure: 0, normal: 0, pure: 0};
 		}
 		.summary-card {
 			position: sticky;
-			top: 76px;
+			top: calc(var(--navbar-height, 56px) + 20px);
 		}
 		.summary-list {
 			display: flex;
