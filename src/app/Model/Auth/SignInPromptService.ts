@@ -14,6 +14,7 @@ export class SignInPromptService
 {
 
 	private readonly visibleSignal = signal(false);
+	private shownThisLoad = false;
 	public readonly visible: Signal<boolean> = this.visibleSignal.asReadonly();
 
 	public readonly enabled: Signal<boolean> = computed(
@@ -37,14 +38,14 @@ export class SignInPromptService
 
 	public maybePrompt(): void
 	{
-		if (!this.enabled() || sessionStorage.getItem(SESSION_KEY) !== null) {
+		if (!this.enabled() || this.shownThisSession()) {
 			return;
 		}
 		const snoozedUntil = Number(this.storage.getItem(SNOOZE_KEY) ?? 0);
 		if (Number.isFinite(snoozedUntil) && snoozedUntil > Date.now()) {
 			return;
 		}
-		sessionStorage.setItem(SESSION_KEY, '1');
+		this.markShown();
 		this.visibleSignal.set(true);
 	}
 
@@ -64,6 +65,26 @@ export class SignInPromptService
 		this.settings.updateAccount({signInPrompts: false});
 		this.visibleSignal.set(false);
 		this.notifications.showSuccess('Sign-in reminders are off. You can turn them back on in Settings → Account.');
+	}
+
+	// With site data blocked sessionStorage throws a SecurityError, so the prompt is then remembered for this page load only.
+	private shownThisSession(): boolean
+	{
+		try {
+			return this.shownThisLoad || sessionStorage.getItem(SESSION_KEY) !== null;
+		} catch {
+			return this.shownThisLoad;
+		}
+	}
+
+	private markShown(): void
+	{
+		this.shownThisLoad = true;
+		try {
+			sessionStorage.setItem(SESSION_KEY, '1');
+		} catch {
+			// The flag above covers this page load.
+		}
 	}
 
 }

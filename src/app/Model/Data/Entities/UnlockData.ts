@@ -23,7 +23,7 @@ export class UnlockData
 
 	public get schematics(): Schematic[]
 	{
-		return this.cachedSchematics ??= this.rawSchematics.map(cn => this.schematicMap.get(cn)!);
+		return this.cachedSchematics ??= this.rawSchematics.map(cn => this.schematicMap.get(cn)).filter(schematic => schematic !== undefined);
 	}
 
 	public constructor(
@@ -33,10 +33,13 @@ export class UnlockData
 		schematicMap: Map<string, Schematic>,
 	)
 	{
-		this.recipes = schema.recipes.map(cn => recipeMap.get(cn)!);
-		this.items = schema.items.map(ia => ({ item: itemMap.get(ia.item)!, amount: ia.amount }));
+		// The data references entries it does not contain (filtered-out cosmetics, '' and non-items like geysers among scannable resources), so unknown ones are dropped.
+		this.recipes = schema.recipes.map(cn => recipeMap.get(cn)).filter(recipe => recipe !== undefined);
+		this.items = schema.items
+			.filter(ia => itemMap.has(ia.item))
+			.map(ia => ({ item: itemMap.get(ia.item)!, amount: ia.amount }));
 		this.scannableObjects = schema.scannableObjects;
-		this.scannableResources = schema.scannableResources.map(cn => itemMap.get(cn)!);
+		this.scannableResources = schema.scannableResources.map(cn => itemMap.get(cn)).filter(item => item !== undefined);
 		this.tapes = schema.tapes;
 		this.emotes = schema.emotes;
 		this.inventorySlots = schema.inventorySlots;

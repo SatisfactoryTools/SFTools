@@ -6,16 +6,25 @@ const STORAGE_KEY = 'sftools.auth.returnUrl';
 export class AuthReturnUrlService
 {
 
+	// With site data blocked sessionStorage throws a SecurityError; sign-in then just returns home.
 	public remember(url: string | null): void
 	{
-		sessionStorage.setItem(STORAGE_KEY, AuthReturnUrlService.sanitize(url));
+		try {
+			sessionStorage.setItem(STORAGE_KEY, AuthReturnUrlService.sanitize(url));
+		} catch {
+			// Nothing to remember it in.
+		}
 	}
 
 	public consume(): string
 	{
-		const url = sessionStorage.getItem(STORAGE_KEY);
-		sessionStorage.removeItem(STORAGE_KEY);
-		return AuthReturnUrlService.sanitize(url);
+		try {
+			const url = sessionStorage.getItem(STORAGE_KEY);
+			sessionStorage.removeItem(STORAGE_KEY);
+			return AuthReturnUrlService.sanitize(url);
+		} catch {
+			return '/';
+		}
 	}
 
 	public static sanitize(url: string | null): string
