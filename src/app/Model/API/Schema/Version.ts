@@ -17,5 +17,7 @@ export interface Version
 	powerCost: number;
 	mods: string[];
 	worldData: WorldDataPayload | null;
+	/** Oldest first. Optional because version lists cached before the API sent it lack the field. */
+	gameVersions?: string[];
 
 }

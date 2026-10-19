@@ -913,7 +913,11 @@ export class ProductionSolverService
 			const maxSolution = await this.awaitSolve(this.buildLp(maxRequest, data, roundLocked), this.solveOptions(maxRequest, plan), run);
 			const maxStatus = this.mapStatus(maxSolution.Status);
 			if (maxStatus === 'Unbounded') {
-				throw new Error('There is no limit to how much can be made. Set raw resource limits in the Resources tab.');
+				// Input-free recipes (e.g. the FICSMAS Gift Tree) make their products limitless whatever the resource limits are.
+				const free = roundBase.recipes.filter(recipe => recipe.ingredients.length === 0 && recipe.producedIn.length > 0);
+				throw new Error(free.length > 0
+					? `There is no limit to how much can be made, because ${free.map(recipe => recipe.name).join(', ')} needs no inputs. Turn it off in the Recipes tab.`
+					: 'There is no limit to how much can be made. Set raw resource limits in the Resources tab.');
 			}
 			if (maxStatus !== 'Optimal') {
 				if (first) {

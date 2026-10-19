@@ -130,6 +130,9 @@
 								<span class="last-opened">Last opened</span>
 							}
 						</div>
+						@if (versionManager.gameVersionRange(version); as range) {
+							<div class="game-range">Game versions {{ range }}</div>
+						}
 						<div class="tags">
 							@for (tag of tags(version); track tag.label) {
 								<span [class]="'tag tag-' + tag.tone">{{ tag.label }}</span>

@@ -10,7 +10,10 @@
 	<ul *dropdownMenu class="dropdown-menu">
 		@for (version of versionManager.versions(); track version.id) {
 			<li>
-				<a class="dropdown-item" [routerLink]="['/', versionManager.urlSlug(version)]">
+				<a
+					class="dropdown-item" [routerLink]="['/', versionManager.urlSlug(version)]"
+					[tooltip]="gameVersionsTooltip(version)" placement="right" container="body"
+				>
 					{{ version.name }}
 					@if (version.experimental) {
 						<span class="badge bg-warning text-dark ms-1">Experimental</span>

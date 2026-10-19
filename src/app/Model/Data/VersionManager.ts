@@ -136,6 +136,16 @@ export class VersionManager
 		return version.slug ?? version.id;
 	}
 
+	/** One official version covers every game build whose planner data matched it; null while it covers a single one. */
+	public gameVersionRange(version: Version): string | null
+	{
+		const gameVersions = version.gameVersions ?? [];
+		if (gameVersions.length < 2) {
+			return null;
+		}
+		return `${gameVersions[0]}\u00a0–\u00a0${gameVersions[gameVersions.length - 1]}`;
+	}
+
 	public findByUrlSlug(slugOrId: string): Version | null
 	{
 		return this.versions().find(v => this.urlSlug(v) === slugOrId) ?? null;

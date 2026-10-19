@@ -278,6 +278,9 @@
 				<div class="card-body d-flex flex-column gap-3">
 					<ul class="summary-list">
 						<li><span class="text-secondary">Base</span><span class="value">{{ baseVersion?.name ?? '-' }}</span></li>
+						@if (baseVersion && versionManager.gameVersionRange(baseVersion); as range) {
+							<li><span class="text-secondary">Game versions</span><span class="value">{{ range }}</span></li>
+						}
 						<li><span class="text-secondary">Recipe cost</span><span class="value" [class.text-warning]="recipeCost !== 1">×{{ recipeCost }}</span></li>
 						<li><span class="text-secondary">Power cost</span><span class="value" [class.text-warning]="powerCost !== 1">×{{ powerCost }}</span></li>
 						<li><span class="text-secondary">Mods</span><span class="value" [class.text-warning]="picked.length > 0">{{ picked.length === 0 ? 'None' : picked.length }}</span></li>

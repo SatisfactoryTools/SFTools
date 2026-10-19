@@ -450,6 +450,11 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 		@media (hover: none) {
 			.remove-btn { opacity: 1; }
 		}
+		.game-range {
+			font-size: 0.8rem;
+			color: #9fb0c0;
+			margin: -0.15rem 0 0.4rem;
+		}
 		.last-opened {
 			font-size: 0.7rem;
 			font-weight: 600;

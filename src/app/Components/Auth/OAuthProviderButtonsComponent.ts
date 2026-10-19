@@ -72,6 +72,11 @@ export class OAuthProviderButtonsComponent implements OnDestroy
 	{
 		this.oauthApiService.getProviders().subscribe({
 			next: response => {
+				if (!Array.isArray(response?.providers)) {
+					this.error = 'Signing in with these services is not possible right now.';
+					this.loading = false;
+					return;
+				}
 				const enabled = new Set(response.providers);
 				this.providers = OAuthProviders.ALL.filter(provider => enabled.has(provider.key));
 				this.loading = false;

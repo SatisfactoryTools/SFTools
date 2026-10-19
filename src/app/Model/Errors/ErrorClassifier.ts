@@ -77,7 +77,21 @@ export class ErrorClassifier
 	private thrownByOthers(error: Error): boolean
 	{
 		const frames = (error.stack ?? '').replace(error.message, '').match(STACK_URL);
-		return frames !== null && frames.every(url => !this.isOwnUrl(url));
+		return frames !== null && frames.every(url => !this.isOwnScript(url));
+	}
+
+	// Injected inline scripts (Brave's wallet, for one) report the page itself as their source, so only our bundle files count as ours.
+	private isOwnScript(frameUrl: string): boolean
+	{
+		const url = frameUrl.replace(/(:\d+){1,2}$/, '');
+		if (!this.isOwnUrl(url)) {
+			return false;
+		}
+		try {
+			return /\.m?js$/.test(new URL(url, window.location.href).pathname);
+		} catch {
+			return true;
+		}
 	}
 
 }
