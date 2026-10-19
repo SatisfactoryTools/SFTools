@@ -34,6 +34,10 @@ export class SupporterListService
 		this.loaded = true;
 		this.api.getList().subscribe({
 			next: response => {
+				if (!Array.isArray(response?.supporters)) {
+					this.loaded = false;
+					return;
+				}
 				const names = response.supporters.map(entry => entry.name.trim()).filter(name => name !== '');
 				this.namesSignal.set(names);
 				this.storage.setItem(CACHE_KEY, JSON.stringify(names));
