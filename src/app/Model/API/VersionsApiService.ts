@@ -1,7 +1,7 @@
 import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
-import {catchError, switchMap} from 'rxjs/operators';
+import {catchError, map, switchMap} from 'rxjs/operators';
 import {env} from '@env/env';
 import {CreateVersionRequest} from '@src/Model/API/Schema/CreateVersionRequest';
 import {LinkVersionsResponse} from '@src/Model/API/Schema/LinkVersionsResponse';
@@ -32,7 +32,7 @@ export class VersionsApiService
 
 	public getVersion(id: string): Observable<Version>
 	{
-		return this.http.get<Version>(`${env.apiUrl}/v1/versions/${id}`);
+		return this.http.get<unknown>(`${env.apiUrl}/v1/versions/${id}`).pipe(map(body => this.parseVersion(body)));
 	}
 
 	public ensureVersionData(id: string): Observable<VersionDataLocation>
@@ -63,6 +63,16 @@ export class VersionsApiService
 				switchMap(location => this.fetchVersionFile(location.dataPath)),
 			)),
 		);
+	}
+
+	// A mangled body (seen from browser extensions or proxies) would otherwise be stored as a version whose URL slug is 'undefined'.
+	private parseVersion(body: unknown): Version
+	{
+		const version = body as Partial<Version> | null;
+		if (typeof version !== 'object' || version === null || Array.isArray(version) || typeof version.id !== 'string' || typeof version.dataPath !== 'string') {
+			throw new Error('The version response is not a version.');
+		}
+		return version as Version;
 	}
 
 	/** The URL is immutable-cacheable, so no cache-busting parameters - they would bypass the browser cache. */

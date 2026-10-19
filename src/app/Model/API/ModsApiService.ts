@@ -1,6 +1,7 @@
 import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
+import {map} from 'rxjs/operators';
 import {env} from '@env/env';
 import {Mod} from '@src/Model/API/Schema/Mods/Mod';
 import {ModVersion} from '@src/Model/API/Schema/Mods/ModVersion';
@@ -17,7 +18,7 @@ export class ModsApiService
 
 	public listMods(): Observable<Mod[]>
 	{
-		return this.http.get<Mod[]>(this.base);
+		return this.http.get<unknown>(this.base).pipe(map(body => this.parseModList(body)));
 	}
 
 	public getMod(id: string): Observable<Mod>
@@ -59,6 +60,14 @@ export class ModsApiService
 	public getModVersionData(versionId: string): Observable<unknown>
 	{
 		return this.http.get<unknown>(`${env.apiUrl}/data/mods/${versionId}.json`, {params: {t: Date.now().toString()}});
+	}
+
+	private parseModList(body: unknown): Mod[]
+	{
+		if (!Array.isArray(body)) {
+			throw new Error('The mod list response is not a list.');
+		}
+		return body as Mod[];
 	}
 
 }
