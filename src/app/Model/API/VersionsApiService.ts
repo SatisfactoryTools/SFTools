@@ -11,12 +11,16 @@ import {VersionDataLocation} from '@src/Model/API/Schema/VersionDataLocation';
 import {VersionFile} from '@src/Model/API/Schema/VersionFile';
 import {WorldDataPreview} from '@src/Model/API/Schema/World/WorldDataPreview';
 import {WorldDataRequest} from '@src/Model/API/Schema/World/WorldDataRequest';
+import {VersionResponseParser} from '@src/Model/API/VersionResponseParser';
 
 @Injectable({providedIn: 'root'})
 export class VersionsApiService
 {
 
-	public constructor(private readonly http: HttpClient)
+	public constructor(
+		private readonly http: HttpClient,
+		private readonly versionParser: VersionResponseParser,
+	)
 	{
 	}
 
@@ -32,7 +36,7 @@ export class VersionsApiService
 
 	public getVersion(id: string): Observable<Version>
 	{
-		return this.http.get<unknown>(`${env.apiUrl}/v1/versions/${id}`).pipe(map(body => this.parseVersion(body)));
+		return this.http.get<unknown>(`${env.apiUrl}/v1/versions/${id}`).pipe(map(body => this.versionParser.parseVersion(body)));
 	}
 
 	public ensureVersionData(id: string): Observable<VersionDataLocation>
@@ -63,16 +67,6 @@ export class VersionsApiService
 				switchMap(location => this.fetchVersionFile(location.dataPath)),
 			)),
 		);
-	}
-
-	// A mangled body (seen from browser extensions or proxies) would otherwise be stored as a version whose URL slug is 'undefined'.
-	private parseVersion(body: unknown): Version
-	{
-		const version = body as Partial<Version> | null;
-		if (typeof version !== 'object' || version === null || Array.isArray(version) || typeof version.id !== 'string' || typeof version.dataPath !== 'string') {
-			throw new Error('The version response is not a version.');
-		}
-		return version as Version;
 	}
 
 	/** The URL is immutable-cacheable, so no cache-busting parameters - they would bypass the browser cache. */

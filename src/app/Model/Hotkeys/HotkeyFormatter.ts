@@ -37,7 +37,8 @@ export class HotkeyFormatter
 
 	public fromEvent(event: KeyboardEvent): HotkeyBinding | null
 	{
-		if (['Control', 'Shift', 'Alt', 'Meta', 'CapsLock', 'Dead'].includes(event.key)) {
+		// Chrome's autofill dispatches keydown events without a key.
+		if (typeof event.key !== 'string' || event.key === '' || ['Control', 'Shift', 'Alt', 'Meta', 'CapsLock', 'Dead'].includes(event.key)) {
 			return null;
 		}
 		const binding: HotkeyBinding = {
