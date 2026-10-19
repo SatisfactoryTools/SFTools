@@ -118,6 +118,7 @@ export class ProductionSolverService
 				.filter(request => (request.mode ?? 'rate') === 'rate')
 				.filter(request => request.itemClassName !== SpecialClasses.PowerTarget
 					&& request.itemClassName !== SpecialClasses.SinkPointsTarget)
+				.filter(request => Number.isFinite(request.ratePerMinute))
 				.map(request => {
 					return {
 						item: data.getItemByClassName(request.itemClassName) as Item,
