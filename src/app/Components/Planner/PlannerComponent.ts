@@ -77,6 +77,7 @@ import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
+import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {SubplanBuildCountRequest} from '@src/Components/Planner/SubplanBuildCountRequest';
@@ -409,6 +410,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.subscription.add(
 			this.actions.inputRemoveRequests.subscribe(itemClassName => this.removeInput(itemClassName)),
+		);
+
+		this.subscription.add(
+			this.actions.inputAddRequests.subscribe(node => this.addInput(node)),
 		);
 
 		this.subscription.add(
@@ -1442,6 +1447,28 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 		this.planManager.setInputs(plan.id, plan.inputs.filter(input => input.itemClassName !== itemClassName));
+	}
+
+	/** Free, so the solver uses the input instead of making the item. The node is unlocked, or the next solve would keep it next to the input. */
+	private addInput(node: RecipeNode): void
+	{
+		const plan = this.planManager.activePlan();
+		const item = node.recipe.products[0]?.item;
+		if (!plan || !item) {
+			return;
+		}
+		const output = node.outputs
+			.filter(io => io.item.className === item.className)
+			.reduce((sum, io) => sum + io.maxAmount, 0);
+		// Rounded up, so solver noise (9.999999999375) reads cleanly in the Input tab and never leaves the input a sliver short.
+		const amount = Math.ceil(output * 10000 - 1e-6) / 10000;
+		if (node.locked) {
+			this.applyLockChange({nodeIds: [node.id], locked: false});
+		}
+		const existing = plan.inputs.find(input => input.itemClassName === item.className);
+		this.planManager.setInputs(plan.id, existing
+			? plan.inputs.map(input => input === existing ? {...input, amount: input.amount + amount} : input)
+			: [...plan.inputs, {itemClassName: item.className, amount, weight: 0}]);
 	}
 
 	/** Leaves the dirty flag as is, like manual node drags. */

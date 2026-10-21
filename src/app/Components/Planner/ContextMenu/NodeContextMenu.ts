@@ -1,4 +1,4 @@
-import {faArrowsSplitUpAndLeft, faBan, faCheck, faCompress, faCrosshairs, faDiagramProject, faExpand, faFolderOpen, faLock, faLockOpen, faRotateLeft, faTrashCan, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faArrowsSplitUpAndLeft, faBan, faCheck, faCompress, faCrosshairs, faDiagramProject, faExpand, faFolderOpen, faLock, faLockOpen, faRightToBracket, faRotateLeft, faTrashCan, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {NodeResizeOptions} from '@src/Components/Planner/ContextMenu/NodeResizeOptions';
 import {NodeSplitOptions} from '@src/Components/Planner/ContextMenu/NodeSplitOptions';
@@ -129,6 +129,11 @@ export class NodeContextMenu extends PlannerContextMenu
 					icon: faBan,
 					hotkey: 'graph.disableMachine',
 					action: () => this.actions.requestMachineDisable(node.machine.className),
+				},
+				{
+					label: `Add to inputs (${node.recipe.products[0]?.item.name ?? 'main product'})`,
+					icon: faRightToBracket,
+					action: () => this.actions.requestInputAdd(node),
 				},
 			];
 		}

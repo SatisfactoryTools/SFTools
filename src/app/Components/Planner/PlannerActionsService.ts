@@ -12,6 +12,7 @@ import {SubplanScaleRequest} from '@src/Components/Planner/SubplanScaleRequest';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
+import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 
 /** Panels are created via ngComponentOutlet and cannot use output bindings, so their actions reach PlannerComponent through here. */
 @Injectable()
@@ -95,6 +96,9 @@ export class PlannerActionsService
 
 	private readonly inputRemoveSubject = new Subject<string>();
 	public readonly inputRemoveRequests: Observable<string> = this.inputRemoveSubject.asObservable();
+
+	private readonly inputAddSubject = new Subject<RecipeNode>();
+	public readonly inputAddRequests: Observable<RecipeNode> = this.inputAddSubject.asObservable();
 
 	private readonly undoSubject = new Subject<void>();
 	public readonly undoRequests: Observable<void> = this.undoSubject.asObservable();
@@ -239,6 +243,11 @@ export class PlannerActionsService
 	public requestInputRemove(itemClassName: string): void
 	{
 		this.inputRemoveSubject.next(itemClassName);
+	}
+
+	public requestInputAdd(node: RecipeNode): void
+	{
+		this.inputAddSubject.next(node);
 	}
 
 	public requestUndo(): void
