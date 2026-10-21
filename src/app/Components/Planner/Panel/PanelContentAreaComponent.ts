@@ -1,4 +1,4 @@
-import {AfterViewChecked, AfterViewInit, Component, ElementRef, Input, OnDestroy, Signal, ViewChild, ChangeDetectionStrategy, signal} from '@angular/core';
+import {AfterViewChecked, AfterViewInit, Component, ElementRef, Input, OnDestroy, Signal, ViewChild, ChangeDetectionStrategy, signal, untracked} from '@angular/core';
 import {NgComponentOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
@@ -170,7 +170,8 @@ export class PanelContentAreaComponent implements AfterViewInit, AfterViewChecke
 	public ngAfterViewInit(): void
 	{
 		if (this.tabbarRef) {
-			this.resizeObserver = new ResizeObserver(() => this.recomputeTabOverflow());
+			// Firefox has fired this while a computed was mid-evaluation, where the signal write throws NG0600.
+			this.resizeObserver = new ResizeObserver(() => untracked(() => this.recomputeTabOverflow()));
 			this.resizeObserver.observe(this.tabbarRef.nativeElement);
 		}
 		this.recomputeTabOverflow();

@@ -28,6 +28,8 @@ const UNREACHABLE_STATUSES = [0, 502, 503, 504];
 
 const STACK_URL = /\b[a-z][a-z0-9+.-]*:\/\/[^\s)'"]+/gi;
 
+const EXTENSION_URL = /^(chrome|moz|safari-web|ms-browser)-extension:\/\//;
+
 @Injectable({providedIn: 'root'})
 export class ErrorClassifier
 {
@@ -52,13 +54,22 @@ export class ErrorClassifier
 		if ([...NETWORK_MESSAGES, ...BENIGN_MESSAGES].some(known => message.includes(known))) {
 			return 'ignore';
 		}
+		// A rejection with a bare {} (seen from in-app browsers on iOS) has nothing in it to act on.
+		if (this.isEmptyObject(error)) {
+			return 'ignore';
+		}
 		if (sourceUrl !== null && !this.isOwnUrl(sourceUrl)) {
 			return 'ignore';
 		}
-		if (error instanceof Error && this.thrownByOthers(error)) {
+		if (error instanceof Error && (this.injectedScriptSyntaxError(error) || this.thrownByOthers(error))) {
 			return 'ignore';
 		}
 		return 'report';
+	}
+
+	private isEmptyObject(error: unknown): boolean
+	{
+		return typeof error === 'object' && error !== null && !(error instanceof Error) && !(error instanceof Event) && Object.keys(error).length === 0;
 	}
 
 	private isOwnUrl(url: string | null): boolean
@@ -73,11 +84,23 @@ export class ErrorClassifier
 		}
 	}
 
-	/** Browser extensions inject scripts into the page; an error whose every stack frame is in someone else's code is not ours. */
+	/**
+	 * A syntax error without a single stack frame is a script that failed to parse. Ours is one bundle that already runs and never evaluates code,
+	 * so it is a script injected by the in-app browser or an extension (an unsupported token, or a redeclaration when it runs twice).
+	 */
+	private injectedScriptSyntaxError(error: Error): boolean
+	{
+		return error.name === 'SyntaxError' && (error.stack ?? '').replace(error.message, '').match(STACK_URL) === null;
+	}
+
+	/**
+	 * Browser extensions inject scripts into the page; an error whose every stack frame is in someone else's code is not ours.
+	 * One thrown by an extension is not ours either, even when zone.js frames below it are: its timers run through the patched globals.
+	 */
 	private thrownByOthers(error: Error): boolean
 	{
 		const frames = (error.stack ?? '').replace(error.message, '').match(STACK_URL);
-		return frames !== null && frames.every(url => !this.isOwnScript(url));
+		return frames !== null && (EXTENSION_URL.test(frames[0]) || frames.every(url => !this.isOwnScript(url)));
 	}
 
 	// Injected inline scripts (Brave's wallet, for one) report the page itself as their source, so only our bundle files count as ours.

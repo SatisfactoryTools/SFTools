@@ -1,4 +1,4 @@
-import {Injectable, OnDestroy, Signal, signal} from '@angular/core';
+import {Injectable, OnDestroy, Signal, signal, untracked} from '@angular/core';
 import {faCircleCheck, faLock, faTriangleExclamation, IconDefinition} from '@fortawesome/free-solid-svg-icons';
 import {Cell, Edge as X6Edge, EdgeToolNativeItem, EdgeView, Export, Graph as X6Graph, Node as X6Node, Selection} from '@antv/x6';
 import type {Metadata as PortsMetadata, PortMetadata} from '@antv/x6/lib/model/port';
@@ -412,6 +412,7 @@ export class PlannerGraphService implements OnDestroy
 	private readonly warningOverListener: (e: MouseEvent) => void;
 	private readonly warningOutListener: (e: MouseEvent) => void;
 	private readonly tooltipDismissListener: () => void;
+	private readonly wheelGuardListener: (e: Event) => void;
 	/** Alt-tab loses hover state, so the anchor's mouseout may never fire. */
 	private tooltipAnchor: Element | null = null;
 	private registeredScale = 1;
@@ -476,11 +477,18 @@ export class PlannerGraphService implements OnDestroy
 		this.edgeHoverListener = e => this.onEdgeHoverMove(e);
 		this.warningOverListener = e => this.onWarningHover(e);
 		this.warningOutListener = e => this.onWarningOut(e);
-		this.tooltipDismissListener = () => {
+		// Firefox fires blur synchronously when rendering removes the focused element, where the signal write throws NG0600.
+		this.tooltipDismissListener = () => untracked(() => {
 			this.hideTooltip();
 			// x6 swallows mouseleave mid-press. Taps excepted: lifting the finger ends the synthetic pointer and would drop the handles.
 			if (this.touchedEdgeId === null) {
 				this.endEdgeHover();
+			}
+		});
+		// x6 reads the pointer position off the legacy wheel events and throws on synthetic ones that carry none.
+		this.wheelGuardListener = e => {
+			if (typeof (e as MouseEvent).clientX !== 'number') {
+				e.stopPropagation();
 			}
 		};
 		// Same quiet gap as the debounced save.
@@ -616,6 +624,8 @@ export class PlannerGraphService implements OnDestroy
 		this.hoverMoveTarget?.removeEventListener('mouseover', this.warningOverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseout', this.warningOutListener);
 		this.hoverMoveTarget?.removeEventListener('mouseleave', this.tooltipDismissListener);
+		this.hoverMoveTarget?.removeEventListener('mousewheel', this.wheelGuardListener, true);
+		this.hoverMoveTarget?.removeEventListener('DOMMouseScroll', this.wheelGuardListener, true);
 		window.removeEventListener('blur', this.tooltipDismissListener);
 		this.hoverMoveTarget = null;
 		this.x6Graph?.dispose();
@@ -1004,11 +1014,15 @@ export class PlannerGraphService implements OnDestroy
 		this.hoverMoveTarget?.removeEventListener('mouseover', this.warningOverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseout', this.warningOutListener);
 		this.hoverMoveTarget?.removeEventListener('mouseleave', this.tooltipDismissListener);
+		this.hoverMoveTarget?.removeEventListener('mousewheel', this.wheelGuardListener, true);
+		this.hoverMoveTarget?.removeEventListener('DOMMouseScroll', this.wheelGuardListener, true);
 		window.removeEventListener('blur', this.tooltipDismissListener);
 		container.addEventListener('mousemove', this.edgeHoverListener);
 		container.addEventListener('mouseover', this.warningOverListener);
 		container.addEventListener('mouseout', this.warningOutListener);
 		container.addEventListener('mouseleave', this.tooltipDismissListener);
+		container.addEventListener('mousewheel', this.wheelGuardListener, true);
+		container.addEventListener('DOMMouseScroll', this.wheelGuardListener, true);
 		window.addEventListener('blur', this.tooltipDismissListener);
 		this.hoverMoveTarget = container;
 

@@ -217,7 +217,8 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		this.navResizeObserver = null;
 		this.navElement = element?.nativeElement ?? null;
 		if (this.navElement && typeof ResizeObserver !== 'undefined') {
-			this.navResizeObserver = new ResizeObserver(() => this.updateNavScroll());
+			// Firefox has fired this while a computed was mid-evaluation, where the signal write throws NG0600.
+			this.navResizeObserver = new ResizeObserver(() => untracked(() => this.updateNavScroll()));
 			this.navResizeObserver.observe(this.navElement);
 		}
 		this.updateNavScroll();

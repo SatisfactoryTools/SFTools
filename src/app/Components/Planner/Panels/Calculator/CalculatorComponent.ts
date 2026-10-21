@@ -1,4 +1,4 @@
-import {Component, ElementRef, OnDestroy, Signal, ViewChild, computed, effect, signal, ChangeDetectionStrategy} from '@angular/core';
+import {Component, ElementRef, OnDestroy, Signal, ViewChild, computed, effect, signal, ChangeDetectionStrategy, untracked} from '@angular/core';
 import {DatePipe, NgTemplateOutlet} from '@angular/common';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
@@ -389,7 +389,8 @@ export class CalculatorComponent implements OnDestroy
 		if (elements.some(element => element === null) || typeof ResizeObserver === 'undefined') {
 			return;
 		}
-		this.tabsResizeObserver = new ResizeObserver(() => this.updateTabsMode());
+		// Firefox has fired this while a computed was mid-evaluation, where the signal write throws NG0600.
+		this.tabsResizeObserver = new ResizeObserver(() => untracked(() => this.updateTabsMode()));
 		elements.forEach(element => this.tabsResizeObserver?.observe(element as HTMLElement));
 		this.updateTabsMode();
 	}
