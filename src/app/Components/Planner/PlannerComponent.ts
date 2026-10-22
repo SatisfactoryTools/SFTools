@@ -68,10 +68,12 @@ import {GraphLayoutResolver} from '@src/Model/Planner/GraphLayoutResolver';
 import {GroupingModeResolver} from '@src/Model/Planner/GroupingModeResolver';
 import {GraphMetrics} from '@src/Model/Planner/Graph/GraphMetrics';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
+import {GraphDirection} from '@src/Model/Planner/GraphDirection';
 import {GraphSnapshot} from '@src/Model/Planner/Graph/GraphSnapshot';
 import {GraphEdgeBuilder} from '@src/Model/Planner/Graph/GraphEdgeBuilder';
 import {GraphReconciler} from '@src/Model/Planner/Graph/GraphReconciler';
 import {NodeResizer} from '@src/Model/Planner/NodeResizer';
+import {NodeTypeConverter} from '@src/Model/Planner/NodeTypeConverter';
 import {NodeSplitter} from '@src/Model/Planner/NodeSplitter';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
@@ -86,6 +88,8 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
 import {PlanSerializer} from '@src/Model/Planner/PlanSerializer';
 import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
+import {SubplanInliner} from '@src/Model/Planner/SubplanInliner';
+import {SubplanInlineResult} from '@src/Model/Planner/SubplanInlineResult';
 import {SubplanScaler} from '@src/Model/Planner/SubplanScaler';
 import {NotificationService} from '@src/Model/NotificationService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
@@ -169,6 +173,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly graphReconciler: GraphReconciler,
 		private readonly nodeResizer: NodeResizer,
 		private readonly nodeSplitter: NodeSplitter,
+		private readonly nodeTypeConverter: NodeTypeConverter,
 		private readonly edgeBuilder: GraphEdgeBuilder,
 		private readonly plannerGraph: PlannerGraphService,
 		private readonly panelLayout: PanelLayoutService,
@@ -183,6 +188,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly groupingModes: GroupingModeResolver,
 		private readonly subplanResolver: SubplanIOResolver,
 		private readonly subplanScaler: SubplanScaler,
+		private readonly subplanInliner: SubplanInliner,
 		private readonly notifications: NotificationService,
 		private readonly rateFormatter: RateFormatter,
 		private readonly settings: SettingsManager,
@@ -432,6 +438,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.subscription.add(
 			this.actions.subplanOpenRequests.subscribe(subplanId => this.openSubplan(subplanId)),
+		);
+
+		this.subscription.add(
+			this.actions.subplanUnpackRequests.subscribe(nodeId => this.unpackSubplan(nodeId)),
 		);
 
 		this.subscription.add(
@@ -713,6 +723,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		const nodes = this.plannerGraph.selectedNodes();
 		if (nodes.length === 1) {
 			items.push(...new NodeContextMenu(nodes[0], this.nodeResizeOptions(nodes[0]), this.nodeSplitOptions(nodes[0]),
+				this.nodeTypeConverter.converted(nodes[0], this.versionManager.activeVersionData()),
 				this.actions, this.panelLayout, this.plannerGraph).getItems());
 		} else if (nodes.length > 1) {
 			items.push(...new MultiNodeContextMenu(nodes, this.actions).getItems());
@@ -785,6 +796,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			menu = new BlankContextMenu(this.actions, request.local, this.planManager.activePlan() !== null);
 		} else if (request.nodes.length === 1) {
 			menu = new NodeContextMenu(request.nodes[0], this.nodeResizeOptions(request.nodes[0]), this.nodeSplitOptions(request.nodes[0]),
+				this.nodeTypeConverter.converted(request.nodes[0], this.versionManager.activeVersionData()),
 				this.actions, this.panelLayout, this.plannerGraph);
 		} else {
 			menu = new MultiNodeContextMenu(request.nodes, this.actions);
@@ -897,7 +909,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		const size = this.plannerGraph.nodeSize(node);
 		const layout = this.graphLayout.resolve(plan.settings.graph);
-		const offset: GraphPoint = layout.direction === 'down'
+		const offset: GraphPoint = this.isVertical(layout.direction)
 			? {x: size.width + layout.nodeSpacing, y: 0}
 			: {x: 0, y: size.height + layout.nodeSpacing};
 
@@ -1574,6 +1586,47 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 	}
 
+	private unpackSubplan(nodeId: string): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not unpack subplan: ' + String(err));
+			return;
+		}
+		const node = graph.nodes.find(n => n.id === nodeId);
+		if (!(node instanceof SubplanNode)) {
+			return;
+		}
+		const subplan = this.planManager.findPlan(node.subplanId);
+		if (!subplan || subplan.parentPlanId !== plan.id) {
+			this.notifications.show('This subplan no longer exists.');
+			return;
+		}
+
+		let result: SubplanInlineResult;
+		try {
+			result = this.subplanInliner.inlined(graph, node, subplan);
+		} catch (err) {
+			this.notifications.show('Could not unpack subplan: ' + String(err));
+			return;
+		}
+
+		this.history.push(this.snapshotOf(plan));
+		this.planManager.dissolveSubplan(subplan.id, result.graph);
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, result.graph, false);
+		this.plannerGraph.selectNodesById(result.nodeIds);
+	}
+
 	public closeAddNode(): void
 	{
 		this.addNodePositionSignal.set(null);
@@ -1632,7 +1685,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.history.push(this.snapshotOf(plan));
 
 		const origin = pending ? graph.nodes.find(candidate => candidate.id === pending.nodeId) ?? null : null;
-		this.placeAddedNode(node, position, origin, this.graphLayout.resolve(plan.settings.graph).direction === 'down');
+		this.placeAddedNode(node, position, origin, this.isVertical(this.graphLayout.resolve(plan.settings.graph).direction));
 
 		const updated: Graph = {nodes: [...graph.nodes, node], edges: [...graph.edges]};
 		const edge = pending ? this.connectingEdgeFor(updated, pending, node) : null;
@@ -1653,6 +1706,11 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, {nodes: [node], edges: []}, true);
 		this.keepViewportForPlanId = plan.id;
 		this.planManager.setActivePlan(plan.id);
+	}
+
+	private isVertical(direction: GraphDirection): boolean
+	{
+		return direction === 'down' || direction === 'up';
 	}
 
 	/** For connect gestures the border facing the origin lands on the point, so the edge ends at the drop; plain adds center on it. */

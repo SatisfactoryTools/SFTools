@@ -542,14 +542,14 @@ export class PlannerGraphService implements OnDestroy
 			id: 'root',
 			layoutOptions: {
 				'elk.algorithm': 'layered',
-				'elk.direction': settings.direction === 'down' ? 'DOWN' : 'RIGHT',
+				'elk.direction': ({left: 'RIGHT', down: 'DOWN', right: 'LEFT', up: 'UP'} as const)[settings.direction] ?? 'RIGHT',
 				'elk.edgeRouting': 'POLYLINE',
 				'elk.spacing.edgeLabel': '10',
 				'elk.spacing.nodeNode': String(settings.nodeSpacing),
 				'elk.layered.spacing.nodeNodeBetweenLayers': String(settings.layerSpacing),
 				'elk.layered.spacing.edgeNodeBetweenLayers': '4',
 				// The polyline router widens each gap in proportion to this, times how far lines travel sideways; top-to-bottom graphs are wide.
-				'elk.layered.spacing.edgeEdgeBetweenLayers': settings.direction === 'down' ? '2' : '4',
+				'elk.layered.spacing.edgeEdgeBetweenLayers': settings.direction === 'down' || settings.direction === 'up' ? '2' : '4',
 			},
 			children: nodes.map(node => ({
 				id: node.id,
@@ -1258,7 +1258,7 @@ export class PlannerGraphService implements OnDestroy
 		if (this.readOnly) {
 			return {};
 		}
-		const vertical = this.graphLayout.resolve(this.planManager.activePlan()?.settings.graph).direction === 'down';
+		const direction = this.graphLayout.resolve(this.planManager.activePlan()?.settings.graph).direction;
 		const markup = [
 			{tagName: 'circle', selector: 'portBody'},
 			{tagName: 'image', selector: 'portIcon'},
@@ -1283,8 +1283,8 @@ export class PlannerGraphService implements OnDestroy
 		};
 		return {
 			groups: {
-				in: {position: vertical ? 'top' : 'left', markup, attrs},
-				out: {position: vertical ? 'bottom' : 'right', markup, attrs},
+				in: {position: ({left: 'left', down: 'top', right: 'right', up: 'bottom'} as const)[direction] ?? 'left', markup, attrs},
+				out: {position: ({left: 'right', down: 'bottom', right: 'left', up: 'top'} as const)[direction] ?? 'right', markup, attrs},
 			},
 			items: [
 				...this.portItemsFor(node.inputs, 'in'),

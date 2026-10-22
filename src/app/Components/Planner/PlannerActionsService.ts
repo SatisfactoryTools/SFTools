@@ -63,6 +63,9 @@ export class PlannerActionsService
 	private readonly subplanConvertSubject = new Subject<string[]>();
 	public readonly subplanConvertRequests: Observable<string[]> = this.subplanConvertSubject.asObservable();
 
+	private readonly subplanUnpackSubject = new Subject<string>();
+	public readonly subplanUnpackRequests: Observable<string> = this.subplanUnpackSubject.asObservable();
+
 	private readonly subplanOpenSubject = new Subject<string>();
 	public readonly subplanOpenRequests: Observable<string> = this.subplanOpenSubject.asObservable();
 
@@ -184,6 +187,11 @@ export class PlannerActionsService
 	public requestSubplanConvert(nodeIds: string[]): void
 	{
 		this.subplanConvertSubject.next(nodeIds);
+	}
+
+	public requestSubplanUnpack(nodeId: string): void
+	{
+		this.subplanUnpackSubject.next(nodeId);
 	}
 
 	public requestSubplanOpen(subplanId: string): void

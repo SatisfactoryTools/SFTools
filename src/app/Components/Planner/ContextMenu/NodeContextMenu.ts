@@ -1,4 +1,4 @@
-import {faArrowsSplitUpAndLeft, faBan, faCheck, faCompress, faCrosshairs, faDiagramProject, faExpand, faFolderOpen, faLock, faLockOpen, faRotateLeft, faTrashCan, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faArrowRightArrowLeft, faArrowsSplitUpAndLeft, faBan, faBoxOpen, faCheck, faCompress, faCrosshairs, faDiagramProject, faExpand, faFolderOpen, faLock, faLockOpen, faRotateLeft, faTrashCan, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {NodeResizeOptions} from '@src/Components/Planner/ContextMenu/NodeResizeOptions';
 import {NodeSplitOptions} from '@src/Components/Planner/ContextMenu/NodeSplitOptions';
@@ -9,6 +9,7 @@ import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
 import {HotkeyAction} from '@src/Model/Hotkeys/HotkeyAction';
 import {NodeSplitMode} from '@src/Model/Planner/NodeSplitMode';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
+import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
@@ -20,10 +21,18 @@ import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 export class NodeContextMenu extends PlannerContextMenu
 {
 
+	private static readonly TYPE_LABELS: Record<string, string> = {
+		input: 'input',
+		mine: 'resource',
+		product: 'product',
+		byproduct: 'byproduct',
+	};
+
 	public constructor(
 		private readonly node: Node,
 		private readonly resize: NodeResizeOptions,
 		private readonly splits: NodeSplitOptions,
+		private readonly conversion: ItemAmountNode | null,
 		private readonly actions: PlannerActionsService,
 		private readonly panelLayout: PanelLayoutService,
 		private readonly plannerGraph: PlannerGraphService,
@@ -60,6 +69,13 @@ export class NodeContextMenu extends PlannerContextMenu
 				hotkey: 'graph.openSubplan',
 				action: () => this.actions.requestSubplanOpen(subplanId),
 			});
+			items.push({
+				label: 'Unpack subplan',
+				icon: faBoxOpen,
+				hotkey: 'graph.unpackSubplan',
+				hint: 'Moves its nodes into this plan and deletes the subplan. Its own subplans move here too.',
+				action: () => this.actions.requestSubplanUnpack(this.node.id),
+			});
 		} else {
 			items.push({
 				label: 'Convert to subplan',
@@ -86,6 +102,16 @@ export class NodeContextMenu extends PlannerContextMenu
 		});
 
 		items.push(...this.requestItems());
+
+		if (this.conversion) {
+			const conversion = this.conversion;
+			items.push({
+				label: `Convert to ${NodeContextMenu.TYPE_LABELS[conversion.type] ?? conversion.type}`,
+				icon: faArrowRightArrowLeft,
+				hotkey: 'graph.convertNodeType',
+				action: () => this.actions.requestNodeUpdate(conversion),
+			});
+		}
 
 		if (!(this.node instanceof SubplanNode)) {
 			items.push(this.splitItem('inputs', 'graph.splitByInputs', 'Split by inputs', this.splits.inputs,

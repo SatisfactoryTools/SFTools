@@ -54,8 +54,9 @@ export class ErrorClassifier
 		if ([...NETWORK_MESSAGES, ...BENIGN_MESSAGES].some(known => message.includes(known))) {
 			return 'ignore';
 		}
-		// A rejection with a bare {} (seen from in-app browsers on iOS) has nothing in it to act on.
-		if (this.isEmptyObject(error)) {
+		// Our code only ever rejects with Error instances (desktop commands with strings). A bare undefined/null or a plain object
+		// ({} from in-app browsers on iOS, extension messaging replies like {requestId: "contentScriptVisibilityChanged …"}) has no stack and is someone else's.
+		if (error === undefined || error === null || this.isPlainObject(error)) {
 			return 'ignore';
 		}
 		if (sourceUrl !== null && !this.isOwnUrl(sourceUrl)) {
@@ -67,9 +68,13 @@ export class ErrorClassifier
 		return 'report';
 	}
 
-	private isEmptyObject(error: unknown): boolean
+	private isPlainObject(error: unknown): boolean
 	{
-		return typeof error === 'object' && error !== null && !(error instanceof Error) && !(error instanceof Event) && Object.keys(error).length === 0;
+		if (typeof error !== 'object' || error === null) {
+			return false;
+		}
+		const prototype: unknown = Object.getPrototypeOf(error);
+		return prototype === null || prototype === Object.prototype;
 	}
 
 	private isOwnUrl(url: string | null): boolean

@@ -83,7 +83,7 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 const PLAN_DEFAULTS_LABELS: Record<keyof PlanDefaultsSettings, SettingsFieldLabel> = {
 	alternateRecipes: {label: 'Alternate recipes on by default', format: YES_NO},
 	conversionRecipes: {label: 'Resource conversion recipes on by default', format: YES_NO},
-	graphDirection: {label: 'Default graph direction', format: CHOICE({left: 'Left to right', down: 'Top to bottom'})},
+	graphDirection: {label: 'Default graph direction', format: CHOICE({left: 'Left to right', down: 'Top to bottom', right: 'Right to left', up: 'Bottom to top'})},
 	graphEdgeShape: {label: 'Default connection shape', format: CHOICE({multisegment: 'With corners', straight: 'Straight'})},
 	graphNodeSpacing: {label: 'Default node spacing'},
 	graphLayerSpacing: {label: 'Default layer spacing'},

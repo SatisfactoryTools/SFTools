@@ -20,6 +20,7 @@ import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 		}
 		.dropdown-item:hover .menu-hotkey { color: #a9bccd; }
 		.dropdown-item:disabled .menu-hotkey { color: #55687a; }
+		.menu-hotkey-unset { font-style: italic; opacity: 0.6; }
 	`],
 })
 export class PlannerContextMenuComponent implements AfterViewChecked

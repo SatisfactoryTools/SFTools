@@ -27,6 +27,8 @@
 					<span>{{ item.label }}</span>
 					@if (hotkeys.label(item.hotkey); as key) {
 						<span class="menu-hotkey">{{ key }}</span>
+					} @else if (item.hotkey) {
+						<span class="menu-hotkey menu-hotkey-unset" title="No hotkey set. You can set one in Settings, Hotkeys.">not set</span>
 					}
 				</button>
 			</span>

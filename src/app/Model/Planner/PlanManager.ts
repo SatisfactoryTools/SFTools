@@ -903,6 +903,35 @@ export class PlanManager extends SyncableService<PlanStore>
 		this.notifyScrubbed(scrubbed.scrubbedIds);
 	}
 
+	/** One write, so the parent never syncs with the subplan node gone but the subplan still there. */
+	public dissolveSubplan(subplanId: string, parentGraph: Graph): void
+	{
+		if (this.isReadOnlyPlan(subplanId)) return;
+		const parentId = this.data().plans.find(p => p.id === subplanId)?.parentPlanId ?? null;
+		if (parentId === null) return;
+		let scrubbedIds: string[] = [];
+		this.mutate(store => {
+			const siblings = this.orderedPlans(store, null, parentId).filter(p => p.id !== subplanId);
+			const start = this.nextOrder(siblings);
+			const promoted = new Map(this.orderedPlans(store, null, subplanId).map((child, i): [string, Plan] => [
+				child.id,
+				{...child, parentPlanId: parentId, order: start === undefined ? child.order : start + i},
+			]));
+			const plans = store.plans
+				.filter(p => p.id !== subplanId)
+				.map(p => p.id === parentId
+					? {...p, graph: parentGraph, metadata: {...p.metadata, graphDirty: true}}
+					: promoted.get(p.id) ?? p);
+			const scrubbed = this.scrubSubplanNodes(plans, new Set([subplanId]));
+			scrubbedIds = scrubbed.scrubbedIds;
+			return {...store, plans: scrubbed.plans};
+		});
+		if (this.activePlanIdSignal() === subplanId) {
+			this.activePlanIdSignal.set(null);
+		}
+		this.notifyScrubbed(scrubbedIds);
+	}
+
 	public renamePlan(id: string, name: string): void
 	{
 		if (this.isReadOnlyPlan(id)) return;
@@ -1184,16 +1213,23 @@ export class PlanManager extends SyncableService<PlanStore>
 		const missing = target.filter(p => !currentIds.has(p.id)).map(p => ({...p, revision: null}));
 		const extraIds = new Set([...currentIds].filter(id => !targetIds.has(id)));
 		const snapshots = new Map(target.filter(p => currentIds.has(p.id)).map(p => [p.id, p]));
+		const missingIds = new Set(missing.map(p => p.id));
+		// Inlining a subplan moves its own subplans up a level; they must follow it back (undo) and out again (redo).
+		const reparented = (plan: Plan, snapshot: Plan): boolean => snapshot.parentPlanId !== plan.parentPlanId
+			&& (missingIds.has(snapshot.parentPlanId ?? '') || extraIds.has(plan.parentPlanId ?? ''));
 		const changed = store.plans.some(plan => {
 			const snapshot = snapshots.get(plan.id);
-			return snapshot !== undefined && this.contentDiffers(plan, snapshot);
+			return snapshot !== undefined && (this.contentDiffers(plan, snapshot) || reparented(plan, snapshot));
 		});
 		if (missing.length === 0 && extraIds.size === 0 && !changed) {
 			return;
 		}
 		const scrubbed = this.scrubSubplanNodes(store.plans.filter(p => !extraIds.has(p.id)), extraIds);
-		const restored = scrubbed.plans.map(plan => {
-			const snapshot = snapshots.get(plan.id);
+		const restored = scrubbed.plans.map(current => {
+			const snapshot = snapshots.get(current.id);
+			const plan = snapshot !== undefined && reparented(current, snapshot)
+				? {...current, parentPlanId: snapshot.parentPlanId, order: snapshot.order}
+				: current;
 			return snapshot !== undefined && this.contentDiffers(plan, snapshot)
 				? {
 					...plan,

@@ -1,1 +1,1 @@
-export type GraphDirection = 'left' | 'down';
+export type GraphDirection = 'left' | 'down' | 'right' | 'up';

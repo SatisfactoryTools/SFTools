@@ -12,6 +12,7 @@ export class HotkeyCatalog
 		{action: 'graph.inspectNode', group: 'graph', label: 'Inspect node', default: {key: 'i'}},
 		{action: 'graph.openSubplan', group: 'graph', label: 'Open subplan', default: {key: 'o'}},
 		{action: 'graph.convertToSubplan', group: 'graph', label: 'Convert selection to subplan', default: {key: 'g'}},
+		{action: 'graph.unpackSubplan', group: 'graph', label: 'Unpack subplan', hint: 'Moves its nodes into this plan and deletes the subplan.', default: {key: 'g', shift: true}},
 		{action: 'graph.toggleLock', group: 'graph', label: 'Lock or unlock node', default: {key: 'l'}},
 		{action: 'graph.toggleDone', group: 'graph', label: 'Mark as done or not done', default: {key: 'Enter'}},
 		{action: 'graph.deleteNode', group: 'graph', label: 'Delete node', default: {key: 'Delete'}},
@@ -28,6 +29,7 @@ export class HotkeyCatalog
 		{action: 'graph.removeProduct', group: 'graph', label: 'Remove the product from the request', default: null},
 		{action: 'graph.disableResource', group: 'graph', label: 'Disable the resource', default: null},
 		{action: 'graph.removeInput', group: 'graph', label: 'Remove the input', default: null},
+		{action: 'graph.convertNodeType', group: 'graph', label: 'Convert node type', hint: 'Resource to input and back, byproduct to product and back.', default: null},
 
 		{action: 'planner.calculate', group: 'planner', label: 'Calculate the plan', default: {key: 'Enter', ctrl: true}},
 		{action: 'planner.rearrange', group: 'planner', label: 'Rearrange the graph', default: {key: 'r'}},
