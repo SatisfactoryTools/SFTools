@@ -4,7 +4,7 @@
 		#searchInput
 		class="form-control w-100"
 		type="search"
-		placeholder="Search items, recipes, plans, help&hellip;"
+		placeholder="Search plans, items, recipes, versions, help&hellip;"
 		aria-label="Search everything"
 		autocomplete="off"
 		[value]="state.query()"
@@ -25,7 +25,7 @@
 				<div class="px-3 py-2 text-muted small">No results for &ldquo;{{ state.query() }}&rdquo;</div>
 			} @else {
 				<search-result-list
-					[groups]="state.groups()"
+					[results]="state.results()"
 					[active]="state.activeResult()"
 					(highlight)="state.setActiveResult($event)"
 					(select)="open($event)"

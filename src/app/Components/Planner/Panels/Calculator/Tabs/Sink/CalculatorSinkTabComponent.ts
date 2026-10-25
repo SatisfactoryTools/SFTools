@@ -6,6 +6,7 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'calculator-sink-tab',
@@ -23,15 +24,14 @@ export class CalculatorSinkTabComponent
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
 		public readonly rateFormatter: RateFormatter,
+		private readonly matcher: TextMatcher,
 	)
 	{
 	}
 
 	public get items(): Item[]
 	{
-		const query = this.filter.trim().toLowerCase();
-		const items = this.sinkableItems()
-			.filter(item => query === '' || item.name.toLowerCase().includes(query));
+		const items = this.matcher.filter(this.sinkableItems(), this.filter, item => item.name);
 		return this.sortBy === 'points'
 			? items.sort((a, b) => b.sinkPoints - a.sinkPoints || a.name.localeCompare(b.name))
 			: items.sort((a, b) => a.name.localeCompare(b.name));

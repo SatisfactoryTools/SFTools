@@ -60,6 +60,11 @@
 			</aside>
 		}
 	</div>
+} @else if (article.error() && !notFound()) {
+	<div class="py-3">
+		<p>This article could not be loaded.</p>
+		<button type="button" class="btn btn-sm btn-primary" (click)="article.reload()">Try again</button>
+	</div>
 } @else {
 	<div class="py-3">
 		<p>This article does not exist (any more).</p>

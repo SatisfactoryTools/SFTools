@@ -5,6 +5,7 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'calculator-byproducts-tab',
@@ -20,15 +21,14 @@ export class CalculatorByproductsTabComponent
 	public constructor(
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
+		private readonly matcher: TextMatcher,
 	)
 	{
 	}
 
 	public get items(): Item[]
 	{
-		const query = this.filter.trim().toLowerCase();
-		return (this.versionManager.activeVersionData()?.getAutomatableItems() ?? [])
-			.filter(item => query === '' || item.name.toLowerCase().includes(query))
+		return this.matcher.filter(this.versionManager.activeVersionData()?.getAutomatableItems() ?? [], this.filter, item => item.name)
 			.sort((a, b) => a.name.localeCompare(b.name));
 	}
 

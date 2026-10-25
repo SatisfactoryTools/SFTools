@@ -6,7 +6,7 @@
 					#searchInput
 					class="form-control"
 					type="search"
-					placeholder="Search items, recipes, plans, help&hellip;"
+					placeholder="Search plans, items, recipes, versions, help&hellip;"
 					aria-label="Search everything"
 					autocomplete="off"
 					[value]="state.query()"
@@ -23,14 +23,14 @@
 			@if (state.tooShort()) {
 				<div class="text-center text-muted py-5 px-3">
 					<fa-icon [icon]="faMagnifyingGlass" size="2x" class="d-block mb-3 opacity-50"></fa-icon>
-					Search items, recipes, buildings, your plans and the help articles.
+					Search your plans, items, recipes, buildings, versions and the help articles.
 				</div>
 			} @else if (state.results().length === 0) {
 				<div class="text-center text-muted py-5 px-3">No results for &ldquo;{{ state.query() }}&rdquo;</div>
 			} @else {
 				<search-result-list
 					class="py-1"
-					[groups]="state.groups()"
+					[results]="state.results()"
 					[active]="state.activeResult()"
 					[large]="true"
 					(highlight)="state.setActiveResult($event)"

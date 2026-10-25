@@ -87,7 +87,7 @@
 							<label class="form-check-label fw-semibold" for="opt-machines">Machine count</label>
 						</div>
 					</td>
-					<td class="text-secondary stack-grow">Cost of 1 machine</td>
+					<td class="text-secondary stack-grow">Cost of 1 machine. Machines listed below use their own cost.</td>
 					<td>
 						<input
 							type="number"
@@ -104,5 +104,84 @@
 			</tbody>
 		</table>
 	</div>
+
+	<div class="card" [class.opacity-50]="!machinesEnabled">
+		<div class="card-header py-1 px-2 fw-semibold">Machine count</div>
+		<div class="card-body p-2">
+			@for (option of machineCountingOptions; track option.value) {
+				<div class="form-check">
+					<input
+						class="form-check-input"
+						type="radio"
+						name="machine-counting"
+						[id]="'machine-counting-' + option.value"
+						[checked]="machineCounting === option.value"
+						[disabled]="!machinesEnabled"
+						(change)="setMachineCounting(option.value)"
+					/>
+					<label class="form-check-label" [for]="'machine-counting-' + option.value">
+						{{ option.label }}
+						<span class="text-secondary">- {{ option.description }}</span>
+					</label>
+				</div>
+			}
+		</div>
+		<div class="border-top border-secondary px-2 pt-2 pb-1">
+			<div class="fw-semibold">Custom cost per machine <span class="fw-normal text-secondary">(optional)</span></div>
+			<div class="text-secondary">Add a machine to make it cost more or less than the rest, for example to prefer blenders over refineries.</div>
+		</div>
+		<table class="table table-dark table-sm align-middle mb-0 table-stack">
+			<thead>
+				<tr>
+					<th>Machine</th>
+					<th style="width: 100px;">Cost</th>
+					<th style="width: 36px;"></th>
+				</tr>
+			</thead>
+			<tbody>
+				@for (row of machineWeightRows; track $index; let i = $index) {
+					<tr>
+						<td class="stack-full">
+							<item-picker
+								[options]="machineWeightOptions"
+								[value]="row.machineClassName"
+								placeholder="- select machine -"
+								(valueChange)="onMachineWeightMachineChange(row, $event)"
+							></item-picker>
+						</td>
+						<td class="stack-grow">
+							<input
+								type="number"
+								class="form-control form-control-sm bg-dark text-light border-secondary"
+								style="width: 90px;"
+								min="0"
+								step="any"
+								[disabled]="!machinesEnabled"
+								[value]="row.weight"
+								(change)="onMachineWeightChange(row, +$any($event.target).value)"
+							/>
+						</td>
+						<td>
+							<button
+								class="btn btn-sm btn-outline-danger px-2"
+								type="button"
+								[disabled]="!machinesEnabled"
+								(click)="removeMachineWeightRow(i)"
+							><fa-icon [icon]="faXmark"></fa-icon></button>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		<div class="card-footer p-2">
+			<button class="btn btn-sm btn-outline-success w-100" type="button" [disabled]="!machinesEnabled" (click)="addMachineWeightRow()">
+				+ Add machine
+			</button>
+		</div>
+	</div>
+
+	@if (machinesEnabled && machineCounting === 'whole') {
+		<info-note kind="warning">Counting whole machines can make the calculation much slower on larger plans.</info-note>
+	}
 
 </div>

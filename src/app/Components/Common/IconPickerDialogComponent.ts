@@ -4,6 +4,7 @@ import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective'
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'icon-picker-dialog',
@@ -43,15 +44,16 @@ export class IconPickerDialogComponent
 		return [...items, ...buildings].sort((a, b) => a.label.localeCompare(b.label));
 	});
 
-	public constructor(private readonly versionManager: VersionManager)
+	public constructor(
+		private readonly versionManager: VersionManager,
+		private readonly matcher: TextMatcher,
+	)
 	{
 	}
 
 	public get filtered(): ItemPickerOption[]
 	{
-		const term = this.search.trim().toLowerCase();
-		const all = this.allOptions();
-		return term === '' ? all : all.filter(option => option.label.toLowerCase().includes(term));
+		return this.matcher.rank(this.allOptions(), this.search, option => option.label);
 	}
 
 }

@@ -596,7 +596,13 @@ export class PlannerGraphService implements OnDestroy
 		this.parallelOffsets = this.computeParallelOffsets(graph);
 
 		graph.nodes.forEach(node => this.addNode(x6Graph, node));
-		graph.edges.forEach((edge, i) => this.addEdge(x6Graph, edge, i));
+		// A saved edge whose node is gone would make x6 throw in its async render.
+		const nodeIds = new Set(graph.nodes.map(node => node.id));
+		graph.edges.forEach((edge, i) => {
+			if (nodeIds.has(edge.sourceId) && nodeIds.has(edge.targetId)) {
+				this.addEdge(x6Graph, edge, i);
+			}
+		});
 		this.warningEntriesSignal.set(this.buildWarningEntries(graph));
 
 		if (previous) {

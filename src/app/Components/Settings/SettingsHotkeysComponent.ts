@@ -12,6 +12,7 @@ import {HotkeyDefinition} from '@src/Model/Hotkeys/HotkeyDefinition';
 import {HotkeyFormatter} from '@src/Model/Hotkeys/HotkeyFormatter';
 import {HotkeyService} from '@src/Model/Hotkeys/HotkeyService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'settings-hotkeys',
@@ -148,6 +149,7 @@ export class SettingsHotkeysComponent
 		private readonly hotkeys: HotkeyService,
 		private readonly formatter: HotkeyFormatter,
 		private readonly settings: SettingsManager,
+		private readonly matcher: TextMatcher,
 	)
 	{
 	}
@@ -233,7 +235,7 @@ export class SettingsHotkeysComponent
 		if (key !== null && !this.formatter.same(binding, key)) {
 			return false;
 		}
-		if (terms.length === 0) {
+		if (terms.length === 0 || this.matcher.matches(this.querySignal(), definition.label)) {
 			return true;
 		}
 		const haystack = [

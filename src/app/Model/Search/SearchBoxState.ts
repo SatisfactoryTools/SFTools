@@ -13,9 +13,7 @@ export class SearchBoxState
 	private readonly activeIndexSignal = signal(0);
 	public readonly activeIndex = this.activeIndexSignal.asReadonly();
 
-	public readonly groups = computed(() => this.searchService.search(this.querySignal()));
-
-	public readonly results = computed<SearchResult[]>(() => this.groups().flatMap(group => group.results));
+	public readonly results = computed<SearchResult[]>(() => this.searchService.searchFlat(this.querySignal()));
 
 	public readonly activeResult = computed<SearchResult | null>(
 		() => this.results()[this.activeIndexSignal()] ?? null,

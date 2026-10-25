@@ -25,6 +25,13 @@ export class SearchNavigator
 			void this.router.navigate(['/', 'help', slug], {fragment: anchor});
 			return;
 		}
+		if (result.type === 'version') {
+			const target = this.versionManager.versions().find(version => version.id === result.id);
+			if (target !== undefined) {
+				void this.router.navigate(['/', this.versionManager.urlSlug(target)]);
+			}
+			return;
+		}
 
 		const version = this.versionManager.activeVersion();
 		if (version === null) {

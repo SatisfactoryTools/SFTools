@@ -13,6 +13,7 @@ import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {PlanResultHintComponent} from '@src/Components/Planner/Panels/ResultHint/PlanResultHintComponent';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'planner-build-cost',
@@ -56,9 +57,7 @@ export class PlannerBuildCostComponent
 		new Map(this.breakdown().remainingMaterials.map(material => [material.item.className, material.amount])));
 
 	public readonly totalMaterials: Signal<BuildCostMaterialRow[]> = computed(() => {
-		const term = this.searchTerm().trim().toLowerCase();
-		const materials = this.breakdown().materials;
-		return term === '' ? materials : materials.filter(material => material.item.name.toLowerCase().includes(term));
+		return this.matcher.filter(this.breakdown().materials, this.searchTerm(), material => material.item.name);
 	});
 
 	public readonly hasRows = computed(() => this.breakdown().rows.length > 0);
@@ -73,6 +72,7 @@ export class PlannerBuildCostComponent
 		private readonly breakdownService: PlanBreakdownService,
 		private readonly versionManager: VersionManager,
 		public readonly rateFormatter: RateFormatter,
+		private readonly matcher: TextMatcher,
 	)
 	{
 	}
@@ -120,11 +120,11 @@ export class PlannerBuildCostComponent
 		}
 		const matching: BuildCostRow[] = [];
 		rows.forEach(row => {
-			if (row.name.toLowerCase().includes(term)) {
+			if (this.matcher.matches(term, row.name)) {
 				matching.push(row);
 				return;
 			}
-			const materials = row.materials.filter(material => material.item.name.toLowerCase().includes(term));
+			const materials = this.matcher.filter(row.materials, term, material => material.item.name);
 			if (materials.length > 0) {
 				matching.push({...row, materials});
 			}

@@ -5,6 +5,7 @@ import {FitViewportDirective} from '@src/Components/Common/FitViewportDirective'
 import {FocusOnInitDirective} from '@src/Components/Common/FocusOnInitDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'item-picker',
@@ -39,6 +40,10 @@ export class ItemPickerComponent
 
 	public highlighted = 0;
 
+	public constructor(private readonly matcher: TextMatcher)
+	{
+	}
+
 	public get selected(): ItemPickerOption | null
 	{
 		return this.options.find(option => option.value === this.value) ?? null;
@@ -46,11 +51,7 @@ export class ItemPickerComponent
 
 	public get filtered(): ItemPickerOption[]
 	{
-		const term = this.search.trim().toLowerCase();
-		if (term === '') {
-			return this.options;
-		}
-		return this.options.filter(option => option.label.toLowerCase().includes(term));
+		return this.matcher.rank(this.options, this.search, option => option.label);
 	}
 
 	public select(option: ItemPickerOption, dropdown: BsDropdownDirective): void

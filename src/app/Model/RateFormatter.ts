@@ -100,9 +100,17 @@ export class RateFormatter
 	private format(value: number, digits: number): string
 	{
 		let text = value.toFixed(Math.max(0, digits));
-		// Only with a fractional part - never strip integer zeroes.
+		// Only with a fractional part - never strip integer zeroes. No regex: this runs in every template, and Firefox's
+		// regex engine throws "too much recursion" when the view tree leaves it little stack.
 		if (text.includes('.')) {
-			text = text.replace(/0+$/, '').replace(/\.$/, '');
+			let end = text.length;
+			while (text[end - 1] === '0') {
+				end--;
+			}
+			if (text[end - 1] === '.') {
+				end--;
+			}
+			text = text.slice(0, end);
 		}
 		if (text === '-0') {
 			text = '0';

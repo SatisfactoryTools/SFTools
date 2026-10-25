@@ -17,10 +17,23 @@ export class IconUrlService
 	{
 		// Some icon fields (schematics in particular) carry raw UE brush
 		// strings instead of hashes; anything not filename-safe has no image.
-		if (!hash || /[^A-Za-z0-9_-]/.test(hash)) {
+		if (!hash || !this.isFilenameSafe(hash)) {
 			return null;
 		}
 		return `${this.base}/${size}/${hash}.png`;
+	}
+
+	// No regex: this runs for every icon in every template, and Firefox's regex engine throws "too much recursion" when the view tree leaves it little stack.
+	private isFilenameSafe(hash: string): boolean
+	{
+		for (let i = 0; i < hash.length; i++) {
+			const c = hash.charCodeAt(i);
+			const safe = (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 45 || c === 95;
+			if (!safe) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 }

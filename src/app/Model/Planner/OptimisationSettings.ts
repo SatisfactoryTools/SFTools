@@ -1,3 +1,6 @@
+import {MachineCountingMode} from '@src/Model/Planner/MachineCountingMode';
+import {MachineWeight} from '@src/Model/Planner/MachineWeight';
+
 export interface OptimisationSettings
 {
 
@@ -9,5 +12,9 @@ export interface OptimisationSettings
 	readonly resourceWeights?: Record<string, number>;
 	readonly powerWeight?: number;
 	readonly machinesWeight?: number;
+	/** Absent = 'fractional'; 'whole' rounds every machine column up, which turns the model into a MIP. */
+	readonly machineCounting?: MachineCountingMode;
+	/** Per machine or generator; anything not listed costs machinesWeight. */
+	readonly machineWeights?: MachineWeight[];
 
 }

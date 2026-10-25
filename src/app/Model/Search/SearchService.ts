@@ -1,24 +1,29 @@
 import {Injectable} from '@angular/core';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {HelpArticleSummary} from '@src/Model/API/Schema/Help/HelpArticleSummary';
+import {Version} from '@src/Model/API/Schema/Version';
 import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
-import {SearchFragment} from '@src/Model/Search/SearchFragment';
-import {SearchMatch} from '@src/Model/Search/SearchMatch';
 import {SearchResult} from '@src/Model/Search/SearchResult';
 import {SearchResultGroup} from '@src/Model/Search/SearchResultGroup';
 import {SearchResultType} from '@src/Model/Search/SearchResultType';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 const MAX_RESULTS_PER_GROUP = 5;
-const ALL_TYPES: SearchResultType[] = ['item', 'recipe', 'building', 'schematic', 'plan', 'folder', 'article'];
-const SNIPPET_CONTEXT = 36;
-
-const SCORE_NAME_EXACT = 100;
-const SCORE_NAME_PREFIX = 80;
-const SCORE_NAME_SUBSTRING = 60;
-const SCORE_NAME_INITIALS = 50;
-const SCORE_DESCRIPTION = 30;
+const MAX_FLAT_RESULTS = 12;
+const MAX_FLAT_RESULTS_PER_TYPE = 3;
+const ALL_TYPES: SearchResultType[] = ['plan', 'folder', 'item', 'recipe', 'building', 'schematic', 'version', 'article'];
+const GROUP_LABELS: Record<SearchResultType, string> = {
+	plan: 'Plans',
+	folder: 'Folders',
+	item: 'Items',
+	recipe: 'Recipes',
+	building: 'Buildings',
+	schematic: 'Schematics',
+	version: 'Versions',
+	article: 'Help',
+};
 
 @Injectable({providedIn: 'root'})
 export class SearchService
@@ -30,6 +35,7 @@ export class SearchService
 		private readonly versionManager: VersionManager,
 		private readonly planManager: PlanManager,
 		private readonly help: HelpManager,
+		private readonly matcher: TextMatcher,
 	)
 	{
 	}
@@ -40,46 +46,79 @@ export class SearchService
 		limitPerGroup: number = MAX_RESULTS_PER_GROUP,
 	): SearchResultGroup[]
 	{
-		const normalized = query.trim().toLowerCase();
+		const normalized = this.matcher.normalize(query);
 		if (normalized.length < SearchService.MIN_QUERY_LENGTH) {
 			return [];
 		}
 
-		const groups: SearchResultGroup[] = [];
+		return types
+			.map(type => this.group(GROUP_LABELS[type], this.candidates(type, normalized), limitPerGroup))
+			.filter(group => group.results.length > 0);
+	}
+
+	/** One list for every kind: best match first, ties go to the kind listed first in ALL_TYPES. */
+	public searchFlat(
+		query: string,
+		limit: number = MAX_FLAT_RESULTS,
+		limitPerType: number = MAX_FLAT_RESULTS_PER_TYPE,
+	): SearchResult[]
+	{
+		const normalized = this.matcher.normalize(query);
+		if (normalized.length < SearchService.MIN_QUERY_LENGTH) {
+			return [];
+		}
+
+		const ranked = ALL_TYPES
+			.flatMap(type => this.candidates(type, normalized))
+			.filter((candidate): candidate is SearchResult => candidate !== null)
+			.sort((a, b) => b.score - a.score
+				|| ALL_TYPES.indexOf(a.type) - ALL_TYPES.indexOf(b.type)
+				|| a.name.localeCompare(b.name));
+
+		// Within one kind of match, a crowded kind goes after the first few of every other kind - but never below a weaker kind of match.
+		const counts = new Map<string, number>();
+		return ranked
+			.map((result, index) => {
+				const tier = this.matcher.tier(result.score);
+				const key = `${tier}:${result.type}`;
+				const count = counts.get(key) ?? 0;
+				counts.set(key, count + 1);
+				return {result, index, tier, overflow: count >= limitPerType ? 1 : 0};
+			})
+			.sort((a, b) => b.tier - a.tier || a.overflow - b.overflow || a.index - b.index)
+			.slice(0, limit)
+			.map(entry => entry.result);
+	}
+
+	private candidates(type: SearchResultType, query: string): (SearchResult | null)[]
+	{
 		const data = this.versionManager.activeVersionData();
-		if (data !== null) {
-			if (types.includes('item')) {
-				groups.push(this.group('Items', data.items.map(item =>
-					this.result('item', item.className, item.name, [item.icon], item.description, normalized)), limitPerGroup));
-			}
-			if (types.includes('recipe')) {
-				groups.push(this.group('Recipes', data.recipes.filter(recipe => !recipe.inBuildGun).map(recipe =>
-					this.result('recipe', recipe.className, recipe.name, recipe.products.map(p => p.item?.icon ?? null), null, normalized)), limitPerGroup));
-			}
-			if (types.includes('building')) {
-				groups.push(this.group('Buildings', data.buildings.map(building =>
-					this.result('building', building.className, building.name, [building.icon], building.description, normalized)), limitPerGroup));
-			}
-			if (types.includes('schematic')) {
-				groups.push(this.group('Schematics', data.schematics.map(schematic =>
-					this.result('schematic', schematic.className, schematic.name, [schematic.icon], schematic.description, normalized)), limitPerGroup));
-			}
+		switch (type) {
+			case 'plan':
+				return this.planManager.plans().map(plan => {
+					const result = this.result('plan', plan.id, plan.name, [], null, query);
+					return result !== null && plan.parentPlanId !== null ? {...result, kindLabel: 'Subplan'} : result;
+				});
+			case 'folder':
+				return this.planManager.folders().map(folder =>
+					this.result('folder', folder.id, folder.name, [], null, query));
+			case 'item':
+				return (data?.items ?? []).map(item =>
+					this.result('item', item.className, item.name, [item.icon], item.description, query));
+			case 'recipe':
+				return (data?.recipes ?? []).filter(recipe => !recipe.inBuildGun).map(recipe =>
+					this.result('recipe', recipe.className, recipe.name, recipe.products.map(p => p.item?.icon ?? null), null, query));
+			case 'building':
+				return (data?.buildings ?? []).map(building =>
+					this.result('building', building.className, building.name, [building.icon], building.description, query));
+			case 'schematic':
+				return (data?.schematics ?? []).map(schematic =>
+					this.result('schematic', schematic.className, schematic.name, [schematic.icon], schematic.description, query));
+			case 'version':
+				return this.versionManager.versions().map(version => this.versionResult(version, query));
+			case 'article':
+				return Object.entries(this.help.articles()).map(([slug, article]) => this.articleResult(slug, article, query));
 		}
-		if (types.includes('plan')) {
-			groups.push(this.group('Plans', this.planManager.plans().map(plan =>
-				this.result('plan', plan.id, plan.name, [], null, normalized)), limitPerGroup));
-		}
-		if (types.includes('folder')) {
-			groups.push(this.group('Folders', this.planManager.folders().map(folder =>
-				this.result('folder', folder.id, folder.name, [], null, normalized)), limitPerGroup));
-		}
-
-		if (types.includes('article')) {
-			groups.push(this.group('Help', Object.entries(this.help.articles()).map(([slug, article]) =>
-				this.articleResult(slug, article, normalized)), limitPerGroup));
-		}
-
-		return groups.filter(group => group.results.length > 0);
 	}
 
 	private result(
@@ -91,8 +130,18 @@ export class SearchService
 		query: string,
 	): SearchResult | null
 	{
-		const match = this.match(query, name, description);
+		const match = this.matcher.match(query, name, description);
 		return match !== null ? {type, id, name, icons, ...match} : null;
+	}
+
+	private versionResult(version: Version, query: string): SearchResult | null
+	{
+		const result = this.result('version', version.id, version.name, [], null, query);
+		if (result === null) {
+			return null;
+		}
+		const detail = version.custom ? 'Custom version' : this.versionManager.gameVersionRange(version);
+		return detail !== null ? {...result, snippet: [{text: detail, match: false}]} : result;
 	}
 
 	private articleResult(slug: string, article: HelpArticleSummary, query: string): SearchResult | null
@@ -102,26 +151,26 @@ export class SearchService
 			return direct;
 		}
 
-		const section = article.sections.find(entry => entry.title.toLowerCase().includes(query));
+		const section = article.sections.find(entry => this.matcher.matches(query, entry.title));
 		if (section !== undefined) {
 			return {
 				type: 'article',
 				id: HelpNavigation.pathFor(slug, section.id),
 				name: article.title,
 				icons: [],
-				score: SCORE_DESCRIPTION,
+				score: TextMatcher.SCORE_DESCRIPTION,
 				nameFragments: [{text: article.title, match: false}],
-				snippet: this.highlight(section.title, query),
+				snippet: this.matcher.match(query, section.title)?.nameFragments ?? null,
 			};
 		}
 
-		return article.keywords.some(keyword => keyword.toLowerCase().includes(query))
+		return article.keywords.some(keyword => this.matcher.matches(query, keyword))
 			? {
 				type: 'article',
 				id: slug,
 				name: article.title,
 				icons: [],
-				score: SCORE_DESCRIPTION,
+				score: TextMatcher.SCORE_DESCRIPTION,
 				nameFragments: [{text: article.title, match: false}],
 				snippet: null,
 			}
@@ -135,123 +184,6 @@ export class SearchService
 			.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
 			.slice(0, limit);
 		return {label, results};
-	}
-
-	private match(query: string, name: string, description: string | null): SearchMatch | null
-	{
-		const normalizedName = name.toLowerCase();
-		if (normalizedName === query) {
-			return {score: SCORE_NAME_EXACT, nameFragments: this.highlight(name, query), snippet: null};
-		}
-		if (normalizedName.startsWith(query)) {
-			return {score: SCORE_NAME_PREFIX, nameFragments: this.highlight(name, query), snippet: null};
-		}
-		if (normalizedName.includes(query)) {
-			return {score: SCORE_NAME_SUBSTRING, nameFragments: this.highlight(name, query), snippet: null};
-		}
-		const initialPositions = this.matchInitials(query, name);
-		if (initialPositions !== null) {
-			return {score: SCORE_NAME_INITIALS, nameFragments: this.highlightPositions(name, initialPositions), snippet: null};
-		}
-		if (description !== null) {
-			const index = description.toLowerCase().indexOf(query);
-			if (index >= 0) {
-				return {
-					score: SCORE_DESCRIPTION,
-					nameFragments: [{text: name, match: false}],
-					snippet: this.snippet(description, index, query.length),
-				};
-			}
-		}
-		return null;
-	}
-
-	private matchInitials(query: string, name: string): number[] | null
-	{
-		const words = [...name.matchAll(/[a-z0-9]+/gi)];
-		if (words.length < 2 || query.length > words.length) {
-			return null;
-		}
-
-		const positions: number[] = [];
-		let wordIndex = 0;
-		for (const char of query) {
-			let found = false;
-			while (wordIndex < words.length) {
-				const word = words[wordIndex];
-				wordIndex++;
-				if (word[0][0].toLowerCase() === char) {
-					positions.push(word.index!);
-					found = true;
-					break;
-				}
-				if (positions.length === 0) {
-					return null; // the first letter must match the first word
-				}
-			}
-			if (!found) {
-				return null;
-			}
-		}
-		return positions;
-	}
-
-	private highlight(text: string, query: string): SearchFragment[]
-	{
-		const lower = text.toLowerCase();
-		const fragments: SearchFragment[] = [];
-		let position = 0;
-		for (let index = lower.indexOf(query); index >= 0; index = lower.indexOf(query, position)) {
-			if (index > position) {
-				fragments.push({text: text.slice(position, index), match: false});
-			}
-			fragments.push({text: text.slice(index, index + query.length), match: true});
-			position = index + query.length;
-		}
-		if (position < text.length) {
-			fragments.push({text: text.slice(position), match: false});
-		}
-		return fragments;
-	}
-
-	private highlightPositions(text: string, positions: number[]): SearchFragment[]
-	{
-		const fragments: SearchFragment[] = [];
-		let cursor = 0;
-		positions.forEach(position => {
-			if (position > cursor) {
-				fragments.push({text: text.slice(cursor, position), match: false});
-			}
-			fragments.push({text: text.slice(position, position + 1), match: true});
-			cursor = position + 1;
-		});
-		if (cursor < text.length) {
-			fragments.push({text: text.slice(cursor), match: false});
-		}
-		return fragments;
-	}
-
-	private snippet(description: string, index: number, length: number): SearchFragment[]
-	{
-		const start = Math.max(0, index - SNIPPET_CONTEXT);
-		const end = Math.min(description.length, index + length + SNIPPET_CONTEXT * 2);
-
-		const fragments: SearchFragment[] = [];
-		const prefix = (start > 0 ? '…' : '') + this.flattenWhitespace(description.slice(start, index));
-		if (prefix !== '') {
-			fragments.push({text: prefix, match: false});
-		}
-		fragments.push({text: this.flattenWhitespace(description.slice(index, index + length)), match: true});
-		const suffix = this.flattenWhitespace(description.slice(index + length, end)) + (end < description.length ? '…' : '');
-		if (suffix !== '') {
-			fragments.push({text: suffix, match: false});
-		}
-		return fragments;
-	}
-
-	private flattenWhitespace(text: string): string
-	{
-		return text.replace(/\s+/g, ' ');
 	}
 
 }

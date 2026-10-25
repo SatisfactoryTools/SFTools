@@ -20,8 +20,11 @@ const CHUNK_MESSAGES = [
 	'Importing a module script failed',
 ];
 
-/** "Script error." is all a browser reveals about an error in another origin's script; the ResizeObserver one is harmless. */
-const BENIGN_MESSAGES = ['Script error', 'ResizeObserver loop'];
+/**
+ * "Script error." is all a browser reveals about an error in another origin's script; the ResizeObserver one is harmless.
+ * Firefox throws "Permission denied to access property" when a zone.js timer calls back into an extension's sandbox.
+ */
+const BENIGN_MESSAGES = ['Script error', 'ResizeObserver loop', 'Permission denied to access property'];
 
 /** The retry banner and the offline indicator already cover these. */
 const UNREACHABLE_STATUSES = [0, 502, 503, 504];
@@ -29,6 +32,9 @@ const UNREACHABLE_STATUSES = [0, 502, 503, 504];
 const STACK_URL = /\b[a-z][a-z0-9+.-]*:\/\/[^\s)'"]+/gi;
 
 const EXTENSION_URL = /^(chrome|moz|safari-web|ms-browser)-extension:\/\//;
+
+/** Safari runs userscripts (and some extensions' injected code) as "user-script:N" frames, which have no URL. */
+const USER_SCRIPT_FRAME = /(^|[\s@(])user-script:\d/m;
 
 @Injectable({providedIn: 'root'})
 export class ErrorClassifier
@@ -56,7 +62,7 @@ export class ErrorClassifier
 		}
 		// Our code only ever rejects with Error instances (desktop commands with strings). A bare undefined/null or a plain object
 		// ({} from in-app browsers on iOS, extension messaging replies like {requestId: "contentScriptVisibilityChanged …"}) has no stack and is someone else's.
-		if (error === undefined || error === null || this.isPlainObject(error)) {
+		if (error === undefined || error === null || this.isPlainObject(error) || this.isForeignError(error)) {
 			return 'ignore';
 		}
 		if (sourceUrl !== null && !this.isOwnUrl(sourceUrl)) {
@@ -73,8 +79,15 @@ export class ErrorClassifier
 		if (typeof error !== 'object' || error === null) {
 			return false;
 		}
+		// Not `=== Object.prototype`: objects from an extension's content-script world carry that realm's Object.prototype.
 		const prototype: unknown = Object.getPrototypeOf(error);
-		return prototype === null || prototype === Object.prototype;
+		return prototype === null || Object.getPrototypeOf(prototype) === null;
+	}
+
+	/** An Error from another realm (an extension's world or a frame) fails instanceof Error; ours never does. */
+	private isForeignError(error: unknown): boolean
+	{
+		return typeof error === 'object' && error !== null && !(error instanceof Error) && Object.prototype.toString.call(error) === '[object Error]';
 	}
 
 	private isOwnUrl(url: string | null): boolean
@@ -104,7 +117,11 @@ export class ErrorClassifier
 	 */
 	private thrownByOthers(error: Error): boolean
 	{
-		const frames = (error.stack ?? '').replace(error.message, '').match(STACK_URL);
+		const stack = (error.stack ?? '').replace(error.message, '');
+		if (USER_SCRIPT_FRAME.test(stack)) {
+			return true;
+		}
+		const frames = stack.match(STACK_URL);
 		return frames !== null && (EXTENSION_URL.test(frames[0]) || frames.every(url => !this.isOwnScript(url)));
 	}
 

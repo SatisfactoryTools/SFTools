@@ -1,5 +1,5 @@
 import {Component, ChangeDetectionStrategy, ElementRef, Input, computed, effect, signal} from '@angular/core';
-import {httpResource} from '@angular/common/http';
+import {HttpErrorResponse, httpResource} from '@angular/common/http';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronLeft, faChevronRight} from '@fortawesome/free-solid-svg-icons';
 import {HelpArticleCardComponent} from '@src/Components/Help/HelpArticleCardComponent';
@@ -182,7 +182,12 @@ export class HelpArticleComponent
 
 	protected readonly article = httpResource<HelpArticleFile>(() => this.help.articleUrl(this.slugSignal()));
 
-	protected readonly file = computed<HelpArticleFile | null>(() => this.article.value() ?? null);
+	protected readonly file = computed<HelpArticleFile | null>(() => this.article.hasValue() ? this.article.value() : null);
+
+	protected readonly notFound = computed(() => {
+		const error = this.article.error();
+		return error instanceof HttpErrorResponse && error.status === 404;
+	});
 
 	protected readonly categoryName = computed(() => {
 		const category = this.help.summary(this.slugSignal())?.category ?? '';

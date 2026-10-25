@@ -96,7 +96,7 @@
 	@if (actions.isCalculating()) {
 		<span class="state state-busy" tooltip="calculating…" container="body" placement="top"><span class="dot"></span><span class="state-text">calculating…</span></span>
 	} @else if (actions.solveError(); as error) {
-		<span class="state state-error" [tooltip]="error" container="body" placement="top"><span class="dot"></span><span class="state-text">{{ error }}</span></span>
+		<span class="state" [class.state-error]="!actions.solveErrorIsSettingsProblem()" [class.state-modified]="actions.solveErrorIsSettingsProblem()" [tooltip]="actions.solveErrorDetail() ?? error" container="body" placement="top"><span class="dot"></span><span class="state-text">{{ error }}</span></span>
 	} @else if (hasGraph() && automaticPaused()) {
 		<span class="state state-modified" tooltip="Press Calculate to build the graph again. Locked nodes are kept." container="body" placement="top"><span class="dot"></span><span class="state-text">edited by hand · calculation paused</span></span>
 	} @else if (hasGraph() && graphDirty()) {

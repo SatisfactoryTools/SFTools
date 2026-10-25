@@ -12,6 +12,7 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {PlanResultHintComponent} from '@src/Components/Planner/Panels/ResultHint/PlanResultHintComponent';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'planner-power',
@@ -48,6 +49,7 @@ export class PlannerPowerComponent
 		private readonly planManager: PlanManager,
 		private readonly breakdownService: PlanBreakdownService,
 		public readonly rateFormatter: RateFormatter,
+		private readonly matcher: TextMatcher,
 	)
 	{
 	}
@@ -91,11 +93,11 @@ export class PlannerPowerComponent
 		}
 		const matching: PowerRow[] = [];
 		rows.forEach(row => {
-			if (row.name.toLowerCase().includes(term)) {
+			if (this.matcher.matches(term, row.name)) {
 				matching.push(row);
 				return;
 			}
-			const entries = row.entries.filter(entry => entry.name.toLowerCase().includes(term));
+			const entries = this.matcher.filter(row.entries, term, entry => entry.name);
 			if (entries.length > 0) {
 				matching.push({...row, entries});
 			}

@@ -74,9 +74,15 @@ export class Data
 		const classNames = new Set<string>();
 
 		this.recipes.forEach(recipe => {
-			if (recipe.producedIn.length > 0) {
-				recipe.products.forEach(p => classNames.add(p.item.className));
+			if (recipe.inBuildGun || recipe.producedIn.length === 0) {
+				return;
 			}
+			recipe.products.forEach(({item}) => {
+				// Hydration tolerates dangling references (mods) - skip them here.
+				if (item) {
+					classNames.add(item.className);
+				}
+			});
 		});
 
 		this.buildings.forEach(building => {

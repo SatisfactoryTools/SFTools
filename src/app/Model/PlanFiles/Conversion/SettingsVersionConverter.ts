@@ -41,6 +41,10 @@ export class SettingsVersionConverter
 			recipeClockSpeeds: settings.recipeClockSpeeds?.filter(entry => hasRecipe(entry.recipeClassName)),
 			machineClockSpeeds: settings.machineClockSpeeds?.filter(entry => hasBuilding(entry.machineClassName)),
 			generatorClockSpeeds: settings.generatorClockSpeeds?.filter(entry => hasBuilding(entry.generatorClassName)),
+			optimisation: settings.optimisation?.machineWeights === undefined ? settings.optimisation : {
+				...settings.optimisation,
+				machineWeights: settings.optimisation.machineWeights.filter(entry => hasBuilding(entry.machineClassName)),
+			},
 			// Cosmetic: dropped silently.
 			graph: settings.graph?.machineColors === undefined ? settings.graph : {
 				...settings.graph,

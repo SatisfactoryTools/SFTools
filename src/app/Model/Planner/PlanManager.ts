@@ -816,7 +816,9 @@ export class PlanManager extends SyncableService<PlanStore>
 			sinkableItems: settings.sinkableItems ? [...settings.sinkableItems] : undefined,
 			producePowerForFactory: settings.producePowerForFactory,
 			excessPowerPercent: settings.excessPowerPercent,
-			optimisation: settings.optimisation ? {...settings.optimisation} : undefined,
+			optimisation: settings.optimisation
+				? {...settings.optimisation, machineWeights: settings.optimisation.machineWeights?.map(entry => ({...entry}))}
+				: undefined,
 			defaultGroupingMode: settings.defaultGroupingMode,
 			defaultClockSpeed: settings.defaultClockSpeed,
 			recipeClockSpeeds: settings.recipeClockSpeeds ? settings.recipeClockSpeeds.map(entry => ({...entry})) : undefined,

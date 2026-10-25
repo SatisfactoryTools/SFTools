@@ -10,6 +10,7 @@ import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownSe
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {PlanResultHintComponent} from '@src/Components/Planner/Panels/ResultHint/PlanResultHintComponent';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'planner-items',
@@ -46,6 +47,7 @@ export class PlannerItemsComponent
 		private readonly planManager: PlanManager,
 		private readonly breakdownService: PlanBreakdownService,
 		public readonly rateFormatter: RateFormatter,
+		private readonly matcher: TextMatcher,
 	)
 	{
 	}
@@ -81,12 +83,12 @@ export class PlannerItemsComponent
 		}
 		const matching: ItemRow[] = [];
 		rows.forEach(row => {
-			if (row.item.name.toLowerCase().includes(term)) {
+			if (this.matcher.matches(term, row.item.name)) {
 				matching.push(row);
 				return;
 			}
-			const sources = row.sources.filter(flow => flow.name.toLowerCase().includes(term));
-			const targets = row.targets.filter(flow => flow.name.toLowerCase().includes(term));
+			const sources = this.matcher.filter(row.sources, term, flow => flow.name);
+			const targets = this.matcher.filter(row.targets, term, flow => flow.name);
 			if (sources.length > 0 || targets.length > 0) {
 				matching.push({...row, sources, targets});
 			}

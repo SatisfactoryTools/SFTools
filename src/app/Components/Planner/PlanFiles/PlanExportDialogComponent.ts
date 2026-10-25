@@ -21,6 +21,7 @@ import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {PlanTree} from '@src/Model/Planner/PlanTree';
 import {PlanTreeFolder} from '@src/Model/Planner/PlanTreeFolder';
 import {PlanTreePlan} from '@src/Model/Planner/PlanTreePlan';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'plan-export-dialog',
@@ -96,8 +97,8 @@ export class PlanExportDialogComponent implements OnInit
 	});
 
 	public readonly matchingIds: Signal<ReadonlySet<string> | null> = computed(() => {
-		const query = this.querySignal().trim().toLowerCase();
-		return query === '' ? null : new Set(this.rows().filter(row => row.name.toLowerCase().includes(query)).map(row => row.id));
+		const query = this.querySignal();
+		return this.matcher.normalize(query) === '' ? null : new Set(this.matcher.filter(this.rows(), query, row => row.name).map(row => row.id));
 	});
 
 	/** Hits plus the folders and plans above them, so each hit is seen in its place. */
@@ -166,6 +167,7 @@ export class PlanExportDialogComponent implements OnInit
 		private readonly downloader: FileDownloader,
 		private readonly notifications: NotificationService,
 		private readonly planIcons: PlanIconResolver,
+		private readonly matcher: TextMatcher,
 		private readonly planNames: PlanNameResolver,
 	)
 	{

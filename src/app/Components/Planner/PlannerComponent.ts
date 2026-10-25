@@ -109,6 +109,7 @@ import {PlanExportDialogComponent} from '@src/Components/Planner/PlanFiles/PlanE
 import {PlanImportDialogComponent} from '@src/Components/Planner/PlanFiles/PlanImportDialogComponent';
 import {PlanFileDialogService} from '@src/Model/PlanFiles/PlanFileDialogService';
 import {GraphExportDialogService} from '@src/Components/Planner/Export/GraphExportDialogService';
+import {SolveSettingsError} from '@src/Model/Planner/Solver/SolveSettingsError';
 
 // Matches the reconciler's absolute warning tolerance.
 const FLOW_TOLERANCE = 0.001;
@@ -600,6 +601,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		// Also re-render when read-only state flips (moving a device plan into the account keeps it selected).
 		this.subscription.add(
 			toObservable(this.planManager.activePlan).pipe(skip(1)).subscribe(plan => {
+				// A plan picked before the view exists is rendered by ngAfterViewInit.
+				if (!this.graphContainerRef) return;
 				if (plan?.id === this.renderedPlanId && (plan === null || this.planManager.isReadOnlyPlan(plan.id) === this.plannerGraph.readOnly)) return;
 				this.actions.setSolveError(null);
 				this.renderPlan(plan);
@@ -2052,7 +2055,11 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		try {
 			result$ = this.productionSolver.solve({...plan, requests: validRequests}, lockedNodes);
 		} catch (err) {
-			this.actions.setSolveError('error', 'Could not start the calculation: ' + String(err) + '. This is a bug, please tell me on Discord.');
+			if (err instanceof SolveSettingsError) {
+				this.actions.setSettingsProblem(err);
+			} else {
+				this.actions.setSolveError('error', 'Could not start the calculation: ' + String(err) + '. This is a bug, please tell me on Discord.');
+			}
 			return;
 		}
 
@@ -2076,6 +2083,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				});
 			},
 			error: err => {
+				if (err instanceof SolveSettingsError) {
+					this.actions.setSettingsProblem(err);
+					return;
+				}
 				console.error('Solver error:', err);
 				this.actions.setSolveError('error', 'Calculation failed: ' + String(err instanceof Error ? err.message : err));
 			},

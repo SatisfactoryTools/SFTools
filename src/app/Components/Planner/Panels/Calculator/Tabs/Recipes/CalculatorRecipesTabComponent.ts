@@ -15,6 +15,7 @@ import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver'
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConversionRecipeResolver';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {TextMatcher} from '@src/Model/Search/TextMatcher';
 
 @Component({
 	selector: 'calculator-recipes-tab',
@@ -48,6 +49,7 @@ export class CalculatorRecipesTabComponent
 		private readonly resolver: EnabledRecipesResolver,
 		private readonly conversions: ResourceConversionRecipeResolver,
 		public readonly rateFormatter: RateFormatter,
+		private readonly matcher: TextMatcher,
 		collapsedSections: CollapsedSectionsService,
 	)
 	{
@@ -139,15 +141,18 @@ export class CalculatorRecipesTabComponent
 
 	private filterAndRank(recipes: Recipe[]): Recipe[]
 	{
-		const query = this.filter.trim().toLowerCase();
-		if (!query) return recipes;
+		const query = this.filter;
+		if (this.matcher.normalize(query) === '') return recipes;
 
-		const byRecipeName = recipes.filter(recipe => this.displayName(recipe).toLowerCase().includes(query));
-		const matched = new Set(byRecipeName.map(recipe => recipe.className));
-		const byProductName = recipes.filter(recipe => !matched.has(recipe.className)
-			&& recipe.products.some(product => product.item.name.toLowerCase().includes(query)));
-
-		return [...byRecipeName, ...byProductName];
+		// Product-name hits rank below every recipe-name hit.
+		return this.matcher.rankBy(recipes, recipe => {
+			const byName = this.matcher.score(query, this.displayName(recipe));
+			if (byName !== null) return byName;
+			const byProduct = recipe.products
+				.map(product => this.matcher.score(query, product.item.name))
+				.filter((score): score is number => score !== null);
+			return byProduct.length > 0 ? Math.max(...byProduct) - TextMatcher.SCORE_NAME_EXACT : null;
+		});
 	}
 
 	private enabledSet(): Set<string> | null
