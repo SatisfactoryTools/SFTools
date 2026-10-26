@@ -26,6 +26,7 @@ import {DataTransformer} from '@src/Model/Data/DataTransformer';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {WorldLimitsCalculator} from '@src/Model/Data/WorldLimitsCalculator';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {SaveFileService} from '@src/Model/SaveFile/SaveFileService';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 
@@ -173,6 +174,7 @@ export class CreateVersionPageComponent
 		protected readonly versionManager: VersionManager,
 		private readonly transformer: DataTransformer,
 		private readonly limitsCalculator: WorldLimitsCalculator,
+		private readonly saveFiles: SaveFileService,
 		protected readonly formatter: RateFormatter,
 		private readonly router: Router,
 	)
@@ -235,6 +237,35 @@ export class CreateVersionPageComponent
 		this.loadedSettings = null;
 		this.worldDirty = false;
 		this.worldError = null;
+	}
+
+	public loadWorldFromSave(event: Event): void
+	{
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		input.value = '';
+		if (!file || this.worldLoading) {
+			return;
+		}
+		this.worldLoading = true;
+		this.worldError = null;
+		this.saveFiles.parse(file).subscribe({
+			next: unlocks => {
+				this.worldLoading = false;
+				if (unlocks.world === null) {
+					this.worldError = 'This save does not say how its resource nodes were set up.';
+					return;
+				}
+				this.worldSeed = unlocks.world.seed;
+				this.worldMode = unlocks.world.mode;
+				this.worldPurity = unlocks.world.purity;
+				this.loadWorldPreview();
+			},
+			error: (error: Error) => {
+				this.worldLoading = false;
+				this.worldError = error.message;
+			},
+		});
 	}
 
 	public loadWorldPreview(): void

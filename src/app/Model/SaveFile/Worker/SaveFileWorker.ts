@@ -1,7 +1,10 @@
 /// <reference lib="webworker" />
-import {Parser, UnsupportedVersionError, isArrayProperty} from '@etothepii/satisfactory-file-parser';
+import {Parser, UnsupportedVersionError, isArrayProperty, isEnumProperty, isIntProperty} from '@etothepii/satisfactory-file-parser';
 import type {ObjectReference, SatisfactorySave, SaveComponent, SaveEntity} from '@etothepii/satisfactory-file-parser';
+import type {WorldDataMode} from '@src/Model/API/Schema/World/WorldDataMode';
+import type {WorldDataPurity} from '@src/Model/API/Schema/World/WorldDataPurity';
 import type {SaveFileUnlocks} from '@src/Model/SaveFile/SaveFileUnlocks';
+import type {SaveFileWorld} from '@src/Model/SaveFile/SaveFileWorld';
 import type {SaveFileWorkerRequest} from './SaveFileWorkerRequest';
 import type {SaveFileWorkerResponse} from './SaveFileWorkerResponse';
 
@@ -37,7 +40,38 @@ function extractUnlocks(save: SatisfactorySave): SaveFileUnlocks
 		sessionName: save.header.sessionName || null,
 		schematics: schematics ?? [],
 		recipes: recipes ?? [],
+		world: readWorld(objects),
 	};
+}
+
+const WORLD_MODES: readonly WorldDataMode[] = ['none', 'random', 'basic-rich', 'advanced-rich', 'fossil-fuel-rich'];
+const WORLD_PURITIES: readonly WorldDataPurity[] = ['no-change', 'all-impure', 'decrease', 'all-normal', 'increase', 'all-pure', 'all-random'];
+
+/** Unreal skips properties left at their default, so a missing one means vanilla (no randomization, seed 0). Unknown settings give null rather than failing the unlocks. */
+function readWorld(objects: (SaveEntity | SaveComponent)[]): SaveFileWorld | null
+{
+	const state = objects.find(object => object.typePath.endsWith('.BP_GameState_C'));
+	if (!state) {
+		return null;
+	}
+	const seed = state.properties['mNodeRandomizationSeed'];
+	const mode = readWorldEnum(state.properties['mNodeRandomization'], WORLD_MODES);
+	const purity = readWorldEnum(state.properties['mNodePuritySettings'], WORLD_PURITIES);
+	if (mode === null || purity === null) {
+		return null;
+	}
+	return {seed: isIntProperty(seed) ? seed.value : 0, mode, purity};
+}
+
+/** ENodeRandomizationMode::NRM_AdvancedRich -> advanced-rich; the API's values are the game's names in kebab case. */
+function readWorldEnum<T extends string>(property: unknown, values: readonly T[]): T | null
+{
+	if (property === undefined) {
+		return values[0];
+	}
+	const name = isEnumProperty(property) ? property.value.value : '';
+	const value = name.replace(/^.*::[A-Z]+_/, '').replace(/(?<=[a-z])(?=[A-Z])/g, '-').toLowerCase();
+	return (values as readonly string[]).includes(value) ? value as T : null;
 }
 
 function readReferencedClassNames(objects: (SaveEntity | SaveComponent)[], typePathSuffixes: string[], propertyName: string): string[] | null

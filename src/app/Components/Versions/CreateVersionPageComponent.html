@@ -125,6 +125,14 @@
 				<div class="card-body d-flex flex-column gap-2">
 					<info-note>Optional. Your world's node counts become the default resource limits.</info-note>
 
+					<div class="d-flex align-items-center gap-2 flex-wrap">
+						<label class="btn btn-sm btn-outline-primary mb-0" [class.disabled]="worldLoading">
+							Load from save…
+							<input type="file" accept=".sav" hidden [disabled]="worldLoading" (change)="loadWorldFromSave($event)"/>
+						</label>
+						<span class="small text-secondary">Reads the seed, mode and purity from your .sav. It stays on your computer.</span>
+					</div>
+
 					<div class="row g-2 align-items-end">
 						<div class="col-6 col-md-3">
 							<label class="form-label small mb-1">Seed</label>
