@@ -1,4 +1,5 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
+import {Location} from '@angular/common';
 import {Router, RouterLink, ActivatedRoute} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {HttpErrorResponse} from '@angular/common/http';
@@ -25,9 +26,14 @@ export class ResetPasswordComponent
 		private readonly authApiService: AuthApiService,
 		private readonly router: Router,
 		route: ActivatedRoute,
+		location: Location,
 	)
 	{
 		this.token = route.snapshot.queryParamMap.get('token') ?? '';
+		// Out of the address bar (and so out of history, screenshots and copied links) once it is read.
+		if (this.token !== '') {
+			location.replaceState(location.path().split('?')[0]);
+		}
 	}
 
 	public submit(): void

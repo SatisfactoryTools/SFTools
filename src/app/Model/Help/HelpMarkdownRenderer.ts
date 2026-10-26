@@ -181,7 +181,8 @@ export class HelpMarkdownRenderer
 				+ `${tooltipAttribute(this.panelTooltip(links.panelLabel(panel[1])))}>${this.linkIcon('panel')}${text}</a>`;
 		}
 
-		if (href.startsWith('/')) {
+		// "//host" and "/\host" are other sites to a browser, not app routes.
+		if (href.startsWith('/') && !href.startsWith('//') && !href.startsWith('/\\')) {
 			return `<a href="${this.escape(href)}" data-help-route="${this.escape(href)}"${tooltipAttribute('')}>${text}</a>`;
 		}
 

@@ -8,4 +8,5 @@ export interface OAuthCallbackResponse
 	readonly linked?: boolean;
 	readonly message?: string;
 	readonly desktop?: boolean;
+	readonly confirmRequired?: boolean;
 }

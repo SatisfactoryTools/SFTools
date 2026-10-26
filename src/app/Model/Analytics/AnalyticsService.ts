@@ -7,6 +7,8 @@ import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 
 type MatomoQueue = {push: (command: unknown[]) => unknown};
 
+const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+
 @Injectable({providedIn: 'root'})
 export class AnalyticsService
 {
@@ -43,7 +45,7 @@ export class AnalyticsService
 		router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe(event => {
 			const url = new URL(event.urlAfterRedirects, this.pageOrigin);
 			if (this.connectivity.online()) {
-				this.push(['setCustomUrl', url.href]);
+				this.push(['setCustomUrl', this.trackedUrl(url)]);
 				this.push(['setDocumentTitle', document.title]);
 				this.push(['trackPageView']);
 			}
@@ -63,6 +65,15 @@ export class AnalyticsService
 			return;
 		}
 		this.push(['trackEvent', category, action, name, value]);
+	}
+
+	/**
+	 * Query strings carry sign-in codes and reset tokens, and plan and share ids open the plan for anyone holding them,
+	 * so only the path goes out, with ids replaced.
+	 */
+	private trackedUrl(url: URL): string
+	{
+		return new URL(url.pathname.replace(UUID, ':id'), this.pageOrigin).href;
 	}
 
 	/** Blockers replace or stub out _paq (and the tracker itself can throw), and analytics must never break the app. */

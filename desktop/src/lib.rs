@@ -75,6 +75,7 @@ pub fn run() {
 			cache::cache_prefetch_images,
 			cache::cache_info,
 			cache::cache_clear,
+			cache::cache_clear_account,
 			links::open_external,
 			exports::export_save,
 			deep_links::deep_link_ready,

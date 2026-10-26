@@ -35,6 +35,7 @@
 					#editInput
 					class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"
 					[(ngModel)]="editValue"
+					maxlength="255"
 					(keydown)="onEditKeydown($event)"
 					(blur)="commitEdit()"
 					placeholder="{{ item.mode === 'folder' ? 'Folder name' : 'Plan name' }}"
@@ -77,6 +78,7 @@
 						#editInput
 						class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"
 						[(ngModel)]="editValue"
+						maxlength="255"
 						(click)="$event.stopPropagation()"
 						(keydown)="onEditKeydown($event)"
 						(blur)="commitEdit()"
@@ -136,6 +138,7 @@
 						#editInput
 						class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"
 						[(ngModel)]="editValue"
+						maxlength="255"
 						(click)="$event.stopPropagation()"
 						(keydown)="onEditKeydown($event)"
 						(blur)="commitEdit()"

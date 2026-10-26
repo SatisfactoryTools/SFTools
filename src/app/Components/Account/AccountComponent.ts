@@ -10,6 +10,7 @@ import {OAuthConnection} from '@src/Model/API/Schema/Auth/OAuthConnection';
 import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {DesktopOAuthFlow} from '@src/Model/Auth/DesktopOAuthFlow';
+import {OAuthFlowStore} from '@src/Model/Auth/OAuthFlowStore';
 import {OAuthProviderInfo} from '@src/Model/Auth/OAuthProviderInfo';
 import {OAuthProviders} from '@src/Model/Auth/OAuthProviders';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
@@ -69,6 +70,7 @@ export class AccountComponent
 		protected readonly authService: AuthService,
 		protected readonly account: AccountProfileService,
 		protected readonly desktopOAuth: DesktopOAuthFlow,
+		private readonly flowStore: OAuthFlowStore,
 		route: ActivatedRoute,
 	)
 	{
@@ -176,7 +178,10 @@ export class AccountComponent
 			return;
 		}
 		this.oauthApiService.start(provider.key, true).subscribe({
-			next: response => window.location.href = response.authorizationUrl,
+			next: response => {
+				this.flowStore.remember({state: response.state, provider: provider.key, link: true});
+				window.location.href = response.authorizationUrl;
+			},
 			error: () => {
 				this.error = `Could not start connecting ${provider.label}.`;
 				this.startingProvider = null;

@@ -17,6 +17,7 @@
 					class="form-control bg-dark text-light border-secondary fw-semibold"
 					style="max-width: 420px;"
 					[(ngModel)]="nameDraft"
+					maxlength="255"
 					(keydown.enter)="saveName()"
 				/>
 				@if (nameDraft.trim() !== currentMod.name) {
@@ -43,6 +44,7 @@
 					class="form-control form-control-sm bg-dark text-light border-secondary"
 					placeholder="New version label, e.g. 1.0"
 					[(ngModel)]="newVersionName"
+					maxlength="255"
 					(keydown.enter)="addVersion()"
 				/>
 				<button type="button" class="btn btn-sm btn-success flex-shrink-0" [disabled]="creatingVersion" (click)="addVersion()">Add version</button>
@@ -57,6 +59,7 @@
 							class="form-control form-control-sm bg-dark text-light border-secondary"
 							style="max-width: 160px;"
 							[(ngModel)]="renameDraft"
+							maxlength="255"
 							(keydown.enter)="applyRename(version)"
 							(blur)="applyRename(version)"
 						/>

@@ -32,9 +32,15 @@ export class OAuthApiService
 		});
 	}
 
-	public callback(provider: string, params: Record<string, string>): Observable<OAuthCallbackResponse>
+	/**
+	 * startedHere: this browser started the flow (see OAuthFlowStore). A link flow must come back signed in as the account it links to,
+	 * and a desktop flow needs the code the app shows.
+	 */
+	public callback(provider: string, params: Record<string, string>, startedHere: boolean, link: boolean, confirmCode: string | null = null): Observable<OAuthCallbackResponse>
 	{
-		return this.http.post<OAuthCallbackResponse>(`${this.base}/${provider}/callback`, {params});
+		return this.http.post<OAuthCallbackResponse>(`${this.base}/${provider}/callback`, {params, startedHere, ...(confirmCode !== null ? {confirmCode} : {})}, {
+			context: link ? AuthenticatedRequest.context() : undefined,
+		});
 	}
 
 	/** Observed as a response: 202 means the browser has not come back yet. */

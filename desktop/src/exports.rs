@@ -6,6 +6,17 @@ use tauri_plugin_opener::OpenerExt;
 
 use crate::storage::write_atomic;
 
+/// Whatever runs in the webview can call this command, so it may only ever write the app's own export
+/// formats, never an executable or a script.
+const ALLOWED_EXTENSIONS: [&str; 3] = ["png", "svg", "sft"];
+
+/// Only a PNG is opened: an SVG (it can carry scripts) and an .sft are just shown in their folder.
+const OPENED_EXTENSIONS: [&str; 1] = ["png"];
+
+fn extension_of(file_name: &str) -> Option<String> {
+	file_name.rsplit_once('.').map(|(_, extension)| extension.to_ascii_lowercase())
+}
+
 fn safe_file_name(name: &str) -> String {
 	let cleaned: String = name
 		.chars()
@@ -47,13 +58,19 @@ pub fn export_save(app: tauri::AppHandle, request: Request<'_>) -> Result<String
 		InvokeBody::Raw(bytes) => bytes,
 		InvokeBody::Json(_) => return Err("Expected a binary body".to_string()),
 	};
+	let file_name = safe_file_name(&name);
+	let extension = extension_of(&file_name).unwrap_or_default();
+	if !ALLOWED_EXTENSIONS.contains(&extension.as_str()) {
+		return Err(format!("Files of type .{extension} cannot be exported"));
+	}
 	let dir = app.path().download_dir().map_err(|e| e.to_string())?;
 	fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-	let path = unique_path(&dir, &safe_file_name(&name));
+	let path = unique_path(&dir, &file_name);
 	write_atomic(&path, bytes)?;
 	let shown = path.to_string_lossy().into_owned();
 	// Plan exports are only revealed: this app opens .sft files, so opening one would import it straight back.
-	let reveal = request.headers().get("x-after-save").and_then(|value| value.to_str().ok()) == Some("reveal");
+	let reveal = request.headers().get("x-after-save").and_then(|value| value.to_str().ok()) == Some("reveal")
+		|| !OPENED_EXTENSIONS.contains(&extension.as_str());
 	let result = if reveal { app.opener().reveal_item_in_dir(&path) } else { app.opener().open_path(&shown, None::<&str>) };
 	if let Err(error) = result {
 		eprintln!("Could not open {shown}: {error}");

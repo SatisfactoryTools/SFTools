@@ -44,11 +44,17 @@ DirectoryIndex index.php index.html
 <IfModule mod_headers.c>
 	Header set X-Robots-Tag "noindex, nofollow" env=SFTOOLS_BETA_HOST
 
-	<Files "index.html">
+	# blob: + wasm-unsafe-eval: the solver runs HiGHS (WebAssembly) in a worker built from a blob.
+	# Images may come from any https host: provider avatars (Discord, GitHub, Google, Steam).
+	Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://analytics.greeny.dev; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.new.satisfactorytools.com https://analytics.greeny.dev blob: data:; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+	Header always set X-Content-Type-Options "nosniff"
+	Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+	<FilesMatch "^(index\.html|boot-fallback\.js)$">
 		Header set Cache-Control "no-cache, no-store, must-revalidate"
 		Header set Pragma "no-cache"
 		Header set Expires "0"
-	</Files>
+	</FilesMatch>
 	<FilesMatch "-[0-9A-Z]{8}\.(js|mjs|css)$">
 		Header set Cache-Control "public, max-age=31536000, immutable"
 	</FilesMatch>

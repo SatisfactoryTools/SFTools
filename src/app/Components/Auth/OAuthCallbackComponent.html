@@ -1,10 +1,37 @@
-<auth-layout [title]="error ? 'Sign-in failed' : completedForDesktop ? 'Signed in' : 'Signing in'">
+<auth-layout [title]="error ? 'Sign-in failed' : completedForDesktop ? 'Signed in' : confirmRequired ? 'Desktop app sign-in' : 'Signing in'">
 	@if (completedForDesktop) {
 		<p class="text-center py-2 mb-2">You are signed in to the desktop app. You can close this tab.</p>
 		<a href="sftools://" class="btn btn-sm btn-primary w-100">Open the desktop app</a>
 	} @else if (error; as message) {
 		<div class="alert alert-danger py-2">{{ message }}</div>
 		<a routerLink="/auth/login" class="btn btn-sm btn-outline-secondary w-100">Back to sign-in</a>
+	} @else if (confirmRequired) {
+		<p class="mb-2">
+			This {{ providerLabel }} sign-in is for the Satisfactory Tools desktop app.
+			Only go on if you started it in the desktop app yourself, not because someone sent you a link.
+		</p>
+		<a [href]="appLink" class="btn btn-sm btn-primary w-100 mb-1">Finish in the desktop app</a>
+		<p class="small text-secondary mb-3">If the app opens, the sign-in finishes there and you can close this tab.</p>
+
+		<form (ngSubmit)="confirm()">
+			<label class="form-label small" for="confirm-code">Or type the code shown in the desktop app</label>
+			@if (confirmError) {
+				<div class="alert alert-danger py-2">{{ confirmError }}</div>
+			}
+			<div class="d-flex gap-2">
+				<input
+					class="form-control form-control-sm text-uppercase"
+					id="confirm-code"
+					name="code"
+					[(ngModel)]="code"
+					maxlength="12"
+					autocomplete="off"
+					spellcheck="false"
+					required
+				>
+				<button type="submit" class="btn btn-sm btn-outline-primary" [disabled]="confirming || code.trim() === ''">Confirm</button>
+			</div>
+		</form>
 	} @else {
 		<div class="text-center text-secondary py-3">
 			<span class="spinner-border spinner-border-sm me-2" role="status"></span>

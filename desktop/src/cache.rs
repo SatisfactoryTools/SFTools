@@ -26,10 +26,13 @@ fn cache_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 	Ok(app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("sftools-cache"))
 }
 
+/// Answers fetched while signed in (OfflineCacheKey ends those keys with " account") live apart,
+/// so signing out can drop them without touching the shared game data.
 fn response_path(app: &tauri::AppHandle, key: &str) -> Result<PathBuf, String> {
 	let hash = Sha256::digest(key.as_bytes());
 	let name: String = hash.iter().map(|byte| format!("{byte:02x}")).collect();
-	Ok(cache_dir(app)?.join("responses").join(format!("{name}.json")))
+	let folder = if key.ends_with(" account") { "responses-account" } else { "responses" };
+	Ok(cache_dir(app)?.join(folder).join(format!("{name}.json")))
 }
 
 fn image_path(app: &tauri::AppHandle, reference: &str) -> Option<PathBuf> {
@@ -218,6 +221,15 @@ pub async fn cache_info(app: tauri::AppHandle) -> Result<CacheInfo, String> {
 pub async fn cache_clear(app: tauri::AppHandle) -> Result<(), String> {
 	let dir = cache_dir(&app)?;
 	match fs::remove_dir_all(&dir) {
+		Ok(()) => Ok(()),
+		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+		Err(error) => Err(error.to_string()),
+	}
+}
+
+#[tauri::command]
+pub async fn cache_clear_account(app: tauri::AppHandle) -> Result<(), String> {
+	match fs::remove_dir_all(cache_dir(&app)?.join("responses-account")) {
 		Ok(()) => Ok(()),
 		Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
 		Err(error) => Err(error.to_string()),

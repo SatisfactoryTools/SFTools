@@ -2,6 +2,7 @@ import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {env} from '@env/env';
+import {NameLimit} from '@src/Model/API/NameLimit';
 import {FolderSchema} from '@src/Model/API/Schema/Plans/FolderSchema';
 
 @Injectable({providedIn: 'root'})
@@ -14,12 +15,12 @@ export class FoldersApiService
 
 	public createFolder(versionId: string, id: string, name: string, parent: string | null, data?: string): Observable<FolderSchema>
 	{
-		return this.http.post<FolderSchema>(this.foldersBase(versionId), {id, name, parent, data});
+		return this.http.post<FolderSchema>(this.foldersBase(versionId), {id, name: NameLimit.clamp(name), parent, data});
 	}
 
 	public updateFolder(versionId: string, id: string, revision: number, fields: {name?: string; data?: string}): Observable<FolderSchema>
 	{
-		return this.http.put<FolderSchema>(`${this.foldersBase(versionId)}/${id}`, {...fields, revision});
+		return this.http.put<FolderSchema>(`${this.foldersBase(versionId)}/${id}`, {...fields, ...(fields.name !== undefined ? {name: NameLimit.clamp(fields.name)} : {}), revision});
 	}
 
 	public moveFolder(versionId: string, id: string, parent: string | null): Observable<FolderSchema>

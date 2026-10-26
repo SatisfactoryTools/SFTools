@@ -11,6 +11,9 @@ concurrency:
 env:
     DESKTOP_VERSION: 1.0.${{ github.run_number }}
 
+permissions:
+    contents: read
+
 jobs:
     build:
         runs-on: ubuntu-latest
@@ -68,11 +71,14 @@ jobs:
                 env:
                     DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
                     DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+                    DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
                 run: |
                     mkdir -p ~/.ssh
                     printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/id_deploy
                     chmod 600 ~/.ssh/id_deploy
-                    ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+                    # Pinned host key: a scan at deploy time would trust whatever answers on that address.
+                    test -n "$DEPLOY_KNOWN_HOSTS" || { echo "The DEPLOY_KNOWN_HOSTS secret is not set" >&2; exit 1; }
+                    printf '%s\n' "$DEPLOY_KNOWN_HOSTS" >> ~/.ssh/known_hosts
                     printf 'Host deploy-target\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n' \
                       "$DEPLOY_HOST" "${{ secrets.DEPLOY_USER }}" >> ~/.ssh/config
 
@@ -141,11 +147,11 @@ jobs:
                     name: dist
                     path: dist
 
-            -   uses: dtolnay/rust-toolchain@stable
+            -   uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
                 with:
                     targets: ${{ matrix.rust-targets }}
 
-            -   uses: Swatinem/rust-cache@v2
+            -   uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
                 with:
                     workspaces: desktop
 
@@ -288,11 +294,13 @@ jobs:
                     SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
                     SSH_HOST: ${{ secrets.DEPLOY_HOST }}
                     SSH_USER: ${{ secrets.DEPLOY_USER }}
+                    SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
                 run: |
                     mkdir -p ~/.ssh
                     printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
                     chmod 600 ~/.ssh/id_deploy
-                    ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+                    test -n "$SSH_KNOWN_HOSTS" || { echo "The DEPLOY_KNOWN_HOSTS secret is not set" >&2; exit 1; }
+                    printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
                     printf 'Host deploy-target\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/id_deploy\n' \
                       "$SSH_HOST" "$SSH_USER" >> ~/.ssh/config
 

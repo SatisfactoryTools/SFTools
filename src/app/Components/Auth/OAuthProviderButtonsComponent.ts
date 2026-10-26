@@ -7,6 +7,7 @@ import {TokenResponse} from '@src/Model/API/Schema/Auth/TokenResponse';
 import {AuthReturnUrlService} from '@src/Model/Auth/AuthReturnUrlService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {DesktopOAuthFlow} from '@src/Model/Auth/DesktopOAuthFlow';
+import {OAuthFlowStore} from '@src/Model/Auth/OAuthFlowStore';
 import {OAuthProviderInfo} from '@src/Model/Auth/OAuthProviderInfo';
 import {OAuthProviders} from '@src/Model/Auth/OAuthProviders';
 
@@ -68,6 +69,7 @@ export class OAuthProviderButtonsComponent implements OnDestroy
 		private readonly router: Router,
 		private readonly authService: AuthService,
 		protected readonly desktopOAuth: DesktopOAuthFlow,
+		private readonly flowStore: OAuthFlowStore,
 	)
 	{
 		this.oauthApiService.getProviders().subscribe({
@@ -106,7 +108,10 @@ export class OAuthProviderButtonsComponent implements OnDestroy
 			return;
 		}
 		this.oauthApiService.start(provider.key, false).subscribe({
-			next: response => window.location.href = response.authorizationUrl,
+			next: response => {
+				this.flowStore.remember({state: response.state, provider: provider.key, link: false});
+				window.location.href = response.authorizationUrl;
+			},
 			error: () => {
 				this.error = `Could not start ${provider.label} sign-in. Please try again.`;
 				this.startingProvider = null;

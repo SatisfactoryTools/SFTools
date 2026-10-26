@@ -75,6 +75,11 @@
 		<div class="alert alert-danger">Could not load your sign-in methods.</div>
 	} @else {
 		<div class="subsection-title mt-4">Sign-in methods</div>
+		@if (startingProvider !== null && desktopOAuth.confirmCode(); as code) {
+			<div class="alert alert-info py-2 small">
+				Finish connecting in your browser. If it asks for a code, enter <strong class="selectable font-monospace fs-6">{{ code }}</strong>
+			</div>
+		}
 		<div class="list-group">
 			@for (provider of allProviders; track provider.key) {
 				<div class="list-group-item bg-dark border-secondary d-flex align-items-center gap-2">

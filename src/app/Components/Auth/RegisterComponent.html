@@ -24,11 +24,11 @@
 			<form (ngSubmit)="submit()">
 				<div class="mb-3">
 					<label class="form-label" for="login">Username</label>
-					<input class="form-control" id="login" type="text" name="login" [(ngModel)]="login" required autocomplete="username">
+					<input class="form-control" id="login" type="text" name="login" [(ngModel)]="login" required maxlength="64" autocomplete="username">
 				</div>
 				<div class="mb-3">
 					<label class="form-label" for="email">Email</label>
-					<input class="form-control" id="email" type="email" name="email" [(ngModel)]="email" required autocomplete="email">
+					<input class="form-control" id="email" type="email" name="email" [(ngModel)]="email" required maxlength="255" autocomplete="email">
 				</div>
 				<div class="mb-3">
 					<label class="form-label" for="password">Password</label>

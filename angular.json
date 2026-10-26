@@ -27,6 +27,11 @@
 						"assets": [
 							"src/assets",
 							{
+								"glob": "boot-fallback.js",
+								"input": "src",
+								"output": ""
+							},
+							{
 								"glob": ".htaccess",
 								"input": "src",
 								"output": ""
@@ -89,7 +94,15 @@
 									"with": "src/env/env.prod.ts"
 								}
 							],
-							"outputHashing": "all"
+							"outputHashing": "all",
+							"optimization": {
+								"scripts": true,
+								"styles": {
+									"minify": true,
+									"inlineCritical": false
+								},
+								"fonts": true
+							}
 						},
 						"development": {
 							"optimization": false,

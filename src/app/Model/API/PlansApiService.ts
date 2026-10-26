@@ -2,6 +2,7 @@ import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {env} from '@env/env';
+import {NameLimit} from '@src/Model/API/NameLimit';
 import {PlanLinkPayload} from '@src/Model/API/Schema/Plans/PlanLinkPayload';
 import {PlanSchema} from '@src/Model/API/Schema/Plans/PlanSchema';
 import {PlansListResponse} from '@src/Model/API/Schema/Plans/PlansListResponse';
@@ -26,12 +27,12 @@ export class PlansApiService
 
 	public createPlan(versionId: string, id: string, name: string, folder: string | null, parent: string | null, data: string, description?: string, linkAccess?: boolean): Observable<PlanSchema>
 	{
-		return this.http.post<PlanSchema>(this.plansBase(versionId), {id, name, folder, parent, data, description, linkAccess});
+		return this.http.post<PlanSchema>(this.plansBase(versionId), {id, name: NameLimit.clamp(name), folder, parent, data, description, linkAccess});
 	}
 
 	public updatePlan(versionId: string, id: string, revision: number, fields: {name?: string; description?: string | null; data?: string; linkAccess?: boolean}): Observable<PlanSchema>
 	{
-		return this.http.put<PlanSchema>(`${this.plansBase(versionId)}/${id}`, {...fields, revision});
+		return this.http.put<PlanSchema>(`${this.plansBase(versionId)}/${id}`, {...fields, ...(fields.name !== undefined ? {name: NameLimit.clamp(fields.name)} : {}), revision});
 	}
 
 	public getPlanByLink(id: string): Observable<PlanLinkPayload>

@@ -26,4 +26,7 @@
 		Finish signing in in your browser, then come back here.
 		<button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="cancel()">Cancel</button>
 	</p>
+	@if (desktopOAuth.confirmCode(); as code) {
+		<p class="small text-center mt-1 mb-0">If the browser asks for a code, enter <strong class="selectable font-monospace fs-6">{{ code }}</strong></p>
+	}
 }

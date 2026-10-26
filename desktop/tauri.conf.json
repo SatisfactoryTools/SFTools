@@ -25,7 +25,8 @@
 			}
 		],
 		"security": {
-			"csp": null
+			"csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://analytics.greeny.dev; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: sfimg: http://sfimg.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost https://api.new.satisfactorytools.com https://analytics.greeny.dev blob: data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'",
+			"devCsp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob: https://analytics.greeny.dev; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: sfimg: http://sfimg.localhost; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost ws://localhost:4200 https://api.sftools.local https://api.new.satisfactorytools.com https://analytics.greeny.dev blob: data:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-src 'none'"
 		}
 	},
 	"bundle": {

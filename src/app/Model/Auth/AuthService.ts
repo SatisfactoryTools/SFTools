@@ -1,5 +1,6 @@
-import {Injectable, Signal, WritableSignal, computed, signal} from '@angular/core';
+import {Injectable, Optional, Signal, WritableSignal, computed, signal} from '@angular/core';
 import {TokenResponse} from '@src/Model/API/Schema/Auth/TokenResponse';
+import {DesktopBridge} from '@src/Model/Desktop/DesktopBridge';
 import {AppStorage} from '@src/Model/Storage/AppStorage';
 import {UnsyncedPlanRescue} from '@src/Model/Planner/UnsyncedPlanRescue';
 import {OfflineMirrorBackend} from '@src/Model/Sync/OfflineMirrorBackend';
@@ -17,7 +18,10 @@ export class AuthService
 	/** Third-party sign-ins have no username: their stored login is a "via Discord" placeholder, so this is null for them. */
 	public readonly displayName: Signal<string | null>;
 
-	public constructor(private readonly storage: AppStorage)
+	public constructor(
+		private readonly storage: AppStorage,
+		@Optional() private readonly desktop: DesktopBridge | null,
+	)
 	{
 		this.accessTokenSignal = signal(this.storage.getItem('auth.accessToken'));
 		this.loginSignal = signal(this.storage.getItem('auth.login'));
@@ -50,6 +54,8 @@ export class AuthService
 		// Offline copies of the account data leave with it, except edits that never reached the account.
 		const rescued = new UnsyncedPlanRescue(this.storage).run();
 		this.storage.keys(OfflineMirrorBackend.KEY_PREFIX).forEach(key => this.storage.removeItem(key));
+		// So are the API answers the desktop app cached for this account (private mods, linked custom versions).
+		this.desktop?.invoke('cache_clear_account').catch(error => console.error('Could not clear the account cache:', error));
 		this.accessTokenSignal.set(null);
 		this.loginSignal.set(null);
 		return rescued;
