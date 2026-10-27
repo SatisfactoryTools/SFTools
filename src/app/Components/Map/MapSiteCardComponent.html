@@ -1,0 +1,57 @@
+@if (embedded) {
+	<div class="embedded-header d-flex align-items-center gap-2">
+		<span class="d-flex flex-column flex-grow-1" style="min-width: 0">
+			<span class="embedded-label text-secondary">{{ saved ? 'Factory location' : 'Picked location' }}</span>
+			<span class="small text-secondary text-truncate">{{ scoreText }}</span>
+		</span>
+		@if (clearable) {
+			<button type="button" class="btn btn-link btn-sm text-reset" aria-label="Clear the picked location" tooltip="Clear the picked location" placement="top" container="body" (click)="closed.emit()">
+				<fa-icon [icon]="faXmark"></fa-icon>
+			</button>
+		}
+	</div>
+} @else {
+	<div class="card-header-row d-flex align-items-center gap-2 ps-3 pe-1 py-1">
+		<span class="d-flex flex-column flex-grow-1" style="min-width: 0">
+			<span class="fw-semibold">{{ saved ? 'Factory location' : 'Picked location' }}</span>
+			<span class="small text-secondary text-truncate">{{ scoreText }}</span>
+		</span>
+		<button type="button" class="btn btn-link btn-sm text-reset" aria-label="Close the picked location" (click)="closed.emit()">
+			<fa-icon [icon]="faXmark"></fa-icon>
+		</button>
+	</div>
+}
+<div class="card-body-scroll" [class.px-3]="!embedded" [class.py-2]="!embedded">
+	<div class="coordinates selectable mb-2">
+		<div><span>X</span><strong>{{ coordinate(explanation.x) }}</strong></div>
+		<div><span>Y</span><strong>{{ coordinate(explanation.y) }}</strong></div>
+	</div>
+	<div class="mb-2">
+		@if (saved) {
+			<div class="d-flex align-items-center flex-wrap gap-2">
+				<span class="small text-success">This is the plan's factory location.</span>
+				<span class="d-inline-block" [tooltip]="spotBlocker ?? ''" placement="top" container="body">
+					<button type="button" class="btn btn-sm btn-outline-danger py-0" [disabled]="spotBlocker !== null" (click)="removeSpot.emit()">Remove location</button>
+				</span>
+			</div>
+		} @else {
+			<!-- A wrapper: a disabled button gets no pointer events, so its tooltip would never show. -->
+			<span class="d-inline-block" [tooltip]="spotBlocker ?? ''" placement="top" container="body">
+				<button type="button" class="btn btn-sm btn-outline-light py-0" [disabled]="spotBlocker !== null" (click)="useSpot.emit()">Use this location</button>
+			</span>
+		}
+	</div>
+	@for (use of explanation.resources; track use.className) {
+		<div class="resource">
+			<span class="dot" [style.background]="sites.color(use.className)"></span>
+			<game-icon [hash]="iconHash(use)" [size]="18" [alt]="row(use)?.name ?? use.className"/>
+			<span class="name">{{ row(use)?.name ?? use.className }}</span>
+			<span class="detail">{{ detail(use) }}</span>
+		</div>
+		@if (row(use); as row) {
+			@if (row.capacity < row.demand) {
+				<div class="warning">Not enough nodes: all of them are used.</div>
+			}
+		}
+	}
+</div>

@@ -1,6 +1,6 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {Router, RouterLink} from '@angular/router';
+import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faCubes, faGlobe, faPuzzlePiece, faSliders, faTag} from '@fortawesome/free-solid-svg-icons';
 import {forkJoin, of} from 'rxjs';
@@ -25,6 +25,7 @@ import {Data} from '@src/Model/Data/Data';
 import {DataTransformer} from '@src/Model/Data/DataTransformer';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {WorldLimitsCalculator} from '@src/Model/Data/WorldLimitsCalculator';
+import {WorldSettingsLabels} from '@src/Model/Data/WorldSettingsLabels';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
@@ -119,22 +120,8 @@ export class CreateVersionPageComponent
 	public readonly recipeCostOptions = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
 	public readonly powerCostOptions = [0.25, 0.5, 0.75, 1, 2, 5];
 
-	public readonly worldModeOptions: {value: WorldDataMode; label: string}[] = [
-		{value: 'none', label: 'Vanilla (no change)'},
-		{value: 'random', label: 'Random'},
-		{value: 'basic-rich', label: 'Basic rich'},
-		{value: 'advanced-rich', label: 'Advanced rich'},
-		{value: 'fossil-fuel-rich', label: 'Fossil fuel rich'},
-	];
-	public readonly worldPurityOptions: {value: WorldDataPurity; label: string}[] = [
-		{value: 'no-change', label: 'No change'},
-		{value: 'all-impure', label: 'All impure'},
-		{value: 'decrease', label: 'Decrease'},
-		{value: 'all-normal', label: 'All normal'},
-		{value: 'increase', label: 'Increase'},
-		{value: 'all-pure', label: 'All pure'},
-		{value: 'all-random', label: 'All random'},
-	];
+	public readonly worldModeOptions = WorldSettingsLabels.MODES;
+	public readonly worldPurityOptions = WorldSettingsLabels.PURITIES;
 
 	public baseId: string;
 	public recipeCost = 1;
@@ -175,16 +162,49 @@ export class CreateVersionPageComponent
 		private readonly limitsCalculator: WorldLimitsCalculator,
 		protected readonly formatter: RateFormatter,
 		private readonly router: Router,
+		route: ActivatedRoute,
 	)
 	{
 		this.baseId = this.baseVersions[0]?.id ?? '';
+		// Filled in from elsewhere, e.g. a save file whose world this version lacks.
+		const params = route.snapshot.queryParamMap;
+		const modVersions = params.get('mods')?.split(',') ?? [];
+		this.prefill(params.get('base'), params.get('recipeCost'), params.get('powerCost'), params.get('seed'), params.get('mode'), params.get('purity'));
 		this.modsApi.listMods().subscribe({
 			next: mods => {
 				this.mods = mods.filter(mod => mod.versions.length > 0);
+				for (const versionId of modVersions) {
+					const mod = this.mods.find(candidate => candidate.versions.some(version => version.id === versionId));
+					if (mod !== undefined && !this.picked.some(entry => entry.mod.id === mod.id)) {
+						this.picked.push({mod, versionId});
+					}
+				}
 			},
 			// The mod list is optional; the rest of the page still works, so the failure stays quiet.
 			error: () => this.modsFailed = true,
 		});
+	}
+
+	private prefill(base: string | null, recipeCost: string | null, powerCost: string | null, seed: string | null, mode: string | null, purity: string | null): void
+	{
+		if (base !== null && this.baseVersions.some(version => version.id === base)) {
+			this.baseId = base;
+		}
+		if (recipeCost !== null && this.recipeCostOptions.includes(Number(recipeCost))) {
+			this.recipeCost = Number(recipeCost);
+		}
+		if (powerCost !== null && this.powerCostOptions.includes(Number(powerCost))) {
+			this.powerCost = Number(powerCost);
+		}
+		const worldMode = this.worldModeOptions.find(option => option.value === mode)?.value;
+		const worldPurity = this.worldPurityOptions.find(option => option.value === purity)?.value;
+		if (seed === null || worldMode === undefined || worldPurity === undefined) {
+			return;
+		}
+		this.worldSeed = Number(seed);
+		this.worldMode = worldMode;
+		this.worldPurity = worldPurity;
+		this.loadWorldPreview();
 	}
 
 	/** Only public versions qualify as a base - customs cannot derive from customs. */

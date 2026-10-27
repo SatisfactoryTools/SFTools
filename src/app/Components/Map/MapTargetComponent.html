@@ -1,0 +1,61 @@
+@if (targets.target(); as target) {
+	<div class="target-card">
+		@if (target.plan !== null) {
+			<plan-tree-icon [iconHash]="iconHash(target)" [subplan]="target.plan.parentPlanId !== null" [alt]="name(target)"/>
+		} @else {
+			<plan-tree-icon kind="folder"/>
+		}
+		<span class="d-flex flex-column" style="min-width: 0">
+			<span class="target-kind text-secondary">{{ target.plan !== null ? 'Plan' : 'Folder' }}</span>
+			<span class="text-truncate">{{ name(target) }}</span>
+		</span>
+		@if (plannerLink(); as link) {
+			<a
+				class="btn btn-link btn-sm text-reset px-1"
+				[routerLink]="link"
+				[tooltip]="target.plan !== null ? 'Open the plan in the planner' : 'Open the folder in the planner'" placement="top" container="body"
+				aria-label="Open in the planner"
+				(click)="openPlanner($event, target)"
+			><fa-icon [icon]="faUpRightFromSquare"></fa-icon></a>
+		}
+		<button
+			type="button"
+			class="btn btn-link btn-sm text-reset px-1"
+			tooltip="Choose another plan or folder" placement="top" container="body"
+			aria-label="Choose another plan or folder"
+			(click)="clear()"
+		><fa-icon [icon]="faXmark"></fa-icon></button>
+	</div>
+} @else if (targets.loading()) {
+	<div class="target-card text-secondary small">
+		<span class="spinner-border spinner-border-sm" role="status"></span>Loading the plans…
+	</div>
+} @else {
+	<div class="d-flex flex-column align-items-start gap-1" style="min-width: 0">
+		<div class="btn-group" dropdown container="body" placement="top left" [dropup]="true">
+			<button type="button" class="btn btn-sm btn-dark dropdown-toggle shadow-sm" dropdownToggle>Choose a plan or folder</button>
+			<div *dropdownMenu class="dropdown-menu target-menu" style="min-width: 260px; max-width: min(420px, calc(100vw - 32px));">
+				@for (option of options(); track option.key) {
+					<button
+						type="button"
+						class="dropdown-item d-flex align-items-center gap-2"
+						[style.padding-left.rem]="1 + option.depth * 1.1"
+						(click)="select(option)"
+					>
+						@if (option.target.plan !== null) {
+							<plan-tree-icon [iconHash]="option.iconHash" [subplan]="option.subplan" [alt]="option.name"/>
+						} @else {
+							<plan-tree-icon kind="folder"/>
+						}
+						<span class="text-truncate">{{ option.name }}</span>
+					</button>
+				} @empty {
+					<span class="dropdown-item-text text-secondary small">You have no plans yet.</span>
+				}
+			</div>
+		</div>
+		@if (targets.missing()) {
+			<span class="target-card small text-secondary">The plan or folder in the link is not one of your plans.</span>
+		}
+	</div>
+}

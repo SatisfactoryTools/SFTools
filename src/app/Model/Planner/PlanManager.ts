@@ -690,6 +690,9 @@ export class PlanManager extends SyncableService<PlanStore>
 			enabledRecipes: parent?.settings.enabledRecipes ? [...parent.settings.enabledRecipes] : undefined,
 			resourceLimits: parent?.settings.resourceLimits ? {...parent.settings.resourceLimits} : undefined,
 			disabledResources: parent?.settings.disabledResources ? [...parent.settings.disabledResources] : undefined,
+			resourceArea: parent?.settings.resourceArea ? structuredClone(parent.settings.resourceArea) : undefined,
+			mapConveyors: parent?.settings.mapConveyors ? {...parent.settings.mapConveyors} : undefined,
+			factorySite: parent?.settings.factorySite ? {...parent.settings.factorySite} : undefined,
 			enabledFuels: parent?.settings.enabledFuels
 				? Object.fromEntries(Object.entries(parent.settings.enabledFuels).map(([gen, fuels]) => [gen, [...fuels]]))
 				: undefined,
@@ -807,6 +810,10 @@ export class PlanManager extends SyncableService<PlanStore>
 			disabledResources: settings.disabledResources ? [...settings.disabledResources] : undefined,
 			resourceWeightMode: settings.resourceWeightMode,
 			resourceWeights: settings.resourceWeights ? {...settings.resourceWeights} : undefined,
+			resourceArea: settings.resourceArea ? structuredClone(settings.resourceArea) : undefined,
+			mapConveyors: settings.mapConveyors ? {...settings.mapConveyors} : undefined,
+			factorySpot: settings.factorySpot ? {...settings.factorySpot} : undefined,
+			factorySite: settings.factorySite ? {...settings.factorySite} : undefined,
 			enabledFuels: settings.enabledFuels
 				? Object.fromEntries(Object.entries(settings.enabledFuels).map(([generator, fuels]) => [generator, [...fuels]]))
 				: undefined,

@@ -17,6 +17,9 @@ export class Data
 	public readonly materials: Material[];
 	public readonly resources: string[];
 	public readonly worldLimits: Record<string, number> | null;
+	public readonly mapId: string | null;
+	public readonly worldNodesPath: string | null;
+	public readonly collectiblesPath: string | null;
 
 	private readonly itemMap: Map<string, Item>;
 	private readonly schematicMap: Map<string, Schematic>;
@@ -36,6 +39,9 @@ export class Data
 	public constructor(schema: DataSchema, metadata?: VersionMetadata, fallbackWorldLimits: Record<string, number> | null = null)
 	{
 		this.worldLimits = metadata?.world?.limits ?? fallbackWorldLimits;
+		this.mapId = metadata?.map ?? null;
+		this.worldNodesPath = metadata?.worldNodes ?? null;
+		this.collectiblesPath = metadata?.collectibles ?? null;
 
 		this.items = Object.values(schema.items).map(s => new Item(s));
 		this.itemMap = new Map(this.items.map(i => [i.className, i]));

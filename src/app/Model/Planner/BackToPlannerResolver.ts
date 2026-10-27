@@ -9,6 +9,9 @@ import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService'
 export class BackToPlannerResolver
 {
 
+	/** Version pages that stand in for a planner panel. */
+	private static readonly PAGES: ReadonlyArray<string> = ['codex', 'map'];
+
 	public readonly link: Signal<string[] | null>;
 
 	private readonly currentUrl: Signal<string>;
@@ -29,6 +32,12 @@ export class BackToPlannerResolver
 		this.link = computed(() => this.resolve());
 	}
 
+	private isOn(path: string): boolean
+	{
+		const url = this.currentUrl();
+		return url === path || ['/', '?', '#'].some(separator => url.startsWith(path + separator));
+	}
+
 	private resolve(): string[] | null
 	{
 		const version = this.versionManager.activeVersion();
@@ -36,7 +45,7 @@ export class BackToPlannerResolver
 
 		if (version !== null) {
 			const slug = this.versionManager.urlSlug(version);
-			if (!this.currentUrl().startsWith(`/${slug}/codex`)) {
+			if (!BackToPlannerResolver.PAGES.some(page => this.isOn(`/${slug}/${page}`))) {
 				return null;
 			}
 			const link = ['/', slug, 'planner'];

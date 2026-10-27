@@ -62,6 +62,7 @@ export class HotkeyCatalog
 		{action: 'panel.plannerSettings', group: 'panels', label: 'Planner settings', default: {key: '8', alt: true}},
 		{action: 'panel.codex', group: 'panels', label: 'Codex', default: {key: '9', alt: true}},
 		{action: 'panel.help', group: 'panels', label: 'Help', default: {key: '0', alt: true}},
+		{action: 'panel.map', group: 'panels', label: 'Map', default: {key: 'm', ctrl: true}},
 
 		{action: 'plans.newPlan', group: 'plans', label: 'New plan', default: {key: 'n', ctrl: true}},
 		{action: 'plans.newFolder', group: 'plans', label: 'New folder', default: {key: 'n', ctrl: true, shift: true}},

@@ -1,0 +1,142 @@
+<div class="layers-header d-flex align-items-center gap-2 ps-3 pe-1 py-1">
+	<span class="fw-semibold flex-grow-1">Layers</span>
+	<div class="btn-group btn-group-sm" role="group" aria-label="Markers">
+		<button type="button" class="btn btn-outline-secondary" [class.active]="!state.symbols" [attr.aria-pressed]="!state.symbols" (click)="setSymbols(false)">Icons</button>
+		<button type="button" class="btn btn-outline-secondary" [class.active]="state.symbols" [attr.aria-pressed]="state.symbols" (click)="setSymbols(true)">Symbols</button>
+	</div>
+	<button type="button" class="btn btn-link btn-sm text-reset" aria-label="Close layers" (click)="closed.emit()">
+		<fa-icon [icon]="faXmark"></fa-icon>
+	</button>
+</div>
+<div class="layers-body px-3 py-2">
+	@for (layer of layers; track layer.id) {
+		<div class="form-check mb-1">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				[id]="'map-layer-' + layer.id"
+				[checked]="state.isLayerOn(layer.id)"
+				(change)="toggleLayer(layer, $event)"
+			/>
+			<label class="form-check-label d-flex gap-2" [for]="'map-layer-' + layer.id">
+				<span class="flex-grow-1">{{ layer.label }}</span>
+				@if (layer.count !== null) {
+					<span class="count text-secondary small">{{ layer.count }}</span>
+				} @else if (layer.loading && state.isLayerOn(layer.id)) {
+					<span class="spinner-border spinner-border-sm text-secondary" role="status" aria-label="Loading"></span>
+				}
+			</label>
+		</div>
+		@if (state.isLayerOn(layer.id)) {
+			@for (group of layer.groups; track group.label) {
+				@if (group.columns.length > 0) {
+					<table class="category-table ms-4 mb-2">
+						<thead>
+							<tr>
+								<th class="check">
+									<input
+										class="form-check-input"
+										type="checkbox"
+										[attr.aria-label]="'All ' + group.label"
+										[checked]="state.shownState(groupIds(group)) === 'all'"
+										[indeterminate]="state.shownState(groupIds(group)) === 'some'"
+										(change)="setGroup(group, $any($event.target).checked)"
+									/>
+								</th>
+								<th class="group-label text-secondary">{{ group.label }}</th>
+								@for (column of group.columns; track column.purity) {
+									<th class="purity" [tooltip]="column.label + ': ' + column.count" placement="top" container="body">
+										<label class="d-inline-flex flex-column align-items-center gap-1">
+											<map-marker-swatch [shape]="column.purity" color="#cfd6de"/>
+											<input
+												class="form-check-input m-0"
+												type="checkbox"
+												[attr.aria-label]="column.label + ', all resources'"
+												[checked]="state.shownState(column.ids) === 'all'"
+												[indeterminate]="state.shownState(column.ids) === 'some'"
+												(change)="setIds(column.ids, $any($event.target).checked)"
+											/>
+										</label>
+									</th>
+								}
+								<th class="count"></th>
+							</tr>
+						</thead>
+						<tbody>
+							@for (category of group.categories; track category.key) {
+								<tr>
+									<td class="check">
+										<input
+											class="form-check-input"
+											type="checkbox"
+											[id]="'map-category-' + layer.id + '-' + category.key"
+											[checked]="state.shownState(category.ids) === 'all'"
+											[indeterminate]="state.shownState(category.ids) === 'some'"
+											(change)="setIds(category.ids, $any($event.target).checked)"
+										/>
+									</td>
+									<td class="name">
+										<label class="d-flex align-items-center gap-2" [for]="'map-category-' + layer.id + '-' + category.key">
+											<ng-container *ngTemplateOutlet="marker; context: {$implicit: category}"/>
+											<span class="text-truncate">{{ category.label }}</span>
+										</label>
+									</td>
+									@for (column of group.columns; track column.purity) {
+										<td class="purity">
+											@if (purityOf(category, column.purity); as purity) {
+												<input
+													class="form-check-input m-0"
+													type="checkbox"
+													[attr.aria-label]="category.label + ', ' + purity.label"
+													[tooltip]="purity.label + ': ' + purity.count" placement="top" container="body"
+													[checked]="state.isShown(purity.id)"
+													(change)="setIds([purity.id], $any($event.target).checked)"
+												/>
+											}
+										</td>
+									}
+									<td class="count text-secondary small">{{ category.count }}</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				} @else {
+					<div class="ms-4 mb-2">
+						<div class="d-flex align-items-center gap-2 mb-1 text-secondary">
+							<span class="group-label flex-grow-1">{{ group.label }}</span>
+							<button type="button" class="btn btn-link btn-sm p-0" (click)="setGroup(group, true)">All</button>
+							<button type="button" class="btn btn-link btn-sm p-0" (click)="setGroup(group, false)">None</button>
+						</div>
+						@for (category of group.categories; track category.key) {
+							<div class="form-check category d-flex align-items-center gap-2 mb-0">
+								<input
+									class="form-check-input flex-shrink-0"
+									type="checkbox"
+									[id]="'map-category-' + layer.id + '-' + category.key"
+									[checked]="state.shownState(category.ids) === 'all'"
+									[indeterminate]="state.shownState(category.ids) === 'some'"
+									(change)="setIds(category.ids, $any($event.target).checked)"
+								/>
+								<label class="form-check-label d-flex align-items-center gap-2 flex-grow-1" style="min-width: 0" [for]="'map-category-' + layer.id + '-' + category.key">
+									<ng-container *ngTemplateOutlet="marker; context: {$implicit: category}"/>
+									<span class="flex-grow-1 text-truncate">{{ category.label }}</span>
+									<span class="count text-secondary small" [title]="category.collected ? 'Left to collect / all' : ''">{{ category.countText }}</span>
+								</label>
+							</div>
+						}
+					</div>
+				}
+			}
+		}
+	} @empty {
+		<div class="text-secondary small py-1">Nothing to show for this game version yet.</div>
+	}
+</div>
+
+<ng-template #marker let-category>
+	@if (!state.symbols && category.iconUrl) {
+		<img class="marker-icon" [src]="category.iconUrl" alt="" loading="lazy" [style.border-color]="category.color"/>
+	} @else {
+		<map-marker-swatch [shape]="category.shape" [color]="category.color"/>
+	}
+</ng-template>

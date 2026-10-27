@@ -1,0 +1,11 @@
+<world-map class="h-100">
+	<!-- Mobile panel views are already fullscreen - nothing to pop out to. -->
+	@if (!layout.isMobile() && popOutLink(); as link) {
+		<a
+			class="btn btn-sm btn-dark"
+			[routerLink]="link" [queryParams]="popOutQueryParams()"
+			tooltip="Open fullscreen" placement="bottom" container="body"
+			aria-label="Open fullscreen map"
+		><fa-icon [icon]="faUpRightFromSquare" [fixedWidth]="true"></fa-icon></a>
+	}
+</world-map>

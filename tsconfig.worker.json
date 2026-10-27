@@ -11,6 +11,7 @@
 	},
 	"files": [
 		"src/app/Model/Planner/Solver/Worker/SolverWorker.ts",
-		"src/app/Model/SaveFile/Worker/SaveFileWorker.ts"
+		"src/app/Model/SaveFile/Worker/SaveFileWorker.ts",
+		"src/app/Model/Map/FactorySite/Worker/FactorySiteWorker.ts"
 	]
 }

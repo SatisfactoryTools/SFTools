@@ -1,0 +1,278 @@
+@switch (backgrounds.state()) {
+	@case ('ready') {
+		<map-view
+			[background]="backgrounds.background()!"
+			[view]="location.view()"
+			[markers]="markers.visibleMarkers()"
+			[symbols]="location.layers().symbols"
+			[clusters]="location.layers().isLayerOn('clusters')"
+			[coordinates]="coordinates()"
+			[areas]="areaOutlines()"
+			[pins]="pins()"
+			[drafting]="drafting()"
+			[draft]="draft() ?? []"
+			[measuring]="measuring()"
+			[measure]="measure() ?? []"
+			[highlight]="highlight()"
+			[focus]="focus()"
+			[heatmap]="heatmap()"
+			[spots]="spots()"
+			[siteFocus]="siteFocus()"
+			[siteClicks]="siteClicks()"
+			[marksEditable]="true"
+			(siteClick)="onSiteClick($event)"
+			(markToggle)="onMarkToggle($event)"
+			(pinRemove)="removePin($event)"
+			(viewChange)="onViewChange($event)"
+			(draftPoint)="addPoint($event)"
+			(draftClose)="finishDrawing()"
+			(measurePoint)="addMeasurePoint($event)"
+			(measureEnd)="finishMeasuring()"
+			(keydown.escape)="onEscape($event)"
+		/>
+
+		<div class="map-game-bar">
+			<map-search [entries]="searchEntries()" [coordinates]="coordinates()" (pick)="onSearch($event)" (cleared)="clearHighlight()" (activated)="markers.requestCollectibles()"/>
+			<div class="btn-group shadow-sm">
+				<button
+					type="button"
+					class="btn btn-sm btn-dark"
+					[class.active]="sidePanel() === 'layers'"
+					[attr.aria-expanded]="sidePanel() === 'layers'"
+					tooltip="Layers" placement="bottom" container="body"
+					aria-label="Layers"
+					(click)="toggleSidePanel('layers')"
+				><fa-icon [icon]="faLayerGroup" [fixedWidth]="true"></fa-icon></button>
+				<button
+					type="button"
+					class="btn btn-sm btn-dark"
+					[class.active]="measuring()"
+					[attr.aria-pressed]="measuring()"
+					tooltip="Measure a distance" placement="bottom" container="body"
+					aria-label="Measure a distance"
+					(click)="startMeasuring()"
+				><fa-icon [icon]="faRulerHorizontal" [fixedWidth]="true"></fa-icon></button>
+				<button
+					type="button"
+					class="btn btn-sm btn-dark"
+					[class.active]="sidePanel() === 'export'"
+					[attr.aria-expanded]="sidePanel() === 'export'"
+					tooltip="Export a picture" placement="bottom" container="body"
+					aria-label="Export a picture"
+					(click)="toggleSidePanel('export')"
+				><fa-icon [icon]="faImage" [fixedWidth]="true"></fa-icon></button>
+			</div>
+			<map-game (load)="openSaveDialog()"/>
+			<span class="map-game-extra"><ng-content/></span>
+		</div>
+
+		@switch (sidePanel()) {
+			@case ('layers') {
+				<div class="map-game-panel">
+					<map-layers
+						class="shadow"
+						[layers]="layers()"
+						[state]="location.layers()"
+						(stateChange)="onLayersChange($event)"
+						(closed)="closeSidePanel()"
+					/>
+				</div>
+			}
+			@case ('export') {
+				<div class="map-game-panel">
+					<map-export
+						class="shadow"
+						[viewWidth]="viewWidth()"
+						[busy]="exporting()"
+						(exported)="exportImage($event)"
+						(closed)="closeSidePanel()"
+					/>
+				</div>
+			}
+		}
+
+		@if (!busyDrawing()) {
+			<div class="map-plan-dock">
+				@switch (planPanel()) {
+					@case ('area') {
+						<map-area class="shadow" (redraw)="startDrawing()" (closed)="closePlanPanel()"/>
+					}
+					@case ('site') {
+						<map-factory-site
+							class="shadow"
+							[explanation]="siteExplanation()"
+							[saved]="explanationSaved()"
+							[spotBlocker]="planSettings.blocker()"
+							(spot)="showSpot($event)"
+							(useSpot)="useSpot()"
+							(removeSpot)="removePin('target')"
+							[clearable]="!explanationSaved()"
+							(clearSpot)="closeSite()"
+							(closed)="closePlanPanel()"
+						/>
+					}
+					@case ('plans') {
+						<map-folder-plans class="shadow" (focus)="focusFolderPlan($event)" (closed)="closePlanPanel()"/>
+					}
+				}
+				@if (planPanel() !== 'site') {
+					@if (siteExplanation(); as explanation) {
+						<map-site-card
+							class="shadow"
+							[explanation]="explanation"
+							[saved]="explanationSaved()"
+							[spotBlocker]="planSettings.blocker()"
+							(useSpot)="useSpot()"
+							(removeSpot)="removePin('target')"
+							(closed)="closeSite()"
+						/>
+					}
+				}
+				<div class="map-plan-strip shadow">
+					@if (targets.selectable) {
+						<ng-content select="[mapTarget]"/>
+					} @else if (planSettings.target() !== null) {
+						<div class="strip-label">
+							@if (isFolder()) {
+								<plan-tree-icon kind="folder"/>
+							} @else {
+								<plan-tree-icon [iconHash]="targetIconHash()" [alt]="targetName() ?? ''"/>
+							}
+							<span class="d-flex flex-column" style="min-width: 0">
+								<span class="strip-kind text-secondary">{{ isFolder() ? 'Folder' : 'Plan' }}</span>
+								<span class="text-truncate">{{ targetName() }}</span>
+							</span>
+						</div>
+					} @else {
+						<div class="strip-label text-secondary">Open a plan to use the map with it.</div>
+					}
+					<div class="strip-tools">
+						<div class="btn-group shadow-sm">
+							<!-- A wrapper: a disabled button gets no pointer events, so its tooltip would never show. -->
+							<span class="btn-group" [tooltip]="areaButtonLabel()" placement="top" container="body">
+								<button
+									type="button"
+									class="btn btn-sm btn-dark"
+									[class.active]="planPanel() === 'area' || drafting()"
+									[disabled]="areaButtonDisabled()"
+									[attr.aria-label]="areaButtonLabel()"
+									(click)="onAreaButton()"
+								><fa-icon [icon]="faDrawPolygon" [fixedWidth]="true"></fa-icon></button>
+							</span>
+							<button
+								type="button"
+								class="btn btn-sm btn-dark"
+								[class.active]="planPanel() === 'site'"
+								[attr.aria-expanded]="planPanel() === 'site'"
+								tooltip="Location viability" placement="top" container="body"
+								aria-label="Location viability"
+								[disabled]="planSettings.target() === null"
+								(click)="onSiteButton()"
+							><fa-icon [icon]="faIndustry" [fixedWidth]="true"></fa-icon></button>
+							@if (isFolder()) {
+								<button
+									type="button"
+									class="btn btn-sm btn-dark"
+									[class.active]="planPanel() === 'plans'"
+									[attr.aria-expanded]="planPanel() === 'plans'"
+									tooltip="Plans in this folder" placement="top" container="body"
+									aria-label="Plans in this folder"
+									(click)="togglePlanPanel('plans')"
+								><fa-icon [icon]="faFolderTree" [fixedWidth]="true"></fa-icon></button>
+							}
+							<span class="btn-group" [tooltip]="spotLinksLabel()" placement="top" container="body">
+								<button
+									type="button"
+									class="btn btn-sm btn-dark"
+									[class.active]="spotLinks()"
+									[attr.aria-pressed]="spotLinks()"
+									[attr.aria-label]="spotLinksLabel()"
+									[disabled]="!spotLinksAvailable() && !spotLinks()"
+									(click)="toggleSpotLinks()"
+								><fa-icon [icon]="faCircleNodes" [fixedWidth]="true"></fa-icon></button>
+							</span>
+							<span class="btn-group" [tooltip]="usedLabel()" placement="top" container="body">
+								<button
+									type="button"
+									class="btn btn-sm btn-dark"
+									[class.active]="usedOnly()"
+									[attr.aria-pressed]="usedOnly()"
+									[attr.aria-label]="usedLabel()"
+									[disabled]="!usedAvailable() && !usedOnly()"
+									(click)="toggleUsedOnly()"
+								><fa-icon [icon]="faFilter" [fixedWidth]="true"></fa-icon></button>
+							</span>
+						</div>
+						<map-conveyors/>
+					</div>
+				</div>
+			</div>
+		}
+
+		@if (draft(); as points) {
+			<div class="map-draw-bar d-flex flex-wrap align-items-center gap-2 px-3 py-2 shadow">
+				<span class="small">
+					@if (points.length < 3) {
+						Click on the map to place the corners of the area.
+					} @else {
+						Click the first corner, double-click or press Enter to finish.
+					}
+				</span>
+				<span class="d-flex gap-2 ms-auto">
+					<button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="points.length === 0" (click)="undoPoint()">Undo</button>
+					<button type="button" class="btn btn-sm btn-outline-secondary" (click)="cancelDrawing()">Cancel</button>
+					<button type="button" class="btn btn-sm btn-primary" [disabled]="points.length < 3" (click)="finishDrawing()">Finish</button>
+				</span>
+			</div>
+		} @else if (measure(); as points) {
+			<div class="map-draw-bar d-flex flex-wrap align-items-center gap-2 px-3 py-2 shadow">
+				<span class="small">
+					@if (points.length < 2) {
+						Click on the map to measure from point to point.
+					} @else {
+						<strong>{{ measureText() }}</strong>
+						@if (measuring()) {
+							&middot; double-click or press Enter to stop
+						}
+					}
+				</span>
+				<span class="d-flex gap-2 ms-auto">
+					@if (measuring()) {
+						<button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="points.length === 0" (click)="undoMeasurePoint()">Undo</button>
+						<button type="button" class="btn btn-sm btn-primary" (click)="finishMeasuring()">Done</button>
+					} @else {
+						<button type="button" class="btn btn-sm btn-outline-secondary" (click)="stopMeasuring()">Clear</button>
+					}
+				</span>
+			</div>
+		}
+
+		@if (saveDialog(); as dialog) {
+			<load-from-save-dialog
+				[targetName]="dialog.name"
+				[mapOnly]="true"
+				[planBlocker]="planSettings.blocker()"
+				(apply)="applySave($event)"
+				(close)="closeSaveDialog()"
+			/>
+		}
+	}
+	@case ('missing') {
+		<div class="p-3">
+			<info-note>There is no map for this game version yet.</info-note>
+		</div>
+	}
+	@case ('error') {
+		<div class="p-3">
+			<info-note>
+				The map could not be loaded.
+				<button type="button" class="btn btn-link btn-sm p-0 align-baseline" (click)="backgrounds.retry()">Try again</button>
+			</info-note>
+		</div>
+	}
+	@default {
+		<div class="d-flex align-items-center gap-2 p-3 text-secondary">
+			<span class="spinner-border spinner-border-sm" role="status"></span>Loading the map…
+		</div>
+	}
+}

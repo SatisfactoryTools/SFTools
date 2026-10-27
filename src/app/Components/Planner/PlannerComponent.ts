@@ -1,7 +1,7 @@
 import {AfterViewInit, Component, computed, effect, ElementRef, HostListener, OnDestroy, signal, ViewChild, ChangeDetectionStrategy} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {ActivatedRoute, Router} from '@angular/router';
-import {faBolt, faBook, faChartPie, faCircleQuestion, faCoins, faCrosshairs, faCubes, faFolderTree, faGear, faListCheck} from '@fortawesome/free-solid-svg-icons';
+import {faBolt, faBook, faChartPie, faCircleQuestion, faCoins, faCrosshairs, faCubes, faFolderTree, faGear, faListCheck, faMap} from '@fortawesome/free-solid-svg-icons';
 import {combineLatest, debounceTime, distinctUntilChanged, filter, finalize, pairwise, skip, Subscription} from 'rxjs';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {PanelCodexNavigation} from '@src/Components/Codex/PanelCodexNavigation';
@@ -46,6 +46,9 @@ import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutServi
 import {CalculatorComponent} from '@src/Components/Planner/Panels/Calculator/CalculatorComponent';
 import {PlannerCodexComponent} from '@src/Components/Planner/Panels/Codex/PlannerCodexComponent';
 import {PlannerHelpComponent} from '@src/Components/Planner/Panels/Help/PlannerHelpComponent';
+import {PlannerMapComponent} from '@src/Components/Planner/Panels/Map/PlannerMapComponent';
+import {MapPanelRequests} from '@src/Components/Map/MapPanelRequests';
+import {PanelMapLocation} from '@src/Components/Map/PanelMapLocation';
 import {PlannerBuildCostComponent} from '@src/Components/Planner/Panels/BuildCost/PlannerBuildCostComponent';
 import {PlannerInspectorComponent} from '@src/Components/Planner/Panels/Inspector/PlannerInspectorComponent';
 import {PlannerItemsComponent} from '@src/Components/Planner/Panels/Items/PlannerItemsComponent';
@@ -130,6 +133,8 @@ const RATIO_TOLERANCE = 1e-4;
 		PlannerNodeTooltipService,
 		GraphHistoryService,
 		{provide: CodexNavigation, useClass: PanelCodexNavigation},
+		// Lets the calculator ask the map panel to draw or show something.
+		MapPanelRequests,
 	],
 	changeDetection: ChangeDetectionStrategy.Eager,
 	host: {style: 'position: fixed; top: var(--navbar-height, 56px); left: 0; right: 0; bottom: 0; overflow: hidden;'},
@@ -318,6 +323,19 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			defaultFloatHeight: 400,
 		});
 
+		panelLayout.register({
+			id: 'map',
+			helpTopic: 'panel.map',
+			hotkey: 'panel.map',
+			label: 'Map',
+			icon: faMap,
+			component: PlannerMapComponent,
+			defaultSide: 'right',
+			defaultFloating: true,
+			defaultFloatWidth: 640,
+			defaultFloatHeight: 480,
+		});
+
 		panelLayout.applyLayout(this.settings.panels());
 
 		this.registerHotkeys();
@@ -327,6 +345,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 		if (this.route.snapshot.queryParamMap.has('help')) {
 			panelLayout.focusPanel('help');
+		}
+		if (Object.values(PanelMapLocation.PARAMS).some(param => this.route.snapshot.queryParamMap.has(param))) {
+			panelLayout.focusPanel('map');
 		}
 
 		// Old share links carry the key to import. The plans panel owns the dialog, so the request is parked for it; the params leave the URL so a reload or copied link does not import the line again.
@@ -576,13 +597,18 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				}),
 		);
 
-		for (const panel of ['codex', 'help']) {
+		const panelParams: Record<string, string[]> = {
+			codex: ['codex'],
+			help: ['help'],
+			map: Object.values(PanelMapLocation.PARAMS),
+		};
+		for (const [panel, params] of Object.entries(panelParams)) {
 			this.subscription.add(
 				toObservable(computed(() => this.panelLayout.isOpen(panel))).pipe(skip(1)).subscribe(open => {
-					if (!open && this.route.snapshot.queryParamMap.has(panel)) {
+					if (!open && params.some(param => this.route.snapshot.queryParamMap.has(param))) {
 						void this.router.navigate([], {
 							relativeTo: this.route,
-							queryParams: {[panel]: null},
+							queryParams: Object.fromEntries(params.map(param => [param, null])),
 							queryParamsHandling: 'merge',
 						});
 					}

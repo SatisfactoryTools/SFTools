@@ -24,6 +24,7 @@ export type HelpTopicId =
 	| 'panel.settings'
 	| 'panel.codex'
 	| 'panel.help'
+	| 'panel.map'
 	| 'request.production'
 	| 'request.resources'
 	| 'request.recipes'

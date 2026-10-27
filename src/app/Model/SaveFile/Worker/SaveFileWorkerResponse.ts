@@ -1,7 +1,7 @@
-import {SaveFileUnlocks} from '@src/Model/SaveFile/SaveFileUnlocks';
+import {SaveFileContents} from '@src/Model/SaveFile/SaveFileContents';
 
 export interface SaveFileWorkerResponse
 {
-	readonly unlocks: SaveFileUnlocks | null;
+	readonly contents: SaveFileContents | null;
 	readonly error: string | null;
 }

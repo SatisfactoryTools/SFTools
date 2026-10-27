@@ -1,0 +1,33 @@
+<settings-section [resetCategories]="['map']" title="Map" [icon]="sectionIcon">
+
+		<div class="subsection-title">Coordinates</div>
+		<div class="mb-3">
+			<div class="form-check">
+				<input class="form-check-input" type="radio" name="map-coordinates" id="map-coordinates-game" value="game" [ngModel]="coordinates" (ngModelChange)="setCoordinates($event)"/>
+				<label class="form-check-label" for="map-coordinates-game">As in the game</label><setting-reset-button category="map" field="coordinates"/>
+			</div>
+			<div class="form-check">
+				<input class="form-check-input" type="radio" name="map-coordinates" id="map-coordinates-engine" value="engine" [ngModel]="coordinates" (ngModelChange)="setCoordinates($event)"/>
+				<label class="form-check-label" for="map-coordinates-engine">Engine units</label>
+			</div>
+			<div class="form-text">
+				The game shows positions in metres. Save files and other map tools use the engine's units, 100 times larger.
+				Coordinates you type in the map's search are read the same way.
+			</div>
+		</div>
+
+		<div class="subsection-title">Markers</div>
+		<div class="form-check mb-3">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="arachnophobia"
+				[ngModel]="arachnophobia"
+				(ngModelChange)="setArachnophobia($event)"
+			/>
+			<label class="form-check-label" for="arachnophobia">Arachnophobia mode</label><setting-reset-button category="map" field="arachnophobia"/>
+			<div class="form-text">
+				Stingers on the map show as cats, like in the game's own arachnophobia mode.
+			</div>
+		</div>
+</settings-section>

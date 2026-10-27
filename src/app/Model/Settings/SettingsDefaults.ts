@@ -71,6 +71,10 @@ export class SettingsDefaults
 			helpButtons: true,
 			supporterHearts: true,
 		},
+		map: {
+			coordinates: 'game',
+			arachnophobia: true,
+		},
 		planDefaults: {
 			alternateRecipes: false,
 			conversionRecipes: false,
@@ -94,6 +98,7 @@ export class SettingsDefaults
 			numbers: {...SettingsDefaults.SETTINGS.numbers, ...(data?.numbers ?? {})},
 			graph: SettingsDefaults.normalizeGraph(data?.graph ?? null),
 			planner: {...SettingsDefaults.SETTINGS.planner, ...(data?.planner ?? {})},
+			map: {...SettingsDefaults.SETTINGS.map, ...(data?.map ?? {})},
 			planDefaults: {...SettingsDefaults.SETTINGS.planDefaults, ...(data?.planDefaults ?? {})},
 			account: {...SettingsDefaults.SETTINGS.account, ...(data?.account ?? {})},
 			hotkeys: {...(data?.hotkeys ?? {})},

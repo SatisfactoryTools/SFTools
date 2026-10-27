@@ -104,6 +104,16 @@
 
 		<help-button [topic]="activeTabHelpTopic()"/>
 
+		@if (mapAvailable()) {
+			<button
+				class="btn btn-sm btn-outline-secondary"
+				type="button"
+				tooltip="Open the map with a heatmap of where this factory has its resources nearby" placement="bottom"
+				[disabled]="!hasGraph()"
+				(click)="openFactorySites()"
+			><fa-icon [icon]="faIndustry"></fa-icon> Location</button>
+		}
+
 		<button
 			class="btn btn-sm btn-outline-secondary"
 			type="button"
@@ -429,7 +439,7 @@
 }
 
 @if (loadFromSave(); as target) {
-	<load-from-save-dialog [targetName]="target.name" [baseSettings]="target.baseSettings" (apply)="onLoadFromSaveApply($event)" (close)="closeLoadFromSave()"></load-from-save-dialog>
+	<load-from-save-dialog [targetName]="target.name" (apply)="onLoadFromSaveApply($event)" (close)="closeLoadFromSave()"></load-from-save-dialog>
 }
 
 <ng-template #tabStrip let-locks="locks">

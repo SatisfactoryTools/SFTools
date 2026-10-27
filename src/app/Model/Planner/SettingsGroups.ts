@@ -15,7 +15,7 @@ export class SettingsGroups
 		recipes: ['enabledRecipes'],
 		machines: ['disabledMachines'],
 		byproducts: ['disabledByproducts'],
-		resources: ['resourceLimits', 'disabledResources', 'resourceWeightMode', 'resourceWeights'],
+		resources: ['resourceLimits', 'disabledResources', 'resourceWeightMode', 'resourceWeights', 'resourceArea', 'mapConveyors'],
 		power: ['enabledFuels', 'producePowerForFactory', 'excessPowerPercent', 'geothermalGenerators', 'alienPowerAugmenters'],
 		sink: ['sinkableItems'],
 		sloops: ['maxSloops', 'sloopAccuracy'],

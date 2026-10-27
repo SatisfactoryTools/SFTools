@@ -11,6 +11,7 @@ import {AccountSettings} from '@src/Model/Settings/AccountSettings';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {NodeColors} from '@src/Model/Settings/NodeColors';
 import {NumberSettings} from '@src/Model/Settings/NumberSettings';
+import {MapSettings} from '@src/Model/Settings/MapSettings';
 import {PlanDefaultsSettings} from '@src/Model/Settings/PlanDefaultsSettings';
 import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
 import {HotkeyCatalog} from '@src/Model/Hotkeys/HotkeyCatalog';
@@ -78,6 +79,11 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 	},
 	helpButtons: {label: 'Help buttons next to settings and tools', format: YES_NO},
 	supporterHearts: {label: 'Hearts on plans shared by supporters', format: YES_NO},
+};
+
+const MAP_LABELS: Record<keyof MapSettings, SettingsFieldLabel> = {
+	coordinates: {label: 'Map coordinates', format: CHOICE({game: 'As in the game', engine: 'Engine units'})},
+	arachnophobia: {label: 'Arachnophobia mode', format: YES_NO},
 };
 
 const PLAN_DEFAULTS_LABELS: Record<keyof PlanDefaultsSettings, SettingsFieldLabel> = {
@@ -212,6 +218,7 @@ export class SettingsConflictDialogComponent
 			...this.diff('Graph', remoteGraph, localGraph, GRAPH_LABELS),
 			...this.diffColors(remoteColors, localColors),
 			...this.diff('Planner', remote.planner, local.planner, PLANNER_LABELS),
+			...this.diff('Map', remote.map, local.map, MAP_LABELS),
 			...this.diff('Plan defaults', remote.planDefaults, local.planDefaults, PLAN_DEFAULTS_LABELS),
 			...this.diff('Account', remote.account, local.account, ACCOUNT_LABELS),
 			...this.diffHotkeys(remote.hotkeys, local.hotkeys),

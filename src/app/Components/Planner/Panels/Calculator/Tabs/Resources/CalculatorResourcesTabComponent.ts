@@ -3,9 +3,12 @@ import {toObservable} from '@angular/core/rxjs-interop';
 import {Subscription} from 'rxjs';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faMap} from '@fortawesome/free-solid-svg-icons';
+import {faDrawPolygon, faLockOpen, faMap} from '@fortawesome/free-solid-svg-icons';
+import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {MapPanelRequests} from '@src/Components/Map/MapPanelRequests';
+import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemRateComponent} from '@src/Components/Common/ItemRateComponent';
 import {Item} from '@src/Model/Data/Entities/Item';
@@ -15,6 +18,7 @@ import {Data} from '@src/Model/Data/Data';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
+import {ResourceArea} from '@src/Model/Planner/ResourceArea';
 import {PoolResourceStatus} from '@src/Model/Planner/Pool/PoolResourceStatus';
 import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {ResourceWeightMode} from '@src/Model/Planner/ResourceWeightMode';
@@ -26,11 +30,15 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 	selector: 'calculator-resources-tab',
 	templateUrl: './CalculatorResourcesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
+	imports: [FaIconComponent, FormsModule, BsDropdownModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
 	styles: [`
 		tr.resource-row { cursor: pointer; }
 		tr.resource-row:hover > td { background-color: rgba(255, 255, 255, 0.04); }
 		tr.resource-disabled td:not(.toggle-cell) { opacity: 0.45; }
+		/* Only the weights stay editable while a map area sets the limits. */
+		table.area-locked td:not(.weight-cell) { opacity: 0.45; }
+		table.area-locked tr.resource-row { cursor: default; }
+		table.area-locked tr.resource-row:hover > td { background-color: transparent; }
 		.toggle-cell .form-check-input { display: block; margin: 0 auto; float: none; }
 		/* As wide as "m³/min", so the numbers line up. */
 		.unit-addon { min-width: 4.6em; justify-content: flex-start; }
@@ -50,6 +58,8 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 export class CalculatorResourcesTabComponent implements OnDestroy
 {
 
+	public readonly faDrawPolygon = faDrawPolygon;
+	public readonly faLockOpen = faLockOpen;
 	public readonly faMap = faMap;
 
 	public rows: ResourceLimitRow[] = [];
@@ -74,6 +84,14 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return this.pool.usageInFolder(folder.id);
 	});
 
+	/** While set, the limits are the area's: editing them by hand would leave the outline on the map lying. */
+	public readonly area: Signal<ResourceArea | null> = computed(() => this.planManager.activeSettings()?.resourceArea ?? null);
+
+	public readonly mapAvailable: Signal<boolean> = computed(() => {
+		const data = this.versionManager.activeVersionData();
+		return data !== null && data.mapId !== null && data.worldNodesPath !== null;
+	});
+
 	public readonly weightsEnabled: Signal<boolean> = computed(() =>
 		this.planManager.activeSettings()?.optimisation?.rawResources ?? true);
 
@@ -96,6 +114,8 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		private readonly versionManager: VersionManager,
 		private readonly pool: ResourcePoolService,
 		private readonly weightResolver: ResourceWeightResolver,
+		private readonly panelLayout: PanelLayoutService,
+		private readonly mapPanelRequests: MapPanelRequests,
 		public readonly rateFormatter: RateFormatter,
 	)
 	{
@@ -116,9 +136,9 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return this.weightMode() === 'manual';
 	}
 
-	public get modeDescription(): string
+	public get modeLabel(): string
 	{
-		return this.modeOptions.find(option => option.mode === this.weightMode())?.description ?? '';
+		return this.modeOptions.find(option => option.mode === this.weightMode())?.label ?? '';
 	}
 
 	public iconHash(className: string): string | null
@@ -180,8 +200,29 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 		return this.versionManager.activeVersionData()?.worldLimits ?? null;
 	}
 
+	public selectFromMap(): void
+	{
+		this.mapPanelRequests.request('draw');
+		this.panelLayout.focusPanel('map');
+	}
+
+	public showArea(): void
+	{
+		this.mapPanelRequests.request('show');
+		this.panelLayout.focusPanel('map');
+	}
+
+	public removeArea(): void
+	{
+		const settings = this.planManager.activeSettings();
+		if (settings) {
+			this.planManager.updateActiveSettings({...settings, resourceArea: undefined});
+		}
+	}
+
 	public setAllEnabled(enabled: boolean): void
 	{
+		if (this.area() !== null) return;
 		this.rows.forEach(row => row.enabled = enabled);
 		this.sync();
 	}
@@ -189,7 +230,7 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 	public setFromMapLimits(): void
 	{
 		const limits = this.mapLimits;
-		if (!limits) return;
+		if (!limits || this.area() !== null) return;
 		this.rows.forEach(row => {
 			const limit = row.className === SpecialClasses.WaterItem ? undefined : limits[row.className];
 			row.infinite = limit === undefined;
@@ -202,12 +243,14 @@ export class CalculatorResourcesTabComponent implements OnDestroy
 
 	public toggleInfinite(row: ResourceLimitRow): void
 	{
+		if (this.area() !== null) return;
 		row.infinite = !row.infinite;
 		this.sync();
 	}
 
 	public setEnabled(row: ResourceLimitRow, enabled: boolean): void
 	{
+		if (this.area() !== null) return;
 		row.enabled = enabled;
 		this.sync();
 	}

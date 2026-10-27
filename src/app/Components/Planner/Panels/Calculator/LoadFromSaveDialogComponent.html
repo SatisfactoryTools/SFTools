@@ -1,13 +1,16 @@
 <div class="save-backdrop" hotkeyBlock (click)="close.emit()">
 	<div class="save-dialog card" (click)="$event.stopPropagation()">
 		<div class="card-header d-flex align-items-center gap-2">
-			<span class="fw-semibold flex-grow-1 text-truncate">Load settings from a save file</span>
+			<span class="fw-semibold flex-grow-1 text-truncate">Load from a save file</span>
 			<button type="button" class="btn-close" aria-label="Close" (click)="close.emit()"></button>
 		</div>
 		<div class="card-body d-flex flex-column gap-2">
 			<info-note>
-				Pick a Satisfactory save file (.sav). The machines, recipes and generator fuels unlocked in it
-				replace the current selection of &ldquo;{{ targetName }}&rdquo;.
+				Pick a Satisfactory save file (.sav).
+				@if (targetName !== null) {
+					Unlocks you tick replace those of &ldquo;{{ targetName }}&rdquo;.
+				}
+				The map's parts go to your game in this version, for every plan.
 			</info-note>
 
 			@switch (state()) {
@@ -23,29 +26,92 @@
 							<div>Session: <strong>{{ mapped.summary.sessionName }}</strong></div>
 						}
 						<div class="form-check">
-							<input class="form-check-input" type="checkbox" id="load-save-machines" [(ngModel)]="loadMachines"/>
+							<input class="form-check-input" type="checkbox" id="load-save-machines" [(ngModel)]="loadMachines" [disabled]="!canLoadUnlocks()"/>
 							<label class="form-check-label" for="load-save-machines">
 								Machines &mdash; {{ mapped.summary.machinesEnabled }} of {{ mapped.summary.machinesTotal }} enabled
 							</label>
 						</div>
 						<div class="form-check">
-							<input class="form-check-input" type="checkbox" id="load-save-recipes" [(ngModel)]="loadRecipes"/>
+							<input class="form-check-input" type="checkbox" id="load-save-recipes" [(ngModel)]="loadRecipes" [disabled]="!canLoadUnlocks()"/>
 							<label class="form-check-label" for="load-save-recipes">
 								Recipes &mdash; {{ mapped.summary.recipesEnabled }} of {{ mapped.summary.recipesTotal }} enabled
 							</label>
 						</div>
 						<div class="form-check">
-							<input class="form-check-input" type="checkbox" id="load-save-generators" [(ngModel)]="loadGenerators"/>
+							<input class="form-check-input" type="checkbox" id="load-save-generators" [(ngModel)]="loadGenerators" [disabled]="!canLoadUnlocks()"/>
 							<label class="form-check-label" for="load-save-generators">
 								Power generators &mdash; {{ mapped.summary.generatorsEnabled }} of {{ mapped.summary.generatorsTotal }} enabled
 							</label>
 						</div>
+						@if (targetName === null) {
+							<div class="text-secondary small">Open a plan or folder to load its unlocks too.</div>
+						} @else if (planBlocker; as blocker) {
+							<div class="text-secondary small">{{ blocker }}</div>
+						}
 						@if (mapped.summary.unknownEntries > 0) {
 							<div class="text-warning small">
 								<fa-icon [icon]="faTriangleExclamation"></fa-icon>
 								{{ mapped.summary.unknownEntries }} unlocks are unknown to this version and were skipped.
 								They are usually from mods.
 							</div>
+						}
+					}
+					@if (hasMap() && world(); as saveWorld) {
+						<div class="fw-semibold mt-2">Map</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="load-save-taken" [(ngModel)]="loadTakenNodes"/>
+							<label class="form-check-label" for="load-save-taken">
+								Taken nodes &mdash; {{ saveWorld.takenNodes.length }} with an extractor on them
+								<span class="d-block small text-secondary">Resource areas, free geysers and location viability leave them out.</span>
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="load-save-collected" [(ngModel)]="loadCollected"/>
+							<label class="form-check-label" for="load-save-collected">
+								Collected items &mdash; {{ saveWorld.collected.length }} picked up or looted
+							</label>
+						</div>
+						<div class="form-check">
+							<input class="form-check-input" type="checkbox" id="load-save-players" [(ngModel)]="loadPlayers"/>
+							<label class="form-check-label" for="load-save-players">
+								Players &mdash; {{ saveWorld.players.length }} on the map
+							</label>
+						</div>
+						@if (continuedGame(); as game) {
+							<div class="text-secondary small">Updates your game &ldquo;{{ gameLabels.name(game) }}&rdquo;. What you marked on the map by hand stays.</div>
+						} @else if (otherGame(); as game) {
+							<div class="small mt-1">This is another game than &ldquo;{{ gameLabels.name(game) }}&rdquo;, the one the map shows now.</div>
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="load-save-game" id="load-save-replace" value="replace" [(ngModel)]="gameChoice"/>
+								<label class="form-check-label" for="load-save-replace">Replace it</label>
+							</div>
+							<div class="form-check">
+								<input class="form-check-input" type="radio" name="load-save-game" id="load-save-new" value="new" [(ngModel)]="gameChoice"/>
+								<label class="form-check-label" for="load-save-new">
+									Keep both
+									<span class="d-block small text-secondary">The map gets a switch between them.</span>
+								</label>
+							</div>
+						}
+						@if (saveWorld.unplacedNodes > 0) {
+							<div class="text-warning small">
+								<fa-icon [icon]="faTriangleExclamation"></fa-icon>
+								{{ saveWorld.unplacedNodes }} extractors stand on nodes this version's map does not have.
+								They come from an older game or from mods.
+							</div>
+						}
+						@if (saveWorld.sameWorld === false) {
+							<info-note kind="warning">
+								This save uses a different world: {{ saveWorldLabel() }}. This version has {{ versionWorldLabel() }},
+								so its map shows other resources and purities than your game. Your plans stay in this version.
+								<div class="d-flex flex-wrap gap-2 mt-2">
+									@if (matchingVersion(); as version) {
+										<a class="btn btn-sm btn-outline-light" [routerLink]="['/', versionManager.urlSlug(version)]" (click)="close.emit()">Switch to &ldquo;{{ version.name }}&rdquo;</a>
+									} @else if (createParams(); as params) {
+										<a class="btn btn-sm btn-outline-light" routerLink="/create-version" [queryParams]="params" (click)="close.emit()">Create a version with this world</a>
+									}
+								</div>
+							</info-note>
 						}
 					}
 				}

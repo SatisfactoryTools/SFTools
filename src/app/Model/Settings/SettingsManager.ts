@@ -17,6 +17,7 @@ import {AccountSettings} from '@src/Model/Settings/AccountSettings';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {InteractiveSettingsConflictResolver} from '@src/Model/Settings/InteractiveSettingsConflictResolver';
 import {NumberSettings} from '@src/Model/Settings/NumberSettings';
+import {MapSettings} from '@src/Model/Settings/MapSettings';
 import {PlanDefaultsSettings} from '@src/Model/Settings/PlanDefaultsSettings';
 import {PlannerSettings} from '@src/Model/Settings/PlannerSettings';
 import {Settings} from '@src/Model/Settings/Settings';
@@ -35,6 +36,7 @@ export class SettingsManager extends SyncableService<Settings>
 	public readonly numbers: Signal<NumberSettings> = computed(() => this.settings().numbers);
 	public readonly graph: Signal<GraphSettings> = computed(() => this.settings().graph);
 	public readonly planner: Signal<PlannerSettings> = computed(() => this.settings().planner);
+	public readonly map: Signal<MapSettings> = computed(() => this.settings().map);
 	public readonly planDefaults: Signal<PlanDefaultsSettings> = computed(() => this.settings().planDefaults);
 	public readonly account: Signal<AccountSettings> = computed(() => this.settings().account);
 	public readonly hotkeys: Signal<HotkeyOverrides> = computed(() => this.settings().hotkeys);
@@ -96,6 +98,11 @@ export class SettingsManager extends SyncableService<Settings>
 	public updatePlanner(patch: Partial<PlannerSettings>): void
 	{
 		this.persist({...this.settings(), planner: {...this.planner(), ...patch}});
+	}
+
+	public updateMap(patch: Partial<MapSettings>): void
+	{
+		this.persist({...this.settings(), map: {...this.map(), ...patch}});
 	}
 
 	public updatePlanDefaults(patch: Partial<PlanDefaultsSettings>): void

@@ -100,7 +100,7 @@ export class CalculatorInputTabComponent implements OnDestroy
 		const resourceWeight = this.resourceWeights()[itemClassName];
 		if (resourceWeight !== undefined) return this.weightResolver.round(resourceWeight / 2);
 		if (item.form !== ItemForm.Solid) return CalculatorInputTabComponent.FLUID_WEIGHT;
-		return item.sinkPoints > 0 ? this.weightResolver.round(item.sinkPoints / 100) : 1;
+		return item.sinkPoints > 0 ? this.weightResolver.round(item.sinkPoints / 1000) : 1;
 	}
 
 	public removeRow(index: number): void

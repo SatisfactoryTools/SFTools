@@ -1,0 +1,44 @@
+<!-- A wrapper: disabled buttons get no pointer events, so their tooltip would never show. -->
+<div class="btn-group shadow-sm" [tooltip]="planSettings.resourcesBlocker() ?? ''" placement="top" container="body">
+	<!-- container="body": a map in a panel would clip the menus. -->
+	<div class="btn-group" dropdown [dropup]="true" container="body" placement="top left">
+		<button
+			type="button"
+			class="btn btn-sm btn-dark dropdown-toggle"
+			aria-label="Fastest belt" title="The fastest belt: it caps what each solid node gives on the map"
+			[disabled]="planSettings.resourcesBlocker() !== null"
+			dropdownToggle
+		><span class="conveyor-label">Belt</span> Mk.{{ planSettings.conveyors().beltMark }}</button>
+		<div *dropdownMenu class="dropdown-menu" role="menu">
+			@for (rate of belts; track $index) {
+				<button
+					type="button"
+					class="dropdown-item d-flex justify-content-between gap-3"
+					role="menuitem"
+					[class.active]="planSettings.conveyors().beltMark === $index + 1"
+					(click)="setBelt($index + 1)"
+				><span>Mk.{{ $index + 1 }}</span><span class="opacity-75">{{ rate }}/min</span></button>
+			}
+		</div>
+	</div>
+	<div class="btn-group" dropdown [dropup]="true" container="body" placement="top left">
+		<button
+			type="button"
+			class="btn btn-sm btn-dark dropdown-toggle"
+			aria-label="Fastest pipe" title="The fastest pipe: it caps what each fluid node and well gives on the map"
+			[disabled]="planSettings.resourcesBlocker() !== null"
+			dropdownToggle
+		><span class="conveyor-label">Pipe</span> Mk.{{ planSettings.conveyors().pipeMark }}</button>
+		<div *dropdownMenu class="dropdown-menu" role="menu">
+			@for (rate of pipes; track $index) {
+				<button
+					type="button"
+					class="dropdown-item d-flex justify-content-between gap-3"
+					role="menuitem"
+					[class.active]="planSettings.conveyors().pipeMark === $index + 1"
+					(click)="setPipe($index + 1)"
+				><span>Mk.{{ $index + 1 }}</span><span class="opacity-75">{{ rate }}/min</span></button>
+			}
+		</div>
+	</div>
+</div>

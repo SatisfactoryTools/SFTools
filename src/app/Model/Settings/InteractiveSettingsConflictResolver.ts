@@ -25,8 +25,8 @@ export class InteractiveSettingsConflictResolver implements ConflictResolver<Set
 
 	private samePreferences(a: Settings, b: Settings): boolean
 	{
-		return JSON.stringify({numbers: a.numbers, graph: a.graph, planner: a.planner, planDefaults: a.planDefaults, account: a.account, hotkeys: a.hotkeys})
-			=== JSON.stringify({numbers: b.numbers, graph: b.graph, planner: b.planner, planDefaults: b.planDefaults, account: b.account, hotkeys: b.hotkeys});
+		return JSON.stringify({numbers: a.numbers, graph: a.graph, planner: a.planner, map: a.map, planDefaults: a.planDefaults, account: a.account, hotkeys: a.hotkeys})
+			=== JSON.stringify({numbers: b.numbers, graph: b.graph, planner: b.planner, map: b.map, planDefaults: b.planDefaults, account: b.account, hotkeys: b.hotkeys});
 	}
 
 }

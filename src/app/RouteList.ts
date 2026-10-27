@@ -3,6 +3,7 @@ import {ContentComponent} from '@src/Components/Root/ContentComponent';
 import {HomeComponent} from '@src/Components/Home/HomeComponent';
 import {VersionContextComponent} from '@src/Components/Version/VersionContextComponent';
 import {CodexPageComponent} from '@src/Components/Codex/CodexPageComponent';
+import {MapPageComponent} from '@src/Components/Map/MapPageComponent';
 import {HelpPageComponent} from '@src/Components/Help/HelpPageComponent';
 import {HelpArticleEditorComponent} from '@src/Components/HelpEditor/HelpArticleEditorComponent';
 import {HelpEditorComponent} from '@src/Components/HelpEditor/HelpEditorComponent';
@@ -227,6 +228,12 @@ export class RouteList
 							title: 'Codex ({V})',
 							data: {description: 'Searchable codex of items, recipes, buildings and schematics in Satisfactory ({V}).'},
 							component: CodexPageComponent,
+						},
+						{
+							path: 'map',
+							title: 'Map ({V})',
+							data: {description: 'Map of the Satisfactory world ({V}).'},
+							component: MapPageComponent,
 						},
 						{
 							matcher: RouteList.plannerMatcher,

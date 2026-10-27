@@ -121,6 +121,9 @@
 						<power-draw class="text-success text-end" [draw]="geothermalPower"></power-draw>
 					</div>
 				}
+				@if (geyserCapNote; as note) {
+					<div class="small text-secondary">{{ note }}</div>
+				}
 				@if (!hasGeyserCaps) {
 					<info-note>
 						This version has no map data, so the number of geysers is unknown.

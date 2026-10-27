@@ -11,6 +11,7 @@ import {Building} from '@src/Model/Data/Entities/Building';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {Fuel} from '@src/Model/Data/Entities/Parts/Fuel';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {GeyserCaps} from '@src/Model/Game/GeyserCaps';
 import {ExtraPower} from '@src/Model/Planner/ExtraPower';
 import {ExtraPowerResolver} from '@src/Model/Planner/ExtraPowerResolver';
 import {GeothermalGenerators} from '@src/Model/Planner/GeothermalGenerators';
@@ -48,6 +49,7 @@ export class CalculatorPowerTabComponent
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
 		private readonly extraPower: ExtraPowerResolver,
+		private readonly geyserCaps: GeyserCaps,
 		public readonly rateFormatter: RateFormatter,
 		collapsedSections: CollapsedSectionsService,
 	)
@@ -243,7 +245,17 @@ export class CalculatorPowerTabComponent
 
 	private get availableGeysers(): GeothermalGenerators | null
 	{
-		return this.extraPower.availableGeysers(this.versionManager.activeVersion());
+		return this.geyserCaps.cap(this.planManager.activeSettings())?.counts ?? null;
+	}
+
+	/** Why the caps are what they are, when it is not just the map's total. */
+	public get geyserCapNote(): string | null
+	{
+		const cap = this.geyserCaps.cap(this.planManager.activeSettings());
+		if (cap?.source === 'area') {
+			return 'At most the free geysers inside the plan\'s resource area.';
+		}
+		return cap !== null && cap.taken > 0 ? `${cap.taken} geysers already have a generator in your game: they are left out.` : null;
 	}
 
 	private geothermalPowerOf(key: keyof GeothermalGenerators, count: number): PowerDraw

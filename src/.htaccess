@@ -21,11 +21,6 @@ DirectoryIndex index.php index.html
 <IfModule mod_rewrite.c>
 	RewriteEngine On
 
-	# RELEASE: uncomment once the www vhost serves this app, never
-	# before - it would send the beta host to the old site.
-	# RewriteCond %{HTTP_HOST} ^new\.satisfactorytools\.com$ [NC]
-	# RewriteRule ^(.*)$ https://www.satisfactorytools.com/$1 [R=301,L,QSA]
-
 	RewriteRule /\.|^\.(?!well-known/) - [F]
 
 	# front controller: index.php when deployed (link previews), else index.html

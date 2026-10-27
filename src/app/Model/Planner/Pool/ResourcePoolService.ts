@@ -83,6 +83,16 @@ export class ResourcePoolService
 		return total;
 	}
 
+	/** The plan's mining, its subplans' included. */
+	public usageOfPlan(plan: Plan): Map<string, number>
+	{
+		const total = new Map<string, number>();
+		[plan, ...this.planManager.subplansOf(plan.id)].forEach(entry => this.mineUsage(entry).forEach((amount, className) => {
+			total.set(className, (total.get(className) ?? 0) + amount);
+		}));
+		return total;
+	}
+
 	public overUsed(plan: Plan): PoolResourceStatus[]
 	{
 		return (this.status(plan) ?? []).filter(status => status.overUse);

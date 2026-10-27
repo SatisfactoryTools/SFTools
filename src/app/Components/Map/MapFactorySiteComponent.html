@@ -1,0 +1,108 @@
+<div class="site-header d-flex align-items-center gap-2 ps-3 pe-1 py-1">
+	<span class="fw-semibold flex-grow-1">Location viability</span>
+	@if (sites.computing()) {
+		<span class="spinner-border spinner-border-sm text-secondary" role="status" aria-label="Calculating"></span>
+	}
+	<button type="button" class="btn btn-link btn-sm text-reset" aria-label="Close location viability" (click)="closed.emit()">
+		<fa-icon [icon]="faXmark"></fa-icon>
+	</button>
+</div>
+<div class="site-body px-3 py-2">
+	@if (explanation; as picked) {
+		<map-site-card
+			class="site-picked"
+			[embedded]="true"
+			[explanation]="picked"
+			[saved]="saved"
+			[spotBlocker]="spotBlocker"
+			[clearable]="clearable"
+			(useSpot)="useSpot.emit()"
+			(removeSpot)="removeSpot.emit()"
+			(closed)="clearSpot.emit()"
+		/>
+	}
+	@switch (sites.status()) {
+		@case ('no-target') {
+			<info-note>{{ targets.selectable ? 'Choose a plan or folder first.' : 'Open a plan or folder first.' }} The heatmap shows where its factory has the resources nearby.</info-note>
+		}
+		@case ('not-calculated') {
+			<info-note>{{ sites.target()?.plan ? 'Calculate the plan first.' : 'Calculate the plans in the folder first.' }} The heatmap uses the amounts they mine.</info-note>
+		}
+		@case ('nothing-mined') {
+			<info-note>Nothing to place: the plan mines no resource that has a limit. Unlimited ones, like water, are left out.</info-note>
+		}
+		@case ('loading') {
+			<div class="d-flex align-items-center gap-2 small text-secondary">
+				<span class="spinner-border spinner-border-sm" role="status"></span>Loading the resource nodes…
+			</div>
+		}
+		@case ('ready') {
+			<p class="small text-secondary mb-2">Green spots have the nodes the plan needs closest. Click the map to see which nodes a factory there would use. Node output follows the belts and pipes at the bottom of the map.</p>
+		}
+	}
+
+	@if (sites.blocker(); as blocker) {
+		@if (sites.status() !== 'no-target') {
+			<info-note class="d-block mb-2">{{ blocker }} The options below cannot be changed.</info-note>
+		}
+	}
+	<fieldset [disabled]="sites.blocker() !== null">
+		<div class="mb-2">
+			<label class="form-label small mb-1" for="map-site-mode">Score</label>
+			<select id="map-site-mode" class="form-select form-select-sm" (change)="setMode($event)">
+				@for (entry of modes; track entry.mode) {
+					<option [value]="entry.mode" [selected]="sites.options().mode === entry.mode">{{ entry.label }}</option>
+				}
+			</select>
+			<div class="small text-secondary mt-1">{{ modeDescription }}</div>
+		</div>
+		<div class="d-flex align-items-center gap-2 flex-wrap mb-2">
+			<div class="form-check mb-0">
+				<input class="form-check-input" type="checkbox" id="map-site-fluid" [checked]="sites.options().fluidCost" (change)="setFluidCost($event)"/>
+				<label class="form-check-label" for="map-site-fluid">Fluids cost more to transport</label>
+			</div>
+			<select class="form-select form-select-sm w-auto" aria-label="Fluid distance factor" [disabled]="!sites.options().fluidCost" (change)="setFluidFactor($event)">
+				@for (factor of fluidFactors; track factor) {
+					<option [value]="factor" [selected]="sites.options().fluidFactor === factor">×{{ factor }}</option>
+				}
+			</select>
+		</div>
+		@if (sites.areaAvailable()) {
+			<div class="form-check mb-2">
+				<input class="form-check-input" type="checkbox" id="map-site-area" [checked]="sites.options().areaOnly" (change)="setAreaOnly($event)"/>
+				<label class="form-check-label" for="map-site-area">Only nodes inside the resource area</label>
+			</div>
+		}
+	</fieldset>
+
+	@if (sites.status() === 'ready') {
+		@if (sites.result(); as result) {
+			@if (result.spots.length > 0) {
+				<div class="site-label text-secondary mt-3 mb-1">Best spots · {{ sites.options().mode === 'farthest' ? 'farthest node' : 'sum of distances' }}</div>
+				<div class="d-flex gap-1">
+					@for (entry of result.spots; track $index) {
+						<button type="button" class="btn btn-sm btn-outline-secondary flex-fill d-flex align-items-center justify-content-center gap-2" [attr.aria-label]="'Show best spot ' + ($index + 1)" (click)="spot.emit(entry)">
+							<span class="spot-number">{{ $index + 1 }}</span>
+							<span class="numbers">{{ distance(entry) }}</span>
+						</button>
+					}
+				</div>
+			}
+		}
+		<div class="site-label text-secondary mt-3 mb-1">Resources the plan mines</div>
+		@for (row of sites.rows(); track row.className) {
+			<div class="site-row">
+				<span class="d-flex align-items-center gap-2" style="min-width: 0">
+					<game-icon [hash]="iconHash(row)" [size]="20" [alt]="row.name"/>
+					<span class="text-truncate">{{ row.name }}</span>
+				</span>
+				<span class="numbers small text-end">{{ rate(row, row.demand) }}</span>
+			</div>
+			@if (shortfall(row)) {
+				<div class="small text-warning mb-1">
+					{{ row.nodeCount === 0 ? 'No nodes to mine it from.' : 'The ' + row.nodeCount + ' nodes give only ' + rate(row, row.capacity) + '. The heatmap uses them all.' }}
+				</div>
+			}
+		}
+	}
+</div>

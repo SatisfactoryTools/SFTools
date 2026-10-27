@@ -1,6 +1,6 @@
 import {Injectable} from '@angular/core';
 import {Observable} from 'rxjs';
-import {SaveFileUnlocks} from '@src/Model/SaveFile/SaveFileUnlocks';
+import {SaveFileContents} from '@src/Model/SaveFile/SaveFileContents';
 import {SaveFileWorkerRequest} from '@src/Model/SaveFile/Worker/SaveFileWorkerRequest';
 import {SaveFileWorkerResponse} from '@src/Model/SaveFile/Worker/SaveFileWorkerResponse';
 
@@ -11,9 +11,9 @@ const PARSE_TIMEOUT_MS = 120_000;
 export class SaveFileService
 {
 
-	public parse(file: File): Observable<SaveFileUnlocks>
+	public parse(file: File): Observable<SaveFileContents>
 	{
-		return new Observable<SaveFileUnlocks>(subscriber => {
+		return new Observable<SaveFileContents>(subscriber => {
 			const worker = new Worker(
 				new URL('./Worker/SaveFileWorker', import.meta.url),
 				{type: 'module'},
@@ -27,7 +27,7 @@ export class SaveFileService
 					subscriber.error(new Error(data.error));
 					return;
 				}
-				subscriber.next(data.unlocks!);
+				subscriber.next(data.contents!);
 				subscriber.complete();
 			});
 			worker.addEventListener('error', (event: ErrorEvent) => {

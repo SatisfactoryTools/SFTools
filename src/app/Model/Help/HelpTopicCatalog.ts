@@ -28,6 +28,7 @@ export class HelpTopicCatalog
 		{topic: 'panel.settings', group: 'panels', label: 'Planner settings panel', where: 'Planner settings panel tab strip.'},
 		{topic: 'panel.codex', group: 'panels', label: 'Codex panel', where: 'Codex panel tab strip.'},
 		{topic: 'panel.help', group: 'panels', label: 'Help panel', where: 'Help panel tab strip.'},
+		{topic: 'panel.map', group: 'panels', label: 'Map panel', where: 'Map panel tab strip.'},
 
 		{topic: 'request.production', group: 'request', label: 'Request tab', where: 'Production request panel, Request tab.'},
 		{topic: 'request.resources', group: 'request', label: 'Resources tab', where: 'Production request panel, Resources tab.'},

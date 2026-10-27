@@ -1,0 +1,71 @@
+<div class="area-header d-flex align-items-center gap-2 ps-3 pe-1 py-1">
+	<span class="fw-semibold flex-grow-1">Resource area</span>
+	<button type="button" class="btn btn-link btn-sm text-reset" aria-label="Close resource area" (click)="closed.emit()">
+		<fa-icon [icon]="faXmark"></fa-icon>
+	</button>
+</div>
+@if (areas.area(); as area) {
+	<div class="area-body px-3 py-2">
+		@if (areas.blocker(); as blocker) {
+			<info-note class="d-block mb-2">{{ blocker }}</info-note>
+		} @else {
+			<p class="small text-secondary mb-2">The resource limits are counted from the nodes inside the area, with the belts and pipes chosen at the bottom of the map. Resources with no nodes inside get a limit of 0.</p>
+		}
+		<fieldset [disabled]="areas.blocker() !== null">
+			<div class="form-check mb-2">
+				<input class="form-check-input" type="checkbox" id="map-area-water" [checked]="area.waterWells" (change)="setWaterWells($event)"/>
+				<label class="form-check-label" for="map-area-water">Limit water to the wells in the area</label>
+				<div class="small text-secondary">Off: water is unlimited.</div>
+			</div>
+		</fieldset>
+		@if (areas.summary(); as summary) {
+			@if (summary.rows.length > 0) {
+				<div class="small text-secondary mb-1">
+					{{ summary.nodeCount }} {{ summary.nodeCount === 1 ? 'node' : 'nodes' }} inside@if (summary.takenCount > 0) {, {{ summary.takenCount }} more taken and left out}
+				</div>
+				@if (summary.geysers.impure + summary.geysers.normal + summary.geysers.pure > 0) {
+					<div class="small text-secondary mb-1">
+						Free geysers: {{ summary.geysers.impure }} impure, {{ summary.geysers.normal }} normal, {{ summary.geysers.pure }} pure.
+						They cap the plan's geothermal generators.
+					</div>
+				}
+				<div class="area-grid area-head">
+					<span class="name text-secondary small">Resource</span>
+					<span class="count" tooltip="Impure" placement="top" container="body"><map-marker-swatch shape="impure" color="#cfd6de"/></span>
+					<span class="count" tooltip="Normal" placement="top" container="body"><map-marker-swatch shape="normal" color="#cfd6de"/></span>
+					<span class="count" tooltip="Pure" placement="top" container="body"><map-marker-swatch shape="pure" color="#cfd6de"/></span>
+					<span class="limit text-secondary small">Limit</span>
+				</div>
+				@for (row of summary.rows; track row.className) {
+					<div class="area-grid area-row">
+						<span class="name d-flex align-items-center gap-2">
+							<game-icon [hash]="iconHash(row)" [size]="20" [alt]="row.name"/>
+							<span class="text-truncate">{{ row.name }}</span>
+						</span>
+						<span class="count numbers small" [class.text-secondary]="row.counts.impure === 0">{{ row.counts.impure }}</span>
+						<span class="count numbers small" [class.text-secondary]="row.counts.normal === 0">{{ row.counts.normal }}</span>
+						<span class="count numbers small" [class.text-secondary]="row.counts.pure === 0">{{ row.counts.pure }}</span>
+						<span class="limit numbers small">{{ limitText(row) }}</span>
+					</div>
+				}
+			} @else {
+				<div class="small text-secondary">There are no resource nodes inside the area.</div>
+			}
+		} @else {
+			<div class="d-flex align-items-center gap-2 small text-secondary">
+				<span class="spinner-border spinner-border-sm" role="status"></span>Loading the resource nodes…
+			</div>
+		}
+	</div>
+	@if (areas.blocker() === null) {
+		<div class="area-footer d-flex gap-2 px-3 py-2">
+			<button type="button" class="btn btn-sm btn-outline-secondary" (click)="redraw.emit()">
+				<fa-icon [icon]="faDrawPolygon"></fa-icon> Draw again
+			</button>
+			<span class="flex-grow-1"></span>
+			<button type="button" class="btn btn-sm btn-outline-danger" tooltip="The limits stay as they are" placement="top" container="body" (click)="remove()">
+				<fa-icon [icon]="faTrashCan"></fa-icon> Remove area
+			</button>
+		</div>
+	}
+}

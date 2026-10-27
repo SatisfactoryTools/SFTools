@@ -52,6 +52,7 @@ export type HotkeyAction =
 	| 'panel.plannerSettings'
 	| 'panel.codex'
 	| 'panel.help'
+	| 'panel.map'
 	| 'plans.newPlan'
 	| 'plans.newFolder'
 	| 'plans.renamePlan'

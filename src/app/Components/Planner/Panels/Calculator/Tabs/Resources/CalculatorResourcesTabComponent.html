@@ -1,20 +1,32 @@
 <div class="p-2 d-flex flex-column gap-2">
 	<div class="d-flex align-items-center gap-2 flex-wrap">
-		<label class="form-label mb-0 text-nowrap" for="resource-weight-mode">Resource weights</label>
-		<select
-			id="resource-weight-mode"
-			class="form-select form-select-sm bg-dark text-light border-secondary w-auto"
-			[ngModel]="weightMode()"
-			(ngModelChange)="setMode($event)"
-		>
-			@for (option of modeOptions; track option.mode) {
-				<option [ngValue]="option.mode">{{ option.label }}</option>
-			}
-		</select>
+		<span class="text-nowrap" id="resource-weight-mode-label">Resource weights</span>
+		<!-- container="body": the panel's overflow container would clip the menu. -->
+		<div class="btn-group" dropdown container="body" placement="bottom left">
+			<button
+				id="resource-weight-mode"
+				type="button"
+				class="btn btn-sm btn-outline-secondary dropdown-toggle"
+				aria-labelledby="resource-weight-mode-label resource-weight-mode"
+				dropdownToggle
+			>{{ modeLabel }}</button>
+			<div *dropdownMenu class="dropdown-menu" style="width: 360px; max-width: calc(100vw - 32px);" role="menu">
+				@for (option of modeOptions; track option.mode) {
+					<button
+						type="button"
+						class="dropdown-item text-wrap"
+						role="menuitem"
+						[class.active]="option.mode === weightMode()"
+						(click)="setMode(option.mode)"
+					>
+						{{ option.label }}
+						<span class="d-block opacity-75 small">{{ option.description }}</span>
+					</button>
+				}
+			</div>
+		</div>
 	</div>
-	@if (weightsEnabled()) {
-		<info-note>{{ modeDescription }}</info-note>
-	} @else {
+	@if (!weightsEnabled()) {
 		<info-note kind="warning">
 			Raw resource weights are turned off in the Optimisation tab. The weights below are ignored.
 		</info-note>
@@ -73,6 +85,15 @@
 			<span><span class="pool-legend pool-free"></span> free</span>
 		</div>
 	} @else {
+		@if (area()) {
+			<info-note kind="warning">
+				<div class="mb-2">The limits are set from an area on the map. Remove the area to change them by hand. Weights can still be changed.</div>
+				<div class="d-flex gap-2 flex-wrap">
+					<button type="button" class="btn btn-sm btn-outline-light" (click)="showArea()"><fa-icon [icon]="faMap"></fa-icon> Show on the map</button>
+					<button type="button" class="btn btn-sm btn-outline-light" (click)="removeArea()"><fa-icon [icon]="faLockOpen"></fa-icon> Remove the area</button>
+				</div>
+			</info-note>
+		}
 		<div class="d-flex align-items-center gap-2 flex-wrap">
 			<span class="text-secondary">Raw resources</span>
 			<button
@@ -81,6 +102,7 @@
 				tooltip="Allow mining every raw resource"
 				container="body"
 				placement="top"
+				[disabled]="area() !== null"
 				(click)="setAllEnabled(true)"
 			>All</button>
 			<button
@@ -89,20 +111,33 @@
 				tooltip="Forbid mining any raw resource"
 				container="body"
 				placement="top"
+				[disabled]="area() !== null"
 				(click)="setAllEnabled(false)"
 			>None</button>
-			@if (mapLimits) {
-				<button
-					type="button"
-					class="btn btn-sm btn-outline-info py-0 text-nowrap ms-auto"
-					tooltip="Limit every resource to what the map can supply. Water stays unlimited."
-					container="body"
-					placement="top"
-					(click)="setFromMapLimits()"
-				><fa-icon [icon]="faMap"></fa-icon> Set from map limits</button>
-			}
+			<span class="d-flex gap-2 flex-wrap ms-auto">
+				@if (mapAvailable()) {
+					<button
+						type="button"
+						class="btn btn-sm btn-outline-info py-0 text-nowrap"
+						tooltip="Draw an area on the map. The limits are counted from the resource nodes inside it."
+						container="body"
+						placement="top"
+						(click)="selectFromMap()"
+					><fa-icon [icon]="faDrawPolygon"></fa-icon> Select from the map</button>
+				}
+				@if (mapLimits && area() === null) {
+					<button
+						type="button"
+						class="btn btn-sm btn-outline-info py-0 text-nowrap"
+						tooltip="Limit every resource to what the map can supply. Water stays unlimited."
+						container="body"
+						placement="top"
+						(click)="setFromMapLimits()"
+					><fa-icon [icon]="faMap"></fa-icon> Set from map limits</button>
+				}
+			</span>
 		</div>
-		<table class="table table-dark table-sm align-middle mb-0 table-stack">
+		<table class="table table-dark table-sm align-middle mb-0 table-stack" [class.area-locked]="area() !== null">
 			<thead>
 				<tr>
 					<th style="width: 32px;"></th>
@@ -128,6 +163,7 @@
 								class="form-check-input"
 								[ngModel]="row.enabled"
 								(ngModelChange)="setEnabled(row, $event)"
+								[disabled]="area() !== null"
 								[tooltip]="row.enabled ? 'Untick to stop mining this resource' : 'Tick to allow mining it'"
 								container="body"
 								placement="top"
@@ -147,7 +183,7 @@
 									[name]="'limit-' + row.className"
 									[ngModel]="row.infinite ? null : row.limit"
 									(ngModelChange)="row.limit = $event ?? 0; sync()"
-									[disabled]="row.infinite || !row.enabled"
+									[disabled]="row.infinite || !row.enabled || area() !== null"
 									[placeholder]="row.infinite ? 'unlimited' : ''"
 									min="0"
 									step="any"
@@ -157,7 +193,7 @@
 									type="button"
 									class="btn btn-outline-secondary px-2"
 									[class.active]="row.infinite"
-									[disabled]="!row.enabled"
+									[disabled]="!row.enabled || area() !== null"
 									[tooltip]="row.infinite ? 'Set a limit' : 'Make unlimited'"
 									container="body"
 									placement="top"
@@ -165,7 +201,7 @@
 								>∞</button>
 							</div>
 						</td>
-						<td data-label="Weight">
+						<td class="weight-cell" data-label="Weight">
 							@if (manual) {
 								<input
 									type="number"

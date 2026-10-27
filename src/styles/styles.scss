@@ -3,6 +3,7 @@
 @import "@fontsource/lato/400.css";
 @import "@fontsource/lato/700.css";
 @import "theme/bootstrap";
+@import "leaflet/dist/leaflet.css";
 
 // Tooltips are non-interactive; without this a tooltip rendered next to its
 // trigger can steal the hover and flicker in a show/hide loop.
@@ -390,4 +391,373 @@ circle.pg-port-adsorbed {
 	white-space: pre-wrap;
 	word-break: break-word;
 	font-size: 0.75rem;
+}
+
+// Leaflet's controls ship light-themed; match them to the app's dark buttons.
+.leaflet-container {
+	font-family: inherit;
+	background: #141824;
+}
+
+.leaflet-bar {
+	border: 1px solid #34475a !important;
+	box-shadow: none !important;
+
+	a,
+	a:hover {
+		background-color: #213040;
+		color: #fff;
+		border-bottom-color: #34475a;
+	}
+
+	a:hover {
+		background-color: #2c3e50;
+	}
+
+	a.leaflet-disabled {
+		background-color: #1a2533;
+		color: #6c7a89;
+	}
+}
+
+// divIcon's default white box would sit behind every node shape.
+.leaflet-div-icon.map-node-icon,
+.map-node-icon {
+	background: none;
+	border: none;
+
+	svg {
+		display: block;
+		overflow: visible;
+	}
+}
+
+// An extractor stands on it in the game: still there to find, but out of the tools' reach.
+.map-node-taken svg {
+	opacity: 0.45;
+	filter: grayscale(0.85);
+}
+
+.leaflet-div-icon.map-player-icon,
+.map-player-icon {
+	background: none;
+	border: none;
+}
+
+.map-player-disc {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border: 2px solid #111;
+	border-radius: 50%;
+	background: var(--marker-color);
+	color: #111;
+}
+
+.map-player-name {
+	position: absolute;
+	left: 28px;
+	top: 3px;
+	padding: 0 5px;
+	white-space: nowrap;
+	background: rgba(20, 24, 36, 0.85);
+	color: #fff;
+	font-size: 0.75rem;
+	line-height: 18px;
+}
+
+.leaflet-div-icon.map-pin-icon,
+.map-pin-icon {
+	background: none;
+	border: none;
+}
+
+.map-pin-disc {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	border: 2px solid #111;
+	background: var(--marker-color);
+	color: #111;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+
+.map-pin-label {
+	position: absolute;
+	left: 30px;
+	top: 4px;
+	padding: 0 5px;
+	white-space: nowrap;
+	background: rgba(20, 24, 36, 0.85);
+	color: #fff;
+	font-size: 0.75rem;
+	line-height: 18px;
+}
+
+.leaflet-div-icon.map-cluster-icon,
+.map-cluster-icon {
+	background: none;
+	border: none;
+}
+
+.map-cluster {
+	position: relative;
+	display: block;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	box-shadow: 0 0 0 1.5px #111;
+	cursor: pointer;
+}
+
+.map-cluster-count {
+	position: absolute;
+	inset: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: rgba(20, 24, 36, 0.92);
+	color: #fff;
+	font-size: 0.6875rem;
+	font-weight: 700;
+}
+
+.map-cluster-dim .map-cluster {
+	opacity: 0.5;
+	filter: grayscale(0.85);
+}
+
+// Follows the mouse; empty while it is off the map.
+.map-coordinates {
+	padding: 1px 6px;
+	background: rgba(20, 24, 36, 0.85);
+	color: #fff;
+	font-size: 0.75rem;
+	font-variant-numeric: tabular-nums;
+	white-space: pre;
+	pointer-events: none;
+
+	&:empty {
+		display: none;
+	}
+}
+
+.leaflet-tooltip.map-measure-label,
+.leaflet-tooltip.map-area-label {
+	padding: 0 5px;
+	background: rgba(20, 24, 36, 0.88);
+	border: 1px solid #34475a;
+	color: #fff;
+	font-size: 0.75rem;
+	box-shadow: none;
+
+	&::before {
+		display: none;
+	}
+}
+
+.leaflet-tooltip.map-area-label {
+	pointer-events: none;
+}
+
+@keyframes map-highlight-pulse {
+	from { stroke-opacity: 1; }
+	to { stroke-opacity: 0.2; }
+}
+
+.map-highlight-ring {
+	animation: map-highlight-pulse 0.9s ease-in-out infinite alternate;
+}
+
+.map-popup {
+	.leaflet-popup-content-wrapper,
+	.leaflet-popup-tip {
+		background: #213040;
+		color: #fff;
+		border: 1px solid #34475a;
+		border-radius: 0;
+		box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+	}
+
+	.leaflet-popup-content {
+		margin: 10px 28px 10px 12px;
+		font-size: 0.875rem;
+		line-height: 1.35;
+	}
+
+	a.leaflet-popup-close-button {
+		color: #aab6c3;
+
+		&:hover {
+			color: #fff;
+		}
+	}
+}
+
+.map-popup-body {
+	width: 230px;
+}
+
+.map-popup-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+.map-popup-picture {
+	position: relative;
+	flex: none;
+	width: 44px;
+	height: 44px;
+	border: 2px solid var(--marker-color);
+	border-radius: 50%;
+	background: #141824;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	img {
+		width: 32px;
+		height: 32px;
+	}
+
+	svg path {
+		fill: var(--marker-color);
+		stroke: #111;
+		stroke-width: 2.5;
+		stroke-linejoin: round;
+		paint-order: stroke;
+	}
+}
+
+.map-popup-shape {
+	width: 26px;
+	height: 26px;
+}
+
+// The same purity shape as on the map marker, as a corner badge.
+.map-popup-badge {
+	position: absolute;
+	right: -4px;
+	bottom: -4px;
+	width: 18px;
+	height: 18px;
+
+	path {
+		fill: #fff !important;
+	}
+}
+
+.map-popup-heading {
+	min-width: 0;
+}
+
+.map-popup-title {
+	font-weight: 700;
+	font-size: 1rem;
+	line-height: 1.2;
+}
+
+.map-popup-description {
+	color: var(--bs-secondary-color);
+	font-size: 0.8125rem;
+}
+
+.map-popup-amount {
+	display: flex;
+	justify-content: space-between;
+	padding: 4px 8px;
+	margin-bottom: 6px;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid #34475a;
+
+	span {
+		color: var(--bs-secondary-color);
+	}
+}
+
+.map-popup-coordinates {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 4px;
+	margin-bottom: 6px;
+	font-variant-numeric: tabular-nums;
+
+	div {
+		display: flex;
+		flex-direction: column;
+		padding: 3px 6px;
+		background: rgba(255, 255, 255, 0.05);
+		border: 1px solid #34475a;
+	}
+
+	span {
+		font-size: 0.6875rem;
+		color: var(--bs-secondary-color);
+	}
+
+	strong {
+		font-weight: 600;
+		font-size: 0.8125rem;
+	}
+}
+
+.map-popup-taken {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 4px 8px;
+	margin-bottom: 6px;
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid #34475a;
+
+	span {
+		color: var(--bs-secondary-color);
+	}
+}
+
+.map-popup-id {
+	display: block;
+	font-size: 0.6875rem;
+	color: var(--bs-secondary-color);
+	overflow-wrap: anywhere;
+}
+
+// Drawing a resource area: every click places a corner, so markers must let clicks through.
+.leaflet-container.map-drafting,
+.leaflet-container.map-drafting .leaflet-grab,
+.leaflet-container.map-drafting .leaflet-interactive {
+	cursor: crosshair;
+}
+.leaflet-container.map-drafting .leaflet-interactive {
+	pointer-events: none !important;
+}
+
+.leaflet-control-zoom-fit {
+	display: flex !important;
+	align-items: center;
+	justify-content: center;
+}
+
+// Numbered best spots; the number is the rank.
+.map-site-spot {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	border: 2px solid #111;
+	border-radius: 50%;
+	background: #fff;
+	color: #111;
+	font-weight: 700;
+	font-size: 0.8125rem;
+	box-shadow: 0 0 0 2px #2ecc40;
 }
