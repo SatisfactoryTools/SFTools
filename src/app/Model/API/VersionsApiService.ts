@@ -11,13 +11,12 @@ import {VersionDataLocation} from '@src/Model/API/Schema/VersionDataLocation';
 import {VersionFile} from '@src/Model/API/Schema/VersionFile';
 import {WorldDataPreview} from '@src/Model/API/Schema/World/WorldDataPreview';
 import {WorldDataRequest} from '@src/Model/API/Schema/World/WorldDataRequest';
+import {VersionFileCaching} from '@src/Model/API/VersionFileCaching';
 import {VersionResponseParser} from '@src/Model/API/VersionResponseParser';
 
 @Injectable({providedIn: 'root'})
 export class VersionsApiService
 {
-
-	private static readonly CUSTOM_DIR = 'data/versions/custom/';
 
 	public constructor(
 		private readonly http: HttpClient,
@@ -71,16 +70,9 @@ export class VersionsApiService
 		);
 	}
 
-	/**
-	 * Custom version files are content-addressed, so the browser may keep them. Official ones are rewritten in place
-	 * (publish, world:attach): the browser has to ask again, else a copy from before the change can stay for days.
-	 */
 	private fetchVersionFile(dataPath: string): Observable<VersionFile>
 	{
-		const url = `${env.apiUrl}/${dataPath}`;
-		return dataPath.startsWith(VersionsApiService.CUSTOM_DIR)
-			? this.http.get<VersionFile>(url)
-			: this.http.get<VersionFile>(url, {cache: 'no-cache'});
+		return this.http.get<VersionFile>(`${env.apiUrl}/${dataPath}`, {cache: VersionFileCaching.mode(dataPath)});
 	}
 
 }
