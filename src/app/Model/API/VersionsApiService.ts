@@ -17,6 +17,8 @@ import {VersionResponseParser} from '@src/Model/API/VersionResponseParser';
 export class VersionsApiService
 {
 
+	private static readonly CUSTOM_DIR = 'data/versions/custom/';
+
 	public constructor(
 		private readonly http: HttpClient,
 		private readonly versionParser: VersionResponseParser,
@@ -69,10 +71,16 @@ export class VersionsApiService
 		);
 	}
 
-	/** The URL is immutable-cacheable, so no cache-busting parameters - they would bypass the browser cache. */
+	/**
+	 * Custom version files are content-addressed, so the browser may keep them. Official ones are rewritten in place
+	 * (publish, world:attach): the browser has to ask again, else a copy from before the change can stay for days.
+	 */
 	private fetchVersionFile(dataPath: string): Observable<VersionFile>
 	{
-		return this.http.get<VersionFile>(`${env.apiUrl}/${dataPath}`);
+		const url = `${env.apiUrl}/${dataPath}`;
+		return dataPath.startsWith(VersionsApiService.CUSTOM_DIR)
+			? this.http.get<VersionFile>(url)
+			: this.http.get<VersionFile>(url, {cache: 'no-cache'});
 	}
 
 }
