@@ -1,4 +1,4 @@
-import {ChangeDetectionStrategy, Component, computed, effect, HostListener, OnDestroy, Optional, signal, untracked, ViewChild} from '@angular/core';
+import {ChangeDetectionStrategy, Component, computed, effect, ElementRef, HostListener, OnDestroy, Optional, signal, untracked, ViewChild} from '@angular/core';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faCircleNodes, faDrawPolygon, faFilter, faFolderTree, faImage, faIndustry, faLayerGroup, faRulerHorizontal} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
@@ -14,6 +14,7 @@ import {MapGameComponent} from '@src/Components/Map/MapGameComponent';
 import {MapLayersComponent} from '@src/Components/Map/MapLayersComponent';
 import {MapLocation} from '@src/Components/Map/MapLocation';
 import {MapMarkerSource} from '@src/Components/Map/MapMarkerSource';
+import {MapOverlayLayout} from '@src/Components/Map/MapOverlayLayout';
 import {MapPanelRequests} from '@src/Components/Map/MapPanelRequests';
 import {MapPlanSettingsService} from '@src/Components/Map/MapPlanSettingsService';
 import {MapResourceAreaService} from '@src/Components/Map/MapResourceAreaService';
@@ -100,12 +101,13 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			display: contents;
 		}
 		/* Sized by the map, not the window: a panel docked to one side is much narrower. */
+		/* Between the measured top bar and bottom strip (MapOverlayLayout), so it never covers either. */
 		.map-game-panel {
 			position: absolute;
-			top: 48px;
+			top: calc(var(--overlay-top, 42px) + 6px);
 			left: 52px;
 			max-width: calc(100% - 62px);
-			max-height: calc(100% - 58px);
+			max-height: calc(100% - var(--overlay-top, 42px) - 6px - max(var(--overlay-bottom, 0px) + 6px, 10px));
 			display: flex;
 			z-index: 1001;
 		}
@@ -117,7 +119,7 @@ import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 			position: absolute;
 			right: 10px;
 			bottom: 10px;
-			top: 52px;
+			top: calc(var(--overlay-top, 42px) + 6px);
 			display: flex;
 			flex-direction: column;
 			justify-content: flex-end;
@@ -210,6 +212,23 @@ export class WorldMapComponent implements OnDestroy
 	public readonly faRulerHorizontal = faRulerHorizontal;
 
 	@ViewChild(MapViewComponent) private view: MapViewComponent | undefined;
+
+	@ViewChild('gameBar') private set gameBar(ref: ElementRef<HTMLElement> | undefined)
+	{
+		this.overlays.watch('gameBar', 'top', ref?.nativeElement ?? null);
+	}
+
+	@ViewChild('planStrip') private set planStrip(ref: ElementRef<HTMLElement> | undefined)
+	{
+		this.overlays.watch('planStrip', 'bottom', ref?.nativeElement ?? null);
+	}
+
+	@ViewChild('drawBar') private set drawBar(ref: ElementRef<HTMLElement> | undefined)
+	{
+		this.overlays.watch('drawBar', 'bottom', ref?.nativeElement ?? null);
+	}
+
+	private readonly overlays: MapOverlayLayout;
 
 	private readonly saveDialogSignal = signal<{name: string | null} | null>(null);
 	public readonly saveDialog = this.saveDialogSignal.asReadonly();
@@ -472,9 +491,11 @@ export class WorldMapComponent implements OnDestroy
 		private readonly exporter: MapImageExporter,
 		private readonly downloader: FileDownloader,
 		private readonly settings: SettingsManager,
+		host: ElementRef<HTMLElement>,
 		@Optional() requests: MapPanelRequests | null,
 	)
 	{
+		this.overlays = new MapOverlayLayout(host.nativeElement);
 		effect(() => this.sites.setActive(this.sitesShown() || this.planPanelSignal() === 'site'));
 
 		if (requests !== null) {
@@ -851,6 +872,7 @@ export class WorldMapComponent implements OnDestroy
 
 	public ngOnDestroy(): void
 	{
+		this.overlays.destroy();
 		this.stopDrawing();
 		this.stopMeasuring();
 	}

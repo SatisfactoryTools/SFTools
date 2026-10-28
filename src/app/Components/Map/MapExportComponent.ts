@@ -47,6 +47,8 @@ import {MapImageExporter} from '@src/Model/Map/MapImageExporter';
 		:host {
 			display: block;
 			width: 280px;
+			overflow-y: auto;
+			overscroll-behavior: contain;
 			background: var(--bs-body-bg);
 			border: 1px solid #34475a;
 			font-size: 0.875rem;

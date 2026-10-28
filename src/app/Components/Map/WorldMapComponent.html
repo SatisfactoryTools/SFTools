@@ -31,7 +31,7 @@
 			(keydown.escape)="onEscape($event)"
 		/>
 
-		<div class="map-game-bar">
+		<div #gameBar class="map-game-bar">
 			<map-search [entries]="searchEntries()" [coordinates]="coordinates()" (pick)="onSearch($event)" (cleared)="clearHighlight()" (activated)="markers.requestCollectibles()"/>
 			<div class="btn-group shadow-sm">
 				<button
@@ -128,7 +128,7 @@
 						/>
 					}
 				}
-				<div class="map-plan-strip shadow">
+				<div #planStrip class="map-plan-strip shadow">
 					@if (targets.selectable) {
 						<ng-content select="[mapTarget]"/>
 					} @else if (planSettings.target() !== null) {
@@ -210,7 +210,7 @@
 		}
 
 		@if (draft(); as points) {
-			<div class="map-draw-bar d-flex flex-wrap align-items-center gap-2 px-3 py-2 shadow">
+			<div #drawBar class="map-draw-bar d-flex flex-wrap align-items-center gap-2 px-3 py-2 shadow">
 				<span class="small">
 					@if (points.length < 3) {
 						Click on the map to place the corners of the area.
@@ -225,7 +225,7 @@
 				</span>
 			</div>
 		} @else if (measure(); as points) {
-			<div class="map-draw-bar d-flex flex-wrap align-items-center gap-2 px-3 py-2 shadow">
+			<div #drawBar class="map-draw-bar d-flex flex-wrap align-items-center gap-2 px-3 py-2 shadow">
 				<span class="small">
 					@if (points.length < 2) {
 						Click on the map to measure from point to point.
