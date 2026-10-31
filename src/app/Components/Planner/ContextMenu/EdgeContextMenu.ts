@@ -1,4 +1,4 @@
-import {faCompress, faExpand, faTrashCan} from '@fortawesome/free-solid-svg-icons';
+import {faCheck, faCompress, faExpand, faRotateLeft, faTrashCan} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {EdgeAmountAction} from '@src/Components/Planner/ContextMenu/EdgeAmountAction';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
@@ -29,6 +29,11 @@ export class EdgeContextMenu extends PlannerContextMenu
 		return [
 			this.amountItem('Minimise', faCompress, this.minimise),
 			this.amountItem('Maximise', faExpand, this.maximise),
+			{
+				label: this.edge.done ? 'Mark as not done' : 'Mark as done',
+				icon: this.edge.done ? faRotateLeft : faCheck,
+				action: () => this.actions.requestEdgeDone({edge: this.edge, done: !this.edge.done}),
+			},
 			{
 				label: 'Delete connection',
 				icon: faTrashCan,
