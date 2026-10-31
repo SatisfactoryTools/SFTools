@@ -2214,7 +2214,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return graph;
 		}
 
-		return this.plannerGraph.render(container, result, plan.settings.graph);
+		return this.plannerGraph.render(container, result, plan.settings.graph, edges => this.graphComposer.carryEdgeDone(existing, result.nodes, edges));
 	}
 
 	private existingGraph(plan: Plan): Graph | null

@@ -100,6 +100,36 @@ export class GraphComposer
 		});
 	}
 
+	/** A fresh solve gets new node ids, so connection done marks move over to the edges between matching nodes. */
+	public carryEdgeDone(existing: Graph | null, nodes: Node[], edges: GraphEdge[]): void
+	{
+		if (!existing) {
+			return;
+		}
+		const keyOf = (graph: {nodes: Node[]}, edge: GraphEdge): string | null => {
+			const source = graph.nodes.find(node => node.id === edge.sourceId);
+			const target = graph.nodes.find(node => node.id === edge.targetId);
+			return source && target ? `${this.identityKey(source)}>${this.identityKey(target)}>${edge.itemClassName}` : null;
+		};
+
+		const marked = new Map<string, number>();
+		existing.edges.filter(edge => edge.done).forEach(edge => {
+			const key = keyOf(existing, edge);
+			if (key) {
+				marked.set(key, (marked.get(key) ?? 0) + 1);
+			}
+		});
+
+		edges.forEach(edge => {
+			const key = keyOf({nodes}, edge);
+			const left = key ? marked.get(key) ?? 0 : 0;
+			if (key && left > 0) {
+				edge.done = true;
+				marked.set(key, left - 1);
+			}
+		});
+	}
+
 	/** Machines can be overclocked by hand, so a recipe counts by what it can make, not by machine count. */
 	private builtSize(node: Node): number
 	{

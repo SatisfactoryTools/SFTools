@@ -497,7 +497,7 @@ export class PlannerGraphService implements OnDestroy
 		});
 	}
 
-	public async render(container: HTMLElement, response: SolverResponse, settings?: GraphLayoutSettings): Promise<Graph>
+	public async render(container: HTMLElement, response: SolverResponse, settings?: GraphLayoutSettings, adjustEdges?: (edges: GraphEdge[]) => void): Promise<Graph>
 	{
 		if (response.nodes.length === 0) {
 			this.createGraph(container);
@@ -505,6 +505,7 @@ export class PlannerGraphService implements OnDestroy
 		}
 
 		const edges = this.edgeBuilder.build(response.nodes);
+		adjustEdges?.(edges);
 		await this.layout(response.nodes, edges, settings);
 		const graph: Graph = {nodes: response.nodes, edges};
 		this.restore(container, graph);
