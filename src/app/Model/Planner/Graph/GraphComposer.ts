@@ -112,7 +112,7 @@ export class GraphComposer
 			const prior = priorEdges.find(e =>
 				e.sourceId === edge.sourceId && e.targetId === edge.targetId && e.itemClassName === edge.itemClassName);
 			return prior
-				? {...edge, vertices: prior.vertices, labelDistance: prior.labelDistance}
+				? {...edge, vertices: prior.vertices, labelDistance: prior.labelDistance, ...(prior.done ? {done: true} : {})}
 				: edge;
 		});
 	}
