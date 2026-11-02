@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {map, Observable, of} from 'rxjs';
+import {catchError, map, Observable, of} from 'rxjs';
 import {Data} from '@src/Model/Data/Data';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -239,6 +239,8 @@ export class ProductionSolverService
 						: `No solution: not enough shared raw resources are left in folder ${poolFolder}. `
 							+ 'Raise the folder limits or make the other plans smaller.';
 				}),
+				// The re-solve is only a hint: a timeout (somersloop MIPs can run for an hour) must not surface as an error.
+				catchError(() => of(generic)),
 			);
 		}
 

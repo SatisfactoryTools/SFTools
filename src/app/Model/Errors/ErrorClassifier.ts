@@ -26,10 +26,19 @@ const CHUNK_MESSAGES = [
  */
 const BENIGN_MESSAGES = ['Script error', 'ResizeObserver loop', 'Permission denied to access property'];
 
+/**
+ * Nothing to fix on our side: browsers without dynamic import() (Pale Moon), the tab running out of memory,
+ * and NG04002, which with the '**' routes in place only comes from a hand-made URL naming an outlet the app does not have ("/(aux:x)").
+ */
+const UNACTIONABLE_MESSAGES = ['dynamic module import is not implemented', 'out of memory', 'NG04002'];
+
 /** The retry banner and the offline indicator already cover these. */
 const UNREACHABLE_STATUSES = [0, 502, 503, 504];
 
 const STACK_URL = /\b[a-z][a-z0-9+.-]*:\/\/[^\s)'"]+/gi;
+
+/** Code evaluated from a string (an extension or userscript calling eval) has "<anonymous>:line:column" frames and no URL. */
+const EVALUATED_FRAME = /<anonymous>:\d+:\d+/;
 
 const EXTENSION_URL = /^(chrome|moz|safari-web|ms-browser)-extension:\/\//;
 
@@ -57,7 +66,7 @@ export class ErrorClassifier
 		if (CHUNK_MESSAGES.some(known => message.includes(known))) {
 			return navigator.onLine && this.connectivity.online() ? 'update' : 'ignore';
 		}
-		if ([...NETWORK_MESSAGES, ...BENIGN_MESSAGES].some(known => message.includes(known))) {
+		if ([...NETWORK_MESSAGES, ...BENIGN_MESSAGES, ...UNACTIONABLE_MESSAGES].some(known => message.includes(known))) {
 			return 'ignore';
 		}
 		// Our code only ever rejects with Error instances (desktop commands with strings). A bare undefined/null or a plain object
@@ -122,7 +131,10 @@ export class ErrorClassifier
 			return true;
 		}
 		const frames = stack.match(STACK_URL);
-		return frames !== null && (EXTENSION_URL.test(frames[0]) || frames.every(url => !this.isOwnScript(url)));
+		if (frames === null) {
+			return EVALUATED_FRAME.test(stack);
+		}
+		return EXTENSION_URL.test(frames[0]) || frames.every(url => !this.isOwnScript(url));
 	}
 
 	// Injected inline scripts (Brave's wallet, for one) report the page itself as their source, so only our bundle files count as ours.

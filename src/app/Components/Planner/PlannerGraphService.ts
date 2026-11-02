@@ -1394,8 +1394,8 @@ export class PlannerGraphService implements OnDestroy
 			const ios = wantedSide === 'in' ? node.inputs : node.outputs;
 			const accepts = ios.some(io => io.item.className === gesture.itemClassName)
 				&& !this.hasEdgeBetween(id, gesture);
-			if (accepts) {
-				const portId = `${wantedSide}|${gesture.itemClassName}`;
+			const portId = `${wantedSide}|${gesture.itemClassName}`;
+			if (accepts && cell.hasPort(portId)) {
 				cell.portProp(portId, 'attrs/portBody/class', 'pg-port pg-port-available');
 				cell.portProp(portId, 'attrs/portIcon/class', 'pg-port pg-port-icon pg-port-available');
 				this.markedPorts.push({cell, portId});
@@ -1412,6 +1412,10 @@ export class PlannerGraphService implements OnDestroy
 		this.hideCornerPreview();
 		x6Graph.container.classList.remove('pg-connecting');
 		this.markedPorts.forEach(({cell, portId}) => {
+			// A recalculation or sync can redraw the node mid-drag and drop the port.
+			if (!cell.hasPort(portId)) {
+				return;
+			}
 			cell.portProp(portId, 'attrs/portBody/class', 'pg-port');
 			cell.portProp(portId, 'attrs/portIcon/class', 'pg-port pg-port-icon');
 		});

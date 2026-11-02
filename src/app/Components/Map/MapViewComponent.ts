@@ -217,8 +217,18 @@ export class MapViewComponent implements AfterViewInit, OnChanges, OnDestroy
 	{
 		this.destroyed = true;
 		this.resizeObserver?.disconnect();
-		this.map?.remove();
+		if (this.map !== null) {
+			this.disposeMap(this.map);
+		}
 		this.map = null;
+	}
+
+	/** Leaflet 1.9 leaves a pending wheel zoom and the drag inertia frame running after remove(); both then read the deleted map pane. */
+	private disposeMap(map: Leaflet.Map): void
+	{
+		clearTimeout((map.scrollWheelZoom as unknown as {_timer?: ReturnType<typeof setTimeout>} | undefined)?._timer);
+		map.remove();
+		map.panBy = () => map;
 	}
 
 	private createMap(): void
