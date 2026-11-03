@@ -497,7 +497,7 @@ export class PlannerGraphService implements OnDestroy
 		});
 	}
 
-	public async render(container: HTMLElement, response: SolverResponse, settings?: GraphLayoutSettings): Promise<Graph>
+	public async render(container: HTMLElement, response: SolverResponse, settings?: GraphLayoutSettings, adjustEdges?: (edges: GraphEdge[]) => void): Promise<Graph>
 	{
 		if (response.nodes.length === 0) {
 			this.createGraph(container);
@@ -505,6 +505,7 @@ export class PlannerGraphService implements OnDestroy
 		}
 
 		const edges = this.edgeBuilder.build(response.nodes);
+		adjustEdges?.(edges);
 		await this.layout(response.nodes, edges, settings);
 		const graph: Graph = {nodes: response.nodes, edges};
 		this.restore(container, graph);
@@ -1604,7 +1605,7 @@ export class PlannerGraphService implements OnDestroy
 		const zoomedOutIconSize = (LABEL_HEIGHT - 2 * ZOOMED_OUT_EDGE_ICON_PAD) * scale;
 		const wrapShift = (label.name.split('\n').length - 1) * LABEL_NAME_LINE_HEIGHT / 2;
 		const boxPad = showBox ? LABEL_BOX_PILL_PAD * scale : 0;
-		const fade = this.doneNodeIds.has(edge.sourceId) && this.doneNodeIds.has(edge.targetId)
+		const fade = edge.done || (this.doneNodeIds.has(edge.sourceId) && this.doneNodeIds.has(edge.targetId))
 			? {opacity: DONE_OPACITY}
 			: {};
 		const offset = this.parallelOffsets.get(edge);

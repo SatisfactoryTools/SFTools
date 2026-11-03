@@ -4,6 +4,7 @@ import {GraphConnectToBlankRequest} from '@src/Components/Planner/GraphConnectTo
 import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {GraphEdgeAmountRequest} from '@src/Components/Planner/GraphEdgeAmountRequest';
 import {FuelDisableRequest} from '@src/Components/Planner/FuelDisableRequest';
+import {EdgeDoneRequest} from '@src/Components/Planner/EdgeDoneRequest';
 import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
 import {NodeSplitRequest} from '@src/Components/Planner/NodeSplitRequest';
@@ -50,6 +51,9 @@ export class PlannerActionsService
 
 	private readonly edgeDeleteSubject = new Subject<GraphEdge>();
 	public readonly edgeDeleteRequests: Observable<GraphEdge> = this.edgeDeleteSubject.asObservable();
+
+	private readonly edgeDoneSubject = new Subject<EdgeDoneRequest>();
+	public readonly edgeDoneRequests: Observable<EdgeDoneRequest> = this.edgeDoneSubject.asObservable();
 
 	private readonly edgeAmountSubject = new Subject<GraphEdgeAmountRequest>();
 	public readonly edgeAmountRequests: Observable<GraphEdgeAmountRequest> = this.edgeAmountSubject.asObservable();
@@ -167,6 +171,11 @@ export class PlannerActionsService
 	public requestEdgeDelete(edge: GraphEdge): void
 	{
 		this.edgeDeleteSubject.next(edge);
+	}
+
+	public requestEdgeDone(request: EdgeDoneRequest): void
+	{
+		this.edgeDoneSubject.next(request);
 	}
 
 	public requestEdgeAmount(request: GraphEdgeAmountRequest): void

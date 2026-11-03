@@ -36,6 +36,7 @@ import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {GraphEdgeAmountRequest} from '@src/Components/Planner/GraphEdgeAmountRequest';
 import {GraphHistoryService} from '@src/Components/Planner/GraphHistoryService';
 import {PreparedEdgeAdd} from '@src/Components/Planner/PreparedEdgeAdd';
+import {EdgeDoneRequest} from '@src/Components/Planner/EdgeDoneRequest';
 import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
 import {NodeSplitRequest} from '@src/Components/Planner/NodeSplitRequest';
@@ -397,6 +398,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.subscription.add(
 			this.actions.edgeAmountRequests.subscribe(request => this.applyEdgeAmount(request)),
+		);
+
+		this.subscription.add(
+			this.actions.edgeDoneRequests.subscribe(request => this.applyEdgeDoneChange(request)),
 		);
 
 		this.subscription.add(
@@ -1395,6 +1400,44 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, graph);
 	}
 
+	private applyEdgeDoneChange(request: EdgeDoneRequest): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not change connection done state: ' + String(err));
+			return;
+		}
+
+		const {edge} = request;
+		const target = graph.edges.find(candidate =>
+			candidate.sourceId === edge.sourceId && candidate.targetId === edge.targetId && candidate.itemClassName === edge.itemClassName);
+		if (!target) {
+			return;
+		}
+
+		this.history.push(this.snapshotOf(plan));
+
+		if (request.done) {
+			target.done = true;
+		} else {
+			delete target.done;
+		}
+
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
+		// Not dirty, like node done marks: every solve carries them over (GraphComposer.withPriorRouting).
+		this.planManager.setGraph(plan.id, graph);
+	}
+
 	private disableRecipe(recipeClassName: string): void
 	{
 		const settings = this.planManager.activeSettings();
@@ -2171,7 +2214,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return graph;
 		}
 
-		return this.plannerGraph.render(container, result, plan.settings.graph);
+		return this.plannerGraph.render(container, result, plan.settings.graph, edges => this.graphComposer.carryEdgeDone(existing, result.nodes, edges));
 	}
 
 	private existingGraph(plan: Plan): Graph | null
