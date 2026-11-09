@@ -1,6 +1,8 @@
 # Satisfactory Tools
 
-New generation of [Satisfactory Tools](https://www.satisfactorytools.com/) - a production planner and toolset for the game Satisfactory.
+New generation of [Satisfactory Tools](https://www.satisfactorytools.com/) - a free production calculator and factory planner for the game Satisfactory.
+
+Tell it what you want to make and it works out the machines, recipes, resources and power you need, then lets you edit the production graph by hand. Also a searchable codex of items, recipes and buildings, an interactive world map, custom game versions and mod support.
 
 Built with Angular (standalone components), Bootstrap 5 + ngx-bootstrap, AntV X6 for the interactive planner graph, and the HiGHS LP solver for production calculations.
 

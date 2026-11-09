@@ -4,6 +4,7 @@ import {HomeComponent} from '@src/Components/Home/HomeComponent';
 import {VersionContextComponent} from '@src/Components/Version/VersionContextComponent';
 import {CodexPageComponent} from '@src/Components/Codex/CodexPageComponent';
 import {MapPageComponent} from '@src/Components/Map/MapPageComponent';
+import {MapTopicCatalog} from '@src/Model/Map/MapTopicCatalog';
 import {HelpPageComponent} from '@src/Components/Help/HelpPageComponent';
 import {HelpArticleEditorComponent} from '@src/Components/HelpEditor/HelpArticleEditorComponent';
 import {HelpEditorComponent} from '@src/Components/HelpEditor/HelpEditorComponent';
@@ -67,6 +68,15 @@ export class RouteList
 			posParams['planId'] = segments[1];
 		}
 		return {consumed: segments, posParams};
+	}
+
+	/** Only known topics match, so a mistyped one is a not-found page rather than the plain map. */
+	public static mapTopicMatcher(segments: UrlSegment[]): UrlMatchResult | null
+	{
+		if (segments.length !== 2 || segments[0].path !== 'map' || MapTopicCatalog.find(segments[1].path) === null) {
+			return null;
+		}
+		return {consumed: segments, posParams: {topic: segments[1]}};
 	}
 
 	public static legacyMatcher(segments: UrlSegment[]): UrlMatchResult | null
@@ -231,13 +241,17 @@ export class RouteList
 						},
 						{
 							path: 'map',
-							title: 'Map ({V})',
-							data: {description: 'Map of the Satisfactory world ({V}).'},
+							title: 'Interactive map ({V})',
+							data: {description: MapTopicCatalog.MAP_DESCRIPTION},
+							component: MapPageComponent,
+						},
+						{
+							matcher: RouteList.mapTopicMatcher,
 							component: MapPageComponent,
 						},
 						{
 							matcher: RouteList.plannerMatcher,
-							title: 'Planner ({V})',
+							title: 'Production calculator & planner ({V})',
 							component: PlannerComponent,
 						},
 						{

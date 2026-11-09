@@ -10,16 +10,28 @@ final class PageHeadInjector
 
 	private const DEFAULT_API_URL = 'https://api.new.satisfactorytools.com';
 
-	/** Hosts og:url may name; anything else (an IP, a spoofed Host header) gets the first. */
-	private const PUBLIC_HOSTS = ['new.satisfactorytools.com', 'www.satisfactorytools.com', 'satisfactorytools.com'];
+	/** Search engines index this host only; the others redirect to it. */
+	private const CANONICAL_ORIGIN = 'https://www.satisfactorytools.com';
 
 	private const DEFAULT_IMAGE_PATH = '/assets/icons/android-chrome-512x512.png';
 	private const PATH_MAX_LENGTH = 512;
 	private const CONNECT_TIMEOUT_MS = 300;
 	private const TIMEOUT_MS = 800;
 
+	/** Old-site URLs; a day's browser cache bounds the damage should a target ever change. */
+	private const REDIRECT_MAX_AGE = 86400;
+
 	public function run(): void
 	{
+		$path = substr((string) ($_SERVER['REQUEST_URI'] ?? '/'), 0, self::PATH_MAX_LENGTH);
+		$meta = $this->fetchMeta($path);
+
+		if ($meta !== null && $meta['redirect'] !== null) {
+			header('Location: ' . $meta['redirect'], true, 301);
+			header('Cache-Control: public, max-age=' . self::REDIRECT_MAX_AGE);
+			return;
+		}
+
 		header('Content-Type: text/html; charset=utf-8');
 		header('Cache-Control: no-cache, no-store, must-revalidate');
 		header('Pragma: no-cache');
@@ -31,14 +43,16 @@ final class PageHeadInjector
 		$documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
 		$root = is_string($documentRoot) && is_file($documentRoot . '/index.html') ? $documentRoot : __DIR__;
 		$html = (string) file_get_contents($root . '/index.html');
-		$path = substr((string) ($_SERVER['REQUEST_URI'] ?? '/'), 0, self::PATH_MAX_LENGTH);
-		$host = $this->publicHost();
 
-		$meta = $this->fetchMeta($path) ?? $this->defaultsFrom($html);
-		echo $this->inject($html, $meta, $host, $path);
+		echo $this->inject($html, $meta ?? $this->defaultsFrom($html), $path);
 	}
 
-	/** @return array{title: string, description: string, image: string|null, kind: string}|null */
+	/**
+	 * @return array{
+	 *     title: string, description: string, image: string|null, kind: string, heading: string|null, canonicalPath: string|null,
+	 *     indexable: bool, links: list<array{href: string, label: string}>, redirect: string|null, resolved: bool
+	 * }|null
+	 */
 	private function fetchMeta(string $path): ?array
 	{
 		$configured = $_SERVER['SFTOOLS_API_URL'] ?? $_SERVER['REDIRECT_SFTOOLS_API_URL'] ?? getenv('SFTOOLS_API_URL');
@@ -69,15 +83,33 @@ final class PageHeadInjector
 			return null;
 		}
 
+		$links = [];
+		foreach (is_array($meta['links'] ?? null) ? $meta['links'] : [] as $link) {
+			if (is_array($link) && $this->isLocalPath($link['href'] ?? null) && is_string($link['label'] ?? null)) {
+				$links[] = ['href' => $link['href'], 'label' => $link['label']];
+			}
+		}
+
 		return [
 			'title' => $meta['title'],
 			'description' => $meta['description'],
 			'image' => is_string($meta['image'] ?? null) ? $meta['image'] : null,
 			'kind' => is_string($meta['kind'] ?? null) ? $meta['kind'] : 'default',
+			'heading' => is_string($meta['heading'] ?? null) ? $meta['heading'] : null,
+			'canonicalPath' => $this->isLocalPath($meta['canonicalPath'] ?? null) ? $meta['canonicalPath'] : null,
+			'indexable' => ($meta['indexable'] ?? true) !== false,
+			'links' => $links,
+			'redirect' => $this->isLocalPath($meta['redirect'] ?? null) ? $meta['redirect'] : null,
+			'resolved' => true,
 		];
 	}
 
-	/** @return array{title: string, description: string, image: null, kind: string} */
+	private function isLocalPath(mixed $path): bool
+	{
+		return is_string($path) && preg_match('~^/(?![/\\\\])[^\s]*$~D', $path) === 1;
+	}
+
+	/** Without the API nothing is known about the page, so it gets neither a canonical link nor noindex. */
 	private function defaultsFrom(string $html): array
 	{
 		$title = preg_match('~<title>(.*?)</title>~is', $html, $match) === 1 ? $match[1] : 'Satisfactory Tools';
@@ -88,19 +120,39 @@ final class PageHeadInjector
 			'description' => html_entity_decode($description, ENT_QUOTES | ENT_HTML5, 'UTF-8'),
 			'image' => null,
 			'kind' => 'default',
+			'heading' => null,
+			'canonicalPath' => null,
+			'indexable' => true,
+			'links' => [],
+			'redirect' => null,
+			'resolved' => false,
 		];
 	}
 
-	/** @param array{title: string, description: string, image: string|null, kind: string} $meta */
-	private function inject(string $html, array $meta, string $host, string $path): string
+	/**
+	 * @param array{
+	 *     title: string, description: string, image: string|null, kind: string, heading: string|null, canonicalPath: string|null,
+	 *     indexable: bool, links: list<array{href: string, label: string}>, redirect: string|null, resolved: bool
+	 * } $meta
+	 */
+	private function inject(string $html, array $meta, string $path): string
 	{
-		$image = $meta['image'] ?? 'https://' . $host . self::DEFAULT_IMAGE_PATH;
+		$image = $meta['image'] ?? self::CANONICAL_ORIGIN . self::DEFAULT_IMAGE_PATH;
 		$tags = [
 			'<title>' . $this->escape($meta['title']) . '</title>',
 			$this->tag('name', 'description', $meta['description']),
+		];
+		if ($meta['canonicalPath'] !== null) {
+			$tags[] = sprintf('<link rel="canonical" href="%s">', $this->escape(self::CANONICAL_ORIGIN . $meta['canonicalPath']));
+		}
+		if (!$meta['indexable']) {
+			$tags[] = $this->tag('name', 'robots', 'noindex');
+		}
+		array_push(
+			$tags,
 			$this->tag('property', 'og:type', $meta['kind'] === 'help-article' ? 'article' : 'website'),
 			$this->tag('property', 'og:site_name', 'Satisfactory Tools'),
-			$this->tag('property', 'og:url', 'https://' . $host . $this->canonicalPath($path)),
+			$this->tag('property', 'og:url', self::CANONICAL_ORIGIN . ($meta['canonicalPath'] ?? $this->canonicalPath($path))),
 			$this->tag('property', 'og:title', $meta['title']),
 			$this->tag('property', 'og:description', $meta['description']),
 			$this->tag('property', 'og:image', $image),
@@ -109,11 +161,12 @@ final class PageHeadInjector
 			$this->tag('name', 'twitter:title', $meta['title']),
 			$this->tag('name', 'twitter:description', $meta['description']),
 			$this->tag('name', 'twitter:image', $image),
-		];
+		);
 
 		// Matched by tag rather than by markers: the Angular build may rewrite comments and line breaks.
 		$html = (string) preg_replace('~[ \t]*<title>.*?</title>[ \t]*(?:\r?\n)?~is', '', $html);
-		$html = (string) preg_replace('~[ \t]*<meta\s+(?:name|property)="(?:description|og:[^"]*|twitter:[^"]*)"[^>]*>[ \t]*(?:\r?\n)?~i', '', $html);
+		$html = (string) preg_replace('~[ \t]*<meta\s+(?:name|property)="(?:description|robots|og:[^"]*|twitter:[^"]*)"[^>]*>[ \t]*(?:\r?\n)?~i', '', $html);
+		$html = (string) preg_replace('~[ \t]*<link\s+rel="canonical"[^>]*>[ \t]*(?:\r?\n)?~i', '', $html);
 
 		$block = "\n\t" . implode("\n\t", $tags);
 		$count = 0;
@@ -122,14 +175,31 @@ final class PageHeadInjector
 			$html = (string) preg_replace('~<head[^>]*>~i', '$0' . str_replace(['\\', '$'], ['\\\\', '\\$'], $block), $html, 1);
 		}
 
+		if ($meta['resolved'] && $meta['indexable']) {
+			$body = $this->pageSummary($meta);
+			$html = (string) preg_replace_callback('~<root>\s*</root>~i', static fn (): string => '<root>' . $body . '</root>', $html, 1);
+		}
+
 		return $html;
 	}
 
-	private function publicHost(): string
+	/**
+	 * The page's heading, summary and links for crawlers that do not run scripts. Angular replaces it when it
+	 * starts; it must say what the app shows, or search engines treat it as cloaking.
+	 *
+	 * @param array{title: string, description: string, heading: string|null, links: list<array{href: string, label: string}>} $meta
+	 */
+	private function pageSummary(array $meta): string
 	{
-		$host = strtolower((string) preg_replace('~:\d+$~', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
+		$heading = $meta['heading'] ?? (string) preg_replace('~ - Satisfactory Tools$~', '', $meta['title']);
+		$links = array_map(
+			fn (array $link): string => sprintf('<li><a href="%s">%s</a></li>', $this->escape($link['href']), $this->escape($link['label'])),
+			$meta['links'],
+		);
 
-		return in_array($host, self::PUBLIC_HOSTS, true) ? $host : self::PUBLIC_HOSTS[0];
+		return '<div class="boot-page"><h1>' . $this->escape($heading) . '</h1><p>' . $this->escape($meta['description']) . '</p>'
+			. ($links !== [] ? '<nav><ul>' . implode('', $links) . '</ul></nav>' : '')
+			. '</div>';
 	}
 
 	/** A planner's ?codex= stays: it picks the page. */

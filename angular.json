@@ -37,6 +37,11 @@
 								"output": ""
 							},
 							{
+								"glob": "robots.txt",
+								"input": "src",
+								"output": ""
+							},
+							{
 								"glob": "highs.wasm",
 								"input": "node_modules/highs/build",
 								"output": "assets"

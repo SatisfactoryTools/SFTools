@@ -25,6 +25,7 @@ export abstract class MapLocation implements OnDestroy
 		private readonly router: Router,
 		private readonly route: ActivatedRoute,
 		public readonly params: MapLocationParams,
+		private readonly defaultLayers: MapLayerState = MapLayerState.default(),
 	)
 	{
 		this.view = toSignal(
@@ -32,9 +33,9 @@ export abstract class MapLocation implements OnDestroy
 			{initialValue: MapView.parse(route.snapshot.queryParamMap.get(params.view)), equal: (a, b) => a === b || (a !== null && a.equals(b))},
 		);
 		this.layers = toSignal(
-			route.queryParamMap.pipe(map(query => this.codec.decode(query.get(params.layers)))),
+			route.queryParamMap.pipe(map(query => this.codec.decode(query.get(params.layers), defaultLayers))),
 			{
-				initialValue: this.codec.decode(route.snapshot.queryParamMap.get(params.layers)),
+				initialValue: this.codec.decode(route.snapshot.queryParamMap.get(params.layers), defaultLayers),
 				// Every view write emits new query params; the markers must not rebuild for those.
 				equal: (a, b) => a.equals(b),
 			},
@@ -55,7 +56,7 @@ export abstract class MapLocation implements OnDestroy
 
 	public setLayers(state: MapLayerState): void
 	{
-		this.write({[this.params.layers]: this.codec.encode(state)});
+		this.write({[this.params.layers]: this.codec.encode(state, this.defaultLayers)});
 	}
 
 	public queryParams(target: MapLocationParams): Params

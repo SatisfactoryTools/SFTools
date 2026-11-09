@@ -23,6 +23,10 @@ DirectoryIndex index.php index.html
 
 	RewriteRule /\.|^\.(?!well-known/) - [F]
 
+	# sitemap.php exists only when the deploy added it, like index.php.
+	RewriteCond %{DOCUMENT_ROOT}/sitemap.php -f
+	RewriteRule ^sitemap\.xml$ sitemap.php [L]
+
 	# front controller: index.php when deployed (link previews), else index.html
 	RewriteCond %{REQUEST_FILENAME} !-f
 	RewriteCond %{REQUEST_FILENAME} !-d

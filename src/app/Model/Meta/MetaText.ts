@@ -4,9 +4,10 @@ export class MetaText
 
 	public static readonly SITE_NAME = 'Satisfactory Tools';
 	public static readonly TITLE_SUFFIX = ' - ' + MetaText.SITE_NAME;
+	public static readonly HOME_TITLE = MetaText.SITE_NAME + ' - Production calculator & planner';
 	public static readonly DESCRIPTION_MAX_LENGTH = 200;
 
-	public static readonly DEFAULT_DESCRIPTION = 'Production planner for Satisfactory. Tell it what you want to make and it works out the machines, recipes and resources you need. Also a searchable codex, custom versions and mods. Free to use.';
+	public static readonly DEFAULT_DESCRIPTION = 'Free production calculator and planner for Satisfactory. Tell it what you want to make and it works out the machines, recipes and resources you need. Also a codex, map, custom versions and mods.';
 
 	/** Tag-like markup only (`<b>`, `</color>`, `<img src=…/>`), so a bare "<" in text survives. */
 	private static readonly TAG_PATTERN = /<\/?[A-Za-z][^<>]*>/gu;

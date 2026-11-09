@@ -35,7 +35,7 @@ jobs:
                 run: npm run build
 
             -   name: Lint web layer
-                run: php -l deploy/web/index.php
+                run: php -l deploy/web/index.php && php -l deploy/web/sitemap.php
 
             -   name: Upload build artifact
                 if: github.event_name == 'push' && github.ref == 'refs/heads/master'

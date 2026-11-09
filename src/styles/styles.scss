@@ -33,6 +33,33 @@ html {
 	overflow-x: clip;
 }
 
+// The page summary index.php writes into <root> for crawlers; visitors see it only until the app starts.
+// Kept quiet and clipped to one screen so the hand-over does not flash a long page or a scrollbar.
+.boot-page {
+	max-width: 960px;
+	height: 100vh;
+	margin: 0 auto;
+	padding: 3rem 1rem;
+	overflow: hidden;
+	color: var(--bs-secondary-color);
+
+	h1 {
+		font-size: 1.75rem;
+	}
+
+	ul {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.25rem 1rem;
+		padding: 0;
+		list-style: none;
+	}
+
+	a {
+		color: inherit;
+	}
+}
+
 :root {
 	--sf-primary-light: #{tint-color($primary, 40%)};
 	--sf-blue: #{$blue};

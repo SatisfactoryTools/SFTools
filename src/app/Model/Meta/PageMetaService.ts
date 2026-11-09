@@ -47,7 +47,7 @@ export class PageMetaService
 	{
 		const page = this.pageMeta ?? this.routeMeta;
 		if (page === null) {
-			this.apply(MetaText.SITE_NAME, MetaText.DEFAULT_DESCRIPTION, this.defaultImage());
+			this.apply(MetaText.HOME_TITLE, MetaText.DEFAULT_DESCRIPTION, this.defaultImage());
 			return;
 		}
 		const description = page.description ? MetaText.description(page.description) : '';

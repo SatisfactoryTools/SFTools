@@ -4,6 +4,8 @@ import {MapLayerState} from '@src/Model/Map/MapLayerState';
 /**
  * Packs a layer state into one short URL value: a version character, then base64url bits - one per entry of a fixed list,
  * set where the state differs from the default - then `~id` for hidden ids outside the list (mods).
+ * The default is the page's starting state: a map topic page starts from its own, so the same value means different
+ * layers there - anything handing layers to another map encodes against the plain default.
  */
 export class MapLayerCodec
 {
@@ -14,12 +16,12 @@ export class MapLayerCodec
 
 	private static readonly LAYERS: ReadonlyArray<MapLayerId> = ['nodes', 'slugs', 'artifacts', 'drives', 'plants', 'items', 'creatures'];
 
-	private static readonly RESOURCES: ReadonlyArray<string> = [
+	public static readonly RESOURCES: ReadonlyArray<string> = [
 		'OreIron', 'OreCopper', 'Stone', 'Coal', 'OreGold', 'RawQuartz', 'Sulfur', 'OreBauxite', 'OreUranium', 'SAM',
 		'LiquidOil', 'Water', 'NitrogenGas', 'geyser',
 	];
 
-	private static readonly PURITIES: ReadonlyArray<string> = ['impure', 'normal', 'pure'];
+	public static readonly PURITIES: ReadonlyArray<string> = ['impure', 'normal', 'pure'];
 
 	private static readonly COLLECTIBLE_CATEGORIES: ReadonlyArray<string> = [
 		'slug-blue', 'slug-yellow', 'slug-purple', 'somersloop', 'mercer', 'berry', 'nut', 'mushroom',
@@ -45,9 +47,8 @@ export class MapLayerCodec
 		'layer:spotLinks',
 	];
 
-	public encode(state: MapLayerState): string | null
+	public encode(state: MapLayerState, defaults: MapLayerState = MapLayerState.default()): string | null
 	{
-		const defaults = MapLayerState.default();
 		if (state.equals(defaults)) {
 			return null;
 		}
@@ -69,9 +70,9 @@ export class MapLayerCodec
 			+ extras.map(id => MapLayerCodec.EXTRA_SEPARATOR + id).join('');
 	}
 
-	public decode(value: string | null): MapLayerState
+	public decode(value: string | null, defaults: MapLayerState = MapLayerState.default()): MapLayerState
 	{
-		let state = MapLayerState.default();
+		let state = defaults;
 		if (value === null || !value.startsWith(MapLayerCodec.VERSION)) {
 			return state;
 		}
