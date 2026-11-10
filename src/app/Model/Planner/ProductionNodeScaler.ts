@@ -51,7 +51,7 @@ export class ProductionNodeScaler
 	 * Groups at or below the plan's clock are an underclocked remainder (a node whose only group
 	 * is that remainder must not scale at its clock); a group above it was deliberately overclocked and stays.
 	 */
-	private buildClockOf(node: RecipeNode, settings: PlanSettings | null): number
+	public buildClockOf(node: RecipeNode, settings: PlanSettings | null): number
 	{
 		const planClock = this.clocks.forRecipeIn(settings, node.recipe, node.machine);
 		const fastest = node.groups.reduce((max: number, group: MachineGroup) => Math.max(max, group.clockSpeed), 0);

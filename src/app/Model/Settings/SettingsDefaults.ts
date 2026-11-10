@@ -1,4 +1,5 @@
 import {CalculatorTabDefinitions} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinitions';
+import {HotkeyOverridesMigrator} from '@src/Model/Hotkeys/HotkeyOverridesMigrator';
 import {GraphLayoutDefaults} from '@src/Model/Planner/GraphLayoutDefaults';
 import {GraphSettings} from '@src/Model/Settings/GraphSettings';
 import {LegacyGraphSettings} from '@src/Model/Settings/LegacyGraphSettings';
@@ -39,6 +40,13 @@ export class SettingsDefaults
 			showEdgeItemIcons: true,
 			// Renamed from showEdgeLabelBox: settings are saved whole, so the old key would keep the previous default for everyone.
 			showEdgeLabelBoxes: false,
+			edgeColor: '#5c718a',
+			edgeLabelBoxBorder: null,
+			edgeLabelBoxFill: '#08111c',
+			edgeWidth: 1.5,
+			// x6's default arrowhead.
+			edgeArrowSize: 10,
+			autoDoneConnections: true,
 			showNodeItemIcons: true,
 			showNodeBuildingIcons: true,
 			showSubplanItemIcons: true,
@@ -101,7 +109,7 @@ export class SettingsDefaults
 			map: {...SettingsDefaults.SETTINGS.map, ...(data?.map ?? {})},
 			planDefaults: {...SettingsDefaults.SETTINGS.planDefaults, ...(data?.planDefaults ?? {})},
 			account: {...SettingsDefaults.SETTINGS.account, ...(data?.account ?? {})},
-			hotkeys: {...(data?.hotkeys ?? {})},
+			hotkeys: HotkeyOverridesMigrator.migrate(data?.hotkeys ?? {}),
 			panels: data?.panels ?? null,
 		};
 	}

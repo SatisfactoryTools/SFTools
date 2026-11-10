@@ -7,6 +7,8 @@ export interface GraphEdge
 	readonly itemClassName: string;
 	/** Not readonly: GraphReconciler adjusts it after manual edits. */
 	amount: number;
+	/** Saves from before edges had their own flag are migrated in PlanSerializer. */
+	done: boolean;
 	vertices?: GraphPoint[];
 	labelDistance?: number;
 }

@@ -12,6 +12,21 @@ export interface GraphSettings
 
 	readonly showEdgeLabelBoxes: boolean;
 
+	readonly edgeColor: string;
+
+	/** null follows the connection colour. */
+	readonly edgeLabelBoxBorder: string | null;
+
+	readonly edgeLabelBoxFill: string;
+
+	/** Line width in px, before highlighting. */
+	readonly edgeWidth: number;
+
+	/** Arrowhead length in px. */
+	readonly edgeArrowSize: number;
+
+	readonly autoDoneConnections: boolean;
+
 	readonly showNodeItemIcons: boolean;
 
 	readonly showNodeBuildingIcons: boolean;

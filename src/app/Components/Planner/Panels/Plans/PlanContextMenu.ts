@@ -27,7 +27,7 @@ export class PlanContextMenu extends PlannerContextMenu
 			{
 				label: 'Rename…',
 				icon: faPen,
-				hotkey: 'plans.renamePlan',
+				hotkey: 'plans.rename',
 				action: () => this.host.startRenamePlan(this.plan.id, this.plan.name),
 			},
 			{
@@ -50,7 +50,7 @@ export class PlanContextMenu extends PlannerContextMenu
 		items.push({
 			label: this.plan.parentPlanId !== null ? 'Clone subplan' : 'Clone plan',
 			icon: faClone,
-			hotkey: 'plans.clonePlan',
+			hotkey: 'plans.clone',
 			action: () => this.host.clonePlan(this.plan, this.displayName),
 		});
 
@@ -58,7 +58,7 @@ export class PlanContextMenu extends PlannerContextMenu
 		items.push({
 			label: 'Share…',
 			icon: faShareNodes,
-			hotkey: 'plans.sharePlan',
+			hotkey: 'plans.share',
 			action: () => this.host.sharePlan(this.plan),
 		});
 
@@ -72,7 +72,7 @@ export class PlanContextMenu extends PlannerContextMenu
 		items.push({
 			label: this.plan.parentPlanId !== null ? 'Delete subplan' : 'Delete plan',
 			icon: faXmark,
-			hotkey: 'plans.deletePlan',
+			hotkey: 'plans.delete',
 			action: () => this.host.deletePlan(this.plan),
 		});
 

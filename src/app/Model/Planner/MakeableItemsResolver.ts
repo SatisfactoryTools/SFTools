@@ -45,12 +45,7 @@ export class MakeableItemsResolver
 			if (!enabled.has(recipe.className) || this.enabledRecipes.isDisabledByMachine(recipe, settings)) {
 				return;
 			}
-			recipe.products.forEach(product => {
-				// Hydration tolerates dangling item references (mods) - skip them.
-				if (product.item) {
-					makeable.add(product.item.className);
-				}
-			});
+			recipe.products.forEach(product => makeable.add(product.item.className));
 		});
 
 		Object.entries(settings.enabledFuels ?? {}).forEach(([generatorClassName, fuelClassNames]) => {

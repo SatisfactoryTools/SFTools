@@ -3,6 +3,7 @@ import {Event} from '@src/Model/API/Schema/Data/Parts/Event';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {ItemAmount} from '@src/Model/Data/Entities/Parts/ItemAmount';
+import {ReferenceHydrator} from '@src/Model/Data/Entities/Parts/ReferenceHydrator';
 
 export class Recipe
 {
@@ -31,9 +32,9 @@ export class Recipe
 	{
 		this.className = schema.className;
 		this.name = schema.name;
-		this.ingredients = schema.ingredients.map(ia => ({ item: itemMap.get(ia.item)!, amount: ia.amount }));
-		this.products = schema.products.map(ia => ({ item: itemMap.get(ia.item)!, amount: ia.amount }));
-		this.producedIn = schema.producedIn.map(cn => buildingMap.get(cn)!);
+		this.ingredients = ReferenceHydrator.amounts(schema.ingredients, itemMap);
+		this.products = ReferenceHydrator.amounts(schema.products, itemMap);
+		this.producedIn = ReferenceHydrator.entries(schema.producedIn, buildingMap);
 		this.events = schema.events;
 		this.time = schema.time;
 		this.manualCraftingMultiplier = schema.manualCraftingMultiplier;

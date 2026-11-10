@@ -28,6 +28,7 @@ export class GraphSvgCleaner
 		svg.querySelectorAll('.pg-port, [class*="x6-cell-tool"], [class*="x6-edge-tool"]').forEach(element => element.remove());
 		// The hover look is CSS on the live canvas and stays behind; only its marker class comes along.
 		svg.querySelectorAll('.pg-edge-hovered').forEach(edge => edge.classList.remove('pg-edge-hovered'));
+		svg.querySelectorAll('.pg-label-hovered').forEach(edge => edge.classList.remove('pg-label-hovered'));
 
 		svg.querySelectorAll<SVGElement>('[style]').forEach(element => {
 			GraphSvgCleaner.NOISE_PROPERTIES.forEach(property => element.style.removeProperty(property));

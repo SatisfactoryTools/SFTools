@@ -100,6 +100,52 @@ export class GraphComposer
 		});
 	}
 
+	/** With autoMark, a connection between two done nodes is done too, unless the user had unmarked such a connection before. */
+	public carryEdgeDone(existing: Graph | null, graph: Graph, autoMark: boolean): void
+	{
+		const built = new Map<string, number>();
+		const unmarked = new Set<string>();
+		if (existing) {
+			const oldNodes = new Map(existing.nodes.map(node => [node.id, node]));
+			existing.edges.forEach(edge => {
+				const key = this.edgeIdentityKey(edge, oldNodes);
+				if (key === null) {
+					return;
+				}
+				if (edge.done) {
+					built.set(key, (built.get(key) ?? 0) + edge.amount);
+				} else if (oldNodes.get(edge.sourceId)?.done && oldNodes.get(edge.targetId)?.done) {
+					unmarked.add(key);
+				}
+			});
+		}
+
+		const nodes = new Map(graph.nodes.map(node => [node.id, node]));
+		graph.edges.forEach(edge => {
+			const key = this.edgeIdentityKey(edge, nodes);
+			const available = key === null ? 0 : built.get(key) ?? 0;
+			const covered = available > 0 && edge.amount <= available * (1 + 1e-6) + 1e-9;
+			if (covered && key !== null) {
+				built.set(key, available - edge.amount);
+			}
+			const endpointsDone = (nodes.get(edge.sourceId)?.done ?? false) && (nodes.get(edge.targetId)?.done ?? false);
+			edge.done = covered || (autoMark && endpointsDone && (key === null || !unmarked.has(key)));
+		});
+	}
+
+	/** Locked nodes keep their id across a calculation, the others are matched by what they are. */
+	private edgeIdentityKey(edge: GraphEdge, nodes: Map<string, Node>): string | null
+	{
+		const source = nodes.get(edge.sourceId);
+		const target = nodes.get(edge.targetId);
+		if (!source || !target) {
+			return null;
+		}
+		const sourceKey = source.locked ? `id:${source.id}` : this.identityKey(source);
+		const targetKey = target.locked ? `id:${target.id}` : this.identityKey(target);
+		return `${sourceKey}>${targetKey}|${edge.itemClassName}`;
+	}
+
 	/** Machines can be overclocked by hand, so a recipe counts by what it can make, not by machine count. */
 	private builtSize(node: Node): number
 	{

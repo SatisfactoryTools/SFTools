@@ -4,6 +4,7 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {Schematic} from '@src/Model/Data/Entities/Schematic';
 import {ItemAmount} from '@src/Model/Data/Entities/Parts/ItemAmount';
+import {ReferenceHydrator} from '@src/Model/Data/Entities/Parts/ReferenceHydrator';
 
 export class UnlockData
 {
@@ -35,9 +36,7 @@ export class UnlockData
 	{
 		// The data references entries it does not contain (filtered-out cosmetics, '' and non-items like geysers among scannable resources), so unknown ones are dropped.
 		this.recipes = schema.recipes.map(cn => recipeMap.get(cn)).filter(recipe => recipe !== undefined);
-		this.items = schema.items
-			.filter(ia => itemMap.has(ia.item))
-			.map(ia => ({ item: itemMap.get(ia.item)!, amount: ia.amount }));
+		this.items = ReferenceHydrator.amounts(schema.items, itemMap);
 		this.scannableObjects = schema.scannableObjects;
 		this.scannableResources = schema.scannableResources.map(cn => itemMap.get(cn)).filter(item => item !== undefined);
 		this.tapes = schema.tapes;

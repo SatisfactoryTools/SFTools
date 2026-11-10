@@ -1,6 +1,7 @@
 import {DependencyDataSchema} from '@src/Model/API/Schema/Data/Parts/DependencyDataSchema';
 import {GamePhase} from '@src/Model/API/Schema/Data/Parts/GamePhase';
 import {Schematic} from '@src/Model/Data/Entities/Schematic';
+import {ReferenceHydrator} from '@src/Model/Data/Entities/Parts/ReferenceHydrator';
 
 export class DependencyData
 {
@@ -14,7 +15,7 @@ export class DependencyData
 
 	public get schematics(): Schematic[]
 	{
-		return this.cachedSchematics ??= this.rawSchematics.map(cn => this.schematicMap.get(cn)!);
+		return this.cachedSchematics ??= ReferenceHydrator.entries(this.rawSchematics, this.schematicMap);
 	}
 
 	public constructor(schema: DependencyDataSchema, schematicMap: Map<string, Schematic>)

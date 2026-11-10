@@ -125,7 +125,7 @@
 		<button
 			class="btn btn-sm btn-blue"
 			type="button"
-			[tooltip]="'Share this plan' + hotkeys.suffix('plans.sharePlan')" placement="bottom"
+			[tooltip]="'Share this plan' + hotkeys.suffix('plans.share')" placement="bottom"
 			[disabled]="shareDialog.activeTarget() === null"
 			(click)="shareDialog.openActive()"
 		><fa-icon [icon]="faShareNodes"></fa-icon> Share</button>

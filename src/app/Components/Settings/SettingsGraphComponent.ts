@@ -33,6 +33,33 @@ import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 			color: #dde4ef;
 		}
 		.node-preview .group-line { color: #aabccc; }
+		.edge-preview {
+			display: block;
+			width: 100%;
+			height: 38px;
+			background: var(--bs-body-bg);
+			border: 1px solid #4e5d6c;
+		}
+		.label-box-preview {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			height: 38px;
+			background: var(--bs-body-bg);
+			border: 1px solid #4e5d6c;
+		}
+		.label-box-pill {
+			display: inline-flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 0 12px;
+			line-height: 1.15;
+			font-size: 0.8rem;
+			border: 1px solid;
+			border-radius: 999px;
+			color: #dde4ef;
+		}
+		.label-box-pill.dark-text { color: #0b1520; }
 		.node-preview.dark-text { color: #0b1520; }
 		.node-preview.dark-text .group-line { color: #22303f; }
 		.preset-list {
@@ -129,6 +156,22 @@ export class SettingsGraphComponent
 		{value: 2, label: '200%'},
 	];
 
+	public readonly edgeWidthOptions: {value: number; label: string}[] = [
+		{value: 1, label: 'Thin'},
+		{value: 1.5, label: 'Normal (default)'},
+		{value: 2, label: 'Medium'},
+		{value: 3, label: 'Thick'},
+		{value: 4, label: 'Extra thick'},
+	];
+
+	public readonly edgeArrowSizeOptions: {value: number; label: string}[] = [
+		{value: 6, label: 'Small'},
+		{value: 8, label: 'Medium'},
+		{value: 10, label: 'Normal (default)'},
+		{value: 13, label: 'Large'},
+		{value: 16, label: 'Extra large'},
+	];
+
 	public constructor(
 		private readonly settings: SettingsManager,
 		private readonly rateFormatter: RateFormatter,
@@ -154,6 +197,54 @@ export class SettingsGraphComponent
 	public setEdgeScale(value: string | number): void
 	{
 		this.settings.updateGraph({edgeScale: Number(value)});
+	}
+
+	public setEdgeColor(value: string): void
+	{
+		this.settings.updateGraph({edgeColor: value});
+	}
+
+	public get labelBoxBorder(): string
+	{
+		return this.graph.edgeLabelBoxBorder ?? this.graph.edgeColor;
+	}
+
+	public get labelBoxDarkText(): boolean
+	{
+		return NodeFillResolver.needsDarkText(this.graph.edgeLabelBoxFill);
+	}
+
+	public setLabelBoxBorder(value: string): void
+	{
+		// The picker shows the connection colour while unset; echoing it back would stop the outline following that colour.
+		if (this.graph.edgeLabelBoxBorder === null && value.toLowerCase() === this.graph.edgeColor.toLowerCase()) {
+			return;
+		}
+		this.settings.updateGraph({edgeLabelBoxBorder: value});
+	}
+
+	public setLabelBoxFill(value: string): void
+	{
+		this.settings.updateGraph({edgeLabelBoxFill: value});
+	}
+
+	public setEdgeWidth(value: string | number): void
+	{
+		this.settings.updateGraph({edgeWidth: Number(value)});
+	}
+
+	public setEdgeArrowSize(value: string | number): void
+	{
+		this.settings.updateGraph({edgeArrowSize: Number(value)});
+	}
+
+	/** The same shape x6 draws for its classic marker: a notched arrowhead ending at the line's end. */
+	public get edgeArrowPath(): string
+	{
+		const size = this.graph.edgeArrowSize;
+		const tip = 192;
+		const back = tip - size;
+		return `M ${tip} 19 L ${back} ${19 - size / 2} L ${back + size / 4} 19 L ${back} ${19 + size / 2} Z`;
 	}
 
 	public get machineDisplayDescription(): string

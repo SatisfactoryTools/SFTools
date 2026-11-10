@@ -264,13 +264,31 @@ input[type="number"].form-control {
 
 // CSS for the same reason as .pn-body. The class comes from the hover handler, not :hover: the
 // corner-handle tool covers a hovered edge with a path of its own outside the edge element.
+// The variables follow the connection colour and thickness settings (PlannerGraphService.applyEdgeCssVariables).
 .x6-edge.pg-edge-hovered path.pg-edge-line:not(.pg-edge-highlighted) {
-	stroke: #91acc6;
-	stroke-width: 2.5px;
+	stroke: var(--pg-edge-hover, #91acc6);
+	stroke-width: var(--pg-edge-hover-width, 2.5px);
 }
 .x6-edge.pg-edge-hovered rect.pg-label-box:not(.pg-label-box-highlighted) {
-	stroke: #91acc6;
+	stroke: var(--pg-label-box-hover, #91acc6);
 	stroke-width: 1.5px;
+}
+// A hovered label can be dragged along its connection. Unboxed labels have a transparent rect that takes the outline.
+// Found by a hit test rather than :hover, since the corner tool's path and other lines can lie above the label.
+.x6-edge.pg-label-hovered rect.pg-label-hit:not(.pg-label-box-highlighted) {
+	stroke: #dde4ef;
+	stroke-width: 1.5px;
+}
+.x6-edge.pg-label-hovered rect.pg-label-hit.pg-label-box-highlighted {
+	stroke-width: 2.5px;
+}
+.pg-label-grab,
+.pg-label-grab * {
+	cursor: grab !important;
+}
+.pg-label-dragging,
+.pg-label-dragging * {
+	cursor: grabbing !important;
 }
 
 circle.pg-port-adsorbed {

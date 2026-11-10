@@ -32,6 +32,12 @@ const BENIGN_MESSAGES = ['Script error', 'ResizeObserver loop', 'Permission deni
  */
 const UNACTIONABLE_MESSAGES = ['dynamic module import is not implemented', 'out of memory', 'NG04002'];
 
+/**
+ * An extension's messaging layer (a writing assistant asking its background page "isPredictionAvailable", "getDictionariesByLanguageId", ...)
+ * rejects with this when the page is slow to answer; there is no frame to tell it apart, and no request of ours uses the wording.
+ */
+const EXTENSION_REQUEST_TIMEOUT = /^Request timeout [A-Za-z]+$/;
+
 /** The retry banner and the offline indicator already cover these. */
 const UNREACHABLE_STATUSES = [0, 502, 503, 504];
 
@@ -66,7 +72,11 @@ export class ErrorClassifier
 		if (CHUNK_MESSAGES.some(known => message.includes(known))) {
 			return navigator.onLine && this.connectivity.online() ? 'update' : 'ignore';
 		}
-		if ([...NETWORK_MESSAGES, ...BENIGN_MESSAGES, ...UNACTIONABLE_MESSAGES].some(known => message.includes(known))) {
+		if ([...NETWORK_MESSAGES, ...BENIGN_MESSAGES, ...UNACTIONABLE_MESSAGES].some(known => message.includes(known)) || EXTENSION_REQUEST_TIMEOUT.test(message)) {
+			return 'ignore';
+		}
+		// The router's internal no-match signal, which it turns into NG04002 itself; it only leaks where the engine fails its instanceof check (iOS in-app browsers).
+		if (typeof error === 'object' && error !== null && (error as {name?: unknown}).name === 'NoMatch') {
 			return 'ignore';
 		}
 		// Our code only ever rejects with Error instances (desktop commands with strings). A bare undefined/null or a plain object

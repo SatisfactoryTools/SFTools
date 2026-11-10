@@ -26,7 +26,7 @@ export class FolderContextMenu extends PlannerContextMenu
 			{
 				label: 'Rename…',
 				icon: faPen,
-				hotkey: 'plans.renameFolder',
+				hotkey: 'plans.rename',
 				action: () => this.host.startRenameFolder(this.folderId, this.folderName),
 			},
 			{
@@ -44,7 +44,7 @@ export class FolderContextMenu extends PlannerContextMenu
 			{
 				label: 'Clone folder',
 				icon: faClone,
-				hotkey: 'plans.cloneFolder',
+				hotkey: 'plans.clone',
 				action: () => this.host.cloneFolder(this.folderId),
 			},
 		];
@@ -53,7 +53,7 @@ export class FolderContextMenu extends PlannerContextMenu
 		items.push({
 			label: 'Share…',
 			icon: faShareNodes,
-			hotkey: 'plans.shareFolder',
+			hotkey: 'plans.share',
 			action: () => this.host.shareFolder(this.folderId, this.folderName),
 		});
 
@@ -67,7 +67,7 @@ export class FolderContextMenu extends PlannerContextMenu
 		items.push({
 			label: 'Delete folder',
 			icon: faXmark,
-			hotkey: 'plans.deleteFolder',
+			hotkey: 'plans.delete',
 			action: () => this.host.deleteFolder(this.folderId, this.folderName),
 		});
 

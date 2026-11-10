@@ -132,8 +132,7 @@ export class GraphVersionConverter
 			return null;
 		}
 
-		// Hydration tolerates dangling building references (mods).
-		const machines = recipe.producedIn.filter(building => building !== undefined);
+		const machines = recipe.producedIn;
 		const machineClassName = raw['machineClassName'] as string;
 		let machine = machines.find(building => building.className === machineClassName);
 		let node: RawNode = raw;

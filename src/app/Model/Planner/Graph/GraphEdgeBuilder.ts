@@ -51,7 +51,7 @@ export class GraphEdgeBuilder
 				});
 			});
 			if (amount > 1e-6) {
-				edges.push({sourceId: prior.sourceId, targetId: prior.targetId, itemClassName: prior.itemClassName, amount});
+				edges.push({sourceId: prior.sourceId, targetId: prior.targetId, itemClassName: prior.itemClassName, amount, done: false});
 			}
 		});
 
@@ -82,6 +82,7 @@ export class GraphEdgeBuilder
 					targetId: inp.nodeId,
 					itemClassName,
 					amount,
+					done: false,
 				});
 
 				out.io.remaining -= amount;

@@ -6,6 +6,7 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {UnlockData} from '@src/Model/Data/Entities/UnlockData';
 import {ItemAmount} from '@src/Model/Data/Entities/Parts/ItemAmount';
+import {ReferenceHydrator} from '@src/Model/Data/Entities/Parts/ReferenceHydrator';
 
 export class Schematic
 {
@@ -36,7 +37,7 @@ export class Schematic
 		this.name = schema.name;
 		this.description = schema.description;
 		this.tier = schema.tier;
-		this.cost = schema.cost.map(ia => ({ item: itemMap.get(ia.item)!, amount: ia.amount }));
+		this.cost = ReferenceHydrator.amounts(schema.cost, itemMap);
 		this.type = schema.type;
 		this.time = schema.time;
 		this.unlock = new UnlockData(schema.unlock, itemMap, recipeMap, schematicMap);

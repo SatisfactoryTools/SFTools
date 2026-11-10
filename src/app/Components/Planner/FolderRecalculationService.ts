@@ -14,6 +14,7 @@ import {PlanSerializer} from '@src/Model/Planner/PlanSerializer';
 import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
+import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 
 /** Sequential on purpose: a plan solved earlier counts against the shared resource pool of the plans after it. Component-scoped like the graph service it borrows the ELK layout from. */
 @Injectable()
@@ -40,6 +41,7 @@ export class FolderRecalculationService
 		private readonly actions: PlannerActionsService,
 		private readonly notifications: NotificationService,
 		private readonly pool: ResourcePoolService,
+		private readonly settings: SettingsManager,
 	)
 	{
 	}
@@ -161,14 +163,19 @@ export class FolderRecalculationService
 	private async composeGraph(plan: Plan, result: SolverResponse, existing: Graph | null): Promise<Graph>
 	{
 		this.composer.carryDone(existing, result.nodes);
+		const autoDone = this.settings.graph().autoDoneConnections;
 		if (existing && existing.nodes.some(node => node.locked)) {
 			const rebuilt = this.composer.rebuild(existing, result.nodes);
 			await this.plannerGraph.layout(rebuilt.nodes, rebuilt.edges, plan.settings.graph);
-			return {nodes: rebuilt.nodes, edges: rebuilt.edges};
+			const graph: Graph = {nodes: rebuilt.nodes, edges: rebuilt.edges};
+			this.composer.carryEdgeDone(existing, graph, autoDone);
+			return graph;
 		}
 		const edges = this.edgeBuilder.build(result.nodes);
 		await this.plannerGraph.layout(result.nodes, edges, plan.settings.graph);
-		return {nodes: result.nodes, edges};
+		const graph: Graph = {nodes: result.nodes, edges};
+		this.composer.carryEdgeDone(existing, graph, autoDone);
+		return graph;
 	}
 
 	/** Kept as a cancellable subscription: unsubscribing kills the solver worker. */

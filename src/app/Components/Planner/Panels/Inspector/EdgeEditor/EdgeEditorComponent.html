@@ -1,0 +1,52 @@
+<div class="p-2 d-flex flex-column gap-2">
+
+	<div class="card">
+		<div class="card-header d-flex align-items-center gap-2 py-1 px-2">
+			<game-icon [hash]="item?.icon ?? null" [size]="20" [alt]="itemName"></game-icon>
+			<span class="fw-semibold flex-grow-1 text-truncate" [title]="itemName">{{ itemName }}</span>
+			<span class="badge text-bg-secondary">Connection</span>
+			<button
+				class="btn btn-sm py-0 px-1"
+				[class.btn-outline-success]="edge.done"
+				[class.btn-outline-secondary]="!edge.done"
+				type="button"
+				[tooltip]="doneTooltip" container="body" placement="left"
+				(click)="toggleDone()"
+			><fa-icon [icon]="faCheck" [fixedWidth]="true"></fa-icon></button>
+		</div>
+		<div class="card-body p-2 d-flex flex-column gap-2">
+
+			<div class="d-flex align-items-center gap-2">
+				<span class="text-secondary endpoint-label">From</span>
+				<span class="flex-grow-1 text-truncate" [title]="sourceName">{{ sourceName }}</span>
+				<go-to-node [nodeIds]="[edge.sourceId]" placement="left"></go-to-node>
+			</div>
+			<div class="d-flex align-items-center gap-2">
+				<span class="text-secondary endpoint-label">To</span>
+				<span class="flex-grow-1 text-truncate" [title]="targetName">{{ targetName }}</span>
+				<go-to-node [nodeIds]="[edge.targetId]" placement="left"></go-to-node>
+			</div>
+
+			<div class="d-flex align-items-center gap-2">
+				<label class="form-label text-secondary mb-0 text-nowrap endpoint-label" for="edge-amount">Rate</label>
+				<div class="input-group input-group-sm">
+					<input
+						id="edge-amount"
+						type="number"
+						class="form-control form-control-sm bg-dark text-light border-secondary"
+						[(ngModel)]="amount"
+						(ngModelChange)="onAmountChange()"
+						min="0"
+						step="any"
+					>
+					@if (unit; as unitLabel) {
+						<span class="input-group-text bg-dark text-secondary border-secondary">{{ unitLabel }}</span>
+					}
+				</div>
+			</div>
+			<div class="form-text mt-0">Machines are not changed. If a node cannot supply or use the new rate, it shows a warning.</div>
+
+		</div>
+	</div>
+
+</div>

@@ -3,6 +3,7 @@ import {Observable, Subject} from 'rxjs';
 import {GraphConnectToBlankRequest} from '@src/Components/Planner/GraphConnectToBlankRequest';
 import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {GraphEdgeAmountRequest} from '@src/Components/Planner/GraphEdgeAmountRequest';
+import {EdgeDoneRequest} from '@src/Components/Planner/EdgeDoneRequest';
 import {FuelDisableRequest} from '@src/Components/Planner/FuelDisableRequest';
 import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
@@ -36,6 +37,9 @@ export class PlannerActionsService
 	private readonly nodeDoneSubject = new Subject<NodeDoneRequest>();
 	public readonly nodeDoneRequests: Observable<NodeDoneRequest> = this.nodeDoneSubject.asObservable();
 
+	private readonly edgeDoneSubject = new Subject<EdgeDoneRequest>();
+	public readonly edgeDoneRequests: Observable<EdgeDoneRequest> = this.edgeDoneSubject.asObservable();
+
 	private readonly relayoutSubject = new Subject<void>();
 	public readonly relayoutRequests: Observable<void> = this.relayoutSubject.asObservable();
 
@@ -56,6 +60,9 @@ export class PlannerActionsService
 
 	private readonly nodeSplitSubject = new Subject<NodeSplitRequest>();
 	public readonly nodeSplitRequests: Observable<NodeSplitRequest> = this.nodeSplitSubject.asObservable();
+
+	private readonly nodeMergeSubject = new Subject<string[]>();
+	public readonly nodeMergeRequests: Observable<string[]> = this.nodeMergeSubject.asObservable();
 
 	private readonly nodeDeleteSubject = new Subject<string[]>();
 	public readonly nodeDeleteRequests: Observable<string[]> = this.nodeDeleteSubject.asObservable();
@@ -144,6 +151,11 @@ export class PlannerActionsService
 		this.nodeDoneSubject.next(request);
 	}
 
+	public requestEdgeDone(request: EdgeDoneRequest): void
+	{
+		this.edgeDoneSubject.next(request);
+	}
+
 	public requestRelayout(): void
 	{
 		this.relayoutSubject.next();
@@ -177,6 +189,11 @@ export class PlannerActionsService
 	public requestNodeSplit(request: NodeSplitRequest): void
 	{
 		this.nodeSplitSubject.next(request);
+	}
+
+	public requestNodeMerge(nodeIds: string[]): void
+	{
+		this.nodeMergeSubject.next(nodeIds);
 	}
 
 	public requestNodeDelete(nodeIds: string[]): void

@@ -36,7 +36,11 @@ import {GraphWarningEntry} from '@src/Model/Planner/Graph/GraphWarningEntry';
 import {GraphReconciler} from '@src/Model/Planner/Graph/GraphReconciler';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
+import {EdgeColorResolver} from '@src/Model/Settings/EdgeColorResolver';
+import {GraphEdgeKey} from '@src/Model/Planner/Graph/GraphEdgeKey';
 import {NodeFillResolver} from '@src/Model/Settings/NodeFillResolver';
+import {LabelDrag} from '@src/Components/Planner/LabelDrag';
+import {PlannerContextMenuService} from '@src/Components/Planner/ContextMenu/PlannerContextMenuService';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
@@ -143,8 +147,8 @@ const STAT_SLOOP_MAX_LINES = 8;
 // Measured from the rendered text box.
 const STAT_SLOOP_CENTER_OFFSET = 5.5;
 const CORNER_PREVIEW_SNAP = 10;
-const EDGE_STROKE = '#5c718a';
-const EDGE_STROKE_WIDTH = 1.5;
+// Constant fallback for the default label below; drawn edges use the colour from the settings.
+const EDGE_STROKE = EdgeColorResolver.DEFAULT_COLOR;
 const PARALLEL_EDGE_GAP = 40;
 const SELECTED_STROKE = '#f0ad4e';
 const EXPORT_MARGIN = 40;
@@ -152,19 +156,31 @@ const EXPORT_MARGIN = 40;
 const FIT_MAX_SCALE = 1;
 const EXPORT_SAMPLE_MARGIN = 12;
 const SELECTED_STROKE_WIDTH = 3;
-const SELECTED_EDGE_STROKE_WIDTH = 2.5;
+const SELECTED_EDGE_EXTRA_WIDTH = 1;
 // Hover styles live in styles.scss; the highlight class opts an edge out of the hover look.
 const EDGE_LINE_CLASS = 'pg-edge-line';
 const EDGE_HOVER_CLASS = 'pg-edge-hovered';
 const EDGE_HIGHLIGHT_CLASS = 'pg-edge-highlighted';
 const LABEL_BOX_CLASS = 'pg-label-box';
 const LABEL_BOX_HIGHLIGHT_CLASS = 'pg-label-box-highlighted';
+// On every label rect, boxed or not: the hover outline and the drag hit test go through it.
+const LABEL_HIT_CLASS = 'pg-label-hit';
+const LABEL_HOVER_CLASS = 'pg-label-hovered';
+const LABEL_GRAB_CLASS = 'pg-label-grab';
+const LABEL_DRAGGING_CLASS = 'pg-label-dragging';
+const LABEL_DRAG_THRESHOLD = 4;
+// Keeps a dragged label off the very ends, where it would sit on the arrowhead or under the node.
+const LABEL_MIN_DISTANCE = 0.02;
+// x6's vertices tool draws a transparent copy of the hovered edge's path above every cell to catch new corners.
+const VERTEX_PATH_CLASS = 'x6-edge-tool-vertex-path';
+const VERTEX_HANDLE_CLASS = 'x6-edge-tool-vertex';
+const EDGE_DONE_ICON_SIZE = 16;
 // Pill, darker than the canvas, edge-coloured outline: nodes are lighter than the canvas with square-ish corners.
 const LABEL_BOX_FILL = '#08111c';
-const LABEL_BOX_STROKE = EDGE_STROKE;
 const LABEL_BOX_PILL_PAD = 6;
 const LABEL_BOX_STROKE_WIDTH = 1;
 const LABEL_TEXT_FILL = '#dde4ef';
+const LABEL_DARK_TEXT_FILL = '#0b1520';
 const LABEL_BOX_RADIUS = 4;
 const LABEL_BOX_HIGHLIGHT_STROKE_WIDTH = 1.5;
 /** Dark replacement for x6's white default label, shown when a label attr fails to apply. */
@@ -184,7 +200,7 @@ const EDGE_DEFAULT_LABEL = {
 		rect: {
 			ref: 'label',
 			fill: LABEL_BOX_FILL,
-			stroke: LABEL_BOX_STROKE,
+			stroke: EDGE_STROKE,
 			strokeWidth: LABEL_BOX_STROKE_WIDTH,
 			rx: LABEL_BOX_RADIUS,
 			ry: LABEL_BOX_RADIUS,
@@ -422,7 +438,16 @@ export class PlannerGraphService implements OnDestroy
 	private vertexHighlights: SVGCircleElement[] = [];
 	private vertexDragAnchorId: string | null = null;
 	private readonly nodeById = new Map<string, Node>();
-	private doneNodeIds = new Set<string>();
+	private selectedEdgeKey: string | null = null;
+	private hoveredLabelEdgeId: string | null = null;
+	private labelDrag: LabelDrag | null = null;
+	private pendingEdgeClick: {cellId: string; clientX: number; clientY: number} | null = null;
+	private swallowNextClick = false;
+	private readonly pressListener: (e: MouseEvent) => void;
+	private readonly releaseListener: (e: MouseEvent) => void;
+	private readonly dragMoveListener: (e: MouseEvent) => void;
+	private readonly clickGuardListener: (e: MouseEvent) => void;
+	private readonly doubleClickListener: (e: MouseEvent) => void;
 	private readonly edgeById = new Map<string, GraphEdge>();
 	private readonly baseZIndexById = new Map<string, number>();
 	private readonly pendingZChanges = new Map<string, {cell: Cell; zIndex: number | null}>();
@@ -431,6 +456,9 @@ export class PlannerGraphService implements OnDestroy
 
 	private readonly selectedNodesSignal = signal<Node[]>([]);
 	public readonly selectedNodes: Signal<Node[]> = this.selectedNodesSignal.asReadonly();
+
+	private readonly selectedEdgeSignal = signal<GraphEdge | null>(null);
+	public readonly selectedEdge: Signal<GraphEdge | null> = this.selectedEdgeSignal.asReadonly();
 
 	private readonly warningEntriesSignal = signal<GraphWarningEntry[]>([]);
 	public readonly warningEntries: Signal<GraphWarningEntry[]> = this.warningEntriesSignal.asReadonly();
@@ -472,14 +500,21 @@ export class PlannerGraphService implements OnDestroy
 		private readonly settings: SettingsManager,
 		private readonly graphLayout: GraphLayoutResolver,
 		private readonly svgCleaner: GraphSvgCleaner,
+		private readonly contextMenu: PlannerContextMenuService,
 	)
 	{
 		this.edgeHoverListener = e => this.onEdgeHoverMove(e);
+		this.pressListener = e => this.onCanvasPress(e);
+		this.releaseListener = e => this.onCanvasRelease(e);
+		this.dragMoveListener = e => this.onLabelDragMove(e);
+		this.clickGuardListener = e => this.onCanvasClickCapture(e);
+		this.doubleClickListener = e => this.onCanvasDoubleClick(e);
 		this.warningOverListener = e => this.onWarningHover(e);
 		this.warningOutListener = e => this.onWarningOut(e);
 		// Firefox fires blur synchronously when rendering removes the focused element, where the signal write throws NG0600.
 		this.tooltipDismissListener = () => untracked(() => {
 			this.hideTooltip();
+			this.setHoveredLabel(null);
 			// x6 swallows mouseleave mid-press. Taps excepted: lifting the finger ends the synthetic pointer and would drop the handles.
 			if (this.touchedEdgeId === null) {
 				this.endEdgeHover();
@@ -591,8 +626,6 @@ export class PlannerGraphService implements OnDestroy
 		this.warningsById = this.reconciler.computeWarnings(graph);
 		const x6Graph = this.createGraph(container);
 
-		// Before addEdge, so edges between done nodes fade too.
-		this.doneNodeIds = new Set(graph.nodes.filter(node => node.done).map(node => node.id));
 		this.parallelOffsets = this.computeParallelOffsets(graph);
 
 		graph.nodes.forEach(node => this.addNode(x6Graph, node));
@@ -604,6 +637,8 @@ export class PlannerGraphService implements OnDestroy
 			}
 		});
 		this.warningEntriesSignal.set(this.buildWarningEntries(graph));
+		// Edges are rebuilt on every render, so a selected one is found again by its endpoints and item.
+		this.reselectEdge(x6Graph);
 
 		if (previous) {
 			x6Graph.zoom(previous.zoom, {absolute: true});
@@ -632,6 +667,7 @@ export class PlannerGraphService implements OnDestroy
 		this.hoverMoveTarget?.removeEventListener('mouseleave', this.tooltipDismissListener);
 		this.hoverMoveTarget?.removeEventListener('mousewheel', this.wheelGuardListener, true);
 		this.hoverMoveTarget?.removeEventListener('DOMMouseScroll', this.wheelGuardListener, true);
+		this.removeLabelListeners(this.hoverMoveTarget);
 		window.removeEventListener('blur', this.tooltipDismissListener);
 		this.hoverMoveTarget = null;
 		this.x6Graph?.dispose();
@@ -639,6 +675,8 @@ export class PlannerGraphService implements OnDestroy
 		this.selection = null;
 		this.warningsById = new Map();
 		this.selectedNodesSignal.set([]);
+		this.selectedEdgeKey = null;
+		this.selectedEdgeSignal.set(null);
 		this.warningEntriesSignal.set([]);
 	}
 
@@ -665,6 +703,70 @@ export class PlannerGraphService implements OnDestroy
 			}
 		});
 		this.selection?.reset(cells);
+	}
+
+	public nodeOf(id: string): Node | null
+	{
+		return this.nodeById.get(id) ?? null;
+	}
+
+	public selectEdge(edge: GraphEdge): void
+	{
+		const cellId = this.cellIdOf(edge);
+		if (cellId !== null) {
+			this.selectEdgeCell(cellId);
+		}
+	}
+
+	public clearEdgeSelection(): void
+	{
+		if (this.selectedEdgeKey === null) {
+			return;
+		}
+		this.selectedEdgeKey = null;
+		this.selectedEdgeSignal.set(null);
+		this.x6Graph?.getEdges().forEach(edge => this.applyEdgeStyle(edge));
+	}
+
+	private selectEdgeCell(cellId: string): void
+	{
+		const modelEdge = this.edgeById.get(cellId);
+		if (!modelEdge || !this.x6Graph) {
+			return;
+		}
+		this.clearVertexSelection();
+		// Before the key is set: the selection change clears an edge selection only when nodes become selected.
+		this.selection?.clean();
+		this.selectedEdgeKey = GraphEdgeKey.of(modelEdge);
+		this.selectedEdgeSignal.set(modelEdge);
+		this.x6Graph.getEdges().forEach(edge => this.applyEdgeStyle(edge));
+	}
+
+	private reselectEdge(x6Graph: X6Graph): void
+	{
+		const key = this.selectedEdgeKey;
+		if (key === null) {
+			return;
+		}
+		const cellId = [...this.edgeById.entries()].find(([, edge]) => GraphEdgeKey.of(edge) === key)?.[0] ?? null;
+		const edge = cellId === null ? null : x6Graph.getCellById(cellId);
+		if (cellId === null || !edge?.isEdge()) {
+			this.selectedEdgeKey = null;
+			this.selectedEdgeSignal.set(null);
+			return;
+		}
+		this.selectedEdgeSignal.set(this.edgeById.get(cellId) ?? null);
+		this.applyEdgeStyle(edge);
+	}
+
+	private cellIdOf(edge: GraphEdge): string | null
+	{
+		for (const [cellId, candidate] of this.edgeById) {
+			if (GraphEdgeKey.same(candidate, edge)) {
+				return cellId;
+			}
+		}
+		return null;
 	}
 
 	public focusNode(id: string): void
@@ -817,7 +919,19 @@ export class PlannerGraphService implements OnDestroy
 		if (!(root instanceof SVGSVGElement)) {
 			throw new Error('The graph could not be exported.');
 		}
+		// x6 leaves an icon's original URL in place when fetching it fails, and an SVG drawn into a canvas cannot load external images, so the PNG would silently have no icons.
+		if (this.hasExternalImages(root)) {
+			throw new Error('Some icons could not be loaded, so the image would be missing them. Check your connection and try again.');
+		}
 		return new GraphSvgSnapshot(root, content, sample);
+	}
+
+	private hasExternalImages(svg: SVGSVGElement): boolean
+	{
+		return Array.from(svg.querySelectorAll('image')).some(image => {
+			const href = image.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ?? image.getAttribute('href') ?? '';
+			return href !== '' && !href.startsWith('data:');
+		});
 	}
 
 	private exportSampleNode(x6Graph: X6Graph, content: ExportBox): X6Node
@@ -857,25 +971,26 @@ export class PlannerGraphService implements OnDestroy
 			body.setAttribute('stroke', modelNode ? this.styleFor(modelNode).bodyStroke : NODE_FALLBACK_STROKE);
 			body.setAttribute('stroke-width', String(NODE_STROKE_WIDTH));
 		});
+		const edgeColor = this.edgeColor();
 		svg.querySelectorAll(`path.${EDGE_HIGHLIGHT_CLASS}`).forEach(line => {
-			line.setAttribute('stroke', EDGE_STROKE);
-			line.setAttribute('stroke-width', String(EDGE_STROKE_WIDTH));
+			line.setAttribute('stroke', edgeColor);
+			line.setAttribute('stroke-width', String(this.edgeWidth()));
 			line.setAttribute('class', EDGE_LINE_CLASS);
 			// x6 keeps one <marker> per arrowhead colour, so a highlighted edge points at an orange one.
 			['marker-start', 'marker-mid', 'marker-end'].forEach(name => {
 				const markerId = line.getAttribute(name)?.match(/url\(#(.+)\)/)?.[1];
 				if (markerId !== undefined) {
 					svg.querySelectorAll(`#${CSS.escape(markerId)} [stroke="${SELECTED_STROKE}"]`).forEach(arrow => {
-						arrow.setAttribute('stroke', EDGE_STROKE);
-						arrow.setAttribute('fill', EDGE_STROKE);
+						arrow.setAttribute('stroke', edgeColor);
+						arrow.setAttribute('fill', edgeColor);
 					});
 				}
 			});
 		});
 		svg.querySelectorAll(`rect.${LABEL_BOX_HIGHLIGHT_CLASS}`).forEach(box => {
-			box.setAttribute('stroke', LABEL_BOX_STROKE);
+			box.setAttribute('stroke', this.labelBoxBorder());
 			box.setAttribute('stroke-width', String(LABEL_BOX_STROKE_WIDTH));
-			box.setAttribute('class', LABEL_BOX_CLASS);
+			box.setAttribute('class', `${LABEL_HIT_CLASS} ${LABEL_BOX_CLASS}`);
 		});
 		this.svgCleaner.clean(svg);
 	}
@@ -1009,21 +1124,34 @@ export class PlannerGraphService implements OnDestroy
 		});
 
 		x6Graph.on('edge:click', ({view, edge}) => {
+			if (this.isTempConnect(edge)) {
+				return;
+			}
 			if (this.touchUsed) {
 				this.showEdgeTools(view, edge);
 				this.touchedEdgeId = edge.id;
 			}
+			this.selectEdgeCell(edge.id);
 		});
 		x6Graph.on('node:click', () => this.releaseTouchedEdge());
-		x6Graph.on('blank:click', () => this.releaseTouchedEdge());
+		x6Graph.on('blank:click', () => {
+			this.releaseTouchedEdge();
+			this.clearEdgeSelection();
+		});
 		this.hoverMoveTarget?.removeEventListener('mousemove', this.edgeHoverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseover', this.warningOverListener);
 		this.hoverMoveTarget?.removeEventListener('mouseout', this.warningOutListener);
 		this.hoverMoveTarget?.removeEventListener('mouseleave', this.tooltipDismissListener);
 		this.hoverMoveTarget?.removeEventListener('mousewheel', this.wheelGuardListener, true);
 		this.hoverMoveTarget?.removeEventListener('DOMMouseScroll', this.wheelGuardListener, true);
+		this.removeLabelListeners(this.hoverMoveTarget);
 		window.removeEventListener('blur', this.tooltipDismissListener);
 		container.addEventListener('mousemove', this.edgeHoverListener);
+		// Capture: a label must win over the corner tool's path and other edges lying above it, before x6 sees the press.
+		container.addEventListener('mousedown', this.pressListener, true);
+		container.addEventListener('click', this.clickGuardListener, true);
+		container.addEventListener('dblclick', this.doubleClickListener, true);
+		this.applyEdgeCssVariables(container);
 		container.addEventListener('mouseover', this.warningOverListener);
 		container.addEventListener('mouseout', this.warningOutListener);
 		container.addEventListener('mouseleave', this.tooltipDismissListener);
@@ -1604,9 +1732,9 @@ export class PlannerGraphService implements OnDestroy
 		const zoomedOutIconSize = (LABEL_HEIGHT - 2 * ZOOMED_OUT_EDGE_ICON_PAD) * scale;
 		const wrapShift = (label.name.split('\n').length - 1) * LABEL_NAME_LINE_HEIGHT / 2;
 		const boxPad = showBox ? LABEL_BOX_PILL_PAD * scale : 0;
-		const fade = this.doneNodeIds.has(edge.sourceId) && this.doneNodeIds.has(edge.targetId)
-			? {opacity: DONE_OPACITY}
-			: {};
+		const textFill = showBox && NodeFillResolver.needsDarkText(this.labelBoxFill()) ? LABEL_DARK_TEXT_FILL : LABEL_TEXT_FILL;
+		const fade = edge.done ? {opacity: DONE_OPACITY} : {};
+		const doneIconSize = EDGE_DONE_ICON_SIZE * scale;
 		const offset = this.parallelOffsets.get(edge);
 		const anchor = offset ? {name: 'center', args: {dx: offset.x, dy: offset.y}} : undefined;
 
@@ -1618,8 +1746,9 @@ export class PlannerGraphService implements OnDestroy
 			attrs: {
 				line: {
 					class: EDGE_LINE_CLASS,
-					stroke: EDGE_STROKE,
-					strokeWidth: EDGE_STROKE_WIDTH,
+					stroke: this.edgeColor(),
+					strokeWidth: this.edgeWidth(),
+					targetMarker: {name: 'classic', size: this.settings.graph().edgeArrowSize},
 					...fade,
 				},
 			},
@@ -1631,13 +1760,14 @@ export class PlannerGraphService implements OnDestroy
 					{tagName: 'text', selector: 'name'},
 					{tagName: 'text', selector: 'rate'},
 					{tagName: 'image', selector: 'zoomedOutIcon'},
+					{tagName: 'image', selector: 'done'},
 				],
 				position: {distance: edge.labelDistance ?? 0.5},
 				attrs: {
 					name: {
 						text: label.name,
 						class: detailClass,
-						fill: LABEL_TEXT_FILL,
+						fill: textFill,
 						fontSize: LABEL_NAME_FONT_SIZE * scale,
 						fontWeight: 'bold',
 						textAnchor: 'middle',
@@ -1650,7 +1780,7 @@ export class PlannerGraphService implements OnDestroy
 					rate: {
 						text: label.rate,
 						class: detailClass,
-						fill: LABEL_TEXT_FILL,
+						fill: textFill,
 						fontSize: LABEL_FONT_SIZE * scale,
 						textAnchor: 'middle',
 						textVerticalAnchor: 'middle',
@@ -1681,9 +1811,19 @@ export class PlannerGraphService implements OnDestroy
 							...fade,
 						}
 						: {'xlink:href': '', width: 0, height: 0, display: 'none'},
+					// Not faded, like the node check, and on the box's corner so it reads as a badge of the label.
+					done: edge.done
+						? {
+							'xlink:href': this.doneIconUri,
+							width: doneIconSize,
+							height: doneIconSize,
+							x: size.width / 2 + boxPad - doneIconSize * 0.6,
+							y: -size.height / 2 - doneIconSize * 0.4,
+						}
+						: {'xlink:href': '', width: 0, height: 0},
 					// Sized explicitly: the default rect follows the text bbox, which drifts with font metrics and load timing. Hidden stays transparent to keep the hit area.
 					rect: {
-						class: showBox ? LABEL_BOX_CLASS : '',
+						class: showBox ? `${LABEL_HIT_CLASS} ${LABEL_BOX_CLASS}` : LABEL_HIT_CLASS,
 						ref: null,
 						refX: null,
 						refY: null,
@@ -1693,8 +1833,8 @@ export class PlannerGraphService implements OnDestroy
 						y: -size.height / 2,
 						width: size.width + boxPad * 2,
 						height: size.height,
-						fill: showBox ? LABEL_BOX_FILL : 'transparent',
-						stroke: showBox ? LABEL_BOX_STROKE : 'none',
+						fill: showBox ? this.labelBoxFill() : 'transparent',
+						stroke: showBox ? this.labelBoxBorder() : 'none',
 						strokeWidth: showBox ? LABEL_BOX_STROKE_WIDTH : 0,
 						rx: size.height / 2,
 						ry: size.height / 2,
@@ -1760,6 +1900,10 @@ export class PlannerGraphService implements OnDestroy
 	private onSelectionChanged(x6Graph: X6Graph, selected: Cell[]): void
 	{
 		const selectedIds = new Set(selected.filter(cell => cell.isNode()).map(cell => cell.id));
+		if (selectedIds.size > 0 && this.selectedEdgeKey !== null) {
+			this.selectedEdgeKey = null;
+			this.selectedEdgeSignal.set(null);
+		}
 
 		x6Graph.getNodes().forEach(cell => {
 			const modelNode = this.nodeById.get(cell.id);
@@ -1883,6 +2027,12 @@ export class PlannerGraphService implements OnDestroy
 		if (this.tooltipAnchor && !this.tooltipAnchor.contains(e.target as Element | null)) {
 			this.hideTooltip();
 		}
+		if (this.labelDrag !== null) {
+			return;
+		}
+		if (e.buttons === 0) {
+			this.updateLabelHover(e);
+		}
 		if (!this.hoveredEdgeView || !this.x6Graph) {
 			return;
 		}
@@ -1893,7 +2043,9 @@ export class PlannerGraphService implements OnDestroy
 			this.endEdgeHover();
 			return;
 		}
-		if (this.readOnly) {
+		// Over a label a press drags the label, so no corner is offered there.
+		if (this.readOnly || this.hoveredLabelEdgeId !== null) {
+			this.hideCornerPreview();
 			return;
 		}
 		const point = this.x6Graph.clientToLocal(e.clientX, e.clientY);
@@ -1960,16 +2112,23 @@ export class PlannerGraphService implements OnDestroy
 	private isEdgeHighlighted(edge: X6Edge): boolean
 	{
 		const selection = this.selection;
+		if (this.selectedEdgeKey !== null) {
+			const modelEdge = this.edgeById.get(edge.id);
+			return modelEdge !== undefined && GraphEdgeKey.of(modelEdge) === this.selectedEdgeKey;
+		}
 		return selection !== null
 			&& (selection.isSelected(edge.getSourceCellId()) || selection.isSelected(edge.getTargetCellId()));
 	}
 
 	private applyEdgeStyle(edge: X6Edge): void
 	{
+		if (this.isTempConnect(edge)) {
+			return;
+		}
 		const highlighted = this.isEdgeHighlighted(edge);
 
-		edge.attr('line/stroke', highlighted ? SELECTED_STROKE : EDGE_STROKE);
-		edge.attr('line/strokeWidth', highlighted ? SELECTED_EDGE_STROKE_WIDTH : EDGE_STROKE_WIDTH);
+		edge.attr('line/stroke', highlighted ? SELECTED_STROKE : this.edgeColor());
+		edge.attr('line/strokeWidth', highlighted ? this.edgeWidth() + SELECTED_EDGE_EXTRA_WIDTH : this.edgeWidth());
 		edge.attr('line/class', highlighted ? `${EDGE_LINE_CLASS} ${EDGE_HIGHLIGHT_CLASS}` : EDGE_LINE_CLASS);
 
 		this.applyLabelBoxStyle(edge, highlighted);
@@ -1992,9 +2151,11 @@ export class PlannerGraphService implements OnDestroy
 		if (!this.settings.graph().showEdgeLabelBoxes || !edge.getLabelAt(0)) {
 			return;
 		}
-		edge.prop('labels/0/attrs/rect/stroke', highlighted ? SELECTED_STROKE : LABEL_BOX_STROKE);
+		edge.prop('labels/0/attrs/rect/stroke', highlighted ? SELECTED_STROKE : this.labelBoxBorder());
 		edge.prop('labels/0/attrs/rect/strokeWidth', highlighted ? LABEL_BOX_HIGHLIGHT_STROKE_WIDTH : LABEL_BOX_STROKE_WIDTH);
-		edge.prop('labels/0/attrs/rect/class', highlighted ? `${LABEL_BOX_CLASS} ${LABEL_BOX_HIGHLIGHT_CLASS}` : LABEL_BOX_CLASS);
+		edge.prop('labels/0/attrs/rect/class', highlighted
+			? `${LABEL_HIT_CLASS} ${LABEL_BOX_CLASS} ${LABEL_BOX_HIGHLIGHT_CLASS}`
+			: `${LABEL_HIT_CLASS} ${LABEL_BOX_CLASS}`);
 	}
 
 	/** Deferred a frame: re-inserting the SVG element in mouseenter makes the browser replay leave/enter, flipping z-index forever. */
@@ -2115,6 +2276,7 @@ export class PlannerGraphService implements OnDestroy
 	private onBlankContextMenu(clientX: number, clientY: number, local: GraphPoint): void
 	{
 		this.selection?.clean();
+		this.clearEdgeSelection();
 		this.clearVertexSelection();
 		this.contextMenuSubject.next({clientX, clientY, local, nodes: []});
 	}
@@ -2123,8 +2285,7 @@ export class PlannerGraphService implements OnDestroy
 	{
 		const modelEdge = this.edgeById.get(cell.id);
 		if (modelEdge) {
-			this.selection?.clean();
-			this.clearVertexSelection();
+			this.selectEdgeCell(cell.id);
 			this.contextMenuSubject.next({clientX, clientY, local, nodes: [], edge: modelEdge});
 		}
 	}
@@ -2367,6 +2528,244 @@ export class PlannerGraphService implements OnDestroy
 	private edgeScale(): number
 	{
 		return this.settings.graph().edgeScale;
+	}
+
+	private edgeColor(): string
+	{
+		return this.settings.graph().edgeColor;
+	}
+
+	private labelBoxBorder(): string
+	{
+		return this.settings.graph().edgeLabelBoxBorder ?? this.edgeColor();
+	}
+
+	private labelBoxFill(): string
+	{
+		return this.settings.graph().edgeLabelBoxFill;
+	}
+
+	private edgeWidth(): number
+	{
+		return this.settings.graph().edgeWidth;
+	}
+
+	/** The hover look is CSS (see styles.scss), so it reads the configured colour and width from here. */
+	private applyEdgeCssVariables(container: HTMLElement): void
+	{
+		container.style.setProperty('--pg-edge-hover', EdgeColorResolver.hover(this.edgeColor()));
+		container.style.setProperty('--pg-label-box-hover', EdgeColorResolver.hover(this.labelBoxBorder()));
+		container.style.setProperty('--pg-edge-hover-width', `${this.edgeWidth() + SELECTED_EDGE_EXTRA_WIDTH}px`);
+	}
+
+	private removeLabelListeners(container: HTMLElement | null): void
+	{
+		container?.removeEventListener('mousedown', this.pressListener, true);
+		container?.removeEventListener('click', this.clickGuardListener, true);
+		container?.removeEventListener('dblclick', this.doubleClickListener, true);
+		container?.classList.remove(LABEL_GRAB_CLASS, LABEL_DRAGGING_CLASS);
+		document.removeEventListener('mousemove', this.dragMoveListener, true);
+		document.removeEventListener('mouseup', this.releaseListener, true);
+		this.labelDrag = null;
+		this.pendingEdgeClick = null;
+		this.hoveredLabelEdgeId = null;
+	}
+
+	private edgeViewOf(cellId: string): EdgeView | null
+	{
+		const cell = this.x6Graph?.getCellById(cellId);
+		const view = cell ? this.x6Graph?.findViewByCell(cell) : null;
+		return view instanceof EdgeView ? view : null;
+	}
+
+	/**
+	 * The topmost connection label under the pointer. Looks through edge lines and the corner tool's path,
+	 * which lie above labels, but not through nodes or corner handles.
+	 */
+	private labelEdgeAt(clientX: number, clientY: number): string | null
+	{
+		const container = this.x6Graph?.container;
+		if (!container) {
+			return null;
+		}
+		for (const element of document.elementsFromPoint(clientX, clientY)) {
+			const cell = container.contains(element) ? element.closest('[data-cell-id]') : null;
+			if (cell === null) {
+				return null;
+			}
+			if (element.closest('.x6-edge-label') !== null) {
+				const id = cell.getAttribute('data-cell-id');
+				return id !== null && this.edgeById.has(id) ? id : null;
+			}
+			const passThrough = element.classList.contains(VERTEX_PATH_CLASS)
+				|| (cell.classList.contains('x6-edge') && !element.classList.contains(VERTEX_HANDLE_CLASS));
+			if (!passThrough) {
+				return null;
+			}
+		}
+		return null;
+	}
+
+	private edgeCellIdOf(target: EventTarget | null): string | null
+	{
+		if (!(target instanceof Element) || target.classList.contains(VERTEX_HANDLE_CLASS)) {
+			return null;
+		}
+		const id = target.closest('[data-cell-id]')?.getAttribute('data-cell-id') ?? null;
+		return id !== null && this.edgeById.has(id) ? id : null;
+	}
+
+	private onCanvasPress(e: MouseEvent): void
+	{
+		if (e.button !== 0 || !this.x6Graph) {
+			return;
+		}
+		const labelCellId = this.labelEdgeAt(e.clientX, e.clientY);
+		if (labelCellId !== null) {
+			// Kept from x6, which would add a corner under the label or pan the canvas. The menu misses the press, so close it here.
+			e.stopPropagation();
+			e.preventDefault();
+			this.contextMenu.close();
+			this.startLabelPress(labelCellId, e);
+			return;
+		}
+		const lineCellId = this.edgeCellIdOf(e.target);
+		if (lineCellId !== null) {
+			this.pendingEdgeClick = {cellId: lineCellId, clientX: e.clientX, clientY: e.clientY};
+			document.addEventListener('mouseup', this.releaseListener, true);
+		}
+	}
+
+	private startLabelPress(cellId: string, e: MouseEvent): void
+	{
+		const view = this.edgeViewOf(cellId);
+		const modelEdge = this.edgeById.get(cellId);
+		if (!view || !modelEdge || !this.x6Graph) {
+			return;
+		}
+		const length = view.getConnectionLength() ?? 0;
+		const distance = modelEdge.labelDistance ?? 0.5;
+		this.labelDrag = {
+			cellId,
+			startClientX: e.clientX,
+			startClientY: e.clientY,
+			startPointerLength: view.getClosestPointLength(this.x6Graph.clientToLocal(e.clientX, e.clientY)) ?? 0,
+			startLabelLength: distance * length,
+			moved: false,
+			distance,
+		};
+		document.addEventListener('mousemove', this.dragMoveListener, true);
+		document.addEventListener('mouseup', this.releaseListener, true);
+	}
+
+	/** Moves the label element directly: changing the label through x6 re-renders it, and with it re-fetches its icon, on every move. */
+	private onLabelDragMove(e: MouseEvent): void
+	{
+		const drag = this.labelDrag;
+		if (!drag || !this.x6Graph || this.readOnly) {
+			return;
+		}
+		if (!drag.moved) {
+			if (Math.hypot(e.clientX - drag.startClientX, e.clientY - drag.startClientY) < LABEL_DRAG_THRESHOLD) {
+				return;
+			}
+			drag.moved = true;
+			this.x6Graph.container.classList.add(LABEL_DRAGGING_CLASS);
+			this.hideCornerPreview();
+		}
+		const view = this.edgeViewOf(drag.cellId);
+		const length = view?.getConnectionLength() ?? 0;
+		if (!view || length <= 0) {
+			return;
+		}
+		const pointerLength = view.getClosestPointLength(this.x6Graph.clientToLocal(e.clientX, e.clientY)) ?? drag.startPointerLength;
+		const at = drag.startLabelLength + pointerLength - drag.startPointerLength;
+		drag.distance = Math.min(1 - LABEL_MIN_DISTANCE, Math.max(LABEL_MIN_DISTANCE, at / length));
+		const point = view.getPointAtLength(drag.distance * length);
+		const label = view.container.querySelector('.x6-edge-label');
+		if (point && label) {
+			label.setAttribute('transform', `translate(${point.x},${point.y})`);
+		}
+	}
+
+	private onCanvasRelease(e: MouseEvent): void
+	{
+		document.removeEventListener('mousemove', this.dragMoveListener, true);
+		document.removeEventListener('mouseup', this.releaseListener, true);
+		this.x6Graph?.container.classList.remove(LABEL_DRAGGING_CLASS);
+		const drag = this.labelDrag;
+		const pending = this.pendingEdgeClick;
+		this.labelDrag = null;
+		this.pendingEdgeClick = null;
+
+		if (drag?.moved) {
+			this.commitLabelDistance(drag.cellId, drag.distance);
+			// The click that follows the drag would select the edge.
+			this.swallowNextClick = true;
+			setTimeout(() => this.swallowNextClick = false);
+		} else if (drag) {
+			this.selectEdgeCell(drag.cellId);
+		} else if (pending && Math.hypot(e.clientX - pending.clientX, e.clientY - pending.clientY) < LABEL_DRAG_THRESHOLD) {
+			// The corner tool's path catches clicks on a hovered line, so x6 never reports them as edge clicks.
+			this.selectEdgeCell(pending.cellId);
+		}
+	}
+
+	private commitLabelDistance(cellId: string, distance: number): void
+	{
+		const modelEdge = this.edgeById.get(cellId);
+		const cell = this.x6Graph?.getCellById(cellId);
+		const label = cell?.isEdge() ? cell.getLabelAt(0) : null;
+		if (!modelEdge || !cell?.isEdge() || !label) {
+			return;
+		}
+		// Snapshot first: the model edge still holds the old distance.
+		this.graphEditStartSubject.next();
+		modelEdge.labelDistance = distance;
+		cell.setLabelAt(0, {...label, position: {distance}});
+		this.graphChangedSubject.next();
+	}
+
+	private onCanvasClickCapture(e: MouseEvent): void
+	{
+		if (this.swallowNextClick) {
+			this.swallowNextClick = false;
+			e.stopPropagation();
+		}
+	}
+
+	private onCanvasDoubleClick(e: MouseEvent): void
+	{
+		const cellId = this.labelEdgeAt(e.clientX, e.clientY) ?? this.edgeCellIdOf(e.target);
+		if (cellId === null) {
+			return;
+		}
+		e.stopPropagation();
+		this.selectEdgeCell(cellId);
+		// focusPanel, not openPanel: an inspector hidden behind another tab must come to the front.
+		this.panelLayout.focusPanel('inspector');
+	}
+
+	/** Only looks deeper while the pointer is over some edge: a label hides under the lines above it, never elsewhere. */
+	private updateLabelHover(e: MouseEvent): void
+	{
+		const target = e.target instanceof Element ? e.target : null;
+		const overEdge = target !== null && target.closest(`.x6-edge, .${VERTEX_PATH_CLASS}`) !== null;
+		this.setHoveredLabel(overEdge ? this.labelEdgeAt(e.clientX, e.clientY) : null);
+	}
+
+	/** Re-added on every move: raising a hovered edge to the front can re-render its view. */
+	private setHoveredLabel(cellId: string | null): void
+	{
+		const previous = this.hoveredLabelEdgeId;
+		this.hoveredLabelEdgeId = cellId;
+		if (previous !== null && previous !== cellId) {
+			this.edgeViewOf(previous)?.removeClass(LABEL_HOVER_CLASS);
+		}
+		if (cellId !== null) {
+			this.edgeViewOf(cellId)?.addClass(LABEL_HOVER_CLASS);
+		}
+		this.x6Graph?.container.classList.toggle(LABEL_GRAB_CLASS, cellId !== null && !this.readOnly);
 	}
 
 	private singleLineMachines(): boolean

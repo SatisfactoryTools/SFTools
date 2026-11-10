@@ -30,8 +30,7 @@ export class EnabledRecipesResolver
 			return false;
 		}
 		const disabled = new Set(settings.disabledMachines);
-		// Hydration tolerates dangling building references (mods) - skip them.
-		const machines = recipe.producedIn.filter(building => building !== undefined);
+		const machines = recipe.producedIn;
 		return machines.length > 0 && machines.every(building => disabled.has(building.className));
 	}
 

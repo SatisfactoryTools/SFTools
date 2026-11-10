@@ -140,7 +140,7 @@ export class SubplanInliner
 		while (s < supplies.length && d < demands.length) {
 			const amount = Math.min(supplyLeft[s], demandLeft[d]);
 			if (amount > 0) {
-				edges.push({sourceId: supplies[s].sourceId, targetId: demands[d].targetId, itemClassName: supplies[s].itemClassName, amount});
+				edges.push({sourceId: supplies[s].sourceId, targetId: demands[d].targetId, itemClassName: supplies[s].itemClassName, amount, done: supplies[s].done && demands[d].done});
 			}
 			supplyLeft[s] -= amount;
 			demandLeft[d] -= amount;
@@ -195,7 +195,7 @@ export class SubplanInliner
 			const key = `${edge.sourceId}|${edge.targetId}|${edge.itemClassName}`;
 			const existing = merged.get(key);
 			if (existing) {
-				merged.set(key, {...existing, amount: existing.amount + edge.amount, vertices: undefined, labelDistance: undefined});
+				merged.set(key, {...existing, amount: existing.amount + edge.amount, done: existing.done && edge.done, vertices: undefined, labelDistance: undefined});
 			} else {
 				merged.set(key, edge);
 			}

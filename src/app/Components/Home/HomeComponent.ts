@@ -1,7 +1,7 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faArrowRight, faBookOpen, faCircleInfo, faCircleQuestion, faDesktop, faDiagramProject, faHeart, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faXmark} from '@fortawesome/free-solid-svg-icons';
+import {faArrowRight, faBookOpen, faCircleInfo, faCircleQuestion, faDesktop, faDiagramProject, faHeart, faMap, faPlay, faPlus, faPuzzlePiece, faRightFromBracket, faShareNodes, faSliders, faXmark} from '@fortawesome/free-solid-svg-icons';
 import {OAuthProviderButtonsComponent} from '@src/Components/Auth/OAuthProviderButtonsComponent';
 import {SupporterTickerComponent} from '@src/Components/Supporters/SupporterTickerComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
@@ -15,6 +15,8 @@ import {LogoutService} from '@src/Model/Auth/LogoutService';
 import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 import {CommunityLinks} from '@src/Model/CommunityLinks';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {MapTopic} from '@src/Model/Map/MapTopic';
+import {MapTopicCatalog} from '@src/Model/Map/MapTopicCatalog';
 import {LocalPlanStoreBackend} from '@src/Model/Planner/LocalPlanStoreBackend';
 import {AppStorage} from '@src/Model/Storage/AppStorage';
 import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
@@ -123,21 +125,14 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			margin-bottom: 1.5rem;
 		}
 		.hero-actions {
-			display: flex;
-			flex-wrap: wrap;
-			gap: 0.75rem;
-			align-items: stretch;
-		}
-		.hero-actions.with-wide {
 			display: grid;
-			grid-template-columns: repeat(2, minmax(0, max-content));
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+			gap: 0.75rem;
+			max-width: 42rem;
 		}
-		.hero-actions .btn-outline-light.hero-wide {
+		/* An odd count (no desktop-app button inside the app itself): the main button gets its own row. */
+		.hero-actions > :first-child:nth-last-child(odd) {
 			grid-column: 1 / -1;
-			padding-top: 0.5rem;
-			padding-bottom: 0.5rem;
-			--bs-btn-color: #dde4ef;
-			--bs-btn-border-color: rgba(255, 255, 255, 0.3);
 		}
 		.hero-actions .btn-lg {
 			display: inline-flex;
@@ -151,10 +146,6 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 				width: 100%;
 			}
 			.hero-actions {
-				flex-direction: column;
-				align-items: stretch;
-			}
-			.hero-actions.with-wide {
 				grid-template-columns: minmax(0, 1fr);
 			}
 			.hero-actions .btn-lg {
@@ -295,7 +286,8 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 
 		.features {
 			display: grid;
-			grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+			/* 200px: the five features fit one row at full width. */
+			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 			gap: 0.75rem;
 		}
 		.feature {
@@ -332,6 +324,71 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			font-size: 0.8rem;
 			color: #9fb0c0;
 			margin: 0;
+		}
+
+		.map-promo {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			gap: 1.25rem;
+		}
+		@media (min-width: 768px) {
+			.map-promo {
+				grid-template-columns: 340px minmax(0, 1fr);
+				align-items: start;
+			}
+		}
+		.map-promo-image {
+			display: block;
+			background: var(--bs-dark);
+			border: 1px solid rgba(78, 93, 108, 0.7);
+			transition: border-color 0.15s;
+		}
+		.map-promo-image:hover {
+			border-color: var(--bs-primary);
+		}
+		.map-promo-image img {
+			display: block;
+			width: 100%;
+			height: auto;
+			aspect-ratio: 1;
+		}
+		/* A full-width square would push the text a whole screen down. */
+		@media (max-width: 767.98px) {
+			.map-promo-image img {
+				aspect-ratio: 16 / 9;
+				object-fit: cover;
+			}
+		}
+		.map-promo-lead {
+			color: #c5d0db;
+			margin-bottom: 1rem;
+		}
+		.map-topic-title {
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: #9fb0c0;
+			margin-bottom: 0.35rem;
+		}
+		.map-topics {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.4rem;
+			margin-bottom: 1rem;
+		}
+		.map-topics a {
+			padding: 0.2rem 0.6rem;
+			font-size: 0.85rem;
+			color: inherit;
+			text-decoration: none;
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid rgba(78, 93, 108, 0.6);
+			transition: border-color 0.15s, background 0.15s;
+		}
+		.map-topics a:hover {
+			background: rgba(var(--bs-primary-rgb), 0.12);
+			border-color: var(--bs-primary);
 		}
 
 		.section-head {
@@ -513,6 +570,7 @@ export class HomeComponent
 	public readonly faArrowRight = faArrowRight;
 	public readonly faPlus = faPlus;
 	public readonly faXmark = faXmark;
+	public readonly faMap = faMap;
 	public readonly faSliders = faSliders;
 	public readonly faCircleInfo = faCircleInfo;
 	public readonly faCircleQuestion = faCircleQuestion;
@@ -606,6 +664,15 @@ export class HomeComponent
 		return ['/', this.versionManager.urlSlug(version), 'planner'];
 	}
 
+	public mapLink(version: Version, topic: MapTopic | null = null): string[]
+	{
+		const link = ['/', this.versionManager.urlSlug(version), 'map'];
+		return topic === null ? link : [...link, topic.slug];
+	}
+
+	public readonly collectibleTopics = MapTopicCatalog.collectibles();
+	public readonly resourceTopics = MapTopicCatalog.resources();
+
 	public get features(): HomeFeature[]
 	{
 		const featured = this.featuredVersion;
@@ -622,6 +689,12 @@ export class HomeComponent
 				title: 'Codex',
 				text: 'Look up any item, recipe, building or milestone.',
 				link: slug === null ? null : ['/', slug, 'codex'],
+			},
+			{
+				icon: faMap,
+				title: 'Map',
+				text: 'Every resource node, collectible and creature in the world. Load your save to see what you have collected.',
+				link: slug === null ? null : ['/', slug, 'map'],
 			},
 			{
 				icon: faSliders,

@@ -1,6 +1,7 @@
 import {Component, ChangeDetectionStrategy, Signal, computed} from '@angular/core';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {PlannerGraphService} from '@src/Components/Planner/PlannerGraphService';
+import {EdgeEditorComponent} from '@src/Components/Planner/Panels/Inspector/EdgeEditor/EdgeEditorComponent';
 import {AmountNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/AmountNodeEditor/AmountNodeEditorComponent';
 import {RecipeNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/RecipeNodeEditorComponent';
 import {SubplanNodeEditorComponent} from '@src/Components/Planner/Panels/Inspector/SubplanNodeEditor/SubplanNodeEditorComponent';
@@ -8,6 +9,7 @@ import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
+import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
@@ -16,12 +18,13 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 	selector: 'planner-inspector',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerInspectorComponent.html',
-	imports: [AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeEditorComponent, InfoNoteComponent],
+	imports: [EdgeEditorComponent, AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeEditorComponent, InfoNoteComponent],
 })
 export class PlannerInspectorComponent
 {
 
 	public readonly selectedNodes: Signal<Node[]>;
+	public readonly selectedEdge: Signal<GraphEdge | null>;
 	public readonly singleRecipeNode: Signal<RecipeNode | null>;
 	public readonly singleSubplanNode: Signal<SubplanNode | null>;
 	public readonly singleAmountNode: Signal<Node | null>;
@@ -36,6 +39,7 @@ export class PlannerInspectorComponent
 	)
 	{
 		this.selectedNodes = plannerGraph.selectedNodes;
+		this.selectedEdge = plannerGraph.selectedEdge;
 		this.readOnly = planManager.activePlanReadOnly;
 		this.readOnlyNote = computed(() => planManager.activePlanShared()
 			? 'This shared plan is read-only.'

@@ -79,9 +79,9 @@ export class NodeSplitter
 			|| (edge.sourceId === nodeId && edge.targetId === nodeId));
 
 		this.byItem(this.incoming(graph, nodeId)).forEach(group => this.reconnect(group, cuts, pieces,
-			(edge, piece, amount) => edges.push({sourceId: edge.sourceId, targetId: piece.id, itemClassName: edge.itemClassName, amount})));
+			(edge, piece, amount) => edges.push({sourceId: edge.sourceId, targetId: piece.id, itemClassName: edge.itemClassName, amount, done: edge.done})));
 		this.byItem(this.outgoing(graph, nodeId)).forEach(group => this.reconnect(group, cuts, pieces,
-			(edge, piece, amount) => edges.push({sourceId: piece.id, targetId: edge.targetId, itemClassName: edge.itemClassName, amount})));
+			(edge, piece, amount) => edges.push({sourceId: piece.id, targetId: edge.targetId, itemClassName: edge.itemClassName, amount, done: edge.done})));
 
 		return {
 			nodes: graph.nodes.flatMap(candidate => candidate.id === nodeId ? pieces : [candidate]),

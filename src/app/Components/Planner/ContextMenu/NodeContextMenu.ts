@@ -147,7 +147,7 @@ export class NodeContextMenu extends PlannerContextMenu
 				{
 					label: 'Disable recipe',
 					icon: faBan,
-					hotkey: 'graph.disableRecipe',
+					hotkey: 'graph.disableItem',
 					action: () => this.actions.requestRecipeDisable(node.recipe.className),
 				},
 				{
@@ -164,7 +164,7 @@ export class NodeContextMenu extends PlannerContextMenu
 				{
 					label: `Disable fuel (${node.fuel.item.name})`,
 					icon: faBan,
-					hotkey: 'graph.disableFuel',
+					hotkey: 'graph.disableItem',
 					action: () => this.actions.requestFuelDisable({
 						generatorClassName: node.generator.className,
 						fuelItemClassName: node.fuel.item.className,
@@ -173,7 +173,7 @@ export class NodeContextMenu extends PlannerContextMenu
 				{
 					label: 'Disable generator',
 					icon: faBan,
-					hotkey: 'graph.disableGenerator',
+					hotkey: 'graph.disableMachine',
 					action: () => this.actions.requestGeneratorDisable(node.generator.className),
 				},
 			];
@@ -183,7 +183,7 @@ export class NodeContextMenu extends PlannerContextMenu
 			return [{
 				label: 'Disable byproduct',
 				icon: faBan,
-				hotkey: 'graph.disableByproduct',
+				hotkey: 'graph.disableItem',
 				action: () => this.actions.requestByproductDisable(node.item.className),
 			}];
 		}
@@ -192,7 +192,7 @@ export class NodeContextMenu extends PlannerContextMenu
 			return [{
 				label: 'Remove product',
 				icon: faXmark,
-				hotkey: 'graph.removeProduct',
+				hotkey: 'graph.removeItem',
 				action: () => this.actions.requestProductRemove(node.item.className),
 			}];
 		}
@@ -201,7 +201,7 @@ export class NodeContextMenu extends PlannerContextMenu
 			return [{
 				label: 'Disable resource',
 				icon: faBan,
-				hotkey: 'graph.disableResource',
+				hotkey: 'graph.disableItem',
 				action: () => this.actions.requestResourceDisable(node.item.className),
 			}];
 		}
@@ -210,7 +210,7 @@ export class NodeContextMenu extends PlannerContextMenu
 			return [{
 				label: 'Remove input',
 				icon: faXmark,
-				hotkey: 'graph.removeInput',
+				hotkey: 'graph.removeItem',
 				action: () => this.actions.requestInputRemove(node.item.className),
 			}];
 		}

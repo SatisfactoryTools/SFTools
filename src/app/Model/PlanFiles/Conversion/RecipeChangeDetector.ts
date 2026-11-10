@@ -30,15 +30,14 @@ export class RecipeChangeDetector
 			|| VersionConversionContext.differs(source.variablePowerDrawFactor, target.variablePowerDrawFactor);
 	}
 
-	/** Hydration tolerates dangling item references (mods), hence the optional chaining. */
 	private amountsDiffer(source: readonly ItemAmount[], target: readonly ItemAmount[]): boolean
 	{
 		if (source.length !== target.length) {
 			return true;
 		}
-		const amounts = new Map(source.map(entry => [entry.item?.className, entry.amount]));
+		const amounts = new Map(source.map(entry => [entry.item.className, entry.amount]));
 		return target.some(entry => {
-			const amount = amounts.get(entry.item?.className);
+			const amount = amounts.get(entry.item.className);
 			return amount === undefined || VersionConversionContext.differs(amount, entry.amount);
 		});
 	}

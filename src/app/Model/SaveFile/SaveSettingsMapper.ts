@@ -28,12 +28,7 @@ export class SaveSettingsMapper
 				unknownEntries++;
 				return;
 			}
-			schematic.unlock.recipes.forEach(recipe => {
-				// Hydration tolerates dangling recipe references (mods) - skip them.
-				if (recipe) {
-					unlockedRecipes.add(recipe.className);
-				}
-			});
+			schematic.unlock.recipes.forEach(recipe => unlockedRecipes.add(recipe.className));
 		});
 
 		const machines = data.getProductionMachines();

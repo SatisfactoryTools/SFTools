@@ -28,6 +28,97 @@
 			/>
 			<label class="form-check-label" for="showEdgeLabelBoxes">Box behind connection labels</label><setting-reset-button category="graph" field="showEdgeLabelBoxes"/>
 		</div>
+		@if (graph.showEdgeLabelBoxes) {
+			<div class="row g-3 mt-0 mb-2">
+				<div class="col-12 col-sm-6 col-xl-3">
+					<label class="form-label" for="edge-label-box-border">Box outline</label><setting-reset-button category="graph" field="edgeLabelBoxBorder"/>
+					<input
+						id="edge-label-box-border"
+						type="color"
+						class="form-control form-control-color w-100"
+						[ngModel]="labelBoxBorder"
+						(ngModelChange)="setLabelBoxBorder($event)"
+					/>
+					<div class="form-text">Same as the connection colour until you change it.</div>
+				</div>
+				<div class="col-12 col-sm-6 col-xl-3">
+					<label class="form-label" for="edge-label-box-fill">Box fill</label><setting-reset-button category="graph" field="edgeLabelBoxFill"/>
+					<input
+						id="edge-label-box-fill"
+						type="color"
+						class="form-control form-control-color w-100"
+						[ngModel]="graph.edgeLabelBoxFill"
+						(ngModelChange)="setLabelBoxFill($event)"
+					/>
+					<div class="form-text">Light fills get dark text.</div>
+				</div>
+				<div class="col-12 col-sm-6 col-xl-3">
+					<div class="form-label">Preview</div>
+					<div class="label-box-preview">
+						<span class="label-box-pill" [style.background]="graph.edgeLabelBoxFill" [style.border-color]="labelBoxBorder" [class.dark-text]="labelBoxDarkText">
+							<span class="fw-bold">Iron Plate</span>
+							<span class="small">20/min</span>
+						</span>
+					</div>
+				</div>
+			</div>
+		}
+		<div class="form-check">
+			<input
+				id="autoDoneConnections"
+				type="checkbox"
+				class="form-check-input"
+				[ngModel]="graph.autoDoneConnections"
+				(ngModelChange)="setToggle('autoDoneConnections', $event)"
+			/>
+			<label class="form-check-label" for="autoDoneConnections">Mark connections as done together with their nodes</label><setting-reset-button category="graph" field="autoDoneConnections"/>
+			<div class="form-text">When both nodes of a connection are done, the connection is done too. Turn this off to mark connections on their own.</div>
+		</div>
+		<div class="row g-3 mt-0 mb-2">
+			<div class="col-12 col-sm-6 col-xl-3">
+				<label class="form-label" for="edge-color">Colour</label><setting-reset-button category="graph" field="edgeColor"/>
+				<input
+					id="edge-color"
+					type="color"
+					class="form-control form-control-color w-100"
+					[ngModel]="graph.edgeColor"
+					(ngModelChange)="setEdgeColor($event)"
+				/>
+			</div>
+			<div class="col-12 col-sm-6 col-xl-3">
+				<label class="form-label" for="edge-width">Line thickness</label><setting-reset-button category="graph" field="edgeWidth"/>
+				<select
+					id="edge-width"
+					class="form-select"
+					[ngModel]="graph.edgeWidth"
+					(ngModelChange)="setEdgeWidth($event)"
+				>
+					@for (option of edgeWidthOptions; track option.value) {
+						<option [ngValue]="option.value">{{ option.label }}</option>
+					}
+				</select>
+			</div>
+			<div class="col-12 col-sm-6 col-xl-3">
+				<label class="form-label" for="edge-arrow-size">Arrow size</label><setting-reset-button category="graph" field="edgeArrowSize"/>
+				<select
+					id="edge-arrow-size"
+					class="form-select"
+					[ngModel]="graph.edgeArrowSize"
+					(ngModelChange)="setEdgeArrowSize($event)"
+				>
+					@for (option of edgeArrowSizeOptions; track option.value) {
+						<option [ngValue]="option.value">{{ option.label }}</option>
+					}
+				</select>
+			</div>
+			<div class="col-12 col-sm-6 col-xl-3">
+				<div class="form-label">Preview</div>
+				<svg class="edge-preview" viewBox="0 0 200 38" aria-hidden="true">
+					<line x1="8" y1="19" [attr.x2]="192 - graph.edgeArrowSize" y2="19" [attr.stroke]="graph.edgeColor" [attr.stroke-width]="graph.edgeWidth"/>
+					<path [attr.d]="edgeArrowPath" [attr.fill]="graph.edgeColor" [attr.stroke]="graph.edgeColor" [attr.stroke-width]="graph.edgeWidth"/>
+				</svg>
+			</div>
+		</div>
 
 		<div class="subsection-title">Effects</div>
 		<div class="form-check">

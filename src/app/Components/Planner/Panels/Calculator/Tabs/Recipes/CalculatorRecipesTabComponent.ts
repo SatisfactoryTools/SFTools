@@ -110,7 +110,7 @@ export class CalculatorRecipesTabComponent
 		if (!this.isMachineDisabled(recipe)) {
 			return '';
 		}
-		const names = recipe.producedIn.filter(building => building !== undefined).map(building => building.name);
+		const names = recipe.producedIn.map(building => building.name);
 		return `Cannot be used. ${names.join(', ')} ${names.length > 1 ? 'are' : 'is'} disabled in the Machines tab.`;
 	}
 

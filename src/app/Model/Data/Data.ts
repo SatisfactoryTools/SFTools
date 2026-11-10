@@ -83,12 +83,7 @@ export class Data
 			if (recipe.inBuildGun || recipe.producedIn.length === 0) {
 				return;
 			}
-			recipe.products.forEach(({item}) => {
-				// Hydration tolerates dangling references (mods) - skip them here.
-				if (item) {
-					classNames.add(item.className);
-				}
-			});
+			recipe.products.forEach(({item}) => classNames.add(item.className));
 		});
 
 		this.buildings.forEach(building => {
@@ -187,12 +182,7 @@ export class Data
 	public getProductionMachines(): Building[]
 	{
 		const classNames = new Set<string>();
-		this.recipes.forEach(recipe => recipe.producedIn.forEach(building => {
-			// Hydration tolerates dangling references (mods) - skip them here.
-			if (building) {
-				classNames.add(building.className);
-			}
-		}));
+		this.recipes.forEach(recipe => recipe.producedIn.forEach(building => classNames.add(building.className)));
 		return this.buildings
 			.filter(building => classNames.has(building.className))
 			.sort((a, b) => a.name.localeCompare(b.name));
@@ -307,11 +297,7 @@ export class Data
 		const index = new Map<string, Recipe[]>();
 		this.recipes.forEach(recipe => {
 			if (recipe.inBuildGun) return;
-			amountsOf(recipe).forEach(({item}) => {
-				// Hydration tolerates dangling references (mods) - skip them here.
-				if (!item) return;
-				this.addToIndex(index, item.className, recipe);
-			});
+			amountsOf(recipe).forEach(({item}) => this.addToIndex(index, item.className, recipe));
 		});
 		return index;
 	}

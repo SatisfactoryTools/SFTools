@@ -3,6 +3,7 @@ import {BuildingMaterialSchema} from '@src/Model/API/Schema/Data/Parts/BuildingM
 import {ItemForm} from '@src/Model/API/Schema/Data/Parts/ItemForm';
 import {Fuel} from '@src/Model/Data/Entities/Parts/Fuel';
 import {Item} from '@src/Model/Data/Entities/Item';
+import {ReferenceHydrator} from '@src/Model/Data/Entities/Parts/ReferenceHydrator';
 
 export class Building
 {
@@ -67,20 +68,20 @@ export class Building
 		this.powerUsageExponent = schema.powerUsageExponent;
 		this.alwaysProducesPower = schema.alwaysProducesPower;
 		this.powerProduction = schema.powerProduction;
-		this.fuel = schema.fuel.map(f => ({
+		this.fuel = schema.fuel.filter(f => itemMap.has(f.item) && (!f.supplementalItem || itemMap.has(f.supplementalItem))).map(f => ({
 			item: itemMap.get(f.item)!,
 			supplementalItem: f.supplementalItem ? itemMap.get(f.supplementalItem)! : null,
-			byproduct: f.byproduct ? itemMap.get(f.byproduct)! : null,
+			byproduct: f.byproduct ? itemMap.get(f.byproduct) ?? null : null,
 			byproductAmount: f.byproductAmount,
 			acceptsAnySolidFuel: f.acceptsAnySolidFuel,
 		}));
 		this.supplementalToPowerRatio = schema.supplementalToPowerRatio;
-		this.acceptedFuel = schema.acceptedFuel.map(cn => itemMap.get(cn)!);
+		this.acceptedFuel = ReferenceHydrator.entries(schema.acceptedFuel, itemMap);
 		this.tripPowerCostBase = schema.tripPowerCostBase;
 		this.tripPowerCostPerMeter = schema.tripPowerCostPerMeter;
 		this.storageSize = schema.storageSize;
 		this.fuelStorageSize = schema.fuelStorageSize;
-		this.allowedResources = schema.allowedResources.map(cn => itemMap.get(cn)!);
+		this.allowedResources = ReferenceHydrator.entries(schema.allowedResources, itemMap);
 		this.allowedResourceForms = schema.allowedResourceForms;
 		this.miningRatePerCycle = schema.miningRatePerCycle;
 		this.miningCycleLength = schema.miningCycleLength;

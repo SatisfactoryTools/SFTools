@@ -78,7 +78,7 @@ export class PlannerRailComponent
 			return 'Open one of your plans to share it';
 		}
 		const what = target.type === 'folder' ? `Share folder "${target.name}"` : `Share "${target.name}"`;
-		return what + this.hotkeys.suffix('plans.sharePlan');
+		return what + this.hotkeys.suffix('plans.share');
 	});
 
 	public constructor(

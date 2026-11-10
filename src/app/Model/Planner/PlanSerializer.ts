@@ -73,11 +73,21 @@ export class PlanSerializer
 	private deserializeGraph(raw: Record<string, unknown>, data: Data): Graph
 	{
 		const rawNodes = raw['nodes'] as Record<string, unknown>[];
-		const rawEdges = raw['edges'] as GraphEdge[];
+		const rawEdges = raw['edges'] as (Omit<GraphEdge, 'done'> & {done?: boolean})[];
+		const doneIds = new Set(rawNodes.filter(n => n['done'] === true).map(n => n['id'] as string));
 		return {
 			nodes: rawNodes.map(n => this.deserializeNode(n, data)),
-			edges: rawEdges,
+			edges: rawEdges.map(edge => this.migrateEdgeDone(edge, doneIds)),
 		};
+	}
+
+	/** Edges used to count as built exactly when both of their nodes were. */
+	private migrateEdgeDone(edge: Omit<GraphEdge, 'done'> & {done?: boolean}, doneIds: Set<string>): GraphEdge
+	{
+		if (typeof edge.done === 'boolean') {
+			return edge as GraphEdge;
+		}
+		return {...edge, done: doneIds.has(edge.sourceId) && doneIds.has(edge.targetId)};
 	}
 
 	private deserializeNode(raw: Record<string, unknown>, data: Data): Node

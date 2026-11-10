@@ -37,6 +37,8 @@ import {GraphEdgeAmountRequest} from '@src/Components/Planner/GraphEdgeAmountReq
 import {GraphHistoryService} from '@src/Components/Planner/GraphHistoryService';
 import {PreparedEdgeAdd} from '@src/Components/Planner/PreparedEdgeAdd';
 import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
+import {EdgeDoneRequest} from '@src/Components/Planner/EdgeDoneRequest';
+import {GraphEdgeKey} from '@src/Model/Planner/Graph/GraphEdgeKey';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
 import {NodeSplitRequest} from '@src/Components/Planner/NodeSplitRequest';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -77,6 +79,7 @@ import {GraphEdgeBuilder} from '@src/Model/Planner/Graph/GraphEdgeBuilder';
 import {GraphReconciler} from '@src/Model/Planner/Graph/GraphReconciler';
 import {NodeResizer} from '@src/Model/Planner/NodeResizer';
 import {NodeTypeConverter} from '@src/Model/Planner/NodeTypeConverter';
+import {NodeMerger} from '@src/Model/Planner/NodeMerger';
 import {NodeSplitter} from '@src/Model/Planner/NodeSplitter';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
@@ -179,6 +182,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly graphReconciler: GraphReconciler,
 		private readonly nodeResizer: NodeResizer,
 		private readonly nodeSplitter: NodeSplitter,
+		private readonly nodeMerger: NodeMerger,
 		private readonly nodeTypeConverter: NodeTypeConverter,
 		private readonly edgeBuilder: GraphEdgeBuilder,
 		private readonly plannerGraph: PlannerGraphService,
@@ -376,6 +380,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		);
 
 		this.subscription.add(
+			this.actions.edgeDoneRequests.subscribe(request => this.applyEdgeDoneChange(request)),
+		);
+
+		this.subscription.add(
 			this.actions.relayoutRequests.subscribe(() => void this.relayoutGraph()),
 		);
 
@@ -401,6 +409,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.subscription.add(
 			this.actions.nodeSplitRequests.subscribe(request => this.applyNodeSplit(request)),
+		);
+
+		this.subscription.add(
+			this.actions.nodeMergeRequests.subscribe(nodeIds => this.applyNodeMerge(nodeIds)),
 		);
 
 		this.subscription.add(
@@ -750,12 +762,15 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 		const items: HotkeyItem[] = [...new BlankContextMenu(this.actions, this.plannerGraph.canvasCenter(), this.planManager.activePlan() !== null).getItems()];
 		const nodes = this.plannerGraph.selectedNodes();
-		if (nodes.length === 1) {
+		const edge = this.plannerGraph.selectedEdge();
+		if (edge) {
+			items.push(...this.edgeContextMenu(edge).getItems());
+		} else if (nodes.length === 1) {
 			items.push(...new NodeContextMenu(nodes[0], this.nodeResizeOptions(nodes[0]), this.nodeSplitOptions(nodes[0]),
 				this.nodeTypeConverter.converted(nodes[0], this.versionManager.activeVersionData()),
 				this.actions, this.panelLayout, this.plannerGraph).getItems());
 		} else if (nodes.length > 1) {
-			items.push(...new MultiNodeContextMenu(nodes, this.actions).getItems());
+			items.push(...new MultiNodeContextMenu(nodes, this.nodeMerger.blocker(nodes), this.actions).getItems());
 		}
 		return items;
 	}
@@ -819,8 +834,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 		let menu: PlannerContextMenu;
 		if (request.edge) {
-			const amounts = this.edgeAmountActions(request.edge);
-			menu = new EdgeContextMenu(request.edge, this.edgeMenuTitle(request.edge), amounts.minimise, amounts.maximise, this.actions);
+			menu = this.edgeContextMenu(request.edge);
 		} else if (request.nodes.length === 0) {
 			menu = new BlankContextMenu(this.actions, request.local, this.planManager.activePlan() !== null);
 		} else if (request.nodes.length === 1) {
@@ -828,9 +842,15 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				this.nodeTypeConverter.converted(request.nodes[0], this.versionManager.activeVersionData()),
 				this.actions, this.panelLayout, this.plannerGraph);
 		} else {
-			menu = new MultiNodeContextMenu(request.nodes, this.actions);
+			menu = new MultiNodeContextMenu(request.nodes, this.nodeMerger.blocker(request.nodes), this.actions);
 		}
 		this.contextMenu.open(menu, request.clientX, request.clientY);
+	}
+
+	private edgeContextMenu(edge: GraphEdge): EdgeContextMenu
+	{
+		const amounts = this.edgeAmountActions(edge);
+		return new EdgeContextMenu(edge, this.edgeMenuTitle(edge), amounts.minimise, amounts.maximise, this.actions, this.panelLayout, this.plannerGraph);
 	}
 
 	private edgeMenuTitle(edge: GraphEdge): string
@@ -958,6 +978,38 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
+	private applyNodeMerge(nodeIds: string[]): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not merge the nodes: ' + String(err));
+			return;
+		}
+
+		const updated = this.nodeMerger.merge(graph, nodeIds, plan.settings);
+		if (!updated) {
+			return;
+		}
+
+		this.history.push(this.snapshotOf(plan));
+
+		const remaining = new Set(updated.nodes.map(candidate => candidate.id));
+		const mergedId = nodeIds.find(id => remaining.has(id));
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.selectNodesById(mergedId ? [mergedId] : []);
+		this.planManager.setGraph(plan.id, updated, true);
+	}
+
 	private applyNodeUpdate(updated: Node): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
@@ -1052,7 +1104,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		const amount = Math.min(prepared.spare, prepared.demand);
 		const updated: Graph = {
 			nodes: prepared.graph.nodes,
-			edges: [...prepared.graph.edges, {sourceId: request.sourceId, targetId: request.targetId, itemClassName: request.itemClassName, amount}],
+			edges: [...prepared.graph.edges, {sourceId: request.sourceId, targetId: request.targetId, itemClassName: request.itemClassName, amount, done: false}],
 		};
 
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
@@ -1096,7 +1148,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		const replaced: Graph = {
 			nodes: prepared.graph.nodes.map(node => node.id === increased.id ? increased : node),
-			edges: [...prepared.graph.edges, {sourceId: request.sourceId, targetId: request.targetId, itemClassName: request.itemClassName, amount: prepared.demand}],
+			edges: [...prepared.graph.edges, {sourceId: request.sourceId, targetId: request.targetId, itemClassName: request.itemClassName, amount: prepared.demand, done: false}],
 		};
 		const reconciled = this.graphReconciler.reconcile(replaced, increased.id);
 
@@ -1388,10 +1440,62 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				node.done = request.done;
 			}
 		});
+		this.markEdgesWithNodes(graph, ids, request.done);
 
 		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
 		this.plannerGraph.selectNodesById(request.nodeIds);
 		// Not dirty: every solve carries done marks over (GraphComposer.carryDone), and dirty would pause automatic mode.
+		this.planManager.setGraph(plan.id, graph);
+	}
+
+	/**
+	 * A connection between two of the changed nodes counts as part of the selection. With the auto setting, every other
+	 * connection of a changed node follows its two nodes: done exactly when both are done.
+	 */
+	private markEdgesWithNodes(graph: Graph, changedIds: Set<string>, done: boolean): void
+	{
+		const autoDone = this.settings.graph().autoDoneConnections;
+		const doneIds = new Set(graph.nodes.filter(node => node.done).map(node => node.id));
+		graph.edges.forEach(edge => {
+			const sourceChanged = changedIds.has(edge.sourceId);
+			const targetChanged = changedIds.has(edge.targetId);
+			if (sourceChanged && targetChanged) {
+				edge.done = done;
+			} else if (autoDone && (sourceChanged || targetChanged)) {
+				edge.done = doneIds.has(edge.sourceId) && doneIds.has(edge.targetId);
+			}
+		});
+	}
+
+	private applyEdgeDoneChange(request: EdgeDoneRequest): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not change the connection done state: ' + String(err));
+			return;
+		}
+
+		const keys = new Set(request.edges.map(edge => GraphEdgeKey.of(edge)));
+		const changed = graph.edges.filter(edge => keys.has(GraphEdgeKey.of(edge)) && edge.done !== request.done);
+		if (changed.length === 0) {
+			return;
+		}
+
+		this.history.push(this.snapshotOf(plan));
+		changed.forEach(edge => edge.done = request.done);
+
+		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
+		// Not dirty, like node done marks: the solver does not care what is built.
 		this.planManager.setGraph(plan.id, graph);
 	}
 
@@ -1776,7 +1880,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.graphReconciler.spareOutput(graph, sourceId, pending.itemClassName),
 			this.graphReconciler.remainingDemand(graph, targetId, pending.itemClassName),
 		);
-		return {sourceId, targetId, itemClassName: pending.itemClassName, amount};
+		return {sourceId, targetId, itemClassName: pending.itemClassName, amount, done: false};
 	}
 
 	private createSubplanNode(position: GraphPoint): void
@@ -1866,7 +1970,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			const node = new InputNode(crypto.randomUUID(), amount, data.getItemByClassName(itemClassName));
 			node.locked = true;
 			boundaryNodes.push(node);
-			edges.forEach(e => boundaryEdges.push({sourceId: node.id, targetId: e.targetId, itemClassName, amount: e.amount}));
+			edges.forEach(e => boundaryEdges.push({sourceId: node.id, targetId: e.targetId, itemClassName, amount: e.amount, done: e.done}));
 		});
 
 		this.groupByItem(outbound).forEach((edges, itemClassName) => {
@@ -1874,7 +1978,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			const node = new ProductNode(crypto.randomUUID(), amount, data.getItemByClassName(itemClassName));
 			node.locked = true;
 			boundaryNodes.push(node);
-			edges.forEach(e => boundaryEdges.push({sourceId: e.sourceId, targetId: node.id, itemClassName, amount: e.amount}));
+			edges.forEach(e => boundaryEdges.push({sourceId: e.sourceId, targetId: node.id, itemClassName, amount: e.amount, done: e.done}));
 		});
 
 		const subGraph: Graph = {
@@ -1933,6 +2037,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			const existing = merged.get(key);
 			if (existing) {
 				existing.amount += edge.amount;
+				existing.done = existing.done && edge.done;
 				delete existing.vertices;
 				delete existing.labelDistance;
 			} else {
@@ -2150,6 +2255,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return graph;
 		}
 
+		const autoDone = this.settings.graph().autoDoneConnections;
+
 		if (existing && mode === 'manual-upgrade') {
 			const merged = this.graphComposer.merge(existing, result.nodes);
 			if (merged.newNodes.length > 0) {
@@ -2157,6 +2264,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				this.graphComposer.offsetBelow(merged.newNodes, merged.edges, existing.nodes);
 			}
 			const graph: Graph = {nodes: merged.nodes, edges: merged.edges};
+			this.graphComposer.carryEdgeDone(existing, graph, autoDone);
 			this.plannerGraph.restore(container, graph);
 			return graph;
 		}
@@ -2167,11 +2275,20 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			const rebuilt = this.graphComposer.rebuild(existing, result.nodes);
 			await this.plannerGraph.layout(rebuilt.nodes, rebuilt.edges, plan.settings.graph);
 			const graph: Graph = {nodes: rebuilt.nodes, edges: rebuilt.edges};
+			this.graphComposer.carryEdgeDone(existing, graph, autoDone);
 			this.plannerGraph.restore(container, graph);
 			return graph;
 		}
 
-		return this.plannerGraph.render(container, result, plan.settings.graph);
+		if (result.nodes.length === 0) {
+			return this.plannerGraph.render(container, result, plan.settings.graph);
+		}
+		const edges = this.edgeBuilder.build(result.nodes);
+		await this.plannerGraph.layout(result.nodes, edges, plan.settings.graph);
+		const graph: Graph = {nodes: result.nodes, edges};
+		this.graphComposer.carryEdgeDone(existing, graph, autoDone);
+		this.plannerGraph.restore(container, graph);
+		return graph;
 	}
 
 	private existingGraph(plan: Plan): Graph | null

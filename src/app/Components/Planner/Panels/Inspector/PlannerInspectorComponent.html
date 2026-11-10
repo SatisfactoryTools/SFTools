@@ -3,9 +3,13 @@
 		<info-note>{{ readOnlyNote() }}</info-note>
 	</div>
 }
-@if (selectedNodes().length === 0) {
+@if (selectedEdge(); as edge) {
+	<fieldset class="border-0 p-0 m-0" [disabled]="readOnly()">
+		<edge-editor [edge]="edge"></edge-editor>
+	</fieldset>
+} @else if (selectedNodes().length === 0) {
 	<div class="p-2">
-		<info-note>Click a node in the graph to see its details.</info-note>
+		<info-note>Click a node or connection in the graph to see its details.</info-note>
 	</div>
 } @else if (selectedNodes().length > 1) {
 	<div class="p-2">

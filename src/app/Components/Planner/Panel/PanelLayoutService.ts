@@ -1,4 +1,4 @@
-import {computed, Injectable, OnDestroy, signal} from '@angular/core';
+import {computed, Injectable, OnDestroy, signal, untracked} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Subscription} from 'rxjs';
 import {debounceTime, distinctUntilChanged, filter, skip} from 'rxjs/operators';
@@ -93,6 +93,7 @@ export class PanelLayoutService implements OnDestroy
 	public constructor(private readonly settings: SettingsManager)
 	{
 		// The key dedupe skips no-op emissions; skip(1) drops the just-restored snapshot.
+		// Firefox has fired the debounce timer while a computed was mid-evaluation, where the signal write throws NG0600.
 		this.saveSubscription = toObservable(computed(() =>
 			this.restoredSignal() ? JSON.stringify(this.snapshot()) : null,
 		)).pipe(
@@ -100,7 +101,7 @@ export class PanelLayoutService implements OnDestroy
 			distinctUntilChanged(),
 			skip(1),
 			debounceTime(750),
-		).subscribe(() => this.settings.updatePanels(this.snapshot()));
+		).subscribe(() => untracked(() => this.settings.updatePanels(this.snapshot())));
 	}
 
 	public ngOnDestroy(): void

@@ -1,4 +1,4 @@
-import {faCheck, faDiagramProject, faLock, faLockOpen, faRotateLeft, faTrashCan} from '@fortawesome/free-solid-svg-icons';
+import {faCheck, faCodeMerge, faDiagramProject, faLock, faLockOpen, faRotateLeft, faTrashCan} from '@fortawesome/free-solid-svg-icons';
 import {ContextMenuItem} from '@src/Components/Planner/ContextMenu/ContextMenuItem';
 import {PlannerContextMenu} from '@src/Components/Planner/ContextMenu/PlannerContextMenu';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -10,6 +10,7 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 
 	public constructor(
 		private readonly nodes: Node[],
+		private readonly mergeBlocker: string | null,
 		private readonly actions: PlannerActionsService,
 	)
 	{
@@ -37,6 +38,14 @@ export class MultiNodeContextMenu extends PlannerContextMenu
 				// A subplan node's plan has this plan as parent - nesting it under a new subplan would break that.
 				disabled: this.nodes.some(node => node instanceof SubplanNode),
 				action: () => this.actions.requestSubplanConvert(this.nodes.map(node => node.id)),
+			},
+			{
+				label: 'Merge nodes',
+				icon: faCodeMerge,
+				hotkey: 'graph.mergeNodes',
+				disabled: this.mergeBlocker !== null,
+				hint: this.mergeBlocker ?? `Merges ${this.nodes.length} nodes into one and adds up their amounts.`,
+				action: () => this.actions.requestNodeMerge(this.nodes.map(node => node.id)),
 			},
 			{
 				label: 'Lock all',
