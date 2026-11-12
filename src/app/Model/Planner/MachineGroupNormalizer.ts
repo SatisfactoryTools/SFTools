@@ -63,7 +63,7 @@ export class MachineGroupNormalizer
 		return Math.max(1, Math.ceil(amount - 1e-9));
 	}
 
-	/** A remainder below the 1% minimum clock folds into the whole group's clock, else becomes a lone 1% machine; only sub-1e-9 dust is dropped, since the capacity warning compares near-exactly. */
+	/** Only sub-1e-9 dust is dropped, since the capacity warning compares near-exactly. */
 	public fromFractionalAmount(amount: number, clockSpeed: number, sloops: number): MachineGroup[]
 	{
 		const whole = Math.floor(amount + 1e-9);
@@ -73,28 +73,12 @@ export class MachineGroupNormalizer
 			return [{machines: Math.max(whole, 1), clockSpeed: this.roundClock(clockSpeed), sloops}];
 		}
 
-		const remainderClock = remainder * clockSpeed;
-		if (remainderClock >= 1) {
-			const groups: MachineGroup[] = [];
-			if (whole > 0) {
-				groups.push({machines: whole, clockSpeed: this.roundClock(clockSpeed), sloops});
-			}
-			groups.push({machines: 1, clockSpeed: this.roundClock(remainderClock), sloops});
-			return groups;
-		}
-
-		if (whole >= 1) {
-			const folded = amount * clockSpeed / whole;
-			if (folded <= 250) {
-				return [{machines: whole, clockSpeed: this.roundClock(folded), sloops}];
-			}
-		}
-
+		// A remainder below the 1% minimum becomes a 1% machine rather than raising the other machines above the intended clock.
 		const groups: MachineGroup[] = [];
 		if (whole > 0) {
 			groups.push({machines: whole, clockSpeed: this.roundClock(clockSpeed), sloops});
 		}
-		groups.push({machines: 1, clockSpeed: 1, sloops});
+		groups.push({machines: 1, clockSpeed: this.roundClock(remainder * clockSpeed), sloops});
 		return groups;
 	}
 
