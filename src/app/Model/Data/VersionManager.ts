@@ -5,6 +5,7 @@ import {forkJoin, of} from 'rxjs';
 import {catchError, distinctUntilChanged, filter, skip} from 'rxjs/operators';
 import {ApiService} from '@src/Model/API/ApiService';
 import {Version} from '@src/Model/API/Schema/Version';
+import {WorldDataPayload} from '@src/Model/API/Schema/World/WorldDataPayload';
 import {VersionsApiService} from '@src/Model/API/VersionsApiService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {Data} from '@src/Model/Data/Data';
@@ -128,8 +129,20 @@ export class VersionManager
 	});
 	public activeVersionData = computed<Data | null>(() => {
 		const file = this.api.versionDataResource.hasValue() ? this.api.versionDataResource.value() : null;
-		return file ? this.transformer.transform(file, this.activeVersion()?.worldData?.limits ?? null) : null;
+		return file ? this.transformer.transform(file, this.worldDataOf(this.activeVersion())?.limits ?? null) : null;
 	});
+
+	/** A custom version made without its own node counts plays on its base version's world. */
+	public worldDataOf(version: Version | null | undefined): WorldDataPayload | null
+	{
+		if (!version) {
+			return null;
+		}
+		if (version.worldData !== null || !version.custom || version.baseVersion === null) {
+			return version.worldData;
+		}
+		return this.versions().find(candidate => candidate.id === version.baseVersion)?.worldData ?? null;
+	}
 
 	public urlSlug(version: Version): string
 	{

@@ -25,6 +25,7 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 const APPLY_DEBOUNCE_MS = 400;
 
@@ -32,7 +33,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'recipe-node-editor',
 	templateUrl: './RecipeNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [InspectorMenuButtonComponent, FormsModule, FaIconComponent, BsDropdownModule, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent, GoToNodeButtonComponent],
+	imports: [ModLabelComponent, InspectorMenuButtonComponent, FormsModule, FaIconComponent, BsDropdownModule, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent, GoToNodeButtonComponent],
 	styles: [`
 		@container panel (max-width: 300px) {
 			.groups-table td.stack-grow {

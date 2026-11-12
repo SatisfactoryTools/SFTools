@@ -20,12 +20,13 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'calculator-power-tab',
 	templateUrl: './CalculatorPowerTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [CollapsibleCardComponent, FaIconComponent, GameIconComponent, InfoNoteComponent, PowerDrawComponent],
+	imports: [ModLabelComponent, CollapsibleCardComponent, FaIconComponent, GameIconComponent, InfoNoteComponent, PowerDrawComponent],
 })
 export class CalculatorPowerTabComponent
 {

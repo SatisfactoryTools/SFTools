@@ -31,7 +31,7 @@ export class GeyserCaps
 	{
 		const world = this.worldNodes.nodes();
 		if (world === null) {
-			const counts = this.extraPower.availableGeysers(this.versionManager.activeVersion());
+			const counts = this.extraPower.availableGeysers(this.versionManager.worldDataOf(this.versionManager.activeVersion()));
 			return counts === null ? null : {counts, source: 'version', taken: 0};
 		}
 		const area = settings?.resourceArea ?? null;

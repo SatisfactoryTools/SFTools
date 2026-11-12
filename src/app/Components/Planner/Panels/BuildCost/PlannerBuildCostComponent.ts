@@ -14,12 +14,13 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {PlanResultHintComponent} from '@src/Components/Planner/Panels/ResultHint/PlanResultHintComponent';
 import {TextMatcher} from '@src/Model/Search/TextMatcher';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'planner-build-cost',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerBuildCostComponent.html',
-	imports: [FaIconComponent, GameIconComponent, PlanResultHintComponent, GoToNodeButtonComponent, BuiltMarkComponent],
+	imports: [ModLabelComponent, FaIconComponent, GameIconComponent, PlanResultHintComponent, GoToNodeButtonComponent, BuiltMarkComponent],
 })
 export class PlannerBuildCostComponent
 {

@@ -20,12 +20,13 @@ import {RateFormatter} from '@src/Model/RateFormatter';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {WarningKindFilter} from '@src/Components/Planner/StatusBar/WarningKindFilter';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'planner-status-bar',
 	templateUrl: './PlannerStatusBarComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, BsDropdownModule, GameIconComponent, AppTooltipDirective],
+	imports: [ModLabelComponent, FaIconComponent, BsDropdownModule, GameIconComponent, AppTooltipDirective],
 	styles: [`
 		:host {
 			display: flex;

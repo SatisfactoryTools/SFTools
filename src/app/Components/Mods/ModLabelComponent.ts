@@ -35,12 +35,17 @@ export class ModLabelComponent
 {
 
 	private readonly modSignal = signal<string | null>(null);
+	private readonly classNameSignal = signal<string | null>(null);
 
 	public readonly name = computed<string | null>(() => {
 		if (!this.settings.planner().modLabels) {
 			return null;
 		}
-		return this.versionManager.activeVersionData()?.modName(this.modSignal()) ?? null;
+		const data = this.versionManager.activeVersionData();
+		if (data === null) {
+			return null;
+		}
+		return data.modName(this.modSignal() ?? data.modOf(this.classNameSignal()));
 	});
 
 	public constructor(
@@ -54,6 +59,13 @@ export class ModLabelComponent
 	public set mod(value: string | null | undefined)
 	{
 		this.modSignal.set(value ?? null);
+	}
+
+	/** Class name of an item, building, recipe or schematic; for rows that only carry that. */
+	@Input()
+	public set of(value: string | null | undefined)
+	{
+		this.classNameSignal.set(value ?? null);
 	}
 
 }

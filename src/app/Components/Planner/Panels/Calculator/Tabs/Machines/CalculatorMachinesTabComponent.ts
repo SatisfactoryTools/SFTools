@@ -4,12 +4,13 @@ import {Data} from '@src/Model/Data/Data';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'calculator-machines-tab',
 	templateUrl: './CalculatorMachinesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [GameIconComponent],
+	imports: [ModLabelComponent, GameIconComponent],
 })
 export class CalculatorMachinesTabComponent
 {

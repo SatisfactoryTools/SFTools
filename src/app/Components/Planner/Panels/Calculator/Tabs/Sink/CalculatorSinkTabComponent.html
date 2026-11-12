@@ -41,7 +41,7 @@
 					/>
 					<label class="form-check-label d-flex align-items-center gap-2 w-100" [for]="'sink-' + item.className">
 						<game-icon [hash]="item.icon" [size]="18" [alt]="item.name"></game-icon>
-						<span class="text-truncate">{{ item.name }}</span>
+						<span class="text-truncate">{{ item.name }}</span><mod-label class="ms-1" [mod]="item.mod"/>
 						<span class="small text-secondary ms-auto text-nowrap">{{ rateFormatter.amount(item.sinkPoints) }} points</span>
 					</label>
 				</div>

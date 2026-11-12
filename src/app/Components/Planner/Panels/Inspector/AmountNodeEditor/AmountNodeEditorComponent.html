@@ -4,6 +4,7 @@
 		<div class="card-header d-flex align-items-center gap-2 py-1 px-2">
 			<game-icon [hash]="iconHash" [size]="20" [alt]="node.getDisplayName()"></game-icon>
 			<span class="fw-semibold flex-grow-1 text-truncate" [title]="node.getDisplayName()">{{ node.getDisplayName() }}</span>
+			<mod-label [mod]="item?.mod ?? generator?.generator?.mod"/>
 			<span class="badge text-bg-secondary">{{ typeLabel }}</span>
 			<go-to-node [nodeIds]="[node.id]" placement="left"></go-to-node>
 			<button
@@ -23,7 +24,7 @@
 					<span class="text-secondary">Fuel</span>
 					<span class="d-inline-flex align-items-center gap-1">
 						<game-icon [hash]="generatorNode.fuel.item.icon" [size]="18" [alt]="generatorNode.fuel.item.name"></game-icon>
-						{{ generatorNode.fuel.item.name }}
+						{{ generatorNode.fuel.item.name }}<mod-label class="ms-1" [mod]="generatorNode.fuel.item.mod"/>
 					</span>
 				</div>
 			}

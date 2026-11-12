@@ -119,7 +119,7 @@
 											/>
 											<label class="form-check-label d-flex align-items-center gap-2" [for]="'machine-' + machine.className">
 												<game-icon [hash]="machine.icon" [size]="18" [alt]="machine.name"></game-icon>
-												<span class="text-truncate">{{ machine.name }}</span>
+												<span class="text-truncate">{{ machine.name }}</span><mod-label class="ms-1" [mod]="machine.mod"/>
 											</label>
 										</div>
 									</td>

@@ -54,7 +54,7 @@
 									@if (row.kind === 'subplan') {
 										<span class="text-secondary">Subplan:</span>
 									}
-									{{ row.name }}
+									{{ row.name }}<mod-label class="ms-1" [of]="row.key"/>
 								</span>
 								<built-mark [built]="row.builtMachines" [total]="row.machines"></built-mark>
 								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
@@ -70,7 +70,7 @@
 								<td class="ps-4 stack-grow">
 									<span class="d-inline-flex align-items-center gap-1">
 										<game-icon [hash]="material.item.icon" [size]="18" [alt]="material.item.name"></game-icon>
-										{{ material.item.name }}
+										{{ material.item.name }}<mod-label class="ms-1" [mod]="material.item.mod"/>
 									</span>
 								</td>
 								<td class="text-end text-secondary">{{ rateFormatter.amount(material.amount) }}</td>
@@ -101,7 +101,7 @@
 						<td>
 							<span class="d-inline-flex align-items-center gap-1">
 								<game-icon [hash]="material.item.icon" [size]="18" [alt]="material.item.name"></game-icon>
-								{{ material.item.name }}
+								{{ material.item.name }}<mod-label class="ms-1" [mod]="material.item.mod"/>
 							</span>
 						</td>
 						<td class="text-end">{{ rateFormatter.amount(material.amount) }}</td>

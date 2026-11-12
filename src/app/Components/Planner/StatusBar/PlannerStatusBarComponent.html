@@ -50,7 +50,7 @@
 							<div class="warning-row kind-pool">
 								<game-icon class="row-icon" [hash]="status.item.icon" [size]="24" [alt]="status.item.name"></game-icon>
 								<span class="row-body">
-									<span class="row-title">{{ status.item.name }}</span>
+									<span class="row-title">{{ status.item.name }}<mod-label class="ms-1" [mod]="status.item.mod"/></span>
 									<span class="row-text">{{ poolWarningText(status) }}</span>
 								</span>
 								<span class="row-kind">{{ kindLabel('pool') }}</span>

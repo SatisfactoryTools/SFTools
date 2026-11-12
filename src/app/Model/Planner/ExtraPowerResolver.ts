@@ -1,5 +1,5 @@
 import {Injectable} from '@angular/core';
-import {Version} from '@src/Model/API/Schema/Version';
+import {WorldDataPayload} from '@src/Model/API/Schema/World/WorldDataPayload';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Data} from '@src/Model/Data/Data';
 import {AlienPowerAugmenters} from '@src/Model/Planner/AlienPowerAugmenters';
@@ -46,9 +46,9 @@ export class ExtraPowerResolver
 		return data?.searchBuildingByClassName(SpecialClasses.AlienPowerAugmenterBuilding) ?? null;
 	}
 
-	public availableGeysers(version: Version | null | undefined): GeothermalGenerators | null
+	public availableGeysers(worldData: WorldDataPayload | null): GeothermalGenerators | null
 	{
-		const geysers = version?.worldData?.nodes?.geysers;
+		const geysers = worldData?.nodes?.geysers;
 		return geysers ? {impure: geysers.impure, normal: geysers.normal, pure: geysers.pure} : null;
 	}
 

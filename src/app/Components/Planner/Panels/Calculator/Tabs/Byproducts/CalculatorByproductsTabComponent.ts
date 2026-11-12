@@ -6,12 +6,13 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {TextMatcher} from '@src/Model/Search/TextMatcher';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'calculator-byproducts-tab',
 	templateUrl: './CalculatorByproductsTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, GameIconComponent, InfoNoteComponent],
+	imports: [ModLabelComponent, FormsModule, GameIconComponent, InfoNoteComponent],
 })
 export class CalculatorByproductsTabComponent
 {

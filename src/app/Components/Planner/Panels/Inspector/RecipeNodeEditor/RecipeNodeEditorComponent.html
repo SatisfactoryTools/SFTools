@@ -4,6 +4,7 @@
 		<div class="card-header d-flex align-items-center gap-2 py-1 px-2">
 			<game-icon [hash]="recipeIcon" [size]="20" [alt]="node.recipe.name"></game-icon>
 			<span class="fw-semibold flex-grow-1 text-truncate" [title]="node.recipe.name">{{ node.recipe.name }}</span>
+			<mod-label [mod]="node.recipe.mod"/>
 			<span class="small text-secondary text-nowrap">{{ rateFormatter.duration(node.recipe.time) }} / craft</span>
 			<go-to-node [nodeIds]="[node.id]" placement="left"></go-to-node>
 			<button
@@ -36,7 +37,7 @@
 					<span class="text-secondary">Machine</span>
 					<span class="d-inline-flex align-items-center gap-1">
 						<game-icon [hash]="machine.icon" [size]="18" [alt]="machine.name"></game-icon>
-						{{ machine.name }}
+						{{ machine.name }}<mod-label class="ms-1" [mod]="machine.mod"/>
 					</span>
 				</div>
 			}

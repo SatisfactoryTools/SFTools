@@ -211,8 +211,8 @@ export class PlanBreakdownService
 
 		const rows = new Map<string, {
 			item: Item;
-			sources: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
-			targets: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
+			sources: Map<string, {name: string; className: string | null; amount: number; builtAmount: number; nodeIds: string[]}>;
+			targets: Map<string, {name: string; className: string | null; amount: number; builtAmount: number; nodeIds: string[]}>;
 		}>();
 
 		graph.nodes.forEach(node => {
@@ -220,7 +220,7 @@ export class PlanBreakdownService
 			node.outputs.forEach(io => {
 				const row = this.getOrCreate(rows, io.item.className,
 					() => ({item: io.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, className: flow.className, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += io.maxAmount;
 				entry.builtAmount += node.done ? io.maxAmount : 0;
 				entry.nodeIds.push(node.id);
@@ -228,7 +228,7 @@ export class PlanBreakdownService
 			node.inputs.forEach(io => {
 				const row = this.getOrCreate(rows, io.item.className,
 					() => ({item: io.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, className: flow.className, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += io.maxAmount;
 				entry.builtAmount += node.done ? io.maxAmount : 0;
 				entry.nodeIds.push(node.id);
@@ -386,24 +386,24 @@ export class PlanBreakdownService
 	{
 		const rows = new Map<string, {
 			item: Item;
-			sources: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
-			targets: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>;
+			sources: Map<string, {name: string; className: string | null; amount: number; builtAmount: number; nodeIds: string[]}>;
+			targets: Map<string, {name: string; className: string | null; amount: number; builtAmount: number; nodeIds: string[]}>;
 		}>();
 
 		// A plan's IO is not tied to single nodes, so folder flows carry no built share.
 		this.folderPlans(folderId).forEach(plan => {
 			const io = this.subplanResolver.resolveGraph(plan.graph);
-			const flow = {key: `plan:${plan.id}`, name: this.planNames.displayName(plan)};
+			const flow = {key: `plan:${plan.id}`, name: this.planNames.displayName(plan), className: null};
 			io.outputs.forEach(nodeIo => {
 				const row = this.getOrCreate(rows, nodeIo.item.className,
 					() => ({item: nodeIo.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.sources, flow.key, () => ({name: flow.name, className: flow.className, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += nodeIo.maxAmount;
 			});
 			io.inputs.forEach(nodeIo => {
 				const row = this.getOrCreate(rows, nodeIo.item.className,
 					() => ({item: nodeIo.item, sources: new Map(), targets: new Map()}));
-				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, amount: 0, builtAmount: 0, nodeIds: []}));
+				const entry = this.getOrCreate(row.targets, flow.key, () => ({name: flow.name, className: flow.className, amount: 0, builtAmount: 0, nodeIds: []}));
 				entry.amount += nodeIo.maxAmount;
 			});
 		});
@@ -789,40 +789,40 @@ export class PlanBreakdownService
 		return group.count > 1 ? `${group.name} (built ${group.count}×)` : group.name;
 	}
 
-	private flowDescriptor(node: Node): {key: string; name: string}
+	private flowDescriptor(node: Node): {key: string; name: string; className: string | null}
 	{
 		if (node instanceof RecipeNode) {
-			return {key: `recipe:${node.recipe.className}:${node.machine.className}`, name: node.recipe.name};
+			return {key: `recipe:${node.recipe.className}:${node.machine.className}`, name: node.recipe.name, className: node.recipe.className};
 		}
 		if (node instanceof GeneratorNode) {
-			return {key: `generator:${node.generator.className}`, name: node.generator.name};
+			return {key: `generator:${node.generator.className}`, name: node.generator.name, className: node.generator.className};
 		}
 		if (node instanceof SubplanNode) {
 			// The amounts already carry build counts, so no "(built N×)" suffix here.
-			return {key: `subplan:${node.subplanId}`, name: `Subplan: ${node.name}`};
+			return {key: `subplan:${node.subplanId}`, name: `Subplan: ${node.name}`, className: null};
 		}
 		if (node instanceof SinkNode) {
-			return {key: 'sink', name: 'AWESOME Sink'};
+			return {key: 'sink', name: 'AWESOME Sink', className: null};
 		}
 		if (node instanceof MineNode) {
-			return {key: 'mine', name: 'Resource extraction'};
+			return {key: 'mine', name: 'Resource extraction', className: null};
 		}
 		if (node instanceof InputNode) {
-			return {key: 'input', name: 'Manual input'};
+			return {key: 'input', name: 'Manual input', className: null};
 		}
 		if (node instanceof ProductNode) {
-			return {key: 'product', name: 'Production target'};
+			return {key: 'product', name: 'Production target', className: null};
 		}
 		if (node instanceof ByproductNode) {
-			return {key: 'byproduct', name: 'Byproduct'};
+			return {key: 'byproduct', name: 'Byproduct', className: null};
 		}
-		return {key: node.type, name: node.getDisplayName()};
+		return {key: node.type, name: node.getDisplayName(), className: null};
 	}
 
-	private toFlowRows(entries: Map<string, {name: string; amount: number; builtAmount: number; nodeIds: string[]}>): ItemFlowRow[]
+	private toFlowRows(entries: Map<string, {name: string; className: string | null; amount: number; builtAmount: number; nodeIds: string[]}>): ItemFlowRow[]
 	{
 		return [...entries.entries()]
-			.map(([key, entry]) => ({key, name: entry.name, amount: entry.amount, builtAmount: entry.builtAmount, nodeIds: entry.nodeIds}))
+			.map(([key, entry]) => ({key, name: entry.name, className: entry.className, amount: entry.amount, builtAmount: entry.builtAmount, nodeIds: entry.nodeIds}))
 			.sort((a, b) => b.amount - a.amount || a.name.localeCompare(b.name));
 	}
 

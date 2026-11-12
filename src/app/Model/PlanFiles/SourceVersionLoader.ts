@@ -28,7 +28,7 @@ export class SourceVersionLoader
 			const version = this.versionManager.versions().find(candidate => candidate.id === reference.id)
 				?? await firstValueFrom(this.versionsApi.getVersion(reference.id));
 			const file = await firstValueFrom(this.versionsApi.loadVersionFile(version));
-			return this.transformer.transform(file, version.worldData?.limits ?? null);
+			return this.transformer.transform(file, this.versionManager.worldDataOf(version)?.limits ?? null);
 		} catch {
 			return null;
 		}

@@ -19,12 +19,13 @@ import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanSettings} from '@src/Model/Planner/PlanSettings';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'planner-settings',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerSettingsComponent.html',
-	imports: [FormsModule, CollapsibleCardComponent, GameIconComponent, InfoNoteComponent],
+	imports: [ModLabelComponent, FormsModule, CollapsibleCardComponent, GameIconComponent, InfoNoteComponent],
 })
 export class PlannerSettingsComponent
 {

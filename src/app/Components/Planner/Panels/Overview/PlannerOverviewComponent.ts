@@ -29,12 +29,13 @@ import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConversionRecipeResolver';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'planner-overview',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerOverviewComponent.html',
-	imports: [FaIconComponent, GameIconComponent, CollapsibleCardComponent, InfoNoteComponent, PowerDrawComponent, GoToNodeButtonComponent, BuiltMarkComponent],
+	imports: [ModLabelComponent, FaIconComponent, GameIconComponent, CollapsibleCardComponent, InfoNoteComponent, PowerDrawComponent, GoToNodeButtonComponent, BuiltMarkComponent],
 	styles: [`
 		.overview-grid {
 			container-type: inline-size;

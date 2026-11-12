@@ -13,12 +13,13 @@ import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {PlanResultHintComponent} from '@src/Components/Planner/Panels/ResultHint/PlanResultHintComponent';
 import {TextMatcher} from '@src/Model/Search/TextMatcher';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'planner-power',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerPowerComponent.html',
-	imports: [FaIconComponent, GameIconComponent, PlanResultHintComponent, PowerDrawComponent, GoToNodeButtonComponent, BuiltMarkComponent],
+	imports: [ModLabelComponent, FaIconComponent, GameIconComponent, PlanResultHintComponent, PowerDrawComponent, GoToNodeButtonComponent, BuiltMarkComponent],
 })
 export class PlannerPowerComponent
 {

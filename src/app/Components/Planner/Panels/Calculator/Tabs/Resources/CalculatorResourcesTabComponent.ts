@@ -25,12 +25,13 @@ import {ResourceWeightMode} from '@src/Model/Planner/ResourceWeightMode';
 import {ResourceWeightResolver} from '@src/Model/Planner/ResourceWeightResolver';
 import {SpecialClasses} from '@src/Model/Planner/SpecialClasses';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'calculator-resources-tab',
 	templateUrl: './CalculatorResourcesTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FaIconComponent, FormsModule, BsDropdownModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
+	imports: [ModLabelComponent, FaIconComponent, FormsModule, BsDropdownModule, GameIconComponent, ItemRateComponent, AppTooltipDirective, InfoNoteComponent],
 	styles: [`
 		tr.resource-row { cursor: pointer; }
 		tr.resource-row:hover > td { background-color: rgba(255, 255, 255, 0.04); }

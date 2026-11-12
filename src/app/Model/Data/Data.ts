@@ -85,6 +85,16 @@ export class Data
 		return modId !== null ? this.modNames.get(modId) ?? null : null;
 	}
 
+	public modOf(className: string | null): string | null
+	{
+		if (className === null || this.mods.length === 0) {
+			return null;
+		}
+		const entity = this.itemMap.get(className) ?? this.buildingMap.get(className)
+			?? this.recipeMap.get(className) ?? this.schematicMap.get(className);
+		return entity?.mod ?? null;
+	}
+
 	public getAutomatableItems(): Item[]
 	{
 		const classNames = new Set<string>();

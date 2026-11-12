@@ -49,7 +49,7 @@
 						<td class="stack-full">
 							<span class="d-inline-flex align-items-center gap-2">
 								<game-icon [hash]="status.item.icon" [size]="20" [alt]="status.item.name"></game-icon>
-								{{ status.item.name }}
+								{{ status.item.name }}<mod-label class="ms-1" [mod]="status.item.mod"/>
 							</span>
 						</td>
 						<td class="text-end text-nowrap" data-label="Folder limit"><item-rate [amount]="status.limit" [item]="status.item"></item-rate></td>
@@ -172,7 +172,7 @@
 						<td class="stack-grow">
 							<span class="d-inline-flex align-items-center gap-2">
 								<game-icon [hash]="iconHash(row.className)" [size]="20" [alt]="row.name"></game-icon>
-								{{ row.name }}
+								{{ row.name }}<mod-label class="ms-1" [of]="row.className"/>
 							</span>
 						</td>
 						<td class="stack-grow" data-label="Limit">

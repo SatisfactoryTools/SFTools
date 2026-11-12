@@ -1,6 +1,8 @@
 import {Injectable, OnDestroy} from '@angular/core';
 import {Observable} from 'rxjs';
+import {map} from 'rxjs/operators';
 import {HighsSolution} from '@src/Model/Planner/Solver/HighsSolution';
+import {LpNameEncoder} from '@src/Model/Planner/Solver/LpNameEncoder';
 import {SolverJob} from '@src/Model/Planner/Solver/SolverJob';
 import {SolverWorkerCommand} from '@src/Model/Planner/Solver/Worker/SolverWorkerCommand';
 import {SolverWorkerMessage} from '@src/Model/Planner/Solver/Worker/SolverWorkerMessage';
@@ -29,16 +31,18 @@ export class SolverService implements OnDestroy
 
 	public solve(problem: string, options: {workerOptions?: SolverWorkerOptions; timeoutMs?: number} = {}): Observable<HighsSolution>
 	{
+		const names = new LpNameEncoder();
+		const encoded = names.encode(problem);
 		return new Observable<HighsSolution>(subscriber => {
 			const job = new SolverJob(
-				{type: 'solve', id: String(this.nextId++), problem, options: options.workerOptions},
+				{type: 'solve', id: String(this.nextId++), problem: encoded, options: options.workerOptions},
 				options.timeoutMs ?? SOLVE_TIMEOUT_MS,
 				subscriber,
 			);
 			this.queue.push(job);
 			this.runNext();
 			return () => this.cancel(job);
-		});
+		}).pipe(map(solution => names.decode(solution)));
 	}
 
 	public ngOnDestroy(): void

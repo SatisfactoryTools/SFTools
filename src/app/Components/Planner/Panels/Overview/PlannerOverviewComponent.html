@@ -50,7 +50,7 @@
 																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
 																		<fa-icon [icon]="isRowExpanded('resource:' + row.item.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small" [class.invisible]="row.plans.length === 0"></fa-icon>
 																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
-																		{{ row.item.name }}
+																		{{ row.item.name }}<mod-label class="ms-1" [mod]="row.item.mod"/>
 																	</span>
 																</td>
 																<td class="text-end">
@@ -86,7 +86,7 @@
 																<td>
 																	<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(status.usedByPlan)">
 																		<game-icon [hash]="status.item.icon" [size]="18" [alt]="status.item.name"></game-icon>
-																		{{ status.item.name }}
+																		{{ status.item.name }}<mod-label class="ms-1" [mod]="status.item.mod"/>
 																	</span>
 																</td>
 																<td class="text-end">
@@ -110,7 +110,7 @@
 																	<div class="d-flex align-items-center gap-1">
 																		<span class="d-inline-flex align-items-center gap-1" [class.text-secondary]="rateFormatter.isZero(row.used)">
 																			<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
-																			{{ row.item.name }}
+																			{{ row.item.name }}<mod-label class="ms-1" [mod]="row.item.mod"/>
 																		</span>
 																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
 																	</div>
@@ -211,7 +211,7 @@
 																	<span class="d-inline-flex flex-wrap align-items-center gap-1">
 																		<fa-icon [icon]="isRowExpanded('production:' + row.kind + row.item.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small"></fa-icon>
 																		<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
-																		{{ row.item.name }}
+																		{{ row.item.name }}<mod-label class="ms-1" [mod]="row.item.mod"/>
 																		@if (row.kind === 'byproduct') {
 																			<span class="badge text-bg-secondary">byproduct</span>
 																		} @else if (row.kind === 'sink') {
@@ -255,7 +255,7 @@
 																	<div class="d-flex align-items-center gap-1">
 																		<span class="d-inline-flex flex-wrap align-items-center gap-1">
 																			<game-icon [hash]="row.item.icon" [size]="18" [alt]="row.item.name"></game-icon>
-																			{{ row.item.name }}
+																			{{ row.item.name }}<mod-label class="ms-1" [mod]="row.item.mod"/>
 																			@if (row.kind === 'byproduct') {
 																				<span class="badge text-bg-secondary">byproduct</span>
 																			} @else if (row.kind === 'sink') {
@@ -301,7 +301,7 @@
 																	<span class="d-inline-flex align-items-center gap-1">
 																		<fa-icon [icon]="isRowExpanded('building:' + row.key) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small"></fa-icon>
 																		<game-icon [hash]="row.icon" [size]="18" [alt]="row.name"></game-icon>
-																		{{ row.name }}
+																		{{ row.name }}<mod-label class="ms-1" [of]="row.key"/>
 																	</span>
 																</td>
 																<td class="text-end">{{ rateFormatter.amount(row.machines) }}</td>
@@ -327,7 +327,7 @@
 																			@if (row.kind === 'subplan') {
 																				<span class="text-secondary">Subplan:</span>
 																			}
-																			{{ row.name }}
+																			{{ row.name }}<mod-label class="ms-1" [of]="row.key"/>
 																		</span>
 																		<built-mark [built]="row.builtMachines" [total]="row.machines"></built-mark>
 																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
@@ -434,7 +434,7 @@
 																	<span class="d-inline-flex align-items-center gap-1">
 																		<fa-icon [icon]="isRowExpanded('recipe:' + row.recipe.className) ? faChevronDown : faChevronRight" [fixedWidth]="true" class="text-secondary small"></fa-icon>
 																		<game-icon [hash]="row.recipe.products[0]?.item?.icon ?? null" [size]="18" [alt]="row.recipe.name"></game-icon>
-																		{{ row.recipe.name }}
+																		{{ row.recipe.name }}<mod-label class="ms-1" [mod]="row.recipe.mod"/>
 																		@if (row.recipe.alternate && showAllRecipes()) {
 																			<span class="badge text-bg-secondary">alt</span>
 																		}
@@ -460,7 +460,7 @@
 																	<div class="d-flex align-items-center gap-1">
 																		<span class="d-inline-flex align-items-center gap-1">
 																			<game-icon [hash]="row.recipe.products[0]?.item?.icon ?? null" [size]="18" [alt]="row.recipe.name"></game-icon>
-																			{{ row.recipe.name }}
+																			{{ row.recipe.name }}<mod-label class="ms-1" [mod]="row.recipe.mod"/>
 																			@if (row.recipe.alternate && showAllRecipes()) {
 																				<span class="badge text-bg-secondary">alt</span>
 																			}

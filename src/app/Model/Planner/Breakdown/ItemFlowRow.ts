@@ -5,6 +5,9 @@ export interface ItemFlowRow
 
 	readonly name: string;
 
+	/** The recipe or generator behind the flow, for its mod label. */
+	readonly className: string | null;
+
 	readonly amount: number;
 
 	/** Part of `amount` flowing through nodes marked done. */

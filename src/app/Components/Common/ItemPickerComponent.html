@@ -7,7 +7,7 @@
 	>
 		@if (selected; as option) {
 			<game-icon [hash]="option.iconHash" [size]="18" [alt]="option.label"></game-icon>
-			<span class="text-truncate" [class.text-decoration-line-through]="option.strike" [class.text-secondary]="option.strike">{{ option.label }}</span>
+			<span class="text-truncate" [class.text-decoration-line-through]="option.strike" [class.text-secondary]="option.strike">{{ option.label }}</span><mod-label class="ms-1" [of]="option.value"/>
 		} @else {
 			<span class="text-secondary text-truncate">{{ placeholder }}</span>
 		}
@@ -39,7 +39,7 @@
 					(click)="select(option, dropdown)"
 				>
 					<game-icon [hash]="option.iconHash" [size]="20" [alt]="option.label"></game-icon>
-					<span class="text-truncate" [class.text-decoration-line-through]="option.strike" [class.text-secondary]="option.strike">{{ option.label }}</span>
+					<span class="text-truncate" [class.text-decoration-line-through]="option.strike" [class.text-secondary]="option.strike">{{ option.label }}</span><mod-label class="ms-1" [of]="option.value"/>
 					@if (option.strike) {
 						<span class="badge text-bg-secondary ms-auto flex-shrink-0">can't produce</span>
 					}

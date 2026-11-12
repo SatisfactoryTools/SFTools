@@ -6,12 +6,13 @@ import {FocusOnInitDirective} from '@src/Components/Common/FocusOnInitDirective'
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
 import {TextMatcher} from '@src/Model/Search/TextMatcher';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'item-picker',
 	templateUrl: './ItemPickerComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, BsDropdownModule, GameIconComponent, FocusOnInitDirective, FitViewportDirective],
+	imports: [ModLabelComponent, FormsModule, BsDropdownModule, GameIconComponent, FocusOnInitDirective, FitViewportDirective],
 	styles: [`
 		.picker-option.highlighted {
 			background: rgba(255, 255, 255, 0.1);

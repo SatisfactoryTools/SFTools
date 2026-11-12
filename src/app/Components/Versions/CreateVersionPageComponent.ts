@@ -3,7 +3,7 @@ import {FormsModule} from '@angular/forms';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faCubes, faGlobe, faPuzzlePiece, faSliders, faTag} from '@fortawesome/free-solid-svg-icons';
-import {forkJoin, of} from 'rxjs';
+import {firstValueFrom, forkJoin, of} from 'rxjs';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
@@ -296,47 +296,46 @@ export class CreateVersionPageComponent
 			? of(this.baseData)
 			: this.api.loadVersionFile(base);
 
-		forkJoin({
-			preview: this.api.worldDataPreview(settings),
-			file: baseData,
-		}).subscribe({
-			next: ({preview, file}) => {
-				this.baseData = file instanceof Data ? file : this.transformer.transform(file);
-				this.baseDataPath = base.dataPath;
-				this.worldGameVersion = preview.gameVersion;
-				this.worldGeysers = preview.geysers;
-				this.loadedSettings = settings;
-				this.worldDirty = false;
+		try {
+			const {preview, file} = await firstValueFrom(forkJoin({
+				preview: this.api.worldDataPreview(settings),
+				file: baseData,
+			}));
+			this.baseData = file instanceof Data ? file : this.transformer.transform(file);
+			this.baseDataPath = base.dataPath;
+			this.worldGameVersion = preview.gameVersion;
+			this.worldGeysers = preview.geysers;
+			this.loadedSettings = settings;
+			this.worldDirty = false;
 
-				const classNames = new Set([...Object.keys(preview.resourceNodes), ...Object.keys(preview.frackingCores)]);
-				this.worldRows = [...classNames]
-					.map(className => {
-						const item = this.baseData?.searchItemByClassName(className);
-						const nodes = preview.resourceNodes[className] ?? null;
-						const well = preview.frackingCores[className] ?? null;
-						const row: WorldResourceRow = {
-							className,
-							name: item?.name ?? className,
-							iconHash: item?.icon ?? null,
-							solid: (item?.form ?? ItemForm.Solid) === ItemForm.Solid,
-							hasNodes: nodes !== null,
-							nodes: {...(nodes ?? EMPTY_COUNTS)},
-							hasWells: well !== null,
-							cores: well?.cores ?? 0,
-							satellites: {...(well?.satellites ?? EMPTY_COUNTS)},
-							limit: 0,
-						};
-						row.limit = this.computedLimit(row);
-						return row;
-					})
-					.sort((a, b) => a.name.localeCompare(b.name));
-				this.worldLoading = false;
-			},
-			error: (err: {error?: {error?: string; detail?: string}}) => {
-				this.worldLoading = false;
-				this.worldError = err?.error?.detail ?? err?.error?.error ?? 'Could not load the node counts.';
-			},
-		});
+			const classNames = new Set([...Object.keys(preview.resourceNodes), ...Object.keys(preview.frackingCores)]);
+			this.worldRows = [...classNames]
+				.map(className => {
+					const item = this.baseData?.searchItemByClassName(className);
+					const nodes = preview.resourceNodes[className] ?? null;
+					const well = preview.frackingCores[className] ?? null;
+					const row: WorldResourceRow = {
+						className,
+						name: item?.name ?? className,
+						iconHash: item?.icon ?? null,
+						solid: (item?.form ?? ItemForm.Solid) === ItemForm.Solid,
+						hasNodes: nodes !== null,
+						nodes: {...(nodes ?? EMPTY_COUNTS)},
+						hasWells: well !== null,
+						cores: well?.cores ?? 0,
+						satellites: {...(well?.satellites ?? EMPTY_COUNTS)},
+						limit: 0,
+					};
+					row.limit = this.computedLimit(row);
+					return row;
+				})
+				.sort((a, b) => a.name.localeCompare(b.name));
+			this.worldLoading = false;
+		} catch (caught) {
+			const err = caught as {error?: {error?: string; detail?: string}};
+			this.worldLoading = false;
+			this.worldError = err?.error?.detail ?? err?.error?.error ?? 'Could not load the node counts.';
+		}
 	}
 
 	public onCountChange(row: WorldResourceRow): void
@@ -404,8 +403,13 @@ export class CreateVersionPageComponent
 
 	public get canCreate(): boolean
 	{
-		return !this.saving && this.baseId !== ''
-			&& (this.recipeCost !== 1 || this.powerCost !== 1 || this.picked.length > 0 || this.worldRows.length > 0);
+		return !this.saving && !this.worldLoading && this.baseId !== ''
+			&& (this.recipeCost !== 1 || this.powerCost !== 1 || this.picked.length > 0 || this.worldRows.length > 0 || this.worldSettingsChanged);
+	}
+
+	private get worldSettingsChanged(): boolean
+	{
+		return this.worldMode !== 'none' || this.worldPurity !== 'no-change';
 	}
 
 	public get baseVersion(): Version | null
@@ -455,10 +459,17 @@ export class CreateVersionPageComponent
 		return `${mode}, seed ${settings.seed}`;
 	}
 
-	public create(): void
+	public async create(): Promise<void>
 	{
 		if (!this.canCreate) {
 			return;
+		}
+		// Picked world settings that were never loaded would otherwise be dropped silently.
+		if (this.worldRows.length === 0 && this.worldSettingsChanged) {
+			await this.loadWorldPreview();
+			if (this.worldRows.length === 0) {
+				return;
+			}
 		}
 		this.saving = true;
 		this.error = null;

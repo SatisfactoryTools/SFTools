@@ -43,7 +43,7 @@
 									@if (row.kind === 'subplan') {
 										<span class="text-secondary">Subplan:</span>
 									}
-									{{ row.name }}
+									{{ row.name }}<mod-label class="ms-1" [of]="row.key"/>
 								</span>
 								<built-mark [built]="row.builtMachines" [total]="row.machines"></built-mark>
 								<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
@@ -57,7 +57,7 @@
 							<tr class="stack-sub">
 								<td class="ps-4 stack-full">
 									<div class="d-flex align-items-center gap-1">
-										<span class="flex-grow-1">{{ entry.name }}</span>
+										<span class="flex-grow-1">{{ entry.name }}<mod-label class="ms-1" [of]="entry.key"/></span>
 										<built-mark [built]="entry.builtMachines" [total]="entry.machines"></built-mark>
 										<go-to-node [nodeIds]="entry.nodeIds"></go-to-node>
 									</div>

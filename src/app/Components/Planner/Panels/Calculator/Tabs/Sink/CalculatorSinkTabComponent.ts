@@ -7,12 +7,13 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {TextMatcher} from '@src/Model/Search/TextMatcher';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'calculator-sink-tab',
 	templateUrl: './CalculatorSinkTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, GameIconComponent, InfoNoteComponent],
+	imports: [ModLabelComponent, FormsModule, GameIconComponent, InfoNoteComponent],
 })
 export class CalculatorSinkTabComponent
 {

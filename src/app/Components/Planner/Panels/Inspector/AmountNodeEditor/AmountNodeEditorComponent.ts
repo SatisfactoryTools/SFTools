@@ -16,6 +16,7 @@ import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode'
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 const APPLY_DEBOUNCE_MS = 400;
 
@@ -32,7 +33,7 @@ const TYPE_LABELS: Record<string, string> = {
 	selector: 'amount-node-editor',
 	templateUrl: './AmountNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [InspectorMenuButtonComponent, FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
+	imports: [ModLabelComponent, InspectorMenuButtonComponent, FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
 })
 export class AmountNodeEditorComponent implements OnChanges, OnDestroy
 {
