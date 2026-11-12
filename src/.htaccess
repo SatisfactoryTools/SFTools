@@ -61,6 +61,6 @@ DirectoryIndex index.php index.html
 
 <IfModule mod_deflate.c>
 	<IfModule mod_filter.c>
-		AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json application/xml image/svg+xml
+		AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json application/manifest+json application/xml application/wasm image/svg+xml
 	</IfModule>
 </IfModule>

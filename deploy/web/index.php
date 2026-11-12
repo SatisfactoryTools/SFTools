@@ -18,11 +18,16 @@ final class PageHeadInjector
 	private const CONNECT_TIMEOUT_MS = 300;
 	private const TIMEOUT_MS = 800;
 
+	/** Long enough for the API to redeem the code with the provider; the page waits for it, but only on this one URL. */
+	private const OAUTH_PREFETCH_TIMEOUT_MS = 4000;
+
 	/** Old-site URLs; a day's browser cache bounds the damage should a target ever change. */
 	private const REDIRECT_MAX_AGE = 86400;
 
 	public function run(): void
 	{
+		$this->prefetchOAuth((string) ($_SERVER['REQUEST_URI'] ?? '/'));
+
 		$path = substr((string) ($_SERVER['REQUEST_URI'] ?? '/'), 0, self::PATH_MAX_LENGTH);
 		$meta = $this->fetchMeta($path);
 
@@ -48,6 +53,65 @@ final class PageHeadInjector
 	}
 
 	/**
+	 * A provider's sign-in code is single-use and expires within minutes, while the app that would send it can take
+	 * longer than that to load on a slow connection. So the API redeems it now; the app's callback picks up the result.
+	 */
+	private function prefetchOAuth(string $uri): void
+	{
+		if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET' || !function_exists('curl_init')) {
+			return;
+		}
+		if (preg_match('~^/auth/callback/([a-z0-9-]{1,32})\?(.+)$~D', $uri, $match) !== 1) {
+			return;
+		}
+
+		$params = $this->queryParams($match[2]);
+		if (!isset($params['state'])) {
+			return;
+		}
+
+		$curl = curl_init($this->apiUrl() . '/v1/auth/oauth/' . $match[1] . '/prefetch');
+		curl_setopt_array($curl, [
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_POST => true,
+			CURLOPT_POSTFIELDS => (string) json_encode(['params' => $params]),
+			CURLOPT_CONNECTTIMEOUT_MS => self::CONNECT_TIMEOUT_MS,
+			CURLOPT_TIMEOUT_MS => self::OAUTH_PREFETCH_TIMEOUT_MS,
+			CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json'],
+		]);
+		curl_exec($curl);
+	}
+
+	/**
+	 * Decoded the way the app's router decodes them ("+" is a space, the first of repeated keys wins), so the API can
+	 * match the two. Not parse_str(): it turns the dots in Steam's openid.* keys into underscores.
+	 * @return array<string, string>
+	 */
+	private function queryParams(string $query): array
+	{
+		$params = [];
+		foreach (explode('&', explode('#', $query, 2)[0]) as $pair) {
+			if ($pair === '') {
+				continue;
+			}
+			[$key, $value] = array_pad(explode('=', $pair, 2), 2, '');
+			$key = urldecode($key);
+			if (!array_key_exists($key, $params)) {
+				$params[$key] = urldecode($value);
+			}
+		}
+
+		return $params;
+	}
+
+	private function apiUrl(): string
+	{
+		$configured = $_SERVER['SFTOOLS_API_URL'] ?? $_SERVER['REDIRECT_SFTOOLS_API_URL'] ?? getenv('SFTOOLS_API_URL');
+
+		return rtrim(is_string($configured) && $configured !== '' ? $configured : self::DEFAULT_API_URL, '/');
+	}
+
+	/**
 	 * @return array{
 	 *     title: string, description: string, image: string|null, kind: string, heading: string|null, canonicalPath: string|null,
 	 *     indexable: bool, links: list<array{href: string, label: string}>, redirect: string|null, resolved: bool
@@ -55,9 +119,7 @@ final class PageHeadInjector
 	 */
 	private function fetchMeta(string $path): ?array
 	{
-		$configured = $_SERVER['SFTOOLS_API_URL'] ?? $_SERVER['REDIRECT_SFTOOLS_API_URL'] ?? getenv('SFTOOLS_API_URL');
-		$apiUrl = rtrim(is_string($configured) && $configured !== '' ? $configured : self::DEFAULT_API_URL, '/');
-		$url = $apiUrl . '/v1/meta?path=' . rawurlencode($path);
+		$url = $this->apiUrl() . '/v1/meta?path=' . rawurlencode($path);
 
 		if (function_exists('curl_init')) {
 			$curl = curl_init($url);
