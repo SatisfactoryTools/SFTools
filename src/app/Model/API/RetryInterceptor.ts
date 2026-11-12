@@ -11,7 +11,10 @@ import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 const RETRY_DELAYS = [2000, 5000, 10000, 15000];
 
 /** The request never reached the application, so replaying it cannot duplicate anything - even a POST is safe. */
-const GATEWAY_STATUSES = [502, 503, 504];
+const UNREACHED_STATUSES = [502, 503];
+
+/** The application may still be running the request behind a gateway timeout, so only methods that change nothing are replayed (a replayed OAuth callback would find its state already used). */
+const TIMEOUT_STATUSES = [504];
 
 const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
@@ -57,8 +60,11 @@ export class RetryInterceptor implements HttpInterceptor
 		if (!(err instanceof HttpErrorResponse)) {
 			return false;
 		}
-		if (GATEWAY_STATUSES.includes(err.status)) {
+		if (UNREACHED_STATUSES.includes(err.status)) {
 			return true;
+		}
+		if (TIMEOUT_STATUSES.includes(err.status)) {
+			return SAFE_METHODS.includes(req.method.toUpperCase());
 		}
 		// Status 0 never completed, so only methods that change nothing are replayed. The desktop app stops once the
 		// connection is known to be gone (its offline cache answers); a website cannot tell that from a deploy refusing connections.
