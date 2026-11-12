@@ -19,8 +19,8 @@
 	></add-node-dialog>
 }
 
-@if (shareDialog.target(); as target) {
-	<plan-share-dialog [shareTarget]="target"></plan-share-dialog>
+@if (shareDialog.windowVisible()) {
+	<plan-share-dialog></plan-share-dialog>
 }
 
 @if (exportDialog.visible()) {

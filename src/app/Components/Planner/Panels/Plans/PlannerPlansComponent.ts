@@ -3,7 +3,7 @@ import {toObservable} from '@angular/core/rxjs-interop';
 import {Router} from '@angular/router';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faCaretDown, faCaretRight, faClockRotateLeft, faEllipsisVertical, faFileExport, faFileImport, faFileLines, faFolder, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes, faSquareMinus, faSquarePlus} from '@fortawesome/free-solid-svg-icons';
+import {faCaretDown, faCaretRight, faClockRotateLeft, faEllipsisVertical, faFileExport, faFileImport, faFolderPlus, faLaptop, faLayerGroup, faLock, faPlus, faShareNodes, faSquareMinus, faSquarePlus} from '@fortawesome/free-solid-svg-icons';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {SupporterBadgeComponent} from '@src/Components/Supporters/SupporterBadgeComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
@@ -53,6 +53,7 @@ import {PlanSectionContextMenu} from '@src/Components/Planner/Panels/Plans/PlanS
 import {PlanTreeIconComponent} from '@src/Components/Planner/Panels/Plans/PlanTreeIconComponent';
 import {ImportFolderName} from '@src/Model/PlanFiles/ImportFolderName';
 import {PlanFileDialogService} from '@src/Model/PlanFiles/PlanFileDialogService';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 interface FolderItem
 {
@@ -149,8 +150,6 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	public readonly faCaretRight = faCaretRight;
 	public readonly faEllipsisVertical = faEllipsisVertical;
 	public readonly faFileImport = faFileImport;
-	public readonly faFileLines = faFileLines;
-	public readonly faFolder = faFolder;
 	public readonly faFolderPlus = faFolderPlus;
 	public readonly faLaptop = faLaptop;
 	public readonly faLayerGroup = faLayerGroup;
@@ -181,9 +180,14 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 
 	@ViewChild('editInput') private editInputRef?: ElementRef<HTMLInputElement>;
 
+	public readonly plansLoading: Signal<boolean> = computed(() => this.planManager.loading() || !this.planManager.loadedForActiveVersion());
+
+	/** Until then the tree still holds the previous version's plans, or nothing at all. */
+	public readonly plansPending: Signal<boolean> = computed(() => !this.planManager.loadedForActiveVersion() || (this.planManager.loading() && this.rootEmpty()));
+
 	public readonly treeItems: Signal<TreeItem[]> = computed(() => {
 		const tree = this.planManager.planTree();
-		if (!this.foldState.isOpen(ROOT_ID)) return [];
+		if (!this.foldState.isOpen(ROOT_ID) || this.plansPending()) return [];
 		return this.flattenTree(tree.entries, this.editStateSignal());
 	});
 
@@ -196,9 +200,12 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		const isPlanEditing = (id: string): boolean =>
 			editing?.mode === 'rename-plan' && editing.targetId === id;
 
-		if (editing?.parentId === null && (editing.mode === 'new-folder' || editing.mode === 'new-plan')) {
-			items.push({type: 'input', depth: 0, mode: editing.mode === 'new-folder' ? 'folder' : 'plan', parentId: null});
-		}
+		// PlanManager puts new folders and plans first among their siblings, so the input sits where the created row will appear.
+		const addCreateInput = (parentId: string | null, depth: number): void => {
+			if (editing && editing.parentId === parentId && (editing.mode === 'new-folder' || editing.mode === 'new-plan')) {
+				items.push({type: 'input', depth, mode: editing.mode === 'new-folder' ? 'folder' : 'plan', parentId});
+			}
+		};
 
 		const addPlan = (node: PlanTreePlan, depth: number): void => {
 			const isOpen = this.foldState.isOpen(node.plan.id);
@@ -234,16 +241,14 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			});
 			if (!isOpen) return;
 
-			if (editing && editing.parentId === node.folder.id && (editing.mode === 'new-folder' || editing.mode === 'new-plan')) {
-				items.push({type: 'input', depth: depth + 1, mode: editing.mode === 'new-folder' ? 'folder' : 'plan', parentId: node.folder.id});
-			}
-
+			addCreateInput(node.folder.id, depth + 1);
 			node.entries.forEach(entry => addEntry(entry, depth + 1));
 		};
 
 		const addEntry = (entry: PlanTreeFolder | PlanTreePlan, depth: number): void =>
 			'folder' in entry ? addFolder(entry, depth) : addPlan(entry, depth);
 
+		addCreateInput(null, 0);
 		entries.forEach(entry => addEntry(entry, 0));
 
 		return items;
@@ -480,6 +485,7 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	public readonly importDialogRequest: Signal<OldToolsImportRequest | null> = this.importDialogRequestSignal.asReadonly();
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly planManager: PlanManager,
 		private readonly contextMenu: PlannerContextMenuService,
 		protected readonly platform: AppPlatform,
@@ -1008,19 +1014,19 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		}
 	}
 
-	public deleteFolder(id: string, name: string): void
+	public async deleteFolder(id: string, name: string): Promise<void>
 	{
-		if (!confirm(`Delete folder "${name}" and everything inside it?`)) return;
+		if (!await this.confirmDialog.ask({message: `Delete folder "${name}" and everything inside it?`, confirmLabel: 'Delete', danger: true})) return;
 		this.planManager.deleteFolder(id);
 	}
 
-	public deletePlan(plan: Plan): void
+	public async deletePlan(plan: Plan): Promise<void>
 	{
 		const name = this.planNames.displayName(plan);
 		const message = plan.parentPlanId !== null
 			? `Delete subplan "${name}"? Its node is also removed from the parent plan.`
 			: `Delete plan "${name}"?`;
-		if (!confirm(message)) return;
+		if (!await this.confirmDialog.ask({message, confirmLabel: 'Delete', danger: true})) return;
 		this.planManager.deletePlan(plan.id);
 	}
 
@@ -1118,9 +1124,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			return;
 		}
 		if (target.type === 'plan' && position === 'inside' && item.type === 'plan') {
-			if (this.confirmPlanMove(item.id, null, target.plan.id)) {
-				this.planManager.placePlan(item.id, null, target.plan.id, null);
-			}
+			void this.confirmPlanMove(item.id, null, target.plan.id).then(confirmed => {
+				if (confirmed) {
+					this.planManager.placePlan(item.id, null, target.plan.id, null);
+				}
+			});
 			return;
 		}
 		this.dropBeside(item, target, position === 'after');
@@ -1335,11 +1343,17 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 	private dropInto(item: {type: 'plan' | 'folder'; id: string}, folderId: string | null): void
 	{
 		if (item.type === 'plan') {
-			if (this.confirmPlanMove(item.id, folderId, null)) {
-				this.planManager.movePlan(item.id, folderId);
-			}
-		} else if (this.confirmFolderMove(item.id, folderId)) {
-			this.planManager.moveFolder(item.id, folderId);
+			void this.confirmPlanMove(item.id, folderId, null).then(confirmed => {
+				if (confirmed) {
+					this.planManager.movePlan(item.id, folderId);
+				}
+			});
+		} else {
+			void this.confirmFolderMove(item.id, folderId).then(confirmed => {
+				if (confirmed) {
+					this.planManager.moveFolder(item.id, folderId);
+				}
+			});
 		}
 	}
 
@@ -1353,9 +1367,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			}
 			const siblings = this.planManager.siblingPlans(targetPlan.folderId, targetPlan.parentPlanId).filter(p => p.id !== item.id);
 			const index = siblings.findIndex(p => p.id === targetPlan.id);
-			if (this.confirmPlanMove(item.id, targetPlan.folderId, targetPlan.parentPlanId)) {
-				this.planManager.placePlan(item.id, targetPlan.folderId, targetPlan.parentPlanId, index < 0 ? null : index + (after ? 1 : 0));
-			}
+			void this.confirmPlanMove(item.id, targetPlan.folderId, targetPlan.parentPlanId).then(confirmed => {
+				if (confirmed) {
+					this.planManager.placePlan(item.id, targetPlan.folderId, targetPlan.parentPlanId, index < 0 ? null : index + (after ? 1 : 0));
+				}
+			});
 			return;
 		}
 
@@ -1367,15 +1383,21 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 		const index = siblings.findIndex(e => e.id === targetId);
 		const position = index < 0 ? null : index + (after ? 1 : 0);
 		if (item.type === 'folder') {
-			if (this.confirmFolderMove(item.id, folderId)) {
-				this.planManager.placeFolder(item.id, folderId, position);
-			}
-		} else if (this.confirmPlanMove(item.id, folderId, null)) {
-			this.planManager.placePlan(item.id, folderId, null, position);
+			void this.confirmFolderMove(item.id, folderId).then(confirmed => {
+				if (confirmed) {
+					this.planManager.placeFolder(item.id, folderId, position);
+				}
+			});
+		} else {
+			void this.confirmPlanMove(item.id, folderId, null).then(confirmed => {
+				if (confirmed) {
+					this.planManager.placePlan(item.id, folderId, null, position);
+				}
+			});
 		}
 	}
 
-	private confirmPlanMove(planId: string, folderId: string | null, parentPlanId: string | null): boolean
+	private async confirmPlanMove(planId: string, folderId: string | null, parentPlanId: string | null): Promise<boolean>
 	{
 		const plans = this.planManager.plans();
 		const plan = plans.find(p => p.id === planId);
@@ -1389,10 +1411,13 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			return true;
 		}
 		const groups = fixed.fixedGroups.map(group => SettingsGroups.labelOf(group)).join(', ');
-		return confirm(`Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings will be replaced by the folder's settings.`);
+		return this.confirmDialog.ask({
+			message: `Move "${this.planNames.displayName(plan)}" into "${fixed.name}"? Its ${groups} settings will be replaced by the folder's settings.`,
+			confirmLabel: 'Move',
+		});
 	}
 
-	private confirmFolderMove(folderId: string, newParentId: string | null): boolean
+	private async confirmFolderMove(folderId: string, newParentId: string | null): Promise<boolean>
 	{
 		const folders = this.planManager.folders();
 		const fixed = this.planManager.fixedFolderForFolder(newParentId);
@@ -1405,8 +1430,11 @@ export class PlannerPlansComponent implements AfterViewChecked, OnDestroy, PlanT
 			return true;
 		}
 		const names = withSettings.map(f => `"${f.name}"`).join(', ');
-		return confirm(`Move "${moved.name}" into "${fixed.name}"? ${names} ${withSettings.length === 1 ? 'loses its' : 'lose their'} custom settings. `
-			+ `"${fixed.name}" fixes the settings for everything inside it.`);
+		return this.confirmDialog.ask({
+			message: `Move "${moved.name}" into "${fixed.name}"? ${names} ${withSettings.length === 1 ? 'loses its' : 'lose their'} custom settings. `
+				+ `"${fixed.name}" fixes the settings for everything inside it.`,
+			confirmLabel: 'Move',
+		});
 	}
 
 	private isInside(folder: Folder, ancestorId: string, folders: Folder[]): boolean

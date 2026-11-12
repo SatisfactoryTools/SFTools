@@ -36,6 +36,8 @@ export class NodeContextMenu extends PlannerContextMenu
 		private readonly actions: PlannerActionsService,
 		private readonly panelLayout: PanelLayoutService,
 		private readonly plannerGraph: PlannerGraphService,
+		/** Opened from the inspector: inspecting, locking and opening a subplan are buttons there already. */
+		private readonly inInspector = false,
 	)
 	{
 		super();
@@ -48,7 +50,7 @@ export class NodeContextMenu extends PlannerContextMenu
 
 	public getItems(): ContextMenuItem[]
 	{
-		const items: ContextMenuItem[] = [
+		const items: ContextMenuItem[] = this.inInspector ? [] : [
 			{
 				label: 'Inspect node…',
 				icon: faCrosshairs,
@@ -63,12 +65,14 @@ export class NodeContextMenu extends PlannerContextMenu
 
 		if (this.node instanceof SubplanNode) {
 			const subplanId = this.node.subplanId;
-			items.push({
-				label: 'Open subplan',
-				icon: faFolderOpen,
-				hotkey: 'graph.openSubplan',
-				action: () => this.actions.requestSubplanOpen(subplanId),
-			});
+			if (!this.inInspector) {
+				items.push({
+					label: 'Open subplan',
+					icon: faFolderOpen,
+					hotkey: 'graph.openSubplan',
+					action: () => this.actions.requestSubplanOpen(subplanId),
+				});
+			}
 			items.push({
 				label: 'Unpack subplan',
 				icon: faBoxOpen,
@@ -85,7 +89,7 @@ export class NodeContextMenu extends PlannerContextMenu
 			});
 		}
 
-		if (this.node.canToggleLock()) {
+		if (this.node.canToggleLock() && !this.inInspector) {
 			items.push({
 				label: this.node.locked ? 'Unlock node' : 'Lock node',
 				icon: this.node.locked ? faLockOpen : faLock,

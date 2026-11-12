@@ -1,4 +1,5 @@
 import {Injectable, OnDestroy, Signal, signal, untracked} from '@angular/core';
+import {toObservable} from '@angular/core/rxjs-interop';
 import {faCircleCheck, faLock, faTriangleExclamation, IconDefinition} from '@fortawesome/free-solid-svg-icons';
 import {Cell, Edge as X6Edge, EdgeToolNativeItem, EdgeView, Export, Graph as X6Graph, Node as X6Node, Selection} from '@antv/x6';
 import type {Metadata as PortsMetadata, PortMetadata} from '@antv/x6/lib/model/port';
@@ -7,11 +8,12 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 import type {ElkExtendedEdge, ElkNode} from 'elkjs';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {Observable, Subject, Subscription} from 'rxjs';
-import {debounceTime} from 'rxjs/operators';
+import {debounceTime, skip} from 'rxjs/operators';
 import {GraphContextMenuRequest} from '@src/Components/Planner/GraphContextMenuRequest';
 import {ExportBox} from '@src/Model/Export/ExportBox';
 import {GraphSvgCleaner} from '@src/Model/Export/GraphSvgCleaner';
 import {GraphSvgSnapshot} from '@src/Model/Export/GraphSvgSnapshot';
+import {GraphLayoutLockService} from '@src/Components/Planner/GraphLayoutLockService';
 import {GraphTouchGestures} from '@src/Components/Planner/GraphTouchGestures';
 import {GraphEdgeAddRequest} from '@src/Components/Planner/GraphEdgeAddRequest';
 import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
@@ -501,8 +503,10 @@ export class PlannerGraphService implements OnDestroy
 		private readonly graphLayout: GraphLayoutResolver,
 		private readonly svgCleaner: GraphSvgCleaner,
 		private readonly contextMenu: PlannerContextMenuService,
+		private readonly layoutLock: GraphLayoutLockService,
 	)
 	{
+		toObservable(layoutLock.locked).pipe(skip(1)).subscribe(locked => this.onLayoutLockChanged(locked));
 		this.edgeHoverListener = e => this.onEdgeHoverMove(e);
 		this.pressListener = e => this.onCanvasPress(e);
 		this.releaseListener = e => this.onCanvasRelease(e);
@@ -1024,7 +1028,8 @@ export class PlannerGraphService implements OnDestroy
 			autoResize: true,
 			panning: true,
 			mousewheel: true,
-			interacting: this.readOnly ? false : {edgeMovable: false},
+			// A function, so the layout lock applies without rebuilding the graph. A node that cannot move pans the canvas instead (x6 does that itself).
+			interacting: this.readOnly ? false : () => ({edgeMovable: false, nodeMovable: !this.layoutLock.locked()}),
 			connecting: {
 				snap: {radius: CONNECT_SNAP_RADIUS},
 				allowBlank: true,
@@ -2044,7 +2049,7 @@ export class PlannerGraphService implements OnDestroy
 			return;
 		}
 		// Over a label a press drags the label, so no corner is offered there.
-		if (this.readOnly || this.hoveredLabelEdgeId !== null) {
+		if (this.layoutFrozen() || this.hoveredLabelEdgeId !== null) {
 			this.hideCornerPreview();
 			return;
 		}
@@ -2216,7 +2221,7 @@ export class PlannerGraphService implements OnDestroy
 			this.releaseTouchedEdge();
 		}
 		this.hoveredEdgeView = view;
-		if (!this.readOnly && !edge.hasTools()) {
+		if (!this.layoutFrozen() && !edge.hasTools()) {
 			edge.addTools([this.verticesTool()]);
 		}
 		this.applyEdgeHover(view, edge, true);
@@ -2310,6 +2315,41 @@ export class PlannerGraphService implements OnDestroy
 			// focusPanel, not openPanel: an inspector hidden behind another tab must come to the front.
 			this.panelLayout.focusPanel('inspector');
 		}
+	}
+
+	/** The inspector's ⋮ button: the menu a right-click on the selection opens, for touch screens where a long press is unreliable. */
+	public openSelectionMenu(clientX: number, clientY: number): void
+	{
+		const local = this.x6Graph?.clientToLocal(clientX, clientY) ?? {x: 0, y: 0};
+		const edge = this.selectedEdgeSignal();
+		if (edge !== null) {
+			this.contextMenuSubject.next({clientX, clientY, local, nodes: [], edge, inInspector: true});
+			return;
+		}
+		const nodes = this.selectedNodesSignal();
+		if (nodes.length > 0) {
+			this.contextMenuSubject.next({clientX, clientY, local, nodes, inInspector: true});
+		}
+	}
+
+	/** Positions are frozen: nodes, connection corners and connection labels. Connecting ports still works. */
+	private layoutFrozen(): boolean
+	{
+		return this.readOnly || this.layoutLock.locked();
+	}
+
+	private onLayoutLockChanged(locked: boolean): void
+	{
+		if (!locked || !this.x6Graph) {
+			return;
+		}
+		this.hideCornerPreview();
+		this.setHoveredLabel(null);
+		this.x6Graph.getEdges().forEach(edge => {
+			if (edge.hasTools()) {
+				edge.removeTools();
+			}
+		});
 	}
 
 	private isNativeContextMenuSuppressed(): boolean
@@ -2662,7 +2702,7 @@ export class PlannerGraphService implements OnDestroy
 	private onLabelDragMove(e: MouseEvent): void
 	{
 		const drag = this.labelDrag;
-		if (!drag || !this.x6Graph || this.readOnly) {
+		if (!drag || !this.x6Graph || this.layoutFrozen()) {
 			return;
 		}
 		if (!drag.moved) {
@@ -2765,7 +2805,7 @@ export class PlannerGraphService implements OnDestroy
 		if (cellId !== null) {
 			this.edgeViewOf(cellId)?.addClass(LABEL_HOVER_CLASS);
 		}
-		this.x6Graph?.container.classList.toggle(LABEL_GRAB_CLASS, cellId !== null && !this.readOnly);
+		this.x6Graph?.container.classList.toggle(LABEL_GRAB_CLASS, cellId !== null && !this.layoutFrozen());
 	}
 
 	private singleLineMachines(): boolean

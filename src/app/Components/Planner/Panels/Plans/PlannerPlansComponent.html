@@ -15,7 +15,11 @@
 		<fa-icon class="tree-section-caret" [icon]="rootOpen() ? faCaretDown : faCaretRight"></fa-icon>
 		<fa-icon class="tree-section-icon" [icon]="faLayerGroup"></fa-icon>
 		<span class="tree-section-label">Your plans</span>
-		<span class="tree-section-count">{{ planCount() }}</span>
+		@if (plansLoading()) {
+			<span class="spinner-border spinner-border-sm tree-section-spinner" role="status" aria-label="Loading plans"></span>
+		} @else {
+			<span class="tree-section-count">{{ planCount() }}</span>
+		}
 		<span class="tree-section-actions" (click)="$event.stopPropagation()">
 			<button class="btn btn-outline-success btn-sm tree-create" type="button" (click)="startCreateFolder(currentFolderId())" [tooltip]="'New folder' + hotkeys.suffix('plans.newFolder')" placement="top" aria-label="New folder"><fa-icon [icon]="faFolderPlus"></fa-icon></button>
 			<button class="btn btn-success btn-sm tree-create" type="button" (click)="startCreatePlan(currentFolderId())" [tooltip]="'New plan' + hotkeys.suffix('plans.newPlan')" placement="top" aria-label="New plan"><fa-icon [icon]="faPlus"></fa-icon></button>
@@ -23,14 +27,18 @@
 		</span>
 	</div>
 
-	@if (rootOpen() && rootEmpty() && !editState()) {
+	@if (rootOpen() && plansPending()) {
+		<div class="tree-empty d-flex align-items-center gap-2">
+			<span class="spinner-border spinner-border-sm" role="status"></span> Loading your plans…
+		</div>
+	} @else if (rootOpen() && rootEmpty() && !editState()) {
 		<div class="tree-empty">No plans yet. Press New plan above to start your first factory.</div>
 	}
 
 	@for (item of treeItems(); track item.type + ':' + (item.type === 'plan' ? item.plan.id : item.type === 'folder' ? item.id : item.parentId + ':' + item.mode)) {
 		@if (item.type === 'input') {
 			<div class="d-flex align-items-center gap-1 tree-row" [style.padding-left.rem]="item.depth * 1 + (item.mode === 'folder' ? 1.5 : 1.5)">
-				<span class="text-secondary"><fa-icon [icon]="item.mode === 'folder' ? faFolder : faFileLines"></fa-icon></span>
+				<plan-tree-icon [kind]="item.mode"></plan-tree-icon>
 				<input
 					#editInput
 					class="form-control tree-edit bg-dark text-light border-secondary flex-grow-1"

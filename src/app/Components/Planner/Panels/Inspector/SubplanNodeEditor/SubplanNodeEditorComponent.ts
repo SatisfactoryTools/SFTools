@@ -16,6 +16,7 @@ import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
 
 const APPLY_DEBOUNCE_MS = 400;
 
@@ -23,7 +24,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'subplan-node-editor',
 	templateUrl: './SubplanNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
+	imports: [InspectorMenuButtonComponent, FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
 	styles: [`
 		.io-tiles {
 			display: flex;

@@ -18,6 +18,8 @@ export class EdgeContextMenu extends PlannerContextMenu
 		private readonly actions: PlannerActionsService,
 		private readonly panelLayout: PanelLayoutService,
 		private readonly plannerGraph: PlannerGraphService,
+		/** Opened from the inspector: inspecting and the done toggle are buttons there already. */
+		private readonly inInspector = false,
 	)
 	{
 		super();
@@ -30,7 +32,7 @@ export class EdgeContextMenu extends PlannerContextMenu
 
 	public getItems(): ContextMenuItem[]
 	{
-		return [
+		const inspectorButtons: ContextMenuItem[] = this.inInspector ? [] : [
 			{
 				label: 'Inspect connection…',
 				icon: faCrosshairs,
@@ -47,6 +49,9 @@ export class EdgeContextMenu extends PlannerContextMenu
 				hotkey: 'graph.toggleDone',
 				action: () => this.actions.requestEdgeDone({edges: [this.edge], done: !this.edge.done}),
 			},
+		];
+		return [
+			...inspectorButtons,
 			this.amountItem('Minimise', faCompress, this.minimise),
 			this.amountItem('Maximise', faExpand, this.maximise),
 			{

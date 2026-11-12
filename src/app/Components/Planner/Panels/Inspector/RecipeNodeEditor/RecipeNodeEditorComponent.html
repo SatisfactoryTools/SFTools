@@ -14,6 +14,7 @@
 				[tooltip]="lockTooltip" container="body" placement="left"
 				(click)="toggleLock()"
 			><fa-icon [icon]="node.locked ? faLock : faLockOpen" [fixedWidth]="true"></fa-icon></button>
+			<inspector-menu-button/>
 		</div>
 		<div class="card-body p-2 d-flex flex-column gap-2">
 

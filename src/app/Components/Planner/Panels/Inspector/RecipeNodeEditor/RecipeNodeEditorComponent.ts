@@ -23,6 +23,8 @@ import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
+import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
 
 const APPLY_DEBOUNCE_MS = 400;
 
@@ -30,7 +32,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'recipe-node-editor',
 	templateUrl: './RecipeNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, BsDropdownModule, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent, GoToNodeButtonComponent],
+	imports: [InspectorMenuButtonComponent, FormsModule, FaIconComponent, BsDropdownModule, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent, GoToNodeButtonComponent],
 	styles: [`
 		@container panel (max-width: 300px) {
 			.groups-table td.stack-grow {
@@ -120,6 +122,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	private applyLocks = false;
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly actions: PlannerActionsService,
 		private readonly normalizer: MachineGroupNormalizer,
 		private readonly clocks: ClockSpeedResolver,
@@ -296,13 +299,13 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return this.groupingOptions.find(option => option.mode === this.groupingMode)?.label ?? '';
 	}
 
-	public calculate(): void
+	public async calculate(): Promise<void>
 	{
 		const machine = this.selectedMachine;
 		if (!machine || this.outputCycles <= 0) {
 			return;
 		}
-		if (!confirm('Replace the current machine groups with the calculated ones?')) {
+		if (!await this.confirmDialog.ask({message: 'Replace the current machine groups with the calculated ones?', confirmLabel: 'Replace'})) {
 			return;
 		}
 		this.groups = this.normalizer

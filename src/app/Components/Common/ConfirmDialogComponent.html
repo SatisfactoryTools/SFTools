@@ -1,0 +1,21 @@
+@if (dialog.request(); as request) {
+	<div class="confirm-backdrop" hotkeyBlock (click)="answer(false)">
+		<div class="confirm-dialog card" role="alertdialog" aria-modal="true" [attr.aria-label]="request.title ?? 'Confirm'" (click)="$event.stopPropagation()">
+			@if (request.title) {
+				<div class="card-header fw-semibold">{{ request.title }}</div>
+			}
+			<div class="card-body confirm-message">{{ request.message }}</div>
+			<div class="card-footer d-flex justify-content-end gap-2 confirm-buttons">
+				<button type="button" class="btn btn-sm btn-secondary" (click)="answer(false)">{{ request.cancelLabel ?? 'Cancel' }}</button>
+				<button
+					type="button"
+					class="btn btn-sm"
+					[class.btn-danger]="request.danger"
+					[class.btn-primary]="!request.danger"
+					focusOnInit
+					(click)="answer(true)"
+				>{{ request.confirmLabel ?? 'OK' }}</button>
+			</div>
+		</div>
+	</div>
+}

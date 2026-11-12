@@ -7,6 +7,7 @@ import {Game} from '@src/Model/Game/Game';
 import {GameEditor} from '@src/Model/Game/GameEditor';
 import {GameLabels} from '@src/Model/Game/GameLabels';
 import {GameManager} from '@src/Model/Game/GameManager';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 /** The one place the map names the game: most people only ever see their save's name here. */
 @Component({
@@ -69,6 +70,7 @@ export class MapGameComponent
 	@Output() public readonly load = new EventEmitter<void>();
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		public readonly games: GameManager,
 		public readonly labels: GameLabels,
 		private readonly editor: GameEditor,
@@ -81,9 +83,9 @@ export class MapGameComponent
 		this.editor.select(game.id);
 	}
 
-	public remove(game: Game): void
+	public async remove(game: Game): Promise<void>
 	{
-		if (confirm(`Remove "${this.labels.name(game)}" from the map? Its taken nodes and collected items are forgotten; your plans stay.`)) {
+		if (await this.confirmDialog.ask({message: `Remove "${this.labels.name(game)}" from the map? Its taken nodes and collected items are forgotten; your plans stay.`, confirmLabel: 'Remove', danger: true})) {
 			this.editor.remove(game.id);
 		}
 	}

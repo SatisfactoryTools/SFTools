@@ -1,20 +1,26 @@
 /// <reference lib="webworker" />
 import type {HighsSolution} from '@src/Model/Planner/Solver/HighsSolution';
-import type {SolverWorkerRequest} from './SolverWorkerRequest';
-import type {SolverWorkerResponse} from './SolverWorkerResponse';
+import type {SolverWorkerCommand} from './SolverWorkerCommand';
+import type {SolverWorkerMessage} from './SolverWorkerMessage';
 
 type HighsInstance = {solve: (problem: string, opts?: object) => HighsSolution};
 type HighsFactory = (opts: {locateFile: (file: string) => string}) => Promise<HighsInstance>;
 type SolutionWithRaw = {Columns?: Record<string, {Primal?: number}>; raw?: string};
 
 let highs: HighsInstance | null = null;
+let highsPromise: Promise<HighsInstance> | null = null;
+const cancelledIds = new Set<string>();
 
 // highs.js is CJS and cannot be imported directly: fetched as text, given an ESM export and import()ed via a Blob URL,
 // which bypasses Vite's @fs/ resolution in dev and avoids importScripts(), which module workers lack.
 async function loadHighs(): Promise<HighsInstance>
 {
     const base = `${self.location.origin}/assets`;
-    const text = await fetch(`${base}/highs.js`).then(r => r.text());
+    const response = await fetch(`${base}/highs.js`);
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+    const text = await response.text();
     const blob = new Blob([patchSolutionPrecision(text), '\nexport default Module;'], {type: 'application/javascript'});
     const blobUrl = URL.createObjectURL(blob);
     try {
@@ -78,13 +84,45 @@ function restoreFullPrecisionPrimals(solution: SolutionWithRaw): void
     }
 }
 
-addEventListener('message', async ({data}: MessageEvent<SolverWorkerRequest>) => {
+// Started as soon as the worker exists, so highs.wasm is usually downloaded before the first calculation.
+// A failed download is forgotten so the next calculation retries it.
+function getHighs(): Promise<HighsInstance>
+{
+    if (highsPromise === null) {
+        highsPromise = loadHighs().then(
+            instance => highs = instance,
+            (e: unknown) => {
+                highsPromise = null;
+                throw new Error(`The calculation engine could not be downloaded: ${e instanceof Error ? e.message : String(e)}`);
+            },
+        );
+    }
+    return highsPromise;
+}
+
+function send(message: SolverWorkerMessage): void
+{
+    postMessage(message);
+}
+
+getHighs().catch(() => undefined);
+
+addEventListener('message', async ({data}: MessageEvent<SolverWorkerCommand>) => {
+    if (data.type === 'cancel') {
+        cancelledIds.add(data.id);
+        return;
+    }
     const {id, problem, options} = data;
     try {
         if (highs === null) {
-            highs = await loadHighs();
+            send({type: 'progress', id, stage: 'loading'});
         }
-        const solution = highs.solve(problem, {
+        const instance = await getHighs();
+        if (cancelledIds.delete(id)) {
+            return;
+        }
+        send({type: 'progress', id, stage: 'solving'});
+        const solution = instance.solve(problem, {
             presolve: 'on',
             mip_heuristic_effort: 0.3,
             mip_detect_symmetry: true,
@@ -94,8 +132,10 @@ addEventListener('message', async ({data}: MessageEvent<SolverWorkerRequest>) =>
             dual_feasibility_tolerance: 1e-9,
         });
         restoreFullPrecisionPrimals(solution as SolutionWithRaw);
-        postMessage({id, solution, error: null} satisfies SolverWorkerResponse);
+        send({type: 'result', id, solution, error: null});
     } catch (e) {
-        postMessage({id, solution: null, error: String(e)} satisfies SolverWorkerResponse);
+        if (!cancelledIds.delete(id)) {
+            send({type: 'result', id, solution: null, error: e instanceof Error ? e.message : String(e)});
+        }
     }
 });

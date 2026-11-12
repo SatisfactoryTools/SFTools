@@ -1,5 +1,14 @@
 <button class="zb" type="button" [tooltip]="'Undo' + hotkeys.suffix('planner.undo')" placement="right" [disabled]="!history.canUndo()" (click)="undo()"><fa-icon [icon]="faArrowRotateLeft"></fa-icon></button>
 <button class="zb" type="button" [tooltip]="'Redo' + hotkeys.suffix('planner.redo')" placement="right" [disabled]="!history.canRedo()" (click)="redo()"><fa-icon [icon]="faArrowRotateRight"></fa-icon></button>
+<button
+	class="zb"
+	type="button"
+	[class.zb-on]="layoutLock.locked()"
+	[attr.aria-pressed]="layoutLock.locked()"
+	[tooltip]="(layoutLock.locked() ? 'Unlock moving nodes and connections' : 'Lock moving nodes and connections') + hotkeys.suffix('planner.lockLayout')"
+	placement="right"
+	(click)="layoutLock.toggle()"
+><span class="lock-icon"><fa-icon [icon]="faUpDownLeftRight"></fa-icon><fa-icon class="lock-badge" [icon]="layoutLock.locked() ? faLock : faLockOpen"></fa-icon></span></button>
 <button class="zb" type="button" [tooltip]="'Zoom in' + hotkeys.suffix('planner.zoomIn')" placement="right" (click)="zoomIn()"><fa-icon [icon]="faPlus"></fa-icon></button>
 <button class="zb" type="button" [tooltip]="'Zoom out' + hotkeys.suffix('planner.zoomOut')" placement="right" (click)="zoomOut()"><fa-icon [icon]="faMinus"></fa-icon></button>
 <button class="zb" type="button" [tooltip]="'Zoom to fit' + hotkeys.suffix('planner.zoomFit')" placement="right" (click)="zoomFit()"><fa-icon [icon]="faExpand"></fa-icon></button>

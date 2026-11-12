@@ -109,6 +109,7 @@ import {ShareMetaResolver} from '@src/Model/Meta/ShareMetaResolver';
 import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
 import {PlanLinkUnavailableDialogComponent} from '@src/Components/Planner/Share/PlanLinkUnavailableDialogComponent';
 import {PlanShareDialogComponent} from '@src/Components/Planner/Share/PlanShareDialogComponent';
+import {GraphLayoutLockService} from '@src/Components/Planner/GraphLayoutLockService';
 import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogService';
 import {GraphExportDialogComponent} from '@src/Components/Planner/Export/GraphExportDialogComponent';
 import {PlanExportDialogComponent} from '@src/Components/Planner/PlanFiles/PlanExportDialogComponent';
@@ -116,6 +117,7 @@ import {PlanImportDialogComponent} from '@src/Components/Planner/PlanFiles/PlanI
 import {PlanFileDialogService} from '@src/Model/PlanFiles/PlanFileDialogService';
 import {GraphExportDialogService} from '@src/Components/Planner/Export/GraphExportDialogService';
 import {SolveSettingsError} from '@src/Model/Planner/Solver/SolveSettingsError';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 // Matches the reconciler's absolute warning tolerance.
 const FLOW_TOLERANCE = 0.001;
@@ -175,6 +177,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 	public readonly addNodeSuggestedAmount = this.addNodeSuggestedAmountSignal.asReadonly();
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
+		private readonly layoutLock: GraphLayoutLockService,
 		private readonly planManager: PlanManager,
 		private readonly planSerializer: PlanSerializer,
 		private readonly productionSolver: ProductionSolverService,
@@ -787,6 +791,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.hotkeys.register('planner.zoomOut', () => this.plannerGraph.zoomOut()),
 			this.hotkeys.register('planner.zoomFit', () => this.plannerGraph.zoomFit()),
 			this.hotkeys.register('planner.export', () => this.exportDialog.open()),
+			this.hotkeys.register('planner.lockLayout', () => this.layoutLock.toggle()),
 		);
 		CalculatorTabHotkeys.ENTRIES.forEach(entry => {
 			this.hotkeyRegistrations.push(this.hotkeys.register(entry.action, () => {
@@ -834,23 +839,23 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 		let menu: PlannerContextMenu;
 		if (request.edge) {
-			menu = this.edgeContextMenu(request.edge);
+			menu = this.edgeContextMenu(request.edge, request.inInspector === true);
 		} else if (request.nodes.length === 0) {
 			menu = new BlankContextMenu(this.actions, request.local, this.planManager.activePlan() !== null);
 		} else if (request.nodes.length === 1) {
 			menu = new NodeContextMenu(request.nodes[0], this.nodeResizeOptions(request.nodes[0]), this.nodeSplitOptions(request.nodes[0]),
 				this.nodeTypeConverter.converted(request.nodes[0], this.versionManager.activeVersionData()),
-				this.actions, this.panelLayout, this.plannerGraph);
+				this.actions, this.panelLayout, this.plannerGraph, request.inInspector === true);
 		} else {
 			menu = new MultiNodeContextMenu(request.nodes, this.nodeMerger.blocker(request.nodes), this.actions);
 		}
 		this.contextMenu.open(menu, request.clientX, request.clientY);
 	}
 
-	private edgeContextMenu(edge: GraphEdge): EdgeContextMenu
+	private edgeContextMenu(edge: GraphEdge, inInspector = false): EdgeContextMenu
 	{
 		const amounts = this.edgeAmountActions(edge);
-		return new EdgeContextMenu(edge, this.edgeMenuTitle(edge), amounts.minimise, amounts.maximise, this.actions, this.panelLayout, this.plannerGraph);
+		return new EdgeContextMenu(edge, this.edgeMenuTitle(edge), amounts.minimise, amounts.maximise, this.actions, this.panelLayout, this.plannerGraph, inInspector);
 	}
 
 	private edgeMenuTitle(edge: GraphEdge): string
@@ -1241,7 +1246,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 	}
 
 	/** Undo only restores the parent graph - a deleted subplan comes back as a dangling node. */
-	private applyNodeDelete(nodeIds: string[]): void
+	private applyNodeDelete(nodeIds: string[], confirmed = false): void
 	{
 		if (this.planManager.activePlanReadOnly()) {
 			return;
@@ -1266,14 +1271,18 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 
 		const subplans = removed.filter((node): node is SubplanNode => node instanceof SubplanNode);
-		if (subplans.length > 0) {
+		if (subplans.length > 0 && !confirmed) {
 			const names = subplans.map(node => `"${node.getDisplayName()}"`).join(', ');
 			const message = subplans.length === 1
 				? `Delete subplan ${names}? This also removes it from your plans.`
 				: `Delete subplans ${names}? This also removes them from your plans.`;
-			if (!confirm(message)) {
-				return;
-			}
+			// Started again from the top once answered: the graph may have been recalculated while the question was open.
+			void this.confirmDialog.ask({message, confirmLabel: 'Delete', danger: true}).then(yes => {
+				if (yes) {
+					this.applyNodeDelete(nodeIds, true);
+				}
+			});
+			return;
 		}
 
 		this.history.push(this.snapshotOf(plan));

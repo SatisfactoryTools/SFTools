@@ -14,6 +14,7 @@ import {OAuthFlowStore} from '@src/Model/Auth/OAuthFlowStore';
 import {OAuthProviderInfo} from '@src/Model/Auth/OAuthProviderInfo';
 import {OAuthProviders} from '@src/Model/Auth/OAuthProviders';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	templateUrl: './AccountComponent.html',
@@ -66,6 +67,7 @@ export class AccountComponent
 	public startingProvider: string | null = null;
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly oauthApiService: OAuthApiService,
 		protected readonly authService: AuthService,
 		protected readonly account: AccountProfileService,
@@ -189,9 +191,9 @@ export class AccountComponent
 		});
 	}
 
-	public disconnect(provider: OAuthProviderInfo): void
+	public async disconnect(provider: OAuthProviderInfo): Promise<void>
 	{
-		if (!confirm(`Disconnect ${provider.label} from your account?`)) {
+		if (!await this.confirmDialog.ask({message: `Disconnect ${provider.label} from your account?`, confirmLabel: 'Disconnect', danger: true})) {
 			return;
 		}
 		this.error = null;

@@ -90,7 +90,7 @@ export class GraphReconciler
 		}
 		const produced = this.producedOutputs(node).get(itemClassName) ?? 0;
 		const sent = this.sumEdges(graph.edges, edge => edge.sourceId === nodeId && edge.itemClassName === itemClassName);
-		return Math.max(0, produced - sent);
+		return this.withoutNoise(produced - sent, produced);
 	}
 
 	public remainingDemand(graph: Graph, nodeId: string, itemClassName: string): number
@@ -101,7 +101,13 @@ export class GraphReconciler
 		}
 		const required = this.requiredInputs(node).get(itemClassName) ?? 0;
 		const supplied = this.sumEdges(graph.edges, edge => edge.targetId === nodeId && edge.itemClassName === itemClassName);
-		return Math.max(0, required - supplied);
+		return this.withoutNoise(required - supplied, required);
+	}
+
+	/** A port that is fully used up is often left with solver noise (1e-9 and the like), which then showed up as a suggested rate; the same tolerance as the flow warnings makes it 0. */
+	private withoutNoise(free: number, total: number): number
+	{
+		return free > Math.max(ABSOLUTE_TOLERANCE, TOLERANCE * Math.abs(total)) ? free : 0;
 	}
 
 	/** Compares two locally computed numbers, so unlike the flow warnings no solver-noise tolerance applies. */

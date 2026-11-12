@@ -198,6 +198,14 @@
 	margin: 0.15rem 0 0.4rem;
 }
 
+.tree-section-spinner {
+	width: 0.8rem;
+	height: 0.8rem;
+	border-width: 0.15em;
+	color: #9fb0c0;
+	flex-shrink: 0;
+}
+
 .tree-empty {
 	padding: 0.35rem 0.5rem 0.5rem 1.6rem;
 	font-size: 0.875rem;

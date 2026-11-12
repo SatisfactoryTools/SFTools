@@ -5,12 +5,14 @@ import {CalculatorTab} from '@src/Components/Planner/Panels/Calculator/Calculato
 import {CalculatorTabDefinition} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinition';
 import {CalculatorTabDefinitions} from '@src/Components/Planner/Panels/Calculator/CalculatorTabDefinitions';
 import {RailSize} from '@src/Model/Settings/RailSize';
+import {ShareLinkMode} from '@src/Model/Settings/ShareLinkMode';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
 import {TabLabelsMode} from '@src/Model/Settings/TabLabelsMode';
 import {UnmakeableItemsDisplay} from '@src/Model/Settings/UnmakeableItemsDisplay';
 import {SettingResetButtonComponent} from '@src/Components/Settings/SettingResetButtonComponent';
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {faTableColumns} from '@fortawesome/free-solid-svg-icons';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	selector: 'settings-planner',
@@ -55,7 +57,10 @@ export class SettingsPlannerComponent
 		},
 	];
 
-	public constructor(private readonly settings: SettingsManager)
+	public constructor(
+		private readonly settings: SettingsManager,
+		private readonly confirmDialog: ConfirmDialogService,
+	)
 	{
 	}
 
@@ -167,14 +172,45 @@ export class SettingsPlannerComponent
 		this.settings.updatePlanner({supporterHearts: value});
 	}
 
+	public readonly shareLinkOptions: {value: ShareLinkMode; label: string; description: string}[] = [
+		{value: 'snapshot', label: 'Send a snapshot', description: 'A copy of the plan as it is now. It never changes. Works without an account.'},
+		{value: 'live', label: 'Send the plan itself', description: 'The other person sees it read-only, with your later changes. Folders and plans saved only on this device are still sent as a snapshot.'},
+		{value: 'ask', label: 'Ask each time', description: 'Share opens a window where you pick the kind of link.'},
+	];
+
+	public get shareLink(): ShareLinkMode
+	{
+		return this.settings.planner().shareLink;
+	}
+
+	public setShareLink(value: ShareLinkMode): void
+	{
+		this.settings.updatePlanner({shareLink: value});
+	}
+
+	public get shareLinkDescription(): string
+	{
+		return this.shareLinkOptions.find(option => option.value === this.shareLink)?.description ?? '';
+	}
+
+	public get keepShareWindowOpen(): boolean
+	{
+		return this.settings.planner().keepShareWindowOpen;
+	}
+
+	public setKeepShareWindowOpen(value: boolean): void
+	{
+		this.settings.updatePlanner({keepShareWindowOpen: value});
+	}
+
 	public get unmakeableItemsDescription(): string
 	{
 		return this.unmakeableItemsOptions.find(option => option.value === this.unmakeableItems)?.description ?? '';
 	}
 
-	public resetPanels(): void
+	public async resetPanels(): Promise<void>
 	{
-		if (confirm('Reset all planner panel positions and sizes?')) {
+		if (await this.confirmDialog.ask({message: 'Reset all planner panel positions and sizes?', confirmLabel: 'Reset', danger: true})) {
 			this.settings.updatePanels(null);
 		}
 	}

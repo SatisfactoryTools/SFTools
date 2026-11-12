@@ -344,6 +344,24 @@ export class ProductionSolverService
 		return weights;
 	}
 
+	/**
+	 * Far below every real goal so it only picks between equally good answers,
+	 * but kept above HiGHS's 1e-7 cost tolerance, under which it would be ignored.
+	 */
+	private tieBreakCost(request: SolverRequest): number
+	{
+		const optimisation = request.optimisation;
+		const weights = [
+			...Object.values(optimisation.rawResources),
+			optimisation.power,
+			optimisation.machines,
+			...Object.values(optimisation.machineWeights),
+			...(optimisation.inputs ? request.inputs.map(input => input.weight) : []),
+		].filter(weight => weight > 0);
+		const smallest = weights.length > 0 ? Math.min(...weights) : 1;
+		return Math.max(1e-6, Math.min(1e-5, smallest * 1e-3));
+	}
+
 	private machineWeightFor(optimisation: OptimisationTarget, machine: Building): number
 	{
 		return optimisation.machineWeights[machine.className] ?? optimisation.machines;
@@ -505,14 +523,15 @@ export class ProductionSolverService
 		const lines: string[] = ['\\\\ Production Plan', 'Minimize'];
 		// Integer "_count >= column" companions, shared by somersloops and whole-machine counting.
 		const countedColumns = new Set<string>();
+		const objectiveLine = lines.length;
+		const optimisation: string[] = [];
+		const tieBreak = request.maximise === null ? this.tieBreakCost(request) : 0;
 
 		if (request.maximise !== null) {
 			// The optimisation goals are applied by the follow-up fixed-rate solve.
 			lines.push('- 1 MaxRate');
 		} else {
 			// solve() guarantees at least one enabled goal.
-			const optimisation: string[] = [];
-
 			Object.keys(request.optimisation.rawResources).forEach(className => {
 				if (request.optimisation.rawResources[className] > 0) {
 					optimisation.push(request.optimisation.rawResources[className] + ' ' + className + '@Mine');
@@ -563,7 +582,15 @@ export class ProductionSolverService
 				});
 			}
 
-			lines.push(optimisation.join('\n+ '));
+			// Unpriced mining would otherwise float free, so the solver could mine to the limit and dump it all as byproducts.
+			data.resources.forEach(className => {
+				if (!(request.optimisation.rawResources[className] > 0)) {
+					optimisation.push(tieBreak + ' ' + className + '@Mine');
+				}
+			});
+
+			// Byproduct terms are added once the item rows are known.
+			lines.push('');
 		}
 
 		lines.push('\nSubject To');
@@ -723,6 +750,11 @@ export class ProductionSolverService
 			lines.push(' = ' + (constantDemands.get(itemClass) ?? 0));
 		});
 
+		if (request.maximise === null) {
+			byproducts.forEach(byproduct => optimisation.push(tieBreak + ' ' + byproduct + '@Byproduct'));
+			lines[objectiveLine] = optimisation.join('\n+ ');
+		}
+
 		request.maximise?.items.forEach(item => {
 			lines.push('\\\\ Maximise ' + item.className);
 			lines.push(item.className + '@Maximise - 1 MaxRate = 0');
@@ -785,8 +817,14 @@ export class ProductionSolverService
 			lines.push('SinkPointsSurplus >= 0');
 		}
 
+		// A second bound on the same variable replaces the first, so rows of one item (and a maximised item's fixed rate) must be summed.
+		const productTotals = new Map<string, number>();
 		request.productions.forEach(production => {
-			lines.push(production.item.className + '@Product = ' + production.amount);
+			const className = production.item.className;
+			productTotals.set(className, (productTotals.get(className) ?? 0) + production.amount);
+		});
+		productTotals.forEach((amount, className) => {
+			lines.push(className + '@Product = ' + amount);
 		});
 
 		Object.entries(request.resourceLimits).forEach(([className, limit]) => {

@@ -27,6 +27,7 @@ export type HotkeyAction =
 	| 'planner.zoomOut'
 	| 'planner.zoomFit'
 	| 'planner.export'
+	| 'planner.lockLayout'
 	| 'calculator.request'
 	| 'calculator.resources'
 	| 'calculator.recipes'

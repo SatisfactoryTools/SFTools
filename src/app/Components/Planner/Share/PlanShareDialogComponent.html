@@ -1,13 +1,13 @@
 <div class="share-backdrop" hotkeyBlock (click)="close()">
 	<div class="share-dialog card" (click)="$event.stopPropagation()">
 		<div class="card-header d-flex align-items-center gap-2">
-			<span class="fw-semibold flex-grow-1 text-truncate">Share &ldquo;{{ target()?.name }}&rdquo;</span>
+			<span class="fw-semibold flex-grow-1 text-truncate">Share &ldquo;{{ dialog.target()?.name }}&rdquo;</span>
 			<help-button topic="planner.sharing" placement="left" (opened)="close()"/>
 			<button type="button" class="btn-close" aria-label="Close" (click)="close()"></button>
 		</div>
 		<div class="card-body">
 
-			@if (choice(); as kind) {
+			@if (dialog.choice(); as kind) {
 
 				<div class="d-flex align-items-center gap-2 mb-1">
 					<span class="fw-semibold">
@@ -23,7 +23,7 @@
 					}
 				</div>
 
-				@if (creating()) {
+				@if (dialog.creating()) {
 					<div class="d-flex align-items-center gap-2 text-secondary">
 						<span class="spinner-border spinner-border-sm" role="status"></span> Making the link…
 					</div>
@@ -33,18 +33,18 @@
 							type="text"
 							class="form-control form-control-sm bg-dark text-light border-secondary"
 							readonly
-							[value]="link()"
+							[value]="dialog.link()"
 							(focus)="$any($event.target).select()"
 						/>
 						<button
 							type="button"
 							class="btn btn-sm flex-shrink-0"
-							[class.btn-primary]="!copied"
-							[class.btn-success]="copied"
-							(click)="copyLink()"
+							[class.btn-primary]="!dialog.copied()"
+							[class.btn-success]="dialog.copied()"
+							(click)="dialog.copyLink()"
 						>
-							<fa-icon [icon]="copied ? faCheck : faCopy"></fa-icon>
-							{{ copied ? 'Copied' : 'Copy' }}
+							<fa-icon [icon]="dialog.copied() ? faCheck : faCopy"></fa-icon>
+							{{ dialog.copied() ? 'Copied' : 'Copy' }}
 						</button>
 					</div>
 					<div class="form-text">
@@ -57,40 +57,42 @@
 					</div>
 				}
 
-				<button type="button" class="btn btn-sm btn-link px-0 mt-2" (click)="clearChoice()">
-					<fa-icon [icon]="faArrowLeft"></fa-icon> Pick the other kind of link
-				</button>
+				@if (dialog.asked()) {
+					<button type="button" class="btn btn-sm btn-link px-0 mt-2" (click)="dialog.clearChoice()">
+						<fa-icon [icon]="faArrowLeft"></fa-icon> Pick the other kind of link
+					</button>
+				}
 
 			} @else {
 
-				<div class="text-secondary mb-3">How do you want to send this {{ target()?.type === 'folder' ? 'folder' : 'plan' }}?</div>
+				<div class="text-secondary mb-3">How do you want to send this {{ dialog.target()?.type === 'folder' ? 'folder' : 'plan' }}?</div>
 
-				@if (error(); as message) {
+				@if (dialog.error(); as message) {
 					<div class="text-danger small mb-2 selectable">{{ message }}</div>
 				}
 
 				<div class="d-flex flex-column gap-2">
-					<button type="button" class="share-option" [disabled]="creating()" (click)="chooseSnapshot()">
+					<button type="button" class="share-option" [disabled]="dialog.creating()" (click)="dialog.chooseSnapshot()">
 						<div class="d-flex align-items-center gap-2">
 							<fa-icon [icon]="faCamera" class="opacity-75"></fa-icon>
 							<span class="fw-semibold">Send a snapshot</span>
 							<span class="badge text-bg-primary">Recommended</span>
 						</div>
 						<div class="small text-secondary mt-1">
-							A copy of the {{ target()?.type === 'folder' ? 'folder' : 'plan' }} as it is now. It
+							A copy of the {{ dialog.target()?.type === 'folder' ? 'folder' : 'plan' }} as it is now. It
 							never changes. Works without an account.
 						</div>
 					</button>
 
-					<button type="button" class="share-option" [disabled]="!hasOwnLink()" (click)="chooseLive()">
+					<button type="button" class="share-option" [disabled]="!dialog.hasOwnLink()" (click)="dialog.chooseLive()">
 						<div class="d-flex align-items-center gap-2">
 							<fa-icon [icon]="faLink" class="opacity-75"></fa-icon>
 							<span class="fw-semibold">Send the plan itself</span>
 						</div>
 						<div class="small text-secondary mt-1">
-							@if (hasOwnLink()) {
+							@if (dialog.hasOwnLink()) {
 								The other person sees it read-only, with your later changes.
-							} @else if (target()?.type === 'folder') {
+							} @else if (dialog.target()?.type === 'folder') {
 								A folder has no address of its own, so only a snapshot can be sent.
 							} @else {
 								This plan is saved only on {{ platform.device }}. Only a snapshot can be sent.

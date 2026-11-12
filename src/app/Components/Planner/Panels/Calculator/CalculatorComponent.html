@@ -128,7 +128,7 @@
 			[tooltip]="'Share this plan' + hotkeys.suffix('plans.share')" placement="bottom"
 			[disabled]="shareDialog.activeTarget() === null"
 			(click)="shareDialog.openActive()"
-		><fa-icon [icon]="faShareNodes"></fa-icon> Share</button>
+		>@if (shareDialog.working()) {<span class="spinner-border share-spinner" role="status" aria-label="Making the link"></span>} @else {<fa-icon [icon]="faShareNodes"></fa-icon>} Share</button>
 
 		<!-- container="body": the panel's overflow container would clip the menu. -->
 		<div class="btn-group" dropdown container="body" placement="bottom right">

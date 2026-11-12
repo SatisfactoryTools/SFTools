@@ -364,7 +364,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			settings: null,
 			fixedGroups: [],
 			resourcePool: false,
-			order: this.nextOrder(this.orderedEntries(this.data(), parentId)),
+			order: this.firstOrder(this.orderedEntries(this.data(), parentId)),
 			revision: null,
 		};
 		this.mutate(store => ({...store, folders: [...store.folders, folder]}));
@@ -673,6 +673,14 @@ export class PlanManager extends SyncableService<PlanStore>
 			current = plans.find(p => p.id === current!.parentPlanId);
 		}
 		return current?.folderId ?? null;
+	}
+
+	// New folders and plans go first: siblings without an order sort last, so "first" is the only spot reachable
+	// without rewriting every sibling, and it is where the name input row is shown.
+	private firstOrder(siblings: readonly {order?: number}[]): number
+	{
+		const orders = siblings.map(s => s.order).filter((o): o is number => o !== undefined);
+		return orders.length > 0 ? Math.min(...orders) - 1 : 0;
 	}
 
 	private nextOrder(siblings: readonly {order?: number}[]): number | undefined
@@ -1384,7 +1392,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			autoName: name.trim() === '',
 			autoIcon: true,
 			linkAccess: true,
-			order: this.nextOrder(parentPlanId === null ? this.orderedEntries(this.data(), folderId) : this.orderedPlans(this.data(), folderId, parentPlanId)),
+			order: parentPlanId === null ? this.firstOrder(this.orderedEntries(this.data(), folderId)) : this.nextOrder(this.orderedPlans(this.data(), folderId, parentPlanId)),
 			revision: null,
 		};
 		this.mutate(store => ({...store, plans: [...store.plans, plan]}));

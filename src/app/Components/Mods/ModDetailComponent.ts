@@ -6,6 +6,7 @@ import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {Mod} from '@src/Model/API/Schema/Mods/Mod';
 import {ModVersion} from '@src/Model/API/Schema/Mods/ModVersion';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	templateUrl: './ModDetailComponent.html',
@@ -33,6 +34,7 @@ export class ModDetailComponent
 	private readonly modId: string;
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly modsApi: ModsApiService,
 		private readonly router: Router,
 		route: ActivatedRoute,
@@ -78,10 +80,10 @@ export class ModDetailComponent
 		});
 	}
 
-	public deleteMod(): void
+	public async deleteMod(): Promise<void>
 	{
 		const mod = this.mod;
-		if (!mod || !confirm(`Delete mod "${mod.name}" with all its versions? Custom versions already using it keep working.`)) {
+		if (!mod || !await this.confirmDialog.ask({message: `Delete mod "${mod.name}" with all its versions? Custom versions already using it keep working.`, confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 		this.modsApi.deleteMod(mod.id).subscribe({
@@ -129,9 +131,9 @@ export class ModDetailComponent
 		});
 	}
 
-	public clearData(version: ModVersion): void
+	public async clearData(version: ModVersion): Promise<void>
 	{
-		if (!this.mod || !confirm(`Clear the data of version "${version.name}"? The version stays.`)) {
+		if (!this.mod || !await this.confirmDialog.ask({message: `Clear the data of version "${version.name}"? The version stays.`, confirmLabel: 'Clear', danger: true})) {
 			return;
 		}
 		this.modsApi.updateModVersion(this.mod.id, version.id, {data: null}).subscribe({
@@ -140,9 +142,9 @@ export class ModDetailComponent
 		});
 	}
 
-	public deleteVersion(version: ModVersion): void
+	public async deleteVersion(version: ModVersion): Promise<void>
 	{
-		if (!this.mod || !confirm(`Delete version "${version.name}"${version.hasData ? ' and its data' : ''}?`)) {
+		if (!this.mod || !await this.confirmDialog.ask({message: `Delete version "${version.name}"${version.hasData ? ' and its data' : ''}?`, confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 		this.modsApi.deleteModVersion(this.mod.id, version.id).subscribe({

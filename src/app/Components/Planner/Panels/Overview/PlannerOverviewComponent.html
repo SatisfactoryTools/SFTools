@@ -214,6 +214,8 @@
 																		{{ row.item.name }}
 																		@if (row.kind === 'byproduct') {
 																			<span class="badge text-bg-secondary">byproduct</span>
+																		} @else if (row.kind === 'sink') {
+																			<span class="badge text-bg-secondary">sunk</span>
 																		}
 																	</span>
 																</td>
@@ -230,11 +232,21 @@
 														} @empty {
 															<tr><td class="text-secondary fst-italic">
 																@if (hasFolderGraphs()) {
-																	These plans make no items. See the Power card.
+																	@if (rateFormatter.isZero(fo.powerProduction)) {
+																		These plans make no items.
+																	} @else {
+																		These plans make no items, only {{ rateFormatter.power(fo.powerProduction) }} of power.
+																	}
 																} @else {
 																	Calculate the plans to see their production.
 																}
 															</td></tr>
+														}
+														@if (sinkPointsOf(fo.production); as points) {
+															<tr class="fw-semibold">
+																<td>AWESOME Sink points</td>
+																<td class="text-end text-nowrap text-success">{{ rateFormatter.amount(points) }} points/min</td>
+															</tr>
 														}
 													} @else {
 														@for (row of production(); track row.kind + row.item.className) {
@@ -246,6 +258,8 @@
 																			{{ row.item.name }}
 																			@if (row.kind === 'byproduct') {
 																				<span class="badge text-bg-secondary">byproduct</span>
+																			} @else if (row.kind === 'sink') {
+																				<span class="badge text-bg-secondary">sunk</span>
 																			}
 																		</span>
 																		<go-to-node class="ms-auto" [nodeIds]="row.nodeIds"></go-to-node>
@@ -256,11 +270,21 @@
 														} @empty {
 															<tr><td class="text-secondary fst-italic">
 																@if (hasGraph()) {
-																	This plan makes no items. See the Power card.
+																	@if (rateFormatter.isZero(power().production)) {
+																		This plan makes no items.
+																	} @else {
+																		This plan makes no items, only {{ rateFormatter.power(power().production) }} of power.
+																	}
 																} @else {
 																	Calculate the plan to see its production.
 																}
 															</td></tr>
+														}
+														@if (sinkPointsOf(production()); as points) {
+															<tr class="fw-semibold">
+																<td>AWESOME Sink points</td>
+																<td class="text-end text-nowrap text-success">{{ rateFormatter.amount(points) }} points/min</td>
+															</tr>
 														}
 													}
 												</tbody>

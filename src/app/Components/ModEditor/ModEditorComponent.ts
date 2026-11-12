@@ -12,6 +12,7 @@ import {ModImageStore} from '@src/Model/ModEditor/ModImageStore';
 import {ModSchemaDescriptors} from '@src/Model/ModEditor/ModSchemaDescriptors';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	templateUrl: './ModEditorComponent.html',
@@ -52,6 +53,7 @@ export class ModEditorComponent
 	public loadWarnings: string[] = [];
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly validator: ModDataValidator,
 		private readonly modsApi: ModsApiService,
 		protected readonly imageStore: ModImageStore,
@@ -194,9 +196,9 @@ export class ModEditorComponent
 		this.expandedEntry = `${descriptor.collection}:${className}`;
 	}
 
-	public removeEntry(descriptor: ModEntryDescriptor, key: string): void
+	public async removeEntry(descriptor: ModEntryDescriptor, key: string): Promise<void>
 	{
-		if (!confirm(`Delete ${descriptor.singular} "${key}" from the mod?`)) {
+		if (!await this.confirmDialog.ask({message: `Delete ${descriptor.singular} "${key}" from the mod?`, confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 		delete this.collectionOf(descriptor)[key];

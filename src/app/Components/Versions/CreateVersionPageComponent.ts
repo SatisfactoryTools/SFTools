@@ -29,6 +29,7 @@ import {WorldSettingsLabels} from '@src/Model/Data/WorldSettingsLabels';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 interface WorldResourceRow
 {
@@ -154,6 +155,7 @@ export class CreateVersionPageComponent
 	private baseDataPath: string | null = null;
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly api: VersionsApiService,
 		private readonly modsApi: ModsApiService,
 		protected readonly auth: AuthService,
@@ -204,7 +206,7 @@ export class CreateVersionPageComponent
 		this.worldSeed = Number(seed);
 		this.worldMode = worldMode;
 		this.worldPurity = worldPurity;
-		this.loadWorldPreview();
+		void this.loadWorldPreview();
 	}
 
 	/** Only public versions qualify as a base - customs cannot derive from customs. */
@@ -257,12 +259,12 @@ export class CreateVersionPageComponent
 		this.worldError = null;
 	}
 
-	public loadWorldPreview(): void
+	public async loadWorldPreview(): Promise<void>
 	{
 		if (this.worldLoading || !this.worldSeedValid) {
 			return;
 		}
-		if (this.worldDirty && !confirm('Load the node counts again? Your edits will be replaced.')) {
+		if (this.worldDirty && !await this.confirmDialog.ask({message: 'Load the node counts again? Your edits will be replaced.', confirmLabel: 'Load again'})) {
 			return;
 		}
 		const base = this.baseVersions.find(version => version.id === this.baseId);

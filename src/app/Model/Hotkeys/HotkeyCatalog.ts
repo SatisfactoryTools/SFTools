@@ -35,6 +35,7 @@ export class HotkeyCatalog
 		{action: 'planner.zoomOut', group: 'planner', label: 'Zoom out', default: {key: '-', ctrl: true}},
 		{action: 'planner.zoomFit', group: 'planner', label: 'Fit the graph to the screen', default: {key: 'f'}},
 		{action: 'planner.export', group: 'planner', label: 'Export the graph as an image', default: {key: 'e'}},
+		{action: 'planner.lockLayout', group: 'planner', label: 'Lock or unlock moving nodes and connections', default: {key: 'l', shift: true}},
 
 		{action: 'calculator.request', group: 'calculator', label: 'Request', default: {key: '1'}},
 		{action: 'calculator.resources', group: 'calculator', label: 'Resources', default: {key: '2'}},

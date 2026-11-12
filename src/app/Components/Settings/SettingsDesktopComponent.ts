@@ -14,6 +14,7 @@ import {OfflineVersionsService} from '@src/Model/Desktop/OfflineVersionsService'
 import {WebLinkHandoffService} from '@src/Model/Desktop/WebLinkHandoffService';
 import {ConnectivityService} from '@src/Model/Network/ConnectivityService';
 import {NotificationService} from '@src/Model/NotificationService';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	selector: 'settings-desktop',
@@ -52,6 +53,7 @@ export class SettingsDesktopComponent
 	public readonly versions: Signal<Version[]> = computed(() => this.versionManager.versions());
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		@Optional() private readonly bridge: DesktopBridge | null,
 		protected readonly preferences: DesktopPreferencesService,
 		protected readonly updates: DesktopUpdateService,
@@ -88,9 +90,9 @@ export class SettingsDesktopComponent
 		this.bridge?.invoke('open_data_dir').catch(error => console.error('Could not open the data folder:', error));
 	}
 
-	public clearCache(): void
+	public async clearCache(): Promise<void>
 	{
-		if (!confirm('Delete every downloaded game version and icon? Plans and settings are not affected.')) {
+		if (!await this.confirmDialog.ask({message: 'Delete every downloaded game version and icon? Plans and settings are not affected.', confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 		this.bridge?.invoke('cache_clear').then(() => {

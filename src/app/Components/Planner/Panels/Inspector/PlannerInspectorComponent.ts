@@ -13,12 +13,13 @@ import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
 
 @Component({
 	selector: 'planner-inspector',
 	changeDetection: ChangeDetectionStrategy.Eager,
 	templateUrl: './PlannerInspectorComponent.html',
-	imports: [EdgeEditorComponent, AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeEditorComponent, InfoNoteComponent],
+	imports: [InspectorMenuButtonComponent, EdgeEditorComponent, AmountNodeEditorComponent, RecipeNodeEditorComponent, SubplanNodeEditorComponent, InfoNoteComponent],
 })
 export class PlannerInspectorComponent
 {

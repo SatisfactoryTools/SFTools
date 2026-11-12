@@ -3,7 +3,8 @@ import {FormsModule} from '@angular/forms';
 import {RouterLink} from '@angular/router';
 import {Subscription} from 'rxjs';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {faCheck, faCopy, faTriangleExclamation} from '@fortawesome/free-solid-svg-icons';
+import {ClipboardService} from '@src/Model/ClipboardService';
 import {HotkeyBlockDirective} from '@src/Components/Common/HotkeyBlockDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {Version} from '@src/Model/API/Schema/Version';
@@ -128,6 +129,15 @@ export class LoadFromSaveDialogComponent implements OnInit, OnDestroy
 
 	private parseSubscription: Subscription | null = null;
 
+	/** The file picker cannot be pointed at a folder, but its address bar takes this path, environment variable and all. */
+	public readonly saveFolder = '%LOCALAPPDATA%\\FactoryGame\\Saved\\SaveGames';
+	public readonly faCheck = faCheck;
+	public readonly faCopy = faCopy;
+
+	private readonly pathCopiedSignal = signal(false);
+	public readonly pathCopied = this.pathCopiedSignal.asReadonly();
+	private pathCopiedTimer: ReturnType<typeof setTimeout> | null = null;
+
 	public constructor(
 		private readonly saveFileService: SaveFileService,
 		private readonly mapper: SaveSettingsMapper,
@@ -139,6 +149,7 @@ export class LoadFromSaveDialogComponent implements OnInit, OnDestroy
 		private readonly gameEditor: GameEditor,
 		public readonly gameLabels: GameLabels,
 		private readonly host: ElementRef<HTMLElement>,
+		private readonly clipboard: ClipboardService,
 	)
 	{
 	}
@@ -150,6 +161,15 @@ export class LoadFromSaveDialogComponent implements OnInit, OnDestroy
 		if (this.mapOnly || !this.canLoadUnlocks()) {
 			this.loadMachines = this.loadRecipes = this.loadGenerators = false;
 		}
+	}
+
+	public copySaveFolder(): void
+	{
+		void this.clipboard.copy(this.saveFolder).then(() => {
+			this.pathCopiedSignal.set(true);
+			if (this.pathCopiedTimer !== null) clearTimeout(this.pathCopiedTimer);
+			this.pathCopiedTimer = setTimeout(() => this.pathCopiedSignal.set(false), 2000);
+		}, () => undefined);
 	}
 
 	public onFilePicked(event: Event): void
@@ -234,6 +254,7 @@ export class LoadFromSaveDialogComponent implements OnInit, OnDestroy
 	{
 		this.host.nativeElement.remove();
 		this.parseSubscription?.unsubscribe();
+		if (this.pathCopiedTimer !== null) clearTimeout(this.pathCopiedTimer);
 	}
 
 }

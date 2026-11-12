@@ -14,6 +14,7 @@ import {SettingResetButtonComponent} from '@src/Components/Settings/SettingReset
 import {SettingsSectionComponent} from '@src/Components/Settings/SettingsSectionComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {faDiagramProject} from '@fortawesome/free-solid-svg-icons';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	selector: 'settings-graph',
@@ -173,6 +174,7 @@ export class SettingsGraphComponent
 	];
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly settings: SettingsManager,
 		private readonly rateFormatter: RateFormatter,
 	)
@@ -297,11 +299,11 @@ export class SettingsGraphComponent
 			&& this.graph.nodeFillAmount === preset.fillStrength;
 	}
 
-	public applyPreset(preset: NodeColorPreset): void
+	public async applyPreset(preset: NodeColorPreset): Promise<void>
 	{
 		// Only colours of the user's own would be lost; switching between presets needs no question.
 		const ownColours = !this.presets.some(candidate => this.isActivePreset(candidate));
-		if (ownColours && !confirm(`Replace your node colours with the "${preset.label}" colours?`)) {
+		if (ownColours && !await this.confirmDialog.ask({message: `Replace your node colours with the "${preset.label}" colours?`, confirmLabel: 'Replace'})) {
 			return;
 		}
 		this.settings.updateGraph({nodeAccentColors: {...preset.colors}, nodeFillAmount: preset.fillStrength});

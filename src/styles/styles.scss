@@ -806,3 +806,11 @@ circle.pg-port-adsorbed {
 	font-size: 0.8125rem;
 	box-shadow: 0 0 0 2px #2ecc40;
 }
+
+/* Stands in for the share icon while a link is made, at the icon's size so the button does not change width. */
+.share-spinner {
+	width: 0.875em;
+	height: 0.875em;
+	border-width: 0.15em;
+	vertical-align: -0.125em;
+}

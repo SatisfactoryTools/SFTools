@@ -1,20 +1,25 @@
 import {Injectable, OnDestroy} from '@angular/core';
-import {filter, map, Observable, race, Subject, take, throwError, timeout} from 'rxjs';
+import {Observable} from 'rxjs';
 import {HighsSolution} from '@src/Model/Planner/Solver/HighsSolution';
+import {SolverJob} from '@src/Model/Planner/Solver/SolverJob';
+import {SolverWorkerCommand} from '@src/Model/Planner/Solver/Worker/SolverWorkerCommand';
+import {SolverWorkerMessage} from '@src/Model/Planner/Solver/Worker/SolverWorkerMessage';
 import {SolverWorkerOptions} from '@src/Model/Planner/Solver/Worker/SolverWorkerOptions';
-import {SolverWorkerRequest} from '@src/Model/Planner/Solver/Worker/SolverWorkerRequest';
-import {SolverWorkerResponse} from '@src/Model/Planner/Solver/Worker/SolverWorkerResponse';
 
 const SOLVE_TIMEOUT_MS = 90_000;
+const START_TIMEOUT_MS = 300_000;
 
+/**
+ * Jobs run one at a time so that the solve timeout only covers the solve itself: downloading highs.wasm on a slow
+ * connection must not count against it, otherwise every attempt is killed mid-download and the next starts from zero.
+ */
 @Injectable({providedIn: 'root'})
 export class SolverService implements OnDestroy
 {
 
 	private worker: Worker;
-	private readonly messagesSubject = new Subject<SolverWorkerResponse>();
-	private readonly workerErrorSubject = new Subject<Error>();
-	private readonly pendingIds = new Set<string>();
+	private readonly queue: SolverJob[] = [];
+	private activeJob: SolverJob | null = null;
 	private nextId = 0;
 
 	public constructor()
@@ -22,52 +27,114 @@ export class SolverService implements OnDestroy
 		this.worker = this.createWorker();
 	}
 
-	/** Cancelling means terminating the worker and spawning a fresh one: highs runs synchronously inside it, so nothing else can stop it. */
 	public solve(problem: string, options: {workerOptions?: SolverWorkerOptions; timeoutMs?: number} = {}): Observable<HighsSolution>
 	{
-		const timeoutMs = options.timeoutMs ?? SOLVE_TIMEOUT_MS;
 		return new Observable<HighsSolution>(subscriber => {
-			const id = String(this.nextId++);
-			const response$ = this.messagesSubject.pipe(
-				filter(response => response.id === id),
-				take(1),
-				map(response => {
-					if (response.error !== null) {
-						throw new Error(response.error);
-					}
-					return response.solution!;
-				}),
+			const job = new SolverJob(
+				{type: 'solve', id: String(this.nextId++), problem, options: options.workerOptions},
+				options.timeoutMs ?? SOLVE_TIMEOUT_MS,
+				subscriber,
 			);
-			const inner = race(
-				response$,
-				this.workerErrorSubject.pipe(
-					take(1),
-					map(err => { throw err; }),
-				),
-			).pipe(
-				timeout({
-					each: timeoutMs,
-					with: () => throwError(() => new Error(`The calculation took too long (${Math.round(timeoutMs / 1000)} s) and was stopped. The plan may be too complex.`)),
-				}),
-			).subscribe(subscriber);
-
-			this.pendingIds.add(id);
-			this.worker.postMessage({id, problem, options: options.workerOptions} satisfies SolverWorkerRequest);
-
-			return () => {
-				inner.unsubscribe();
-				if (this.pendingIds.delete(id)) {
-					this.restartWorker();
-				}
-			};
+			this.queue.push(job);
+			this.runNext();
+			return () => this.cancel(job);
 		});
 	}
 
 	public ngOnDestroy(): void
 	{
+		this.activeJob?.abandon();
+		this.queue.forEach(job => job.abandon());
 		this.worker.terminate();
-		this.messagesSubject.complete();
-		this.workerErrorSubject.complete();
+	}
+
+	private runNext(): void
+	{
+		if (this.activeJob !== null) {
+			return;
+		}
+		const job = this.queue.shift();
+		if (job === undefined) {
+			return;
+		}
+		this.activeJob = job;
+		job.stage = 'sent';
+		job.startTimer(START_TIMEOUT_MS, () => this.timeOut(job));
+		this.post(job.request);
+	}
+
+	private handleMessage(message: SolverWorkerMessage): void
+	{
+		const job = this.activeJob;
+		if (job === null || job.request.id !== message.id) {
+			return;
+		}
+		if (message.type === 'progress') {
+			job.stage = message.stage;
+			if (message.stage === 'solving') {
+				job.startTimer(job.solveTimeoutMs, () => this.timeOut(job));
+			}
+			return;
+		}
+		this.activeJob = null;
+		if (message.error !== null) {
+			job.fail(new Error(message.error));
+		} else {
+			job.succeed(message.solution!);
+		}
+		this.runNext();
+	}
+
+	private timeOut(job: SolverJob): void
+	{
+		const error = this.timeoutError(job);
+		this.release(job);
+		job.fail(error);
+	}
+
+	private timeoutError(job: SolverJob): Error
+	{
+		switch (job.stage) {
+			case 'solving':
+				return new Error(`The calculation took too long (${Math.round(job.solveTimeoutMs / 1000)} s) and was stopped. The plan may be too complex.`);
+			case 'loading':
+				return new Error(`Downloading the calculation engine took longer than ${Math.round(START_TIMEOUT_MS / 1000)} s. Check your internet connection. The download continues in the background, so try again in a moment.`);
+			default:
+				return new Error(`The calculation engine did not start within ${Math.round(START_TIMEOUT_MS / 1000)} s. Check your internet connection and try again.`);
+		}
+	}
+
+	private cancel(job: SolverJob): void
+	{
+		if (!job.abandon()) {
+			return;
+		}
+		const index = this.queue.indexOf(job);
+		if (index !== -1) {
+			this.queue.splice(index, 1);
+			return;
+		}
+		this.release(job);
+	}
+
+	/** highs runs synchronously inside the worker, so a running solve can only be stopped by terminating it. Before that, the worker is kept so an ongoing download is not lost. */
+	private release(job: SolverJob): void
+	{
+		if (this.activeJob !== job) {
+			return;
+		}
+		this.activeJob = null;
+		if (job.stage === 'solving') {
+			this.restartWorker();
+		} else {
+			this.post({type: 'cancel', id: job.request.id});
+		}
+		this.runNext();
+	}
+
+	private post(command: SolverWorkerCommand): void
+	{
+		this.worker.postMessage(command);
 	}
 
 	private createWorker(): Worker
@@ -76,13 +143,14 @@ export class SolverService implements OnDestroy
 			new URL('./Worker/SolverWorker', import.meta.url),
 			{type: 'module'},
 		);
-		worker.addEventListener('message', ({data}: MessageEvent<SolverWorkerResponse>) => {
-			this.pendingIds.delete(data.id);
-			this.messagesSubject.next(data);
-		});
+		worker.addEventListener('message', ({data}: MessageEvent<SolverWorkerMessage>) => this.handleMessage(data));
 		worker.addEventListener('error', (event: ErrorEvent) => {
 			console.error('[SolverWorker] Worker crashed:', event.message, event);
-			this.workerErrorSubject.next(new Error(`The calculation crashed: ${event.message}`));
+			const job = this.activeJob;
+			this.activeJob = null;
+			this.restartWorker();
+			job?.fail(new Error(`The calculation crashed: ${event.message}`));
+			this.runNext();
 		});
 		return worker;
 	}

@@ -94,6 +94,35 @@
 			</div>
 		</fieldset>
 
+		<div class="subsection-title">Sharing</div>
+		<div class="mb-3" style="max-width: 480px;">
+			<label class="form-label" for="share-link">What the Share button sends</label><setting-reset-button category="planner" field="shareLink"/>
+			<select
+				id="share-link"
+				class="form-select"
+				[ngModel]="shareLink"
+				(ngModelChange)="setShareLink($event)"
+			>
+				@for (option of shareLinkOptions; track option.value) {
+					<option [value]="option.value">{{ option.label }}</option>
+				}
+			</select>
+			<div class="form-text">{{ shareLinkDescription }} The link is copied for you.</div>
+		</div>
+		<div class="form-check mb-3">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="keep-share-window-open"
+				[ngModel]="keepShareWindowOpen"
+				(ngModelChange)="setKeepShareWindowOpen($event)"
+			/>
+			<label class="form-check-label" for="keep-share-window-open">Keep the share window open after the link is copied</label><setting-reset-button category="planner" field="keepShareWindowOpen"/>
+			<div class="form-text">
+				When off, the window closes and a message tells you the link was copied.
+			</div>
+		</div>
+
 		<div class="subsection-title">Shared plans</div>
 		<div class="form-check mb-3">
 			<input

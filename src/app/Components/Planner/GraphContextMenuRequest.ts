@@ -10,4 +10,6 @@ export interface GraphContextMenuRequest
 	readonly local: GraphPoint;
 	readonly nodes: Node[];
 	readonly edge?: GraphEdge;
+	/** From the inspector's ⋮ button: items the inspector already shows are left out. */
+	readonly inInspector?: boolean;
 }

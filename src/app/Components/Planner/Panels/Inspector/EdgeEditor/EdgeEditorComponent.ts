@@ -14,6 +14,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphEdgeKey} from '@src/Model/Planner/Graph/GraphEdgeKey';
 import {RateFormatter} from '@src/Model/RateFormatter';
+import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
 
 const APPLY_DEBOUNCE_MS = 400;
 
@@ -21,7 +22,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'edge-editor',
 	templateUrl: './EdgeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
+	imports: [InspectorMenuButtonComponent, FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
 	styles: [`
 		.endpoint-label {
 			min-width: 2.5rem;

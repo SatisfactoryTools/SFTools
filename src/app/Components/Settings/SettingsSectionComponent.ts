@@ -6,6 +6,7 @@ import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 import {HelpTopicId} from '@src/Model/Help/HelpTopicId';
 import {SettingsCategory} from '@src/Model/Settings/SettingsCategory';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	selector: 'settings-section',
@@ -49,7 +50,10 @@ export class SettingsSectionComponent
 
 	public readonly faRotateLeft = faRotateLeft;
 
-	public constructor(private readonly settings: SettingsManager)
+	public constructor(
+		private readonly settings: SettingsManager,
+		private readonly confirmDialog: ConfirmDialogService,
+	)
 	{
 	}
 
@@ -58,10 +62,10 @@ export class SettingsSectionComponent
 		return this.settings.isDefault(this.resetCategories);
 	}
 
-	public reset(): void
+	public async reset(): Promise<void>
 	{
 		const message = `Reset all "${this.title}" settings to their defaults?` + (this.resetWarning !== '' ? `\n\n${this.resetWarning}` : '');
-		if (confirm(message)) {
+		if (await this.confirmDialog.ask({message: message, confirmLabel: 'Reset', danger: true})) {
 			this.settings.reset(this.resetCategories);
 		}
 	}

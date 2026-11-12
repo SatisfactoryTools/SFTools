@@ -5,8 +5,13 @@ const TAP_MAX_MS = 350;
 const DOUBLE_TAP_MS = 350;
 const DOUBLE_TAP_RADIUS = 30;
 const MOVE_TOLERANCE = 10;
+/** Wider on a node or connection: a finger rolls and a pen shakes while held. Chrome holds back moves under ~15px by itself, so this must clear that by a margin to help at all. */
+const CELL_HOLD_TOLERANCE = 24;
 
-/** Blank-canvas touches are kept from x6 (capture-phase stopPropagation) so its panning doesn't fight the pinch; the pan is re-implemented here. The touchend after a long press or double tap is cancelled, so no synthesized mousedown closes the context menu it just opened. */
+/**
+ * Blank-canvas touches are kept from x6 (capture-phase stopPropagation) so its panning doesn't fight the pinch; the pan is re-implemented here. The touchend after a long press or double tap is cancelled, so no synthesized mousedown closes the context menu it just opened.
+ * On a node or connection x6 gets the touchstart, but its moves only once the finger has clearly left the hold area: x6 drags on the first move, so a held finger used to nudge the node instead of opening the menu. After a long press x6 gets no moves at all.
+ */
 export class GraphTouchGestures
 {
 
@@ -126,7 +131,14 @@ export class GraphTouchGestures
 			return;
 		}
 		const touch = event.touches[0];
-		if (Math.hypot(touch.clientX - this.start.x, touch.clientY - this.start.y) > MOVE_TOLERANCE) {
+		const distance = Math.hypot(touch.clientX - this.start.x, touch.clientY - this.start.y);
+		if (this.start.onCell && (this.pressHandled || (!this.moved && distance <= CELL_HOLD_TOLERANCE))) {
+			// x6 starts the drag from its own touchstart point, so once let through the node catches up with the finger.
+			event.preventDefault();
+			event.stopPropagation();
+			return;
+		}
+		if (distance > (this.start.onCell ? CELL_HOLD_TOLERANCE : MOVE_TOLERANCE)) {
 			this.moved = true;
 			this.cancelLongPress();
 		}

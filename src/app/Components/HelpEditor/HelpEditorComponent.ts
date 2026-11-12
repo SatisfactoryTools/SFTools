@@ -16,6 +16,7 @@ import {HelpEditorCategory} from '@src/Model/API/Schema/Help/HelpEditorCategory'
 import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HelpTopicCoverage} from '@src/Model/Help/HelpTopicCoverage';
 import {NotificationService} from '@src/Model/NotificationService';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	templateUrl: './HelpEditorComponent.html',
@@ -55,6 +56,7 @@ export class HelpEditorComponent
 	public readonly totalTopics = computed(() => this.coverage.total());
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly api: HelpEditorApiService,
 		private readonly coverage: HelpTopicCoverage,
 		private readonly help: HelpManager,
@@ -105,9 +107,9 @@ export class HelpEditorComponent
 		});
 	}
 
-	public deleteCategory(category: HelpEditorCategory): void
+	public async deleteCategory(category: HelpEditorCategory): Promise<void>
 	{
-		if (!confirm(`Delete the section “${category.name}”? Its articles are kept.`)) {
+		if (!await this.confirmDialog.ask({message: `Delete the section “${category.name}”? Its articles are kept.`, confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 		this.api.deleteCategory(category.id).subscribe({
@@ -116,9 +118,9 @@ export class HelpEditorComponent
 		});
 	}
 
-	public deleteArticle(article: HelpEditorArticle): void
+	public async deleteArticle(article: HelpEditorArticle): Promise<void>
 	{
-		if (!confirm(`Delete the article “${article.title}”? This cannot be undone.`)) {
+		if (!await this.confirmDialog.ask({message: `Delete the article “${article.title}”? This cannot be undone.`, confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 		this.api.deleteArticle(article.id).subscribe({

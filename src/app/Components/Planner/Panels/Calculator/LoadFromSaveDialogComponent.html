@@ -122,6 +122,13 @@
 
 			@if (state() !== 'parsing') {
 				<input type="file" accept=".sav" class="form-control bg-dark text-light border-secondary" (change)="onFilePicked($event)"/>
+				<div class="form-text d-flex flex-wrap align-items-center gap-2">
+					<span>On Windows the saves are in <code class="selectable">{{ saveFolder }}</code></span>
+					<button type="button" class="btn btn-sm py-0 px-2" [class.btn-outline-secondary]="!pathCopied()" [class.btn-outline-success]="pathCopied()" (click)="copySaveFolder()">
+						<fa-icon [icon]="pathCopied() ? faCheck : faCopy"></fa-icon> {{ pathCopied() ? 'Copied' : 'Copy path' }}
+					</button>
+				</div>
+				<div class="form-text mt-0">Paste it into the address bar of the window that opens.</div>
 			}
 		</div>
 		<div class="card-footer d-flex justify-content-end gap-2">

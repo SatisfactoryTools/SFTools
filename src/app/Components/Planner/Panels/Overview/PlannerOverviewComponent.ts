@@ -123,6 +123,11 @@ export class PlannerOverviewComponent
 	public readonly production: Signal<ProductionRow[]> = computed(() =>
 		this.breakdownService.production(this.planManager.activePlan()));
 
+	public sinkPointsOf(rows: readonly {points: number}[]): number
+	{
+		return rows.reduce((sum, row) => sum + row.points, 0);
+	}
+
 	public readonly hasGraph = computed(() => (this.planManager.activePlan()?.graph?.nodes.length ?? 0) > 0);
 
 	public readonly hasFolderGraphs = computed(() =>

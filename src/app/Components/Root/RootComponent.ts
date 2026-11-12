@@ -2,6 +2,7 @@ import {Component, ChangeDetectionStrategy, HostListener} from '@angular/core';
 import {RouterOutlet} from '@angular/router';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faPlugCircleXmark} from '@fortawesome/free-solid-svg-icons';
+import {ConfirmDialogComponent} from '@src/Components/Common/ConfirmDialogComponent';
 import {HelpImageViewerComponent} from '@src/Components/Help/HelpImageViewerComponent';
 import {DesktopUpdateBannerComponent} from '@src/Components/Root/DesktopUpdateBannerComponent';
 import {OpenInDesktopComponent} from '@src/Components/Root/OpenInDesktopComponent';
@@ -20,6 +21,7 @@ import {PageScrollbarService} from '@src/PageScrollbarService';
         RouterOutlet,
         FaIconComponent,
         HelpImageViewerComponent,
+        ConfirmDialogComponent,
         DesktopUpdateBannerComponent,
         OpenInDesktopComponent,
     ]

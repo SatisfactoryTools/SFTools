@@ -19,6 +19,7 @@ import {AccountProfileService} from '@src/Model/Auth/AccountProfileService';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	templateUrl: './SettingsComponent.html',
@@ -95,6 +96,7 @@ export class SettingsComponent implements OnDestroy
 	private readonly subscription: Subscription;
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		protected readonly auth: AuthService,
 		protected readonly platform: AppPlatform,
 		protected readonly settings: SettingsManager,
@@ -133,10 +135,14 @@ export class SettingsComponent implements OnDestroy
 		this.subscription.unsubscribe();
 	}
 
-	public resetAll(): void
+	public async resetAll(): Promise<void>
 	{
-		if (confirm('Reset all settings to their defaults?\n\n'
-			+ 'Plans that use the plan defaults change too. Panel positions and sizes stay.')) {
+		if (await this.confirmDialog.ask({
+			message: 'Reset all settings to their defaults?\n\n'
+				+ 'Plans that use the plan defaults change too. Panel positions and sizes stay.',
+			confirmLabel: 'Reset',
+			danger: true,
+		})) {
 			this.settings.reset();
 		}
 	}

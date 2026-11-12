@@ -8,10 +8,10 @@ export interface PlanTreeMenuHost
 	startCreateFolder(parentId: string | null): void;
 	startCreatePlan(parentId: string | null): void;
 	cloneFolder(id: string): void;
-	deleteFolder(id: string, name: string): void;
+	deleteFolder(id: string, name: string): Promise<void>;
 	startRenamePlan(id: string, currentName: string): void;
 	clonePlan(plan: Plan, displayName: string): void;
-	deletePlan(plan: Plan): void;
+	deletePlan(plan: Plan): Promise<void>;
 	pickPlanIcon(plan: Plan): void;
 	resetPlanIcon(plan: Plan): void;
 	sharePlan(plan: Plan): void;

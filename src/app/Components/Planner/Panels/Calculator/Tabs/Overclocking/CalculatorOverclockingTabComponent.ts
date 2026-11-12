@@ -98,7 +98,7 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 		this.planManager.updateActiveSettings({...settings, defaultClockSpeed: clock === 100 ? undefined : clock});
 	}
 
-	public get recipeOptions(): ItemPickerOption[]
+	private get recipeOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();
 		if (!data) return [];
@@ -112,7 +112,7 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 			}));
 	}
 
-	public get machineOptions(): ItemPickerOption[]
+	private get machineOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();
 		if (!data) return [];
@@ -127,7 +127,7 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 			}));
 	}
 
-	public get generatorOptions(): ItemPickerOption[]
+	private get generatorOptions(): ItemPickerOption[]
 	{
 		const data = this.versionManager.activeVersionData();
 		if (!data) return [];
@@ -140,6 +140,28 @@ export class CalculatorOverclockingTabComponent implements OnDestroy
 				label: generator.name,
 				iconHash: generator.icon,
 			}));
+	}
+
+	public recipeOptionsFor(row: RecipeClockSpeed): ItemPickerOption[]
+	{
+		return this.withoutTaken(this.recipeOptions, this.rows.map(other => other.recipeClassName), row.recipeClassName);
+	}
+
+	public machineOptionsFor(row: MachineClockSpeed): ItemPickerOption[]
+	{
+		return this.withoutTaken(this.machineOptions, this.machineRows.map(other => other.machineClassName), row.machineClassName);
+	}
+
+	public generatorOptionsFor(row: GeneratorClockSpeed): ItemPickerOption[]
+	{
+		return this.withoutTaken(this.generatorOptions, this.generatorRows.map(other => other.generatorClassName), row.generatorClassName);
+	}
+
+	/** Two rows for one class would silently let the later one win. */
+	private withoutTaken(options: ItemPickerOption[], taken: string[], own: string): ItemPickerOption[]
+	{
+		const takenSet = new Set(taken.filter(className => className !== own));
+		return options.filter(option => !takenSet.has(option.value));
 	}
 
 	public onGeneratorChange(row: GeneratorClockSpeed, value: string): void

@@ -26,6 +26,7 @@ import {HelpTopicCoverage} from '@src/Model/Help/HelpTopicCoverage';
 import {HelpTopicStatus} from '@src/Model/Help/HelpTopicStatus';
 import {HelpMarkdownRenderer} from '@src/Model/Help/HelpMarkdownRenderer';
 import {NotificationService} from '@src/Model/NotificationService';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	templateUrl: './HelpArticleEditorComponent.html',
@@ -127,6 +128,7 @@ export class HelpArticleEditorComponent
 	public readonly topicGroups = computed(() => this.coverage.groups(this.allArticles()));
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly api: HelpEditorApiService,
 		private readonly coverage: HelpTopicCoverage,
 		private readonly files: HelpApiService,
@@ -250,10 +252,10 @@ export class HelpArticleEditorComponent
 		});
 	}
 
-	public deleteArticle(): void
+	public async deleteArticle(): Promise<void>
 	{
 		const article = this.articleSignal();
-		if (article === null || !confirm(`Delete the article “${article.title}”? This cannot be undone.`)) {
+		if (article === null || !await this.confirmDialog.ask({message: `Delete the article “${article.title}”? This cannot be undone.`, confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 
@@ -340,9 +342,9 @@ export class HelpArticleEditorComponent
 		this.insert('![', `](${image.path} "")`, image.fileName);
 	}
 
-	public deleteImage(image: HelpEditorImage): void
+	public async deleteImage(image: HelpEditorImage): Promise<void>
 	{
-		if (!confirm(`Delete ${image.fileName}? Articles using it will show a broken image.`)) {
+		if (!await this.confirmDialog.ask({message: `Delete ${image.fileName}? Articles using it will show a broken image.`, confirmLabel: 'Delete', danger: true})) {
 			return;
 		}
 		this.api.deleteImage(image.id).subscribe({

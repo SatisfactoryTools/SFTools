@@ -51,6 +51,7 @@ import {ActiveShareManager} from '@src/Model/Shares/ActiveShareManager';
 import {ActivePlanLinkManager} from '@src/Model/PlanLinks/ActivePlanLinkManager';
 import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 import {CalculatorQuickStartComponent} from '@src/Components/Planner/Panels/Calculator/CalculatorQuickStartComponent';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	selector: 'planner-calculator',
@@ -259,6 +260,7 @@ export class CalculatorComponent implements OnDestroy
 	public readonly loadFromSave = this.loadFromSaveSignal.asReadonly();
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		private readonly planManager: PlanManager,
 		public readonly planNames: PlanNameResolver,
 		protected readonly platform: AppPlatform,
@@ -505,17 +507,17 @@ export class CalculatorComponent implements OnDestroy
 		this.actions.requestCancel();
 	}
 
-	public resetSettings(): void
+	public async resetSettings(): Promise<void>
 	{
-		if (!confirm('Set all settings back to the defaults?')) {
+		if (!await this.confirmDialog.ask({message: 'Set all settings back to the defaults?', confirmLabel: 'Reset', danger: true})) {
 			return;
 		}
 		this.planManager.updateActiveSettings(this.planManager.defaultSettings());
 	}
 
-	public inheritSettings(): void
+	public async inheritSettings(): Promise<void>
 	{
-		if (!confirm(`Replace all settings with those of ${this.parentLabel()}?`)) {
+		if (!await this.confirmDialog.ask({message: `Replace all settings with those of ${this.parentLabel()}?`, confirmLabel: 'Replace'})) {
 			return;
 		}
 		this.planManager.updateActiveSettings(this.parentSettings());
@@ -529,10 +531,10 @@ export class CalculatorComponent implements OnDestroy
 		}
 	}
 
-	public disableFolderSettings(): void
+	public async disableFolderSettings(): Promise<void>
 	{
 		const folder = this.activeFolder();
-		if (!folder || !confirm('Remove this folder\'s own settings? It will use its parent\'s settings again.')) {
+		if (!folder || !await this.confirmDialog.ask({message: 'Remove this folder\'s own settings? It will use its parent\'s settings again.', confirmLabel: 'Remove', danger: true})) {
 			return;
 		}
 		this.planManager.setFolderSettings(folder.id, null);
@@ -624,7 +626,7 @@ export class CalculatorComponent implements OnDestroy
 		return folder ? this.planManager.folderGroupMode(folder, group) : 'default';
 	}
 
-	public setGroupMode(group: SettingsGroup, mode: FolderGroupMode): void
+	public async setGroupMode(group: SettingsGroup, mode: FolderGroupMode): Promise<void>
 	{
 		const folder = this.activeFolder();
 		if (!folder || this.groupMode(group) === mode) {
@@ -635,8 +637,11 @@ export class CalculatorComponent implements OnDestroy
 		}
 		if (this.groupMode(group) === 'default') {
 			const count = this.innerPlans().length;
-			if (count > 0 && !confirm(`Apply the folder's ${this.groupLabel(group)} settings to the ${count} plan${count === 1 ? '' : 's'} inside "${folder.name}"? `
-				+ `Their own ${this.groupLabel(group)} settings are replaced.`)) {
+			if (count > 0 && !await this.confirmDialog.ask({
+				message: `Apply the folder's ${this.groupLabel(group)} settings to the ${count} plan${count === 1 ? '' : 's'} inside "${folder.name}"? `
+					+ `Their own ${this.groupLabel(group)} settings are replaced.`,
+				confirmLabel: 'Apply',
+			})) {
 				return;
 			}
 		}

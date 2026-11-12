@@ -26,7 +26,7 @@
 					<tr>
 						<td class="stack-full">
 							<item-picker
-								[options]="machineOptions"
+								[options]="machineOptionsFor(row)"
 								[value]="row.machineClassName"
 								placeholder="- select machine -"
 								(valueChange)="onMachineChange(row, $event)"
@@ -73,7 +73,7 @@
 					<tr>
 						<td class="stack-full">
 							<item-picker
-								[options]="recipeOptions"
+								[options]="recipeOptionsFor(row)"
 								[value]="row.recipeClassName"
 								placeholder="- select recipe -"
 								(valueChange)="onRecipeChange(row, $event)"
@@ -121,7 +121,7 @@
 					<tr>
 						<td class="stack-full">
 							<item-picker
-								[options]="generatorOptions"
+								[options]="generatorOptionsFor(row)"
 								[value]="row.generatorClassName"
 								placeholder="- select generator -"
 								(valueChange)="onGeneratorChange(row, $event)"

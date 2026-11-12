@@ -14,6 +14,8 @@ import {PowerBreakdown} from '@src/Model/Planner/Breakdown/PowerBreakdown';
 import {PowerEntryRow} from '@src/Model/Planner/Breakdown/PowerEntryRow';
 import {PowerRow} from '@src/Model/Planner/Breakdown/PowerRow';
 import {ProductionNodes} from '@src/Model/Planner/Breakdown/ProductionNodes';
+import {ProductionKind} from '@src/Model/Planner/Breakdown/ProductionKind';
+import {ProductionKindOrder} from '@src/Model/Planner/Breakdown/ProductionKindOrder';
 import {ProductionRow} from '@src/Model/Planner/Breakdown/ProductionRow';
 import {RecipeUsageRow} from '@src/Model/Planner/Breakdown/RecipeUsageRow';
 import {ResourceUsageRow} from '@src/Model/Planner/Breakdown/ResourceUsageRow';
@@ -38,6 +40,7 @@ import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
+import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
@@ -311,20 +314,24 @@ export class PlanBreakdownService
 			return [];
 		}
 
-		const rows = new Map<string, {item: Item; kind: 'product' | 'byproduct'; amount: number; nodeIds: string[]}>();
+		const rows = new Map<string, {item: Item; kind: ProductionKind; amount: number; points: number; nodeIds: string[]}>();
 		graph.nodes.forEach(node => {
-			if (!(node instanceof ProductNode) && !(node instanceof ByproductNode)) {
+			const kind: ProductionKind | null = node instanceof ProductNode ? 'product'
+				: node instanceof SinkNode ? 'sink'
+				: node instanceof ByproductNode ? 'byproduct'
+				: null;
+			if (kind === null || !(node instanceof ItemAmountNode)) {
 				return;
 			}
-			const kind: 'product' | 'byproduct' = node instanceof ProductNode ? 'product' : 'byproduct';
 			const row = this.getOrCreate(rows, `${kind}:${node.item.className}`,
-				() => ({item: node.item, kind, amount: 0, nodeIds: []}));
+				() => ({item: node.item, kind, amount: 0, points: 0, nodeIds: []}));
 			row.amount += node.amount;
+			row.points += node instanceof SinkNode ? node.sinkPoints() : 0;
 			row.nodeIds.push(node.id);
 		});
 
 		return [...rows.values()].sort((a, b) =>
-			(a.kind === b.kind ? 0 : a.kind === 'product' ? -1 : 1) || a.item.name.localeCompare(b.item.name));
+			ProductionKindOrder.compare(a.kind, b.kind) || a.item.name.localeCompare(b.item.name));
 	}
 
 	public recipes(plan: Plan | null): RecipeUsageRow[]

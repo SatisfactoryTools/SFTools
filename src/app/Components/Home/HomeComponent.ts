@@ -26,6 +26,7 @@ import {PlanCountsService} from '@src/Model/Planner/PlanCountsService';
 import {RelativeTimeFormatter} from '@src/Model/RelativeTimeFormatter';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
+import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 const WORLD_MODE_LABELS: Record<string, string> = {
 	'none': 'default nodes',
@@ -587,6 +588,7 @@ export class HomeComponent
 	private readonly localPlanStore: LocalPlanStoreBackend;
 
 	public constructor(
+		private readonly confirmDialog: ConfirmDialogService,
 		protected readonly versionManager: VersionManager,
 		protected readonly auth: AuthService,
 		protected readonly signInPrompt: SignInPromptService,
@@ -818,9 +820,9 @@ export class HomeComponent
 	}
 
 	/** Only removes the user's link (or localStorage entry) - the version itself is shared and keeps existing. */
-	public removeVersion(version: Version): void
+	public async removeVersion(version: Version): Promise<void>
 	{
-		if (confirm(`Remove "${version.name}" from your versions? Plans that use it keep working.`)) {
+		if (await this.confirmDialog.ask({message: `Remove "${version.name}" from your versions? Plans that use it keep working.`, confirmLabel: 'Remove', danger: true})) {
 			this.versionManager.removeCustomVersion(version);
 		}
 	}

@@ -1,7 +1,7 @@
-import {Injectable, OnDestroy, Signal, WritableSignal, signal} from '@angular/core';
+import {Injectable, OnDestroy, Signal, WritableSignal, computed, signal} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Observable, Subscription, forkJoin, of, switchMap} from 'rxjs';
-import {catchError, map, skip} from 'rxjs/operators';
+import {catchError, finalize, map, skip} from 'rxjs/operators';
 import {AuthService} from '@src/Model/Auth/AuthService';
 import {NotificationService} from '@src/Model/NotificationService';
 import {DataBackend} from '@src/Model/Sync/DataBackend';
@@ -18,6 +18,10 @@ export abstract class SyncableService<T> implements OnDestroy
 
 	private readonly loadedSignal: WritableSignal<boolean> = signal(false);
 	public readonly loaded: Signal<boolean> = this.loadedSignal.asReadonly();
+
+	/** A count, not a flag: a reload can start while the previous load is still on its way. */
+	private readonly pendingLoadsSignal: WritableSignal<number> = signal(0);
+	public readonly loading: Signal<boolean> = computed(() => this.pendingLoadsSignal() > 0);
 
 	/** Blocks remote writes until a load succeeds: what is held after a failed load is the default, and saving it would replace what the server still has. */
 	private readonly loadFailedSignal: WritableSignal<boolean> = signal(false);
@@ -94,7 +98,8 @@ export abstract class SyncableService<T> implements OnDestroy
 
 	protected loadFrom(backend: DataBackend<T>): void
 	{
-		backend.load().subscribe({
+		this.pendingLoadsSignal.update(count => count + 1);
+		backend.load().pipe(finalize(() => this.pendingLoadsSignal.update(count => count - 1))).subscribe({
 			// A null load means the backend holds nothing, so what is on hand is replaced too:
 			// keeping it would show the previous scope's or session's data.
 			next: data => {

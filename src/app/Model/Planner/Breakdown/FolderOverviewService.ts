@@ -5,6 +5,8 @@ import {FolderBuildingRow} from '@src/Model/Planner/Breakdown/FolderBuildingRow'
 import {FolderOverview} from '@src/Model/Planner/Breakdown/FolderOverview';
 import {FolderPlanRow} from '@src/Model/Planner/Breakdown/FolderPlanRow';
 import {FolderProductionRow} from '@src/Model/Planner/Breakdown/FolderProductionRow';
+import {ProductionKind} from '@src/Model/Planner/Breakdown/ProductionKind';
+import {ProductionKindOrder} from '@src/Model/Planner/Breakdown/ProductionKindOrder';
 import {FolderRecipeRow} from '@src/Model/Planner/Breakdown/FolderRecipeRow';
 import {FolderResourceRow} from '@src/Model/Planner/Breakdown/FolderResourceRow';
 import {PlanAmount} from '@src/Model/Planner/Breakdown/PlanAmount';
@@ -104,16 +106,17 @@ export class FolderOverviewService
 
 	private production(plans: Plan[]): FolderProductionRow[]
 	{
-		const rows = new Map<string, {item: Item; kind: 'product' | 'byproduct'; plans: PlanAmount[]}>();
+		const rows = new Map<string, {item: Item; kind: ProductionKind; points: number; plans: PlanAmount[]}>();
 		plans.forEach(plan => this.breakdown.production(plan).forEach(row => {
 			const key = `${row.kind}:${row.item.className}`;
-			const entry = rows.get(key) ?? {item: row.item, kind: row.kind, plans: []};
+			const entry = rows.get(key) ?? {item: row.item, kind: row.kind, points: 0, plans: []};
 			entry.plans.push(this.share(plan, row.amount));
+			entry.points += row.points;
 			rows.set(key, entry);
 		}));
 		return [...rows.values()]
 			.map(entry => ({...entry, amount: entry.plans.reduce((sum, share) => sum + share.amount, 0)}))
-			.sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'product' ? -1 : 1) || a.item.name.localeCompare(b.item.name));
+			.sort((a, b) => ProductionKindOrder.compare(a.kind, b.kind) || a.item.name.localeCompare(b.item.name));
 	}
 
 	private buildings(plans: Plan[]): FolderBuildingRow[]

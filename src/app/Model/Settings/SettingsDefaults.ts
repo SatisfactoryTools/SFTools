@@ -78,6 +78,8 @@ export class SettingsDefaults
 			moreTabs: CalculatorTabDefinitions.DEFAULT_MORE,
 			helpButtons: true,
 			supporterHearts: true,
+			shareLink: 'snapshot',
+			keepShareWindowOpen: false,
 		},
 		map: {
 			coordinates: 'game',
