@@ -4,12 +4,16 @@ import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexEntry} from '@src/Components/Codex/CodexEntry';
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
+import {ModFilterComponent} from '@src/Components/Mods/ModFilterComponent';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
+import {ModFilter} from '@src/Model/Mods/ModFilter';
+import {PageModFilter} from '@src/Model/Mods/PageModFilter';
 
 @Component({
 	selector: 'codex-entry-list',
 	templateUrl: './CodexEntryListComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [CodexLinkDirective, FaIconComponent, GameIconComponent],
+	imports: [CodexLinkDirective, FaIconComponent, GameIconComponent, ModFilterComponent, ModLabelComponent],
 	styles: `
 		:host {
 			display: block;
@@ -41,6 +45,14 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 			gap: 2px;
 			flex: none;
 		}
+		.entry-text {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 0.15rem;
+			min-width: 0;
+			max-width: 100%;
+		}
 		.entry-name {
 			font-size: 0.85em;
 			line-height: 1.2;
@@ -59,6 +71,9 @@ import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 				gap: 0.5rem;
 				padding: 0.25rem 0.5rem;
 			}
+			.entry-text {
+				align-items: flex-start;
+			}
 			a.entry ::ng-deep img {
 				width: 24px;
 				height: 24px;
@@ -73,5 +88,19 @@ export class CodexEntryListComponent
 
 	@Input({required: true}) public heading = '';
 	@Input({required: true}) public entries: CodexEntry[] = [];
+
+	public constructor(public readonly modFilter: ModFilter)
+	{
+	}
+
+	public get showModFilter(): boolean
+	{
+		return this.modFilter instanceof PageModFilter;
+	}
+
+	public get visibleEntries(): CodexEntry[]
+	{
+		return this.modFilter.active() ? this.entries.filter(entry => this.modFilter.matches(entry.mod)) : this.entries;
+	}
 
 }

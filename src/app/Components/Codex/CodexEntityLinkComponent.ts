@@ -1,12 +1,13 @@
 import {Component, ChangeDetectionStrategy, Input} from '@angular/core';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'codex-entity-link',
 	templateUrl: './CodexEntityLinkComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [CodexLinkDirective, GameIconComponent],
+	imports: [CodexLinkDirective, GameIconComponent, ModLabelComponent],
 	// The :not(.btn) qualifiers out-rank the theme's ".table a:not(.btn)"
 	// underlined-link styling when the link sits inside a table.
 	styles: `
@@ -33,5 +34,6 @@ export class CodexEntityLinkComponent
 	@Input({required: true}) public name = '';
 	@Input() public icons: (string | null)[] = [];
 	@Input() public size = 20;
+	@Input() public mod: string | null = null;
 
 }

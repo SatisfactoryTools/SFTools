@@ -2,7 +2,7 @@
 	@if (state.query().trim().length < 2) {
 		<p class="text-secondary small mb-0">Keep typing to search&hellip;</p>
 	} @else if (state.flatResults().length === 0) {
-		<p class="text-secondary small mb-0">Nothing in the {{ state.scopeLabel() }} matches &ldquo;{{ state.query() }}&rdquo;.</p>
+		<p class="text-secondary small mb-0">Nothing in the {{ state.scopeLabel() }} matches &ldquo;{{ state.query() }}&rdquo;@if (state.modFilter.active()) { among the selected mods}.</p>
 	} @else {
 		@for (group of state.groups(); track group.label) {
 			@if (state.groups().length > 1) {
@@ -21,7 +21,10 @@
 							}
 						</span>
 						<span class="result-text">
-							<span class="result-name text-truncate"><search-fragments [fragments]="result.nameFragments"/></span>
+							<span class="d-flex align-items-center gap-2 min-w-0">
+								<span class="result-name text-truncate"><search-fragments [fragments]="result.nameFragments"/></span>
+								<mod-label [mod]="result.mod"/>
+							</span>
 							@if (result.snippet; as snippet) {
 								<span class="small text-secondary text-truncate"><search-fragments [fragments]="snippet"/></span>
 							}

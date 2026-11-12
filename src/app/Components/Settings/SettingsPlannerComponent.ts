@@ -162,6 +162,16 @@ export class SettingsPlannerComponent
 		this.settings.updatePlanner({helpButtons: value});
 	}
 
+	public get modLabels(): boolean
+	{
+		return this.settings.planner().modLabels;
+	}
+
+	public setModLabels(value: boolean): void
+	{
+		this.settings.updatePlanner({modLabels: value});
+	}
+
 	public get supporterHearts(): boolean
 	{
 		return this.settings.planner().supporterHearts;

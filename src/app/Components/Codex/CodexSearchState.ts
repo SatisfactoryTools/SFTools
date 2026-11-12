@@ -1,5 +1,6 @@
 import {Injectable, computed, effect, signal} from '@angular/core';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
+import {ModFilter} from '@src/Model/Mods/ModFilter';
 import {SearchResult} from '@src/Model/Search/SearchResult';
 import {SearchResultType} from '@src/Model/Search/SearchResultType';
 import {SearchService} from '@src/Model/Search/SearchService';
@@ -32,7 +33,7 @@ export class CodexSearchState
 	public readonly groups = computed(() => {
 		const types = this.types();
 		const limit = types.length === 1 ? RESULTS_PER_GROUP_SECTION : RESULTS_PER_GROUP_ALL;
-		return this.searchService.search(this.querySignal(), types, limit);
+		return this.searchService.search(this.querySignal(), types, limit, this.modFilter);
 	});
 
 	public readonly flatResults = computed<SearchResult[]>(() => this.groups().flatMap(group => group.results));
@@ -42,6 +43,7 @@ export class CodexSearchState
 	public constructor(
 		private readonly searchService: SearchService,
 		private readonly navigation: CodexNavigation,
+		public readonly modFilter: ModFilter,
 	)
 	{
 		effect(() => {

@@ -13,4 +13,6 @@ export interface SearchResult
 	snippet: SearchFragment[] | null;
 	/** Replaces the kind's own label, e.g. a subplan among plans. */
 	kindLabel?: string;
+	/** The mod a codex entity comes from; absent for everything else. */
+	mod?: string | null;
 }

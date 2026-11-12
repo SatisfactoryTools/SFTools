@@ -2,13 +2,15 @@ import {Component, ChangeDetectionStrategy, OnDestroy, effect} from '@angular/co
 import {CodexBrowserComponent} from '@src/Components/Codex/CodexBrowserComponent';
 import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {PageCodexNavigation} from '@src/Components/Codex/PageCodexNavigation';
+import {ModFilter} from '@src/Model/Mods/ModFilter';
+import {PageModFilter} from '@src/Model/Mods/PageModFilter';
 import {CodexMetaResolver} from '@src/Model/Meta/CodexMetaResolver';
 import {PageMetaService} from '@src/Model/Meta/PageMetaService';
 
 @Component({
 	templateUrl: './CodexPageComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	providers: [{provide: CodexNavigation, useClass: PageCodexNavigation}],
+	providers: [{provide: CodexNavigation, useClass: PageCodexNavigation}, {provide: ModFilter, useClass: PageModFilter}],
 	imports: [CodexBrowserComponent],
 	styles: `
 		:host {

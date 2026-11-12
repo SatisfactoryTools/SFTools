@@ -1,5 +1,6 @@
 import {DataSchema} from '@src/Model/API/Schema/Data/DataSchema';
 import {VersionMetadata} from '@src/Model/API/Schema/VersionMetadata';
+import {VersionModMetadata} from '@src/Model/API/Schema/VersionModMetadata';
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Item} from '@src/Model/Data/Entities/Item';
 import {Material} from '@src/Model/Data/Entities/Material';
@@ -20,6 +21,7 @@ export class Data
 	public readonly mapId: string | null;
 	public readonly worldNodesPath: string | null;
 	public readonly collectiblesPath: string | null;
+	public readonly mods: readonly VersionModMetadata[];
 
 	private readonly itemMap: Map<string, Item>;
 	private readonly schematicMap: Map<string, Schematic>;
@@ -27,6 +29,7 @@ export class Data
 	private readonly buildingMap: Map<string, Building>;
 	private readonly materialMap: Map<string, Material>;
 	private readonly buildingRecipeMap: Map<string, Recipe>;
+	private readonly modNames: Map<string, string>;
 
 	private recipesByProduct: Map<string, Recipe[]> | null = null;
 	private recipesByIngredient: Map<string, Recipe[]> | null = null;
@@ -42,6 +45,8 @@ export class Data
 		this.mapId = metadata?.map ?? null;
 		this.worldNodesPath = metadata?.worldNodes ?? null;
 		this.collectiblesPath = metadata?.collectibles ?? null;
+		this.mods = metadata?.mods ?? [];
+		this.modNames = new Map(this.mods.map(mod => [mod.id, mod.name]));
 
 		this.items = Object.values(schema.items).map(s => new Item(s));
 		this.itemMap = new Map(this.items.map(i => [i.className, i]));
@@ -73,6 +78,11 @@ export class Data
 		this.schematics.forEach(s => this.schematicMap.set(s.className, s));
 
 		this.resources = schema.resources;
+	}
+
+	public modName(modId: string | null): string | null
+	{
+		return modId !== null ? this.modNames.get(modId) ?? null : null;
 	}
 
 	public getAutomatableItems(): Item[]

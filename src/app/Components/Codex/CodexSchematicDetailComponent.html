@@ -1,6 +1,6 @@
 @if (schematic(); as schematic) {
 	<div class="container-fluid py-3">
-		<codex-detail-header backLink="schematics" backLabel="Schematics" [icons]="[schematic.icon]" [name]="schematic.name">
+		<codex-detail-header backLink="schematics" backLabel="Schematics" [icons]="[schematic.icon]" [name]="schematic.name" [mod]="schematic.mod">
 			@if (schematic.description) {
 				<p class="mt-2 mb-0" style="white-space: pre-line;">{{ schematic.description }}</p>
 			}
@@ -75,7 +75,7 @@
 				<ul class="list-unstyled mb-0">
 					@for (item of schematic.unlock.scannableResources; track item.className) {
 						<li class="py-1">
-							<codex-entity-link [link]="'items/' + item.className" [icons]="[item.icon]" [name]="item.name"/>
+							<codex-entity-link [link]="'items/' + item.className" [icons]="[item.icon]" [name]="item.name" [mod]="item.mod"/>
 						</li>
 					}
 				</ul>

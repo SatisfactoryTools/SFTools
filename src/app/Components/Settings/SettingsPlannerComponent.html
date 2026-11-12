@@ -135,6 +135,21 @@
 			<label class="form-check-label" for="supporter-hearts">Show hearts on plans shared by supporters</label><setting-reset-button category="planner" field="supporterHearts"/>
 		</div>
 
+		<div class="subsection-title">Mods</div>
+		<div class="form-check mb-3">
+			<input
+				class="form-check-input"
+				type="checkbox"
+				id="mod-labels"
+				[ngModel]="modLabels"
+				(ngModelChange)="setModLabels($event)"
+			/>
+			<label class="form-check-label" for="mod-labels">Show which mod things come from</label><setting-reset-button category="planner" field="modLabels"/>
+			<div class="form-text">
+				In custom versions with mods, recipes, items and buildings from a mod get a small label with its name in the codex and the recipe list.
+			</div>
+		</div>
+
 		<div class="subsection-title">Help</div>
 		<div class="form-check mb-3">
 			<input

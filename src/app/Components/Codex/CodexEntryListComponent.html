@@ -2,17 +2,25 @@
 	<div class="d-flex align-items-center gap-2 mb-3">
 		<a class="btn btn-sm btn-outline-secondary" codexLink="" aria-label="Back to codex"><fa-icon [icon]="faChevronLeft"></fa-icon></a>
 		<h2 class="mb-0">{{ heading }}</h2>
+		@if (showModFilter) {
+			<mod-filter class="ms-auto" [filter]="modFilter"/>
+		}
 	</div>
 	<div class="entry-grid">
-		@for (entry of entries; track entry.link) {
+		@for (entry of visibleEntries; track entry.link) {
 			<a class="card entry" [codexLink]="entry.link">
 				<span class="entry-icons">
 					@for (icon of entry.icons; track $index) {
 						<game-icon [hash]="icon" [size]="48" [alt]="entry.name"></game-icon>
 					}
 				</span>
-				<span class="entry-name">{{ entry.name }}</span>
+				<span class="entry-text">
+					<span class="entry-name">{{ entry.name }}</span>
+					<mod-label [mod]="entry.mod"/>
+				</span>
 			</a>
+		} @empty {
+			<p class="text-secondary small mb-0">Nothing here comes from the selected mods.</p>
 		}
 	</div>
 </div>

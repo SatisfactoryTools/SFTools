@@ -7,10 +7,13 @@ import {CollapsedSectionsService} from '@src/Components/Common/CollapsedSections
 import {CollapsibleSections} from '@src/Components/Common/CollapsibleSections';
 import {CollapsibleCardComponent} from '@src/Components/Common/CollapsibleCardComponent';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
+import {ModFilterComponent} from '@src/Components/Mods/ModFilterComponent';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {Data} from '@src/Model/Data/Data';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {ModFilter} from '@src/Model/Mods/ModFilter';
 import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {ResourceConversionRecipeResolver} from '@src/Model/Planner/ResourceConversionRecipeResolver';
@@ -32,7 +35,17 @@ import {TextMatcher} from '@src/Model/Search/TextMatcher';
 			.recipe-columns { grid-template-columns: 1fr; }
 		}
 	`],
-	imports: [FaIconComponent, FormsModule, GameIconComponent, AppTooltipDirective, InfoNoteComponent, CollapsibleCardComponent],
+	providers: [ModFilter],
+	imports: [
+		FaIconComponent,
+		FormsModule,
+		GameIconComponent,
+		AppTooltipDirective,
+		InfoNoteComponent,
+		CollapsibleCardComponent,
+		ModFilterComponent,
+		ModLabelComponent,
+	],
 })
 export class CalculatorRecipesTabComponent
 {
@@ -50,6 +63,7 @@ export class CalculatorRecipesTabComponent
 		private readonly conversions: ResourceConversionRecipeResolver,
 		public readonly rateFormatter: RateFormatter,
 		private readonly matcher: TextMatcher,
+		public readonly modFilter: ModFilter,
 		collapsedSections: CollapsedSectionsService,
 	)
 	{
@@ -135,7 +149,7 @@ export class CalculatorRecipesTabComponent
 		const data = this.data();
 		if (!data) return [];
 		return data.getRecipesForMachines()
-			.slice()
+			.filter(recipe => this.modFilter.matches(recipe.mod))
 			.sort((a, b) => this.displayName(a).localeCompare(this.displayName(b)));
 	}
 

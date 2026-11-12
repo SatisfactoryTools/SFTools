@@ -1,6 +1,6 @@
 @if (item(); as item) {
 	<div class="container-fluid py-3">
-		<codex-detail-header backLink="items" backLabel="Items" [icons]="[item.icon]" [name]="item.name">
+		<codex-detail-header backLink="items" backLabel="Items" [icons]="[item.icon]" [name]="item.name" [mod]="item.mod">
 			@if (item.abbr) {
 				<div class="text-secondary small mb-1">{{ item.abbr }}</div>
 			}

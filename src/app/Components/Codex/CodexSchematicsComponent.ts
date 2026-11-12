@@ -15,7 +15,7 @@ export class CodexSchematicsComponent
 	protected readonly entries = computed<CodexEntry[]>(() =>
 		[...(this.versionManager.activeVersionData()?.schematics ?? [])]
 			.sort((a, b) => a.name.localeCompare(b.name))
-			.map(schematic => ({link: `schematics/${schematic.className}`, icons: [schematic.icon], name: schematic.name})),
+			.map(schematic => ({link: `schematics/${schematic.className}`, icons: [schematic.icon], name: schematic.name, mod: schematic.mod})),
 	);
 
 	public constructor(private readonly versionManager: VersionManager)

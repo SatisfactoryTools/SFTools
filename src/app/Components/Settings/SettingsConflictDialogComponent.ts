@@ -84,6 +84,7 @@ const PLANNER_LABELS: Record<keyof PlannerSettings, SettingsFieldLabel> = {
 		format: value => (value as CalculatorTab[]).map(tab => CalculatorTabDefinitions.labelOf(tab)).join(', ') || 'None',
 	},
 	helpButtons: {label: 'Help buttons next to settings and tools', format: YES_NO},
+	modLabels: {label: 'Mod labels on recipes, items and buildings', format: YES_NO},
 	supporterHearts: {label: 'Hearts on plans shared by supporters', format: YES_NO},
 	shareLink: {label: 'What Share sends', format: CHOICE({snapshot: 'A snapshot', live: 'The plan itself', ask: 'Ask each time'})},
 	keepShareWindowOpen: {label: 'Keep the share window open', format: YES_NO},

@@ -1,5 +1,6 @@
 <div class="codex-toolbar position-sticky top-0 d-flex align-items-center gap-2 px-2 py-2">
-	<codex-search-box class="flex-grow-1"/>
+	<codex-search-box class="flex-grow-1 min-w-0"/>
+	<mod-filter [filter]="modFilter"/>
 	<!-- Mobile panel views are already fullscreen - nothing to pop out to. -->
 	@if (!layout.isMobile() && popOutLink(); as link) {
 		<a

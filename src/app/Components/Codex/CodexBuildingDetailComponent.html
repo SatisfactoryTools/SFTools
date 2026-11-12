@@ -1,6 +1,6 @@
 @if (building(); as building) {
 	<div class="container-fluid py-3">
-		<codex-detail-header backLink="buildings" backLabel="Buildings" [icons]="[building.icon]" [name]="building.name">
+		<codex-detail-header backLink="buildings" backLabel="Buildings" [icons]="[building.icon]" [name]="building.name" [mod]="building.mod">
 			@if (building.description) {
 				<p class="mt-2 mb-0" style="white-space: pre-line;">{{ building.description }}</p>
 			}
@@ -83,14 +83,14 @@
 				<ul class="list-unstyled mb-0">
 					@for (fuel of building.fuel; track $index) {
 						<li class="d-flex align-items-center flex-wrap gap-2 py-1">
-							<codex-entity-link [link]="'items/' + fuel.item.className" [icons]="[fuel.item.icon]" [name]="fuel.item.name"/>
+							<codex-entity-link [link]="'items/' + fuel.item.className" [icons]="[fuel.item.icon]" [name]="fuel.item.name" [mod]="fuel.item.mod"/>
 							@if (fuel.supplementalItem) {
 								<span class="text-secondary small">+ supplemental</span>
-								<codex-entity-link [link]="'items/' + fuel.supplementalItem.className" [icons]="[fuel.supplementalItem.icon]" [name]="fuel.supplementalItem.name"/>
+								<codex-entity-link [link]="'items/' + fuel.supplementalItem.className" [icons]="[fuel.supplementalItem.icon]" [name]="fuel.supplementalItem.name" [mod]="fuel.supplementalItem.mod"/>
 							}
 							@if (fuel.byproduct) {
 								<span class="text-secondary small"><fa-icon [icon]="faChevronRight"></fa-icon> byproduct</span>
-								<codex-entity-link [link]="'items/' + fuel.byproduct.className" [icons]="[fuel.byproduct.icon]" [name]="fuel.byproduct.name"/>
+								<codex-entity-link [link]="'items/' + fuel.byproduct.className" [icons]="[fuel.byproduct.icon]" [name]="fuel.byproduct.name" [mod]="fuel.byproduct.mod"/>
 							}
 						</li>
 					}

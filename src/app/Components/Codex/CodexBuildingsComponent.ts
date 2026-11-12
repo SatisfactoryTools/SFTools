@@ -15,7 +15,7 @@ export class CodexBuildingsComponent
 	protected readonly entries = computed<CodexEntry[]>(() =>
 		[...(this.versionManager.activeVersionData()?.buildings ?? [])]
 			.sort((a, b) => a.name.localeCompare(b.name))
-			.map(building => ({link: `buildings/${building.className}`, icons: [building.icon], name: building.name})),
+			.map(building => ({link: `buildings/${building.className}`, icons: [building.icon], name: building.name, mod: building.mod})),
 	);
 
 	public constructor(private readonly versionManager: VersionManager)

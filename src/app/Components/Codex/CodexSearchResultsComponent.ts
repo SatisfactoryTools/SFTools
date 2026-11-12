@@ -3,12 +3,13 @@ import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {SearchFragmentsComponent} from '@src/Components/Common/SearchFragmentsComponent';
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
 import {CodexSearchState} from '@src/Components/Codex/CodexSearchState';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'codex-search-results',
 	templateUrl: './CodexSearchResultsComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [CodexLinkDirective, GameIconComponent, SearchFragmentsComponent],
+	imports: [CodexLinkDirective, GameIconComponent, SearchFragmentsComponent, ModLabelComponent],
 	styles: `
 		:host {
 			display: block;

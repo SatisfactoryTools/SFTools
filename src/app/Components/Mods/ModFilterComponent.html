@@ -1,0 +1,43 @@
+@if (options().length > 0) {
+	<div class="btn-group btn-group-sm" dropdown container="body" placement="bottom right" [insideClick]="true">
+		<button
+			type="button"
+			class="btn btn-outline-secondary dropdown-toggle d-inline-flex align-items-center gap-1"
+			[class.active]="filter.active()"
+			dropdownToggle
+			aria-label="Filter by mod"
+		><fa-icon [icon]="faPuzzlePiece"></fa-icon><span class="text-truncate" style="max-width: 8rem;">{{ label }}</span></button>
+		@if (filter.active()) {
+			<button
+				type="button"
+				class="btn btn-outline-secondary"
+				tooltip="Show all mods" container="body" placement="top"
+				aria-label="Show all mods"
+				(click)="filter.clear()"
+			><fa-icon [icon]="faXmark"></fa-icon></button>
+		}
+		<ul *dropdownMenu class="dropdown-menu dropdown-menu-end mod-filter-menu" role="menu">
+			<li class="dropdown-header">Show only</li>
+			@for (option of options(); track option.key) {
+				<li role="menuitem">
+					<label class="dropdown-item d-flex align-items-center gap-2">
+						<input
+							type="checkbox"
+							class="form-check-input m-0 flex-shrink-0"
+							[checked]="filter.isSelected(option.key)"
+							(change)="filter.toggle(option.key)"
+						/>
+						<span>{{ option.name }}</span>
+					</label>
+				</li>
+				@if ($first) {
+					<li><hr class="dropdown-divider"></li>
+				}
+			}
+			@if (filter.active()) {
+				<li><hr class="dropdown-divider"></li>
+				<li><button type="button" class="dropdown-item" (click)="filter.clear()">Show all</button></li>
+			}
+		</ul>
+	</div>
+}

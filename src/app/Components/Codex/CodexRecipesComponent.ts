@@ -21,6 +21,7 @@ export class CodexRecipesComponent
 				link: `recipes/${recipe.className}`,
 				icons: recipe.products.map(product => product.item?.icon ?? null),
 				name: recipe.name,
+				mod: recipe.mod,
 			})),
 	);
 

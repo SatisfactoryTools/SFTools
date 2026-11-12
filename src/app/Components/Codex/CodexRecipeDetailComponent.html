@@ -1,6 +1,6 @@
 @if (recipe(); as recipe) {
 	<div class="container-fluid py-3">
-		<codex-detail-header backLink="recipes" backLabel="Recipes" [icons]="productIcons(recipe)" [name]="recipe.name">
+		<codex-detail-header backLink="recipes" backLabel="Recipes" [icons]="productIcons(recipe)" [name]="recipe.name" [mod]="recipe.mod">
 			@if (recipe.alternate) {
 				<span class="badge bg-warning text-dark mt-2">Alternate</span>
 			}

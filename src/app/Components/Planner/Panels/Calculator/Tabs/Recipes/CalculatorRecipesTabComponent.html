@@ -1,12 +1,15 @@
 <div class="p-2 d-flex flex-column gap-2">
 	<info-note>Crossed-out recipes need a machine that is disabled in the Machines tab.</info-note>
-	<input
-		type="search"
-		class="form-control form-control-sm bg-dark text-light border-secondary"
-		name="recipe-filter"
-		placeholder="Filter by recipe or product name…"
-		[(ngModel)]="filter"
-	/>
+	<div class="d-flex align-items-center gap-2">
+		<input
+			type="search"
+			class="form-control form-control-sm bg-dark text-light border-secondary flex-grow-1 min-w-0"
+			name="recipe-filter"
+			placeholder="Filter by recipe or product name…"
+			[(ngModel)]="filter"
+		/>
+		<mod-filter [filter]="modFilter"/>
+	</div>
 
 	<div class="recipe-columns">
 		<collapsible-card title="Alternate recipes" [open]="foldState.isOpen('alternate')" (toggle)="foldState.toggle('alternate')">
@@ -30,6 +33,7 @@
 								[class.text-secondary]="isMachineDisabled(recipe)"
 								[tooltip]="machineDisabledTitle(recipe)" container="body" placement="top"
 							>{{ displayName(recipe) }}</span>
+							<mod-label [mod]="recipe.mod"/>
 							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end recipe-io">
 								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
 									<span class="d-inline-flex align-items-center gap-1" [tooltip]="ingredient.item.name" container="body" placement="top">
@@ -84,6 +88,7 @@
 								[class.text-secondary]="isMachineDisabled(recipe)"
 								[tooltip]="machineDisabledTitle(recipe)" container="body" placement="top"
 							>{{ displayName(recipe) }}</span>
+							<mod-label [mod]="recipe.mod"/>
 							<span class="d-flex align-items-center flex-wrap gap-1 small text-secondary ms-auto justify-content-end recipe-io">
 								@for (ingredient of recipe.ingredients; track ingredient.item.className) {
 									<span class="d-inline-flex align-items-center gap-1" [tooltip]="ingredient.item.name" container="body" placement="top">

@@ -77,6 +77,7 @@ export class SettingsDefaults
 			groupTabs: true,
 			moreTabs: CalculatorTabDefinitions.DEFAULT_MORE,
 			helpButtons: true,
+			modLabels: true,
 			supporterHearts: true,
 			shareLink: 'snapshot',
 			keepShareWindowOpen: false,

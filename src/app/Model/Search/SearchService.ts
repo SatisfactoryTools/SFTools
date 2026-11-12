@@ -5,6 +5,7 @@ import {Version} from '@src/Model/API/Schema/Version';
 import {HelpManager} from '@src/Model/Help/HelpManager';
 import {HelpNavigation} from '@src/Components/Help/HelpNavigation';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {ModFilter} from '@src/Model/Mods/ModFilter';
 import {SearchResult} from '@src/Model/Search/SearchResult';
 import {SearchResultGroup} from '@src/Model/Search/SearchResultGroup';
 import {SearchResultType} from '@src/Model/Search/SearchResultType';
@@ -44,6 +45,7 @@ export class SearchService
 		query: string,
 		types: SearchResultType[] = ALL_TYPES,
 		limitPerGroup: number = MAX_RESULTS_PER_GROUP,
+		modFilter: ModFilter | null = null,
 	): SearchResultGroup[]
 	{
 		const normalized = this.matcher.normalize(query);
@@ -52,7 +54,11 @@ export class SearchService
 		}
 
 		return types
-			.map(type => this.group(GROUP_LABELS[type], this.candidates(type, normalized), limitPerGroup))
+			.map(type => this.group(
+				GROUP_LABELS[type],
+				this.candidates(type, normalized).filter(result => modFilter === null || (result !== null && modFilter.matches(result.mod ?? null))),
+				limitPerGroup,
+			))
 			.filter(group => group.results.length > 0);
 	}
 
@@ -104,21 +110,26 @@ export class SearchService
 					this.result('folder', folder.id, folder.name, [], null, query));
 			case 'item':
 				return (data?.items ?? []).map(item =>
-					this.result('item', item.className, item.name, [item.icon], item.description, query));
+					this.withMod(this.result('item', item.className, item.name, [item.icon], item.description, query), item.mod));
 			case 'recipe':
 				return (data?.recipes ?? []).filter(recipe => !recipe.inBuildGun).map(recipe =>
-					this.result('recipe', recipe.className, recipe.name, recipe.products.map(p => p.item?.icon ?? null), null, query));
+					this.withMod(this.result('recipe', recipe.className, recipe.name, recipe.products.map(p => p.item?.icon ?? null), null, query), recipe.mod));
 			case 'building':
 				return (data?.buildings ?? []).map(building =>
-					this.result('building', building.className, building.name, [building.icon], building.description, query));
+					this.withMod(this.result('building', building.className, building.name, [building.icon], building.description, query), building.mod));
 			case 'schematic':
 				return (data?.schematics ?? []).map(schematic =>
-					this.result('schematic', schematic.className, schematic.name, [schematic.icon], schematic.description, query));
+					this.withMod(this.result('schematic', schematic.className, schematic.name, [schematic.icon], schematic.description, query), schematic.mod));
 			case 'version':
 				return this.versionManager.versions().map(version => this.versionResult(version, query));
 			case 'article':
 				return Object.entries(this.help.articles()).map(([slug, article]) => this.articleResult(slug, article, query));
 		}
+	}
+
+	private withMod(result: SearchResult | null, mod: string | null): SearchResult | null
+	{
+		return result !== null ? {...result, mod} : null;
 	}
 
 	private result(

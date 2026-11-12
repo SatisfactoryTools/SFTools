@@ -351,6 +351,11 @@ circle.pg-port-adsorbed {
 	.table-stack-sm { @include table-stacked; }
 }
 
+// Lets a flex child shrink below its content's width, so text-truncate inside it works.
+.min-w-0 {
+	min-width: 0;
+}
+
 .subsection-title {
 	font-size: 0.78rem;
 	font-weight: 600;

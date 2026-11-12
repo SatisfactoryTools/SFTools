@@ -1,7 +1,7 @@
 @if (showName) {
 	<td class="align-middle stack-full">
 		<span class="d-inline-flex align-items-center flex-wrap gap-2 fw-semibold">
-			<codex-entity-link [link]="'recipes/' + recipe.className" [name]="recipe.name"/>
+			<codex-entity-link [link]="'recipes/' + recipe.className" [name]="recipe.name" [mod]="recipe.mod"/>
 			@if (recipe.alternate) {
 				<span class="badge bg-warning text-dark">Alternate</span>
 			}

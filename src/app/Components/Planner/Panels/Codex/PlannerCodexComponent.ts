@@ -8,14 +8,16 @@ import {CodexNavigation} from '@src/Components/Codex/CodexNavigation';
 import {CodexSearchBoxComponent} from '@src/Components/Codex/CodexSearchBoxComponent';
 import {CodexSearchResultsComponent} from '@src/Components/Codex/CodexSearchResultsComponent';
 import {CodexSearchState} from '@src/Components/Codex/CodexSearchState';
+import {ModFilterComponent} from '@src/Components/Mods/ModFilterComponent';
 import {PanelLayoutService} from '@src/Components/Planner/Panel/PanelLayoutService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
+import {ModFilter} from '@src/Model/Mods/ModFilter';
 
 @Component({
 	selector: 'planner-codex',
 	templateUrl: './PlannerCodexComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	providers: [CodexSearchState],
+	providers: [CodexSearchState, ModFilter],
 	imports: [
 		RouterLink,
 		FaIconComponent,
@@ -23,6 +25,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 		CodexBrowserComponent,
 		CodexSearchBoxComponent,
 		CodexSearchResultsComponent,
+		ModFilterComponent,
 	],
 	// The toolbar is sticky inside the panel's scroll container, so it needs an opaque background.
 	styles: `
@@ -57,6 +60,7 @@ export class PlannerCodexComponent
 		private readonly navigation: CodexNavigation,
 		public readonly layout: PanelLayoutService,
 		public readonly search: CodexSearchState,
+		public readonly modFilter: ModFilter,
 	)
 	{
 	}

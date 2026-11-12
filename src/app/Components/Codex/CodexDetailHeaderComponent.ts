@@ -3,12 +3,13 @@ import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faChevronLeft} from '@fortawesome/free-solid-svg-icons';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {CodexLinkDirective} from '@src/Components/Codex/CodexLinkDirective';
+import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
 @Component({
 	selector: 'codex-detail-header',
 	templateUrl: './CodexDetailHeaderComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [CodexLinkDirective, FaIconComponent, GameIconComponent],
+	imports: [CodexLinkDirective, FaIconComponent, GameIconComponent, ModLabelComponent],
 	styles: `
 		:host {
 			display: block;
@@ -39,5 +40,6 @@ export class CodexDetailHeaderComponent
 	@Input({required: true}) public backLabel = '';
 	@Input() public icons: (string | null)[] = [];
 	@Input() public name: string | null = null;
+	@Input() public mod: string | null = null;
 
 }
