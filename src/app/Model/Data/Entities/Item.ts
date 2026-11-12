@@ -8,6 +8,7 @@ export class Item
 {
 
 	public readonly className: string;
+	public readonly mod: string | null;
 	public readonly icon: string | null;
 	public readonly name: string;
 	public readonly description: string;
@@ -38,6 +39,7 @@ export class Item
 	public constructor(schema: ItemSchema)
 	{
 		this.className = schema.className;
+		this.mod = schema.mod ?? null;
 		this.icon = schema.icon;
 		this.name = schema.name;
 		this.description = schema.description;

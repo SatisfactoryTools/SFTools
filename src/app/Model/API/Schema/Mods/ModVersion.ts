@@ -6,5 +6,7 @@ export interface ModVersion
 	name: string;
 	hasData: boolean;
 	createdAt: string;
+	sourceVersionId: string | null;
+	dependencies: string[];
 
 }

@@ -18,6 +18,7 @@ export class ModDetailComponent
 
 
 	public mod: Mod | null = null;
+	private visibleMods: Mod[] = [];
 	public loading = true;
 	public notFound = false;
 	public error: string | null = null;
@@ -42,6 +43,24 @@ export class ModDetailComponent
 	{
 		this.modId = route.snapshot.paramMap.get('modId') ?? '';
 		this.reload();
+		this.modsApi.listMods().subscribe({
+			next: mods => this.visibleMods = mods,
+			// Only the names of needed mods come from this list; without it they show as hidden.
+			error: () => this.visibleMods = [],
+		});
+	}
+
+	public dependencyLabels(version: ModVersion): string[]
+	{
+		return version.dependencies.map(dependencyId => {
+			for (const mod of this.visibleMods) {
+				const dependency = mod.versions.find(candidate => candidate.id === dependencyId);
+				if (dependency !== undefined) {
+					return `${mod.name} ${dependency.name}`;
+				}
+			}
+			return 'a mod you cannot see';
+		});
 	}
 
 	private reload(): void
@@ -88,7 +107,7 @@ export class ModDetailComponent
 		}
 		this.modsApi.deleteMod(mod.id).subscribe({
 			next: () => void this.router.navigate(['/mods']),
-			error: () => this.error = 'Could not delete the mod.',
+			error: (err: {error?: {error?: string}}) => this.error = err?.error?.error ?? 'Could not delete the mod.',
 		});
 	}
 
@@ -149,7 +168,7 @@ export class ModDetailComponent
 		}
 		this.modsApi.deleteModVersion(this.mod.id, version.id).subscribe({
 			next: () => this.reload(),
-			error: () => this.error = 'Could not delete the version.',
+			error: (err: {error?: {error?: string}}) => this.error = err?.error?.error ?? 'Could not delete the version.',
 		});
 	}
 

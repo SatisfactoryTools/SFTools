@@ -8,6 +8,7 @@ import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
+import {ModSelection} from '@src/Components/Versions/ModSelection';
 import {PickedMod} from '@src/Components/Versions/PickedMod';
 import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {Mod} from '@src/Model/API/Schema/Mods/Mod';
@@ -134,7 +135,7 @@ export class CreateVersionPageComponent
 	public mods: Mod[] = [];
 
 	public modsFailed = false;
-	public picked: PickedMod[] = [];
+	public selection = new ModSelection([]);
 
 	// Changing these does NOT clear the table: it keeps the counts of the settings it was loaded from (loadedSettings), which are what get echoed on create.
 	public worldSeed = 0;
@@ -175,10 +176,11 @@ export class CreateVersionPageComponent
 		this.modsApi.listMods().subscribe({
 			next: mods => {
 				this.mods = mods.filter(mod => mod.versions.length > 0);
+				this.selection = new ModSelection(this.mods);
 				for (const versionId of modVersions) {
 					const mod = this.mods.find(candidate => candidate.versions.some(version => version.id === versionId));
-					if (mod !== undefined && !this.picked.some(entry => entry.mod.id === mod.id)) {
-						this.picked.push({mod, versionId});
+					if (mod !== undefined) {
+						this.selection.add(mod, versionId);
 					}
 				}
 			},
@@ -224,17 +226,32 @@ export class CreateVersionPageComponent
 			.sort((a, b) => a.label.localeCompare(b.label));
 	}
 
+	public get picked(): PickedMod[]
+	{
+		return this.selection.picked;
+	}
+
 	public addMod(modId: string): void
 	{
 		const mod = this.mods.find(candidate => candidate.id === modId);
-		if (mod && !this.picked.some(entry => entry.mod.id === modId)) {
-			this.picked.push({mod, versionId: this.latestVersionOf(mod).id});
+		if (mod) {
+			this.selection.add(mod, this.latestVersionOf(mod).id);
 		}
 	}
 
-	public removeMod(index: number): void
+	public changeModVersion(entry: PickedMod, versionId: string): void
 	{
-		this.picked.splice(index, 1);
+		this.selection.changeVersion(entry, versionId);
+	}
+
+	public removeMod(entry: PickedMod): void
+	{
+		this.selection.remove(entry);
+	}
+
+	public neededByLabel(entry: PickedMod): string
+	{
+		return this.selection.neededBy(entry).map(mod => mod.name).join(', ');
 	}
 
 	private latestVersionOf(mod: Mod): ModVersion

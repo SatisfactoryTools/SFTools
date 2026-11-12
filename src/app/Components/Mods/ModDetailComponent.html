@@ -34,7 +34,12 @@
 				<button type="button" class="btn btn-sm btn-outline-danger" (click)="deleteMod()">Delete mod</button>
 			}
 		</div>
-		<div class="text-secondary small mt-1">Created {{ currentMod.createdAt | date:'medium' }}</div>
+		<div class="text-secondary small mt-1">
+			Created {{ currentMod.createdAt | date:'medium' }}
+			@if (currentMod.reference; as reference) {
+				· <a [href]="'https://ficsit.app/mod/' + reference" target="_blank" rel="noopener">View on ficsit.app</a>
+			}
+		</div>
 
 		<h5 class="mt-4">Versions</h5>
 		@if (currentMod.owned) {
@@ -69,7 +74,12 @@
 					<span class="badge" [class.bg-success]="version.hasData" [class.bg-secondary]="!version.hasData">
 						{{ version.hasData ? 'Has data' : 'No data' }}
 					</span>
-					<span class="text-secondary small flex-grow-1">{{ version.createdAt | date:'mediumDate' }}</span>
+					<span class="text-secondary small flex-grow-1">
+						{{ version.createdAt | date:'mediumDate' }}
+						@if (version.dependencies.length > 0) {
+							· Needs {{ dependencyLabels(version).join(', ') }}
+						}
+					</span>
 					@if (currentMod.owned) {
 						<a class="btn btn-sm btn-outline-primary py-0" [routerLink]="['/mods', currentMod.id, 'versions', version.id, 'data']">
 							{{ version.hasData ? 'Edit data' : 'Add data' }}

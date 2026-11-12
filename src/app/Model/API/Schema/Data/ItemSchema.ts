@@ -7,6 +7,7 @@ export interface ItemSchema
 {
 
 	className: string;
+	mod?: string;
 	icon: string | null;
 	name: string;
 	description: string;

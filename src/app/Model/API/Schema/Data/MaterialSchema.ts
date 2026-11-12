@@ -5,6 +5,7 @@ export interface MaterialSchema
 {
 
 	className: string;
+	mod?: string;
 	ingredients: ItemAmountSchema[];
 	events: Event[];
 

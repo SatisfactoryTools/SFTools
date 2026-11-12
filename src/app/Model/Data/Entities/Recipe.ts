@@ -9,6 +9,7 @@ export class Recipe
 {
 
 	public readonly className: string;
+	public readonly mod: string | null;
 	public readonly name: string;
 	public readonly ingredients: ItemAmount[];
 	public readonly products: ItemAmount[];
@@ -31,6 +32,7 @@ export class Recipe
 	)
 	{
 		this.className = schema.className;
+		this.mod = schema.mod ?? null;
 		this.name = schema.name;
 		this.ingredients = ReferenceHydrator.amounts(schema.ingredients, itemMap);
 		this.products = ReferenceHydrator.amounts(schema.products, itemMap);

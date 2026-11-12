@@ -79,25 +79,39 @@
 					}
 				</div>
 				<div class="card-body d-flex flex-column gap-2">
-					@for (entry of picked; track entry.mod.id; let i = $index) {
+					@for (entry of picked; track entry.mod.id) {
+						@let neededBy = neededByLabel(entry);
 						<div class="d-flex align-items-center gap-2">
 							<span class="flex-grow-1 text-truncate">
 								{{ entry.mod.name }}
 								@if (!entry.mod.public) {
 									<span class="badge bg-info ms-1">custom</span>
 								}
+								@if (neededBy) {
+									<span class="d-block small text-secondary text-truncate">Needed by {{ neededBy }}</span>
+								}
 							</span>
 							<select
 								class="form-select form-select-sm bg-dark text-light border-secondary"
 								style="width: 150px; flex: none;"
-								[(ngModel)]="entry.versionId"
+								[ngModel]="entry.versionId"
+								(ngModelChange)="changeModVersion(entry, $event)"
 							>
 								@for (version of entry.mod.versions; track version.id) {
 									<option [ngValue]="version.id">{{ version.name }}</option>
 								}
 							</select>
-							<button type="button" class="btn btn-sm btn-outline-danger py-0" title="Remove mod" (click)="removeMod(i)">✕</button>
+							<button
+								type="button"
+								class="btn btn-sm btn-outline-danger py-0"
+								[title]="neededBy ? 'Needed by ' + neededBy : 'Remove mod'"
+								[disabled]="!!neededBy"
+								(click)="removeMod(entry)"
+							>✕</button>
 						</div>
+					}
+					@for (name of selection.modsWithHiddenDependencies; track name) {
+						<info-note kind="warning">{{ name }} needs a mod you cannot see. Ask its owner to make it public.</info-note>
 					}
 					@if (availableModOptions.length > 0) {
 						<item-picker [options]="availableModOptions" value="" placeholder="+ Add a mod…" (valueChange)="addMod($event)"></item-picker>

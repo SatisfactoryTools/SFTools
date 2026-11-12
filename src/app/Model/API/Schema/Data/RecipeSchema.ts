@@ -5,6 +5,7 @@ export interface RecipeSchema
 {
 
 	className: string;
+	mod?: string;
 	name: string;
 	ingredients: ItemAmountSchema[];
 	products: ItemAmountSchema[];

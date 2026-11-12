@@ -8,12 +8,14 @@ export class Material
 {
 
 	public readonly className: string;
+	public readonly mod: string | null;
 	public readonly ingredients: ItemAmount[];
 	public readonly events: Event[];
 
 	public constructor(schema: MaterialSchema, itemMap: Map<string, Item>)
 	{
 		this.className = schema.className;
+		this.mod = schema.mod ?? null;
 		this.ingredients = ReferenceHydrator.amounts(schema.ingredients, itemMap);
 		this.events = schema.events;
 	}

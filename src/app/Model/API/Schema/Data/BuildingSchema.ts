@@ -6,6 +6,7 @@ export interface BuildingSchema
 {
 
 	className: string;
+	mod?: string;
 	icon: string | null;
 	name: string;
 	description: string;
