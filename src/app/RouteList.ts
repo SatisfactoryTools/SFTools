@@ -13,6 +13,7 @@ import {CreateVersionPageComponent} from '@src/Components/Versions/CreateVersion
 import {ModDetailComponent} from '@src/Components/Mods/ModDetailComponent';
 import {ModEditorComponent} from '@src/Components/ModEditor/ModEditorComponent';
 import {ModListComponent} from '@src/Components/Mods/ModListComponent';
+import {SupportedModsComponent} from '@src/Components/Mods/SupportedModsComponent';
 import {PlannerComponent} from '@src/Components/Planner/PlannerComponent';
 import {SettingsComponent} from '@src/Components/Settings/SettingsComponent';
 import {ShareRedirectComponent} from '@src/Components/Shares/ShareRedirectComponent';
@@ -124,6 +125,12 @@ export class RouteList
 					title: 'Create custom version',
 					data: {description: 'Make your own game version: add mods, change recipe and power costs, and set up a different world.'},
 					component: CreateVersionPageComponent,
+				},
+				{
+					path: 'supported-mods',
+					title: 'Supported mods',
+					data: {description: 'Satisfactory mods you can add to a custom game version and plan with. Suggest the mod you want next.'},
+					component: SupportedModsComponent,
 				},
 				// Must precede the ':versionSlug' catch-all.
 				{

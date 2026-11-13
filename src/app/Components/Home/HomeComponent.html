@@ -30,16 +30,16 @@
 							<span>Get the desktop app <span class="hero-sub">Windows, Linux &amp; macOS</span></span>
 						</a>
 					}
+					<a routerLink="/create-version" class="btn btn-outline-light btn-lg">
+						<fa-icon [icon]="faSliders"></fa-icon>
+						<span>Create custom version <span class="hero-sub">change costs, resource nodes or add mods</span></span>
+					</a>
 					@if (featuredVersion; as featured) {
 						<a class="btn btn-outline-light btn-lg" [routerLink]="mapLink(featured)">
 							<fa-icon [icon]="faMap"></fa-icon>
 							<span>Open the map <span class="hero-sub">resource nodes and collectibles</span></span>
 						</a>
 					}
-					<a routerLink="/create-version" class="btn btn-outline-light btn-lg">
-						<fa-icon [icon]="faSliders"></fa-icon>
-						<span>Create custom version <span class="hero-sub">change costs, resource nodes or add mods</span></span>
-					</a>
 				</div>
 				<div class="hero-support">
 					<fa-icon class="hero-support-icon" [icon]="faHeart"></fa-icon>
@@ -161,6 +161,35 @@
 				}
 			}
 		</div>
+	</section>
+
+	<section class="mods-strip">
+		<div class="mods-strip-head">
+			<fa-icon class="mods-strip-icon" [icon]="faPuzzlePiece"></fa-icon>
+			<div class="mods-strip-text">
+				<div class="mods-strip-title">{{ modsHeadline }}</div>
+				<div class="mods-strip-lead">Add supported mods to a custom version and plan with their items, recipes and buildings.</div>
+			</div>
+			<div class="mods-strip-actions">
+				<a class="btn btn-sm btn-primary" routerLink="/supported-mods">See supported mods</a>
+				<a class="btn btn-sm btn-outline-light" routerLink="/supported-mods">Suggest a mod</a>
+			</div>
+		</div>
+		@if (modPreview.length > 0) {
+			<div class="mods-strip-list">
+				@for (mod of modPreview; track mod.id) {
+					<a class="mod-chip" routerLink="/supported-mods">
+						@if (mod.logo) {
+							<img [src]="mod.logo" alt="" loading="lazy" referrerpolicy="no-referrer">
+						}
+						<span>{{ mod.name }}</span>
+					</a>
+				}
+				@if (moreModCount > 0) {
+					<a class="mod-chip mod-chip-more" routerLink="/supported-mods">+{{ moreModCount }} more</a>
+				}
+			</div>
+		}
 	</section>
 
 	@if (featuredVersion; as featured) {

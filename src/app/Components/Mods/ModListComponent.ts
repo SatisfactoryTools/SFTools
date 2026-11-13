@@ -6,11 +6,12 @@ import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {Mod} from '@src/Model/API/Schema/Mods/Mod';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 
 @Component({
 	templateUrl: './ModListComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [DatePipe, FormsModule, RouterLink, BackLinkComponent, HelpButtonComponent],
+	imports: [DatePipe, FormsModule, RouterLink, BackLinkComponent, HelpButtonComponent, InfoNoteComponent],
 })
 export class ModListComponent
 {

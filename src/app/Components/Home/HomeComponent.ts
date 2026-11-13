@@ -16,6 +16,8 @@ import {SignInPromptService} from '@src/Model/Auth/SignInPromptService';
 import {CommunityLinks} from '@src/Model/CommunityLinks';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {MapTopic} from '@src/Model/Map/MapTopic';
+import {ModCatalogService} from '@src/Model/Mods/ModCatalogService';
+import {ModCatalogEntry} from '@src/Model/API/Schema/Mods/ModCatalogEntry';
 import {MapTopicCatalog} from '@src/Model/Map/MapTopicCatalog';
 import {LocalPlanStoreBackend} from '@src/Model/Planner/LocalPlanStoreBackend';
 import {AppStorage} from '@src/Model/Storage/AppStorage';
@@ -287,9 +289,18 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 
 		.features {
 			display: grid;
-			/* 200px: the five features fit one row at full width. */
-			grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+			grid-template-columns: minmax(0, 1fr);
 			gap: 0.75rem;
+		}
+		@media (min-width: 520px) {
+			.features {
+				grid-template-columns: repeat(2, minmax(0, 1fr));
+			}
+		}
+		@media (min-width: 860px) {
+			.features {
+				grid-template-columns: repeat(3, minmax(0, 1fr));
+			}
 		}
 		.feature {
 			display: flex;
@@ -325,6 +336,74 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 			font-size: 0.8rem;
 			color: #9fb0c0;
 			margin: 0;
+		}
+
+		.mods-strip {
+			padding: 0.9rem 1.1rem;
+			background: rgba(var(--bs-dark-rgb), 0.7);
+			border: 1px solid rgba(78, 93, 108, 0.7);
+			border-left: 4px solid #9c27b0;
+		}
+		.mods-strip-head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.75rem 1rem;
+		}
+		.mods-strip-icon {
+			color: var(--bs-primary);
+			font-size: 1.4rem;
+		}
+		.mods-strip-text {
+			flex: 1 1 16rem;
+			min-width: 0;
+		}
+		.mods-strip-title {
+			font-weight: 600;
+			font-size: 1.1rem;
+		}
+		.mods-strip-lead {
+			font-size: 0.875rem;
+			color: #9fb0c0;
+		}
+		.mods-strip-actions {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+		.mods-strip-actions .btn-outline-light {
+			--bs-btn-border-color: rgba(255, 255, 255, 0.5);
+		}
+		.mods-strip-list {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 0.4rem;
+			margin-top: 0.75rem;
+		}
+		.mod-chip {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.4rem;
+			padding: 0.2rem 0.6rem 0.2rem 0.25rem;
+			font-size: 0.85rem;
+			color: inherit;
+			text-decoration: none;
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid rgba(78, 93, 108, 0.6);
+			transition: border-color 0.15s, background 0.15s;
+		}
+		.mod-chip img {
+			width: 22px;
+			height: 22px;
+			object-fit: cover;
+		}
+		.mod-chip-more {
+			padding-left: 0.6rem;
+			color: #9fb0c0;
+		}
+		.mod-chip:hover {
+			background: rgba(var(--bs-primary-rgb), 0.12);
+			border-color: var(--bs-primary);
 		}
 
 		.map-promo {
@@ -567,7 +646,10 @@ const WORLD_PURITY_LABELS: Record<string, string> = {
 export class HomeComponent
 {
 
+	private static readonly MOD_PREVIEW_COUNT = 8;
+
 	public readonly faPlay = faPlay;
+	public readonly faPuzzlePiece = faPuzzlePiece;
 	public readonly faArrowRight = faArrowRight;
 	public readonly faPlus = faPlus;
 	public readonly faXmark = faXmark;
@@ -600,11 +682,13 @@ export class HomeComponent
 		private readonly offlineVersions: OfflineVersionsService,
 		protected readonly connectivity: ConnectivityService,
 		protected readonly platform: AppPlatform,
+		private readonly modCatalog: ModCatalogService,
 	)
 	{
 		this.localPlanStore = new LocalPlanStoreBackend(storage, versionManager, plannerLocation);
 		this.desktopAppLink = !platform.desktop && platform.desktopAppPublic;
 		this.planCounts.refresh();
+		this.modCatalog.load();
 	}
 
 	public get publicVersions(): Version[]
@@ -704,20 +788,48 @@ export class HomeComponent
 				text: 'Change recipe and power costs or resource nodes, or add mods.',
 				link: ['/create-version'],
 			},
-			this.desktopAppLink
-				? {
-					icon: faDesktop,
-					title: 'Desktop app',
-					text: 'The planner as an app for Windows, Linux and macOS. Works offline and saves plans as files.',
-					link: ['/settings', 'desktop'],
-				}
-				: {
-					icon: faPuzzlePiece,
-					title: 'Mods',
-					text: 'Add or change items, recipes and buildings, and share them with others.',
-					link: ['/mods'],
-				},
+			{
+				icon: faPuzzlePiece,
+				title: 'Mods',
+				text: this.modsFeatureText,
+				link: ['/supported-mods'],
+			},
+			...(this.desktopAppLink ? [{
+				icon: faDesktop,
+				title: 'Desktop app',
+				text: 'The planner as an app for Windows, Linux and macOS. Works offline and saves plans as files.',
+				link: ['/settings', 'desktop'],
+			}] : []),
 		];
+	}
+
+	private get supportedModCount(): number | null
+	{
+		const entries = this.modCatalog.entries();
+		return entries === null || entries.length === 0 ? null : entries.length;
+	}
+
+	public get modsHeadline(): string
+	{
+		const count = this.supportedModCount;
+		return count === null ? 'Mods are supported' : `${count} mod${count === 1 ? '' : 's'} supported`;
+	}
+
+	public get modPreview(): ModCatalogEntry[]
+	{
+		return (this.modCatalog.entries() ?? []).slice(0, HomeComponent.MOD_PREVIEW_COUNT);
+	}
+
+	public get moreModCount(): number
+	{
+		return Math.max(0, (this.modCatalog.entries()?.length ?? 0) - HomeComponent.MOD_PREVIEW_COUNT);
+	}
+
+	private get modsFeatureText(): string
+	{
+		const count = this.supportedModCount;
+		const supported = count === null ? 'Supported mods' : `${count} supported mod${count === 1 ? '' : 's'}`;
+		return `${supported}, ready to add to a custom version. Suggest the one you want next.`;
 	}
 
 	public planCountLabel(version: Version): string | null

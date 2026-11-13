@@ -1,0 +1,113 @@
+<div class="container mt-5 mb-5" style="max-width: 980px;">
+	<back-link link="/" label="Home"></back-link>
+	<h2 class="mb-0 mt-2">Supported mods</h2>
+	<p class="text-secondary mt-1">
+		Mods you can plan with.
+		Add them to a <a routerLink="/create-version">custom version</a> and their items, recipes and buildings show up in the planner, codex and map.
+	</p>
+
+	<div class="card border-secondary mt-3">
+		<div class="card-header">
+			<div class="fw-semibold">Suggest a mod</div>
+			<div class="small text-secondary">Missing a mod you use? Paste its ficsit.app link.</div>
+		</div>
+		<div class="card-body">
+			<form class="suggest-form" (ngSubmit)="suggest()">
+				<input
+					type="text"
+					name="link"
+					class="form-control bg-dark text-light border-secondary"
+					[placeholder]="exampleLink"
+					aria-label="ficsit.app mod link"
+					[(ngModel)]="link"
+					maxlength="512"
+					autocomplete="off"
+				/>
+				<button type="submit" class="btn btn-success" [disabled]="sending || link.trim() === ''">
+					{{ sending ? 'Checking…' : 'Suggest mod' }}
+				</button>
+			</form>
+			@if (error; as message) {
+				<div class="text-danger small mt-2 selectable">{{ message }}</div>
+			}
+			@if (result; as done) {
+				@switch (done.status) {
+					@case ('counted') {
+						<div class="text-success small mt-2">Thanks! Your suggestion for {{ resultName(done) }} was counted.</div>
+					}
+					@case ('alreadySuggested') {
+						<div class="text-info small mt-2">You already suggested {{ resultName(done) }}. It still counts once, thanks!</div>
+					}
+					@case ('available') {
+						<div class="text-info small mt-2">{{ resultName(done) }} is already supported. You can find it in the list below.</div>
+					}
+				}
+			}
+			<div class="suggest-notes mt-3">
+				<info-note>
+					Mods are added by hand, so it can take a while. Big or complex mods may take a long time, and some may never be added.
+				</info-note>
+				<info-note>
+					Made a mod and want it here? Message greeny on <a [href]="discord.url" target="_blank" rel="noopener">Discord</a>.
+				</info-note>
+			</div>
+		</div>
+	</div>
+
+	<div class="d-flex flex-wrap align-items-end justify-content-between gap-2 mt-4 mb-2">
+		<h5 class="mb-0">
+			Available mods
+			@if (catalog.entries(); as list) {
+				<span class="text-secondary fw-normal">({{ list.length }})</span>
+			}
+		</h5>
+		<a class="btn btn-sm btn-outline-light d-inline-flex align-items-center gap-2" routerLink="/create-version">
+			<fa-icon [icon]="faSliders"></fa-icon> Create custom version
+		</a>
+	</div>
+
+	@if (catalog.failed()) {
+		<div class="alert alert-danger d-flex flex-wrap align-items-center gap-3" role="alert">
+			<span class="flex-grow-1">Could not load the mods. The server may be updating. Try again in a minute.</span>
+			<button type="button" class="btn btn-outline-light btn-sm" (click)="catalog.load(true)">Try again</button>
+		</div>
+	} @else if (catalog.entries() === null) {
+		<p class="text-secondary">Loading…</p>
+	} @else {
+		<div class="mod-grid">
+			@for (entry of entries; track entry.id) {
+				<div class="mod-card">
+					@if (entry.logo) {
+						<img class="mod-logo" [src]="entry.logo" alt="" loading="lazy" referrerpolicy="no-referrer">
+					} @else {
+						<span class="mod-logo mod-logo-empty"><fa-icon [icon]="faPuzzlePiece"></fa-icon></span>
+					}
+					<div class="mod-body">
+						<div class="mod-name">{{ entry.name }}</div>
+						<div class="mod-version">Version {{ entry.version }} · added {{ entry.updatedAt | date:'mediumDate' }}</div>
+						@if (entry.summary) {
+							<p class="mod-summary">{{ entry.summary }}</p>
+						}
+						@if (counts(entry); as counted) {
+							<div class="mod-facts">Adds or changes {{ counted }}</div>
+						}
+						@if (entry.needs.length > 0) {
+							<div class="mod-facts">Needs {{ entry.needs.join(', ') }} (added for you)</div>
+						}
+						@if (entry.reference; as reference) {
+							<a class="mod-link" [href]="ficsitUrl(reference)" target="_blank" rel="noopener">
+								View on ficsit.app <fa-icon [icon]="faArrowUpRightFromSquare"></fa-icon>
+							</a>
+						}
+					</div>
+				</div>
+			} @empty {
+				<p class="text-secondary">No mods yet. Suggest one above.</p>
+			}
+		</div>
+	}
+
+	<p class="text-secondary small mt-4">
+		You can also write mod data yourself on the <a routerLink="/mods">Mods</a> page (needs an account).
+	</p>
+</div>

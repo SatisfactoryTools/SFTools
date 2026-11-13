@@ -1,6 +1,6 @@
 import {Component, ChangeDetectionStrategy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
-import {ActivatedRoute} from '@angular/router';
+import {ActivatedRoute, RouterLink} from '@angular/router';
 import {ModEntryFormComponent} from '@src/Components/ModEditor/ModEntryFormComponent';
 import {ModsApiService} from '@src/Model/API/ModsApiService';
 import {DataSchema} from '@src/Model/API/Schema/Data/DataSchema';
@@ -11,13 +11,14 @@ import {ModEntryDescriptor} from '@src/Model/ModEditor/ModEntryDescriptor';
 import {ModImageStore} from '@src/Model/ModEditor/ModImageStore';
 import {ModSchemaDescriptors} from '@src/Model/ModEditor/ModSchemaDescriptors';
 import {BackLinkComponent} from '@src/Components/Common/BackLinkComponent';
+import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
 import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 
 @Component({
 	templateUrl: './ModEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, ModEntryFormComponent, BackLinkComponent, HelpButtonComponent],
+	imports: [FormsModule, RouterLink, ModEntryFormComponent, BackLinkComponent, HelpButtonComponent, InfoNoteComponent],
 	host: {class: 'container-fluid d-block my-4', style: 'max-width: 1100px;'},
 })
 export class ModEditorComponent
@@ -108,6 +109,31 @@ export class ModEditorComponent
 	}
 
 	private unwrapVersionFile(parsed: unknown): {data: unknown; metadata: Record<string, unknown>}
+	{
+		const file = this.unwrapFile(parsed);
+		return {data: this.restoreEmptyCollections(file.data), metadata: file.metadata};
+	}
+
+	/** PHP writes an empty JSON object as [], so an empty className-keyed collection can come back as an array. */
+	private restoreEmptyCollections(data: unknown): unknown
+	{
+		if (Array.isArray(data) && data.length === 0) {
+			return {};
+		}
+		if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+			return data;
+		}
+		const record = {...data as Record<string, unknown>};
+		ModSchemaDescriptors.ALL.forEach(descriptor => {
+			const collection = record[descriptor.collection];
+			if (Array.isArray(collection) && collection.length === 0) {
+				record[descriptor.collection] = {};
+			}
+		});
+		return record;
+	}
+
+	private unwrapFile(parsed: unknown): {data: unknown; metadata: Record<string, unknown>}
 	{
 		if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
 			const record = parsed as Record<string, unknown>;
