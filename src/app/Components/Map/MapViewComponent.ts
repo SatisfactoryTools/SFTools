@@ -458,9 +458,11 @@ export class MapViewComponent implements AfterViewInit, OnChanges, OnDestroy
 		const leaflet = this.leaflet!;
 		this.highlightLayer?.clearLayers();
 		for (const [x, y] of this.highlight) {
-			leaflet.circleMarker(this.worldToLatLng(x, y), {
-				pane: 'highlight', radius: 15, color: '#fff', weight: 2, fill: false, interactive: false, className: 'map-highlight-ring',
-			}).addTo(this.highlightLayer!);
+			// A dark halo under a bright ring keeps it visible on the pale land, the water and the markers alike.
+			for (const ring of [{color: '#141824', weight: 7, className: 'map-highlight-halo'}, {color: '#ffd426', weight: 3.5, className: 'map-highlight-ring'}]) {
+				leaflet.circleMarker(this.worldToLatLng(x, y), {pane: 'highlight', radius: 18, fill: false, interactive: false, ...ring})
+					.addTo(this.highlightLayer!);
+			}
 		}
 	}
 
@@ -756,6 +758,7 @@ export class MapViewComponent implements AfterViewInit, OnChanges, OnDestroy
 			maxZoom: this.background.maxZoom + MapViewComponent.EXTRA_ZOOM,
 			noWrap: true,
 			bounds,
+			className: 'map-tiles',
 		}).addTo(map);
 		map.setMaxZoom(this.background.maxZoom + MapViewComponent.EXTRA_ZOOM);
 		// Panning may leave the image only partly: half a map of slack keeps the edges reachable without losing the map.

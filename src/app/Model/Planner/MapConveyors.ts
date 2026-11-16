@@ -3,4 +3,7 @@ export interface MapConveyors
 {
 	readonly beltMark: number;
 	readonly pipeMark: number;
+
+	/** Miner used on solid nodes; absent in settings saved before it could be picked, which means the best one. */
+	readonly minerMark?: number;
 }

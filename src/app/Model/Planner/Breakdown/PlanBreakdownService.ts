@@ -7,6 +7,7 @@ import {BuildCostBreakdown} from '@src/Model/Planner/Breakdown/BuildCostBreakdow
 import {BuildCostMaterialRow} from '@src/Model/Planner/Breakdown/BuildCostMaterialRow';
 import {BuildCostRow} from '@src/Model/Planner/Breakdown/BuildCostRow';
 import {CountedExtraPower} from '@src/Model/Planner/Breakdown/CountedExtraPower';
+import {SubplanTotals} from '@src/Model/Planner/Breakdown/SubplanTotals';
 import {CountedNode} from '@src/Model/Planner/Breakdown/CountedNode';
 import {ItemFlowRow} from '@src/Model/Planner/Breakdown/ItemFlowRow';
 import {ItemRow} from '@src/Model/Planner/Breakdown/ItemRow';
@@ -440,6 +441,23 @@ export class PlanBreakdownService
 		};
 	}
 
+	/** One build of the subplan, its own subplans included. */
+	public subplanTotals(subplanId: string): SubplanTotals
+	{
+		const nodes = this.collectProductionNodes(subplanId, new Set());
+		const mines = new Map<string, number>();
+		nodes.mines.forEach(entry => mines.set(entry.node.item.className, (mines.get(entry.node.item.className) ?? 0) + entry.node.amount * entry.count));
+		const sloops = nodes.recipes.reduce((sum, entry) => sum + entry.node.groups.reduce((groupSum, group) => groupSum + group.machines * group.sloops, 0) * entry.count, 0)
+			+ nodes.extraPower.reduce((sum, entry) => sum + entry.extraPower.sloopCost * entry.count, 0);
+		return {
+			consumption: this.consumptionOf(nodes.recipes).average,
+			production: this.productionOf(nodes).average,
+			machines: this.countMachines(nodes, false),
+			sloops,
+			mines,
+		};
+	}
+
 	private consumptionOf(recipes: CountedNode<RecipeNode>[]): PowerDraw
 	{
 		return PowerDraw.sum(recipes.map(entry => entry.node.powerDraw().scale(entry.count)));
@@ -705,7 +723,7 @@ export class PlanBreakdownService
 			} else if (node instanceof MineNode) {
 				result.mines.push({node, count: 1, done});
 			} else if (node instanceof SubplanNode) {
-				this.appendProductionNodes(result, this.collectProductionNodes(node.subplanId, path, done), Math.max(1, node.buildCount));
+				this.appendProductionNodes(result, this.collectProductionNodes(node.subplanId, path, done), node.builds());
 			} else if (node instanceof AugmenterNode) {
 				augmenters.push(node);
 			}
@@ -763,7 +781,7 @@ export class PlanBreakdownService
 				nodeIds: [],
 				nodes: {recipes: [], generators: [], mines: [], extraPower: []},
 			}));
-			const builds = Math.max(1, node.buildCount);
+			const builds = node.builds();
 			group.count += builds;
 			group.nodeIds.push(node.id);
 			this.appendProductionNodes(group.nodes, this.collectProductionNodes(node.subplanId, new Set([parentPlanId]), node.done), builds);

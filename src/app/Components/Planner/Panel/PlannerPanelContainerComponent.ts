@@ -9,6 +9,7 @@ import {ShareDialogService} from '@src/Components/Planner/Share/ShareDialogServi
 import {PanelDefinition} from '@src/Components/Planner/Panel/PanelDefinition';
 import {PanelSide} from '@src/Components/Planner/Panel/PanelSide';
 import {PlannerCanvasHintComponent} from '@src/Components/Planner/CanvasHint/PlannerCanvasHintComponent';
+import {PlannerBreadcrumbComponent} from '@src/Components/Planner/Breadcrumb/PlannerBreadcrumbComponent';
 import {PlannerFloatingWindowComponent} from '@src/Components/Planner/Panel/PlannerFloatingWindowComponent';
 import {PlannerRailComponent} from '@src/Components/Planner/Panel/PlannerRailComponent';
 import {PlannerStatusBarComponent} from '@src/Components/Planner/StatusBar/PlannerStatusBarComponent';
@@ -27,6 +28,7 @@ const MOBILE_BREAKPOINT = 768;
 		NgComponentOutlet,
 		PanelContentAreaComponent,
 		PlannerCanvasHintComponent,
+		PlannerBreadcrumbComponent,
 		PlannerFloatingWindowComponent,
 		PlannerRailComponent,
 		PlannerStatusBarComponent,
@@ -359,6 +361,15 @@ export class PlannerPanelContainerComponent implements AfterViewInit, OnDestroy
 		const r = this.rightOpen() ? sizes.right : 0;
 		const t = this.topOpen() ? sizes.top : 0;
 		return `position:absolute;left:${l}px;right:${r}px;top:${t}px;bottom:${STATUS}px;pointer-events:none;z-index:6;`;
+	}
+
+	public get breadcrumbStyle(): string
+	{
+		const sizes = this.layout.sizes();
+		const l = this.layout.railWidth() + (this.leftOpen() ? sizes.left : 0) + 12;
+		const r = (this.rightOpen() ? sizes.right : 0) + 12;
+		const t = (this.topOpen() ? sizes.top : 0) + 12;
+		return `position:absolute;left:${l}px;top:${t}px;max-width:calc(100% - ${l + r}px);pointer-events:auto;z-index:7;`;
 	}
 
 	public get zoomStyle(): string

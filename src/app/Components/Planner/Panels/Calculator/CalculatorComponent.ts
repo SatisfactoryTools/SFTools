@@ -244,6 +244,12 @@ export class CalculatorComponent implements OnDestroy
 
 	public readonly allGroupsFixed: Signal<boolean>;
 
+	/** The open plan's parent, when it is a subplan the user can edit. */
+	public readonly parentPlan: Signal<Plan | null>;
+
+	/** Groups the open subplan takes from its parent; groups fixed by a folder are the folder's instead. */
+	public readonly parentGroups: Signal<readonly SettingsGroup[]>;
+
 	public readonly customSettingsBlocker: Signal<string | null>;
 
 	public readonly fixGroupsBlocker: Signal<string | null>;
@@ -309,6 +315,16 @@ export class CalculatorComponent implements OnDestroy
 		});
 		this.fixedGroups = computed(() => this.fixedFolder()?.fixedGroups ?? []);
 		this.allGroupsFixed = computed(() => SettingsGroups.all.every(group => this.fixedGroups().includes(group)));
+		this.parentPlan = computed(() => {
+			const plan = planManager.activePlan();
+			return plan?.parentPlanId && !planManager.activePlanReadOnly() ? planManager.findPlan(plan.parentPlanId) : null;
+		});
+		this.parentGroups = computed(() => {
+			const plan = planManager.activePlan();
+			return plan && this.parentPlan() !== null
+				? SettingsGroups.parentGroupsOf(plan).filter(group => !this.fixedGroups().includes(group))
+				: [];
+		});
 		this.customSettingsBlocker = computed(() => {
 			const folder = planManager.activeFolder();
 			return folder ? planManager.customSettingsBlocker(folder.id) : null;
@@ -587,6 +603,42 @@ export class CalculatorComponent implements OnDestroy
 		return this.isGroupTab(tab) && this.fixedGroups().includes(tab);
 	}
 
+	public isParentTab(tab: CalculatorTab): boolean
+	{
+		return this.isGroupTab(tab) && this.parentGroups().includes(tab);
+	}
+
+	/** Read-only here: the folder or the parent plan decides. */
+	public isLockedTab(tab: CalculatorTab): boolean
+	{
+		return this.isFixedTab(tab) || this.isParentTab(tab);
+	}
+
+	/** A subplan's own group tab, which can be switched back to the parent's values. */
+	public isOwnSubplanTab(tab: CalculatorTab): boolean
+	{
+		return this.isGroupTab(tab) && this.parentPlan() !== null && !this.isLockedTab(tab);
+	}
+
+	public setParentGroup(group: SettingsGroup, same: boolean): void
+	{
+		const plan = this.activePlan();
+		if (!plan) {
+			return;
+		}
+		const current = SettingsGroups.parentGroupsOf(plan);
+		const groups = same ? [...current, group] : current.filter(entry => entry !== group);
+		this.planManager.setParentGroups(plan.id, groups);
+	}
+
+	public openParentPlan(): void
+	{
+		const parent = this.parentPlan();
+		if (parent) {
+			this.planManager.setActivePlan(parent.id);
+		}
+	}
+
 	public groupLabel(group: SettingsGroup): string
 	{
 		return SettingsGroups.labelOf(group);
@@ -596,7 +648,7 @@ export class CalculatorComponent implements OnDestroy
 	public tabTooltip(tab: CalculatorTabDefinition, locks: boolean): string
 	{
 		const parts: string[] = [tab.label + this.hotkeys.suffix(CalculatorTabHotkeys.actionFor(tab.id))];
-		if (locks && this.isFixedTab(tab.id)) {
+		if (locks && this.isLockedTab(tab.id)) {
 			parts.push(this.fixedTabTooltip(tab.id));
 		}
 		return parts.join(' - ');
@@ -613,6 +665,9 @@ export class CalculatorComponent implements OnDestroy
 	public fixedTabTooltip(tab: CalculatorTab): string
 	{
 		const folder = this.fixedFolder();
+		if (this.isParentTab(tab)) {
+			return `Same as parent plan "${this.parentPlan()?.name ?? ''}"`;
+		}
 		if (!folder || !this.isGroupTab(tab)) {
 			return '';
 		}

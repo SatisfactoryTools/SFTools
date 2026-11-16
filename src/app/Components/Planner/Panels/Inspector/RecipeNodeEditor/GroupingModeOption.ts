@@ -7,4 +7,7 @@ export interface GroupingModeOption
 	readonly label: string;
 	readonly description: string;
 
+	/** The same mode when the machine count is set and the clocks are worked out. */
+	readonly countDescription: string;
+
 }

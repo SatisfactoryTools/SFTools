@@ -1,6 +1,7 @@
 import {MapLayerId} from '@src/Model/Map/MapLayerId';
 import {MapMarkerKind} from '@src/Model/Map/MapMarkerKind';
 import {MapPurity} from '@src/Model/Map/MapPurity';
+import {MapUnlockCost} from '@src/Model/Map/MapUnlockCost';
 
 export class MapMarker
 {
@@ -26,6 +27,8 @@ export class MapMarker
 		public readonly taken: boolean = false,
 		/** Picked up or looted in the player's game. */
 		public readonly collected: boolean = false,
+		/** Crash sites: what opening it takes, when the data says. */
+		public readonly unlock: MapUnlockCost | null = null,
 	)
 	{
 	}

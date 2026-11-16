@@ -1,22 +1,28 @@
 import {Component, ChangeDetectionStrategy, Input, OnChanges, OnDestroy} from '@angular/core';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
-import {faArrowUpRightFromSquare, faDiagramProject, faLock} from '@fortawesome/free-solid-svg-icons';
+import {faArrowUpRightFromSquare, faBoxOpen, faDiagramProject} from '@fortawesome/free-solid-svg-icons';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {GameIconComponent} from '@src/Components/Common/GameIconComponent';
 import {GoToNodeButtonComponent} from '@src/Components/Planner/Panels/GoToNode/GoToNodeButtonComponent';
-import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
+import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
 import {SubplanIORateDraft} from '@src/Components/Planner/Panels/Inspector/SubplanNodeEditor/SubplanIORateDraft';
-import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
+import {SubplanIOSection} from '@src/Components/Planner/Panels/Inspector/SubplanNodeEditor/SubplanIOSection';
+import {SubplanSizingOption} from '@src/Components/Planner/Panels/Inspector/SubplanNodeEditor/SubplanSizingOption';
+import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsService';
+import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
+import {SubplanTotals} from '@src/Model/Planner/Breakdown/SubplanTotals';
+import {GraphIOParts} from '@src/Model/Planner/GraphIOParts';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanIconResolver} from '@src/Model/Planner/PlanIconResolver';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlanNameResolver} from '@src/Model/Planner/PlanNameResolver';
+import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
+import {SubplanSizing} from '@src/Model/Planner/SubplanSizing';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
-import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
 
 const APPLY_DEBOUNCE_MS = 400;
 
@@ -26,35 +32,55 @@ const APPLY_DEBOUNCE_MS = 400;
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [InspectorMenuButtonComponent, FormsModule, FaIconComponent, AppTooltipDirective, GameIconComponent, GoToNodeButtonComponent],
 	styles: [`
-		.io-tiles {
+		.info-row {
 			display: flex;
 			flex-wrap: wrap;
-			gap: 0.5rem;
-		}
-		.io-tile {
-			flex: 1 1 130px;
-			max-width: 220px;
+			align-items: center;
+			column-gap: 0.5rem;
+			row-gap: 0.25rem;
 			min-width: 0;
+		}
+		.info-row > select {
+			flex: 1 1 10rem;
+			width: auto;
+		}
+		.io-list {
 			display: flex;
 			flex-direction: column;
+			gap: 0.25rem;
+		}
+		.io-row {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) 8.5rem;
 			align-items: center;
-			gap: 0.15rem;
-			padding: 0.4rem 0.4rem 0.5rem;
-			background: rgba(255, 255, 255, 0.04);
-			text-align: center;
+			column-gap: 0.5rem;
 		}
-		.io-tile .io-name {
-			max-width: 100%;
+		.io-row.with-total {
+			grid-template-columns: auto minmax(0, 1fr) 8.5rem 5.5rem;
 		}
-		.io-tile .input-group {
-			margin-top: 0.2rem;
-		}
-		.io-total {
+		.io-head {
 			font-size: 0.75rem;
-			margin-top: 0.15rem;
+		}
+		.io-total, .io-fixed-rate {
+			text-align: right;
+			font-variant-numeric: tabular-nums;
+		}
+		@container panel (max-width: 380px) {
+			.io-row, .io-row.with-total {
+				grid-template-columns: auto minmax(0, 1fr) 7.5rem;
+			}
+			.io-row .io-total {
+				display: none;
+			}
 		}
 		.build-count {
 			width: 6.5rem;
+		}
+		.totals {
+			display: flex;
+			flex-wrap: wrap;
+			column-gap: 0.75rem;
+			row-gap: 0.15rem;
 		}
 	`],
 })
@@ -62,20 +88,43 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 {
 
 	public readonly faArrowUpRightFromSquare = faArrowUpRightFromSquare;
+	public readonly faBoxOpen = faBoxOpen;
 	public readonly faDiagramProject = faDiagramProject;
-	public readonly faLock = faLock;
+
+	public readonly sizingOptions: SubplanSizingOption[] = [
+		{
+			sizing: 'follows',
+			label: 'Follows this plan',
+			description: 'The calculation of this plan decides how much of the subplan it needs and resizes the subplan to match. It may also make the same items itself when that is cheaper.',
+		},
+		{
+			sizing: 'copies',
+			label: 'Whole copies',
+			description: 'The subplan stays as it is. The calculation of this plan decides how many copies of it to build.',
+		},
+		{
+			sizing: 'fixed',
+			label: 'Fixed',
+			description: 'Built exactly as it is, as many times as set here. This plan works around it.',
+		},
+	];
 
 	@Input({required: true}) public node!: SubplanNode;
 
 	@Input() public readOnly = false;
 
-	public inputRates: SubplanIORateDraft[] = [];
-	public outputRates: SubplanIORateDraft[] = [];
+	public sections: SubplanIOSection[] = [];
+
+	public totals: SubplanTotals | null = null;
 
 	public buildCount = 1;
 
+	public sizing: SubplanSizing = 'follows';
+
 	/** A pending resize must apply to the node the user typed into, even after the selection moved on. */
 	private loadedNode: SubplanNode | null = null;
+
+	private parts: GraphIOParts = {inputs: [], products: [], byproducts: []};
 
 	private pendingFactor: number | null = null;
 
@@ -90,6 +139,7 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		private readonly planNames: PlanNameResolver,
 		private readonly planIcons: PlanIconResolver,
 		private readonly subplanResolver: SubplanIOResolver,
+		private readonly breakdown: PlanBreakdownService,
 		public readonly rateFormatter: RateFormatter,
 	)
 	{
@@ -102,9 +152,10 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 	{
 		if (this.loadedNode?.id === this.node.id) {
 			this.loadedNode = this.node;
+			this.sizing = this.node.sizing;
 			// A resize coming back: show the rates it landed on unless the user kept typing.
 			if (this.pendingFactor === null) {
-				this.refreshRates();
+				this.reload();
 			}
 			if (this.pendingBuildCount === null) {
 				this.buildCount = this.node.buildCount;
@@ -114,7 +165,8 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.flushPendingApply();
 		this.loadedNode = this.node;
 		this.buildCount = this.node.buildCount;
-		this.refreshRates();
+		this.sizing = this.node.sizing;
+		this.reload();
 	}
 
 	public ngOnDestroy(): void
@@ -141,34 +193,68 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		return this.subplan !== null;
 	}
 
+	public get sizingDescription(): string
+	{
+		return this.sizingOptions.find(option => option.sizing === this.sizing)?.description ?? '';
+	}
+
 	public get builds(): number
 	{
-		return typeof this.buildCount === 'number' && isFinite(this.buildCount) && this.buildCount >= 1
-			? this.subplanResolver.normalizeBuildCount(this.buildCount)
-			: this.node.buildCount;
+		return this.node.builds();
 	}
 
-	public get buildsMany(): boolean
+	/** Rates are per copy; the total column shows what this node makes in all. */
+	public get showTotals(): boolean
 	{
-		return this.builds > 1;
+		return this.builds !== 1;
 	}
 
-	public totalText(draft: SubplanIORateDraft): string
+	public get ratesEditable(): boolean
 	{
-		if (typeof draft.rate !== 'number' || !isFinite(draft.rate)) {
-			return '';
-		}
-		return this.rateFormatter.rate(draft.rate * this.builds, draft.item);
+		return !this.readOnly;
 	}
 
 	public get isEmpty(): boolean
 	{
-		return this.inputRates.length === 0 && this.outputRates.length === 0;
+		return this.sections.every(section => section.rows.length === 0);
+	}
+
+	public totalText(draft: SubplanIORateDraft): string
+	{
+		return this.rateFormatter.rate(draft.rate * this.builds, draft.item);
+	}
+
+	public rateText(draft: SubplanIORateDraft): string
+	{
+		return this.rateFormatter.rate(draft.rate, draft.item);
+	}
+
+	public totalsText(totals: SubplanTotals): string[]
+	{
+		const builds = this.builds;
+		const parts = [`${this.rateFormatter.machineCount(totals.machines * builds)} machines`];
+		const net = (totals.consumption - totals.production) * builds;
+		parts.push(net >= 0 ? `${this.rateFormatter.power(net)} used` : `${this.rateFormatter.power(-net)} made`);
+		if (totals.sloops > 0) {
+			parts.push(`${this.rateFormatter.machineCount(totals.sloops * builds)} sloops`);
+		}
+		return parts;
 	}
 
 	public openSubplan(): void
 	{
 		this.actions.requestSubplanOpen(this.node.subplanId);
+	}
+
+	public unpack(): void
+	{
+		this.actions.requestSubplanUnpack(this.node.id);
+	}
+
+	public onSizingChange(): void
+	{
+		this.flushPendingApply();
+		this.actions.requestSubplanSizing({nodeId: this.node.id, sizing: this.sizing});
 	}
 
 	public onBuildCountChange(): void
@@ -181,29 +267,16 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		this.applySubject.next();
 	}
 
-	public onInputRateChange(index: number): void
+	public onRateChange(section: SubplanIOSection, index: number): void
 	{
-		this.scheduleScale(this.perBuild(this.editedNode.inputs[index]?.maxAmount), this.inputRates[index]?.rate, {kind: 'input', index});
-	}
-
-	public onOutputRateChange(index: number): void
-	{
-		this.scheduleScale(this.perBuild(this.editedNode.outputs[index]?.maxAmount), this.outputRates[index]?.rate, {kind: 'output', index});
-	}
-
-	private perBuild(amount: number | undefined): number | undefined
-	{
-		return amount === undefined ? undefined : amount / this.editedNode.buildCount;
-	}
-
-	private scheduleScale(current: number | undefined, rate: number | undefined, typed: {kind: 'input' | 'output'; index: number}): void
-	{
+		const draft = section.rows[index];
+		const current = this.parts[section.key].find(io => io.item.className === draft?.item.className)?.maxAmount;
 		// Mid-typing values (empty, zero, negative) must not resize anything.
-		if (!current || current <= 0 || typeof rate !== 'number' || !isFinite(rate) || rate <= 0) {
+		if (!current || current <= 0 || typeof draft.rate !== 'number' || !isFinite(draft.rate) || draft.rate <= 0) {
 			return;
 		}
-		this.pendingFactor = rate / current;
-		this.refreshRates(typed);
+		this.pendingFactor = draft.rate / current;
+		this.refreshRates(draft);
 		this.applySubject.next();
 	}
 
@@ -212,24 +285,27 @@ export class SubplanNodeEditorComponent implements OnChanges, OnDestroy
 		return this.planManager.findPlan(this.node.subplanId);
 	}
 
-	private get editedNode(): SubplanNode
+	private reload(): void
 	{
-		return this.loadedNode ?? this.node;
+		this.parts = this.subplanResolver.parts(this.node.subplanId);
+		this.totals = this.subplanExists ? this.breakdown.subplanTotals(this.node.subplanId) : null;
+		this.refreshRates(null);
 	}
 
-	private refreshRates(typed: {kind: 'input' | 'output'; index: number} | null = null): void
+	private refreshRates(typed: SubplanIORateDraft | null): void
 	{
 		const factor = this.pendingFactor ?? 1;
-		const node = this.editedNode;
-		const rateOf = (amount: number): number => this.roundRate(amount * factor / node.buildCount);
-		this.inputRates = node.inputs.map((io, index) =>
-			typed?.kind === 'input' && typed.index === index
-				? this.inputRates[index]
-				: {item: io.item, rate: rateOf(io.maxAmount)});
-		this.outputRates = node.outputs.map((io, index) =>
-			typed?.kind === 'output' && typed.index === index
-				? this.outputRates[index]
-				: {item: io.item, rate: rateOf(io.maxAmount)});
+		const rows = (key: SubplanIOSection['key']): SubplanIORateDraft[] => this.parts[key].map(io => {
+			const existing = this.sections.find(section => section.key === key)?.rows.find(row => row.item.className === io.item.className);
+			return existing !== undefined && existing === typed
+				? existing
+				: {item: io.item, rate: this.roundRate(io.maxAmount * factor)};
+		});
+		this.sections = [
+			{key: 'products', label: 'Makes', rows: rows('products')},
+			{key: 'byproducts', label: 'Also makes', rows: rows('byproducts')},
+			{key: 'inputs', label: 'Needs', rows: rows('inputs')},
+		];
 	}
 
 	private flushPendingApply(): void

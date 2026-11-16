@@ -15,11 +15,12 @@ const PIPE_CAP = 600;
 export class WorldLimitsCalculator
 {
 
-	public rowLimit(nodes: PurityCounts | null, satellites: PurityCounts | null, solid: boolean, beltCap: number = BELT_CAP, pipeCap: number = PIPE_CAP): number
+	/** `minerMultiplier` scales solid nodes only (relative to a Miner Mk.3); fluids and wells have no miner tiers. */
+	public rowLimit(nodes: PurityCounts | null, satellites: PurityCounts | null, solid: boolean, beltCap: number = BELT_CAP, pipeCap: number = PIPE_CAP, minerMultiplier: number = 1): number
 	{
 		let total = 0;
 		if (nodes !== null) {
-			total += this.total(nodes, solid ? SOLID_NODE_RATES : FLUID_NODE_RATES, solid ? beltCap : pipeCap);
+			total += this.total(nodes, solid ? this.solidRates(minerMultiplier) : FLUID_NODE_RATES, solid ? beltCap : pipeCap);
 		}
 		if (satellites !== null) {
 			total += this.total(satellites, WELL_SATELLITE_RATES, pipeCap);
@@ -27,12 +28,21 @@ export class WorldLimitsCalculator
 		return total;
 	}
 
-	public nodeRate(purity: keyof PurityCounts, solid: boolean, satellite: boolean, beltCap: number = BELT_CAP, pipeCap: number = PIPE_CAP): number
+	public nodeRate(purity: keyof PurityCounts, solid: boolean, satellite: boolean, beltCap: number = BELT_CAP, pipeCap: number = PIPE_CAP, minerMultiplier: number = 1): number
 	{
 		if (satellite) {
 			return Math.min(WELL_SATELLITE_RATES[purity], pipeCap);
 		}
-		return solid ? Math.min(SOLID_NODE_RATES[purity], beltCap) : Math.min(FLUID_NODE_RATES[purity], pipeCap);
+		return solid ? Math.min(this.solidRates(minerMultiplier)[purity], beltCap) : Math.min(FLUID_NODE_RATES[purity], pipeCap);
+	}
+
+	private solidRates(minerMultiplier: number): PurityCounts
+	{
+		return {
+			impure: SOLID_NODE_RATES.impure * minerMultiplier,
+			normal: SOLID_NODE_RATES.normal * minerMultiplier,
+			pure: SOLID_NODE_RATES.pure * minerMultiplier,
+		};
 	}
 
 	private total(counts: PurityCounts, rates: PurityCounts, cap: number): number

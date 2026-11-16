@@ -19,10 +19,54 @@
 		</div>
 		<div class="card-body p-2 d-flex flex-column gap-2">
 
+			<div class="info-row recipe-row">
+				<span class="text-secondary">Recipe</span>
+				<span class="d-inline-flex align-items-center gap-1 min-w-0 flex-grow-1">
+					<span class="text-truncate" [title]="node.recipe.name">{{ node.recipe.name }}</span>
+				</span>
+				@if (recipeChoices.length > 0) {
+					<!-- container="body": the panel's overflow container would clip the menu. -->
+					<div class="btn-group flex-shrink-0" dropdown container="body" placement="bottom right">
+						<button
+							class="btn btn-sm btn-outline-secondary dropdown-toggle py-0"
+							type="button"
+							dropdownToggle
+							tooltip="Use another recipe for this node. Only this node changes." container="body" placement="left"
+						>Change</button>
+						<div *dropdownMenu class="dropdown-menu dropdown-menu-end recipe-menu">
+							@for (choice of recipeChoices; track choice.recipe.className) {
+								<button class="dropdown-item" type="button" (click)="changeRecipe(choice.recipe)">
+									<span class="d-flex align-items-center gap-1">
+										<span class="text-truncate">{{ choice.recipe.name }}</span>
+										<mod-label [mod]="choice.recipe.mod"/>
+									</span>
+									<span class="recipe-io">
+										@for (entry of choice.recipe.ingredients; track entry.item.className) {
+											<span class="recipe-io-entry" [title]="rateFormatter.amount(entry.amount) + ' × ' + entry.item.name">
+												<span class="small">{{ rateFormatter.amount(entry.amount) }}</span>
+												<game-icon [hash]="entry.item.icon" [size]="20" [alt]="entry.item.name"></game-icon>
+											</span>
+										}
+										<span class="opacity-75">→</span>
+										@for (entry of choice.recipe.products; track entry.item.className) {
+											<span class="recipe-io-entry" [title]="rateFormatter.amount(entry.amount) + ' × ' + entry.item.name">
+												<span class="small">{{ rateFormatter.amount(entry.amount) }}</span>
+												<game-icon [hash]="entry.item.icon" [size]="20" [alt]="entry.item.name"></game-icon>
+											</span>
+										}
+									</span>
+								</button>
+							}
+						</div>
+					</div>
+				}
+			</div>
+
 			@if (machineOptions.length > 1) {
-				<div class="d-flex align-items-center gap-2">
-					<label class="form-label text-secondary mb-0 text-nowrap">Machine</label>
+				<div class="info-row">
+					<label class="text-secondary mb-0 text-nowrap" for="node-machine">Machine</label>
 					<select
+						id="node-machine"
 						class="form-select form-select-sm bg-dark text-light border-secondary"
 						[(ngModel)]="machineClassName"
 						(ngModelChange)="onMachineChange()"
@@ -33,7 +77,7 @@
 					</select>
 				</div>
 			} @else if (selectedMachine; as machine) {
-				<div class="d-flex flex-wrap align-items-center gap-2">
+				<div class="info-row">
 					<span class="text-secondary">Machine</span>
 					<span class="d-inline-flex align-items-center gap-1">
 						<game-icon [hash]="machine.icon" [size]="18" [alt]="machine.name"></game-icon>
@@ -44,22 +88,23 @@
 
 			<div>
 				<div class="text-secondary small mb-1">Inputs</div>
-				<div class="io-tiles">
-					@for (input of inputRates; track input.item.className; let i = $index) {
-						<div class="io-tile">
-							<game-icon [hash]="input.item.icon" [size]="32" [alt]="input.item.name"></game-icon>
-							<span class="io-name small text-truncate" [title]="input.item.name">{{ input.item.name }}</span>
-							<span class="small text-secondary text-nowrap">{{ rateFormatter.amount(input.perCraft) }} / craft</span>
-							<div class="input-group input-group-sm flex-nowrap">
+				<div class="io-list">
+					@for (entry of inputRates; track entry.item.className; let i = $index) {
+						<div class="io-row">
+							<game-icon [hash]="entry.item.icon" [size]="20" [alt]="entry.item.name"></game-icon>
+							<span class="io-name text-truncate" [title]="entry.item.name">{{ entry.item.name }}</span>
+							<span class="io-per-craft small text-secondary text-nowrap">{{ rateFormatter.amount(entry.perCraft) }} / craft</span>
+							<div class="input-group input-group-sm flex-nowrap io-rate">
 								<input
 									type="number"
 									class="form-control form-control-sm bg-dark text-light border-secondary"
-									[(ngModel)]="input.rate"
+									[attr.aria-label]="entry.item.name + ' input'"
+									[(ngModel)]="entry.rate"
 									(ngModelChange)="onInputRateChange(i)"
 									min="0"
 									step="any"
 								>
-								<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(input.item) }}</span>
+								<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(entry.item) }}</span>
 							</div>
 						</div>
 					} @empty {
@@ -70,24 +115,27 @@
 
 			<div>
 				<div class="text-secondary small mb-1">Outputs</div>
-				<div class="io-tiles">
-					@for (output of outputRates; track output.item.className; let i = $index) {
-						<div class="io-tile">
-							<game-icon [hash]="output.item.icon" [size]="32" [alt]="output.item.name"></game-icon>
-							<span class="io-name small text-truncate" [title]="output.item.name">{{ output.item.name }}</span>
-							<span class="small text-secondary text-nowrap">{{ rateFormatter.amount(output.perCraft) }} / craft</span>
-							<div class="input-group input-group-sm flex-nowrap">
+				<div class="io-list">
+					@for (entry of outputRates; track entry.item.className; let i = $index) {
+						<div class="io-row">
+							<game-icon [hash]="entry.item.icon" [size]="20" [alt]="entry.item.name"></game-icon>
+							<span class="io-name text-truncate" [title]="entry.item.name">{{ entry.item.name }}</span>
+							<span class="io-per-craft small text-secondary text-nowrap">{{ rateFormatter.amount(entry.perCraft) }} / craft</span>
+							<div class="input-group input-group-sm flex-nowrap io-rate">
 								<input
 									type="number"
 									class="form-control form-control-sm bg-dark text-light border-secondary"
-									[(ngModel)]="output.rate"
+									[attr.aria-label]="entry.item.name + ' output'"
+									[(ngModel)]="entry.rate"
 									(ngModelChange)="onOutputRateChange(i)"
 									min="0"
 									step="any"
 								>
-								<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(output.item) }}</span>
+								<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(entry.item) }}</span>
 							</div>
 						</div>
+					} @empty {
+						<div class="fst-italic text-secondary small">None</div>
 					}
 				</div>
 			</div>
@@ -98,59 +146,6 @@
 	<div class="card">
 		<div class="card-header d-flex align-items-center gap-2 py-1 px-2">
 			<span class="fw-semibold flex-grow-1 text-truncate d-inline-flex align-items-center gap-2">Machine groups <help-button topic="planner.machine-groups"/></span>
-			<!-- container="body": the panel's overflow container would clip the menu. -->
-			<div class="btn-group flex-shrink-0" dropdown container="body" placement="bottom right">
-				<button
-					class="btn btn-sm btn-outline-primary py-0"
-					type="button"
-					[tooltip]="'Calculate machine groups (' + groupingLabel + ')'" container="body" placement="bottom"
-					(click)="calculate()"
-				>Calculate</button>
-				<button
-					class="btn btn-sm btn-outline-primary dropdown-toggle dropdown-toggle-split py-0"
-					type="button"
-					dropdownToggle
-					tooltip="Grouping mode" container="body" placement="bottom"
-				><span class="visually-hidden">Grouping mode</span></button>
-				<div *dropdownMenu class="dropdown-menu dropdown-menu-end" style="min-width: 260px;">
-					<h6 class="dropdown-header">Grouping mode</h6>
-					@for (option of groupingOptions; track option.mode) {
-						<button
-							class="dropdown-item"
-							[class.active]="groupingMode === option.mode"
-							type="button"
-							(click)="setGroupingMode(option.mode)"
-						>
-							{{ option.label }}
-							<span class="d-block text-wrap opacity-75">{{ option.description }}</span>
-						</button>
-					}
-				</div>
-			</div>
-		</div>
-
-		<div class="d-flex flex-wrap align-items-center gap-2 p-2 pb-0">
-			<label
-				class="form-label text-secondary mb-0 text-nowrap"
-				for="node-default-clock"
-				tooltip="Used by Calculate, Autofill and new groups. Changes here affect only this node."
-				container="body"
-				placement="top"
-			>Default clock speed</label>
-			@if (!usesPlanClockSpeed) {
-				<button
-					class="btn btn-sm btn-link p-0 text-secondary flex-shrink-0"
-					type="button"
-					tooltip="Back to the plan's clock speed" container="body" placement="top"
-					(click)="resetDefaultClock()"
-				><fa-icon [icon]="faRotateLeft"></fa-icon></button>
-			}
-			<clock-speed-input
-				style="flex: 1 1 240px; min-width: 0;"
-				inputId="node-default-clock"
-				[value]="defaultClockSpeed"
-				(valueChange)="onDefaultClockChange($event)"
-			></clock-speed-input>
 		</div>
 
 		<table class="table table-dark table-sm align-middle mb-0 table-stack-sm groups-table">
@@ -158,85 +153,284 @@
 				<tr>
 					<th>Machines</th>
 					<th>Clock %</th>
-					@if ((selectedMachine?.sloopSlots ?? 0) > 0) {
+					@if (sloopSlots > 0) {
 						<th>Sloops</th>
 					}
-					<th style="width: 36px;"></th>
+					<th class="action-col"></th>
 				</tr>
 			</thead>
 			<tbody>
-				@for (group of groups; track $index) {
+				@for (group of pinned; track $index) {
 					<tr>
-						<td class="stack-grow" data-label="Machines">
-							<input
-								type="number"
-								class="form-control form-control-sm bg-dark text-light border-secondary"
-								[(ngModel)]="group.machines"
-								(ngModelChange)="onGroupsChange()"
-								min="1"
-								step="1"
-							>
-						</td>
-						<td class="stack-grow" data-label="Clock %">
-							<input
-								type="number"
-								class="form-control form-control-sm bg-dark text-light border-secondary"
-								[(ngModel)]="group.clockSpeed"
-								(ngModelChange)="onGroupsChange()"
-								min="1"
-								max="250"
-								step="any"
-							>
-						</td>
-						@if ((selectedMachine?.sloopSlots ?? 0) > 0) {
-							<td class="stack-grow" data-label="Sloops">
-								<input
-									type="number"
-									class="form-control form-control-sm bg-dark text-light border-secondary"
-									[(ngModel)]="group.sloops"
-									(ngModelChange)="onGroupsChange()"
-									min="0"
-									[max]="selectedMachine?.sloopSlots ?? 0"
-									step="1"
-								>
-							</td>
-						}
-						<td>
-							<button
-								class="btn btn-sm btn-outline-danger px-2"
-								type="button"
-								tooltip="Remove machine group" container="body" placement="left"
-								[disabled]="groups.length === 1"
-								(click)="removeGroup($index)"
-							><fa-icon [icon]="faXmark"></fa-icon></button>
-						</td>
+								<td class="stack-grow" data-label="Machines">
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[(ngModel)]="group.machines"
+										(ngModelChange)="onBuildChange()"
+										min="1"
+										step="1"
+									>
+								</td>
+								<td class="stack-grow" data-label="Clock %">
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[(ngModel)]="group.clockSpeed"
+										(ngModelChange)="onBuildChange()"
+										min="1"
+										max="250"
+										step="any"
+									>
+								</td>
+								@if (sloopSlots > 0) {
+									<td class="stack-grow" data-label="Sloops">
+										<input
+											type="number"
+											class="form-control form-control-sm bg-dark text-light border-secondary"
+											[(ngModel)]="group.sloops"
+											(ngModelChange)="onBuildChange()"
+											min="0"
+											[max]="sloopSlots"
+											step="1"
+										>
+									</td>
+								}
+								<td class="action-col">
+									<button
+										class="btn btn-sm btn-outline-danger px-2"
+										type="button"
+										tooltip="Remove" container="body" placement="left"
+										[disabled]="!canRemoveRows"
+										(click)="removePinned($index)"
+									><fa-icon [icon]="faXmark"></fa-icon></button>
+								</td>
 					</tr>
 				}
+				@if (custom) {
+					@for (group of manualRest; track $index) {
+						<tr>
+								<td class="stack-grow" data-label="Machines">
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[(ngModel)]="group.machines"
+										(ngModelChange)="onBuildChange()"
+										min="1"
+										step="1"
+									>
+								</td>
+								<td class="stack-grow" data-label="Clock %">
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[(ngModel)]="group.clockSpeed"
+										(ngModelChange)="onBuildChange()"
+										min="1"
+										max="250"
+										step="any"
+									>
+								</td>
+								@if (sloopSlots > 0) {
+									<td class="stack-grow" data-label="Sloops">
+										<input
+											type="number"
+											class="form-control form-control-sm bg-dark text-light border-secondary"
+											[(ngModel)]="group.sloops"
+											(ngModelChange)="onBuildChange()"
+											min="0"
+											[max]="sloopSlots"
+											step="1"
+										>
+									</td>
+								}
+								<td class="action-col">
+									<button
+										class="btn btn-sm btn-outline-danger px-2"
+										type="button"
+										tooltip="Remove" container="body" placement="left"
+										[disabled]="!canRemoveRows"
+										(click)="removeManualRest($index)"
+									><fa-icon [icon]="faXmark"></fa-icon></button>
+								</td>
+						</tr>
+					}
+				} @else {
+					@for (group of restGroups; track $index) {
+						<tr class="auto-row">
+							<td class="stack-grow" data-label="Machines">
+								<input
+									type="number"
+									class="form-control form-control-sm auto-input"
+									[value]="group.machines"
+									readonly
+									tabindex="-1"
+								>
+							</td>
+							<td class="stack-grow" data-label="Clock %">
+								<input
+									type="text"
+									class="form-control form-control-sm auto-input"
+									[value]="rateFormatter.clock(group.clockSpeed)"
+									readonly
+									tabindex="-1"
+								>
+							</td>
+							@if (sloopSlots > 0) {
+								<td class="stack-grow" data-label="Sloops">
+									<input
+										type="number"
+										class="form-control form-control-sm bg-dark text-light border-secondary"
+										[ngModel]="group.sloops"
+										(ngModelChange)="onRestSloopsChange($event)"
+										min="0"
+										[max]="sloopSlots"
+										step="1"
+										tooltip="Sloops in each automatic machine. The number of machines is worked out again." container="body" placement="top"
+									>
+								</td>
+							}
+							<td class="action-col">
+								<button
+									class="btn btn-sm btn-outline-secondary auto-button"
+									type="button"
+									tooltip="Worked out automatically. Click to edit it by hand." container="body" placement="left"
+									(click)="pinRest($index)"
+								>Auto</button>
+							</td>
+						</tr>
+					} @empty {
+						<tr class="auto-row">
+							<td [attr.colspan]="sloopSlots > 0 ? 4 : 3" class="small text-secondary">
+								No automatic machines needed.
+							</td>
+						</tr>
+					}
+				}
 			</tbody>
-			<tfoot>
-				<tr>
-					<td [attr.colspan]="(selectedMachine?.sloopSlots ?? 0) > 0 ? 4 : 3" class="text-secondary">
-						Efficiency <span class="text-light">{{ rateFormatter.percent(efficiency) }}</span>
-					</td>
-				</tr>
-			</tfoot>
 		</table>
 
-		<div class="card-footer p-2 d-flex flex-column gap-2">
-			<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addGroup()">
-				+ Add machine group
-			</button>
-			@if (hasCapacityShortage) {
+		<div class="card-body p-2 d-flex flex-column gap-2">
+			<button class="btn btn-sm btn-outline-success w-100" type="button" (click)="addPinned()">+ Add machines</button>
+
+			@if (pinnedExceedTarget) {
+				<info-note kind="warning">
+					The machines you set alone make more than needed.
+				</info-note>
+				<button class="btn btn-sm btn-outline-primary w-100" type="button" (click)="lowerPinnedClocks()">Lower their clock speed</button>
+			}
+			@if (custom && hasCapacityShortage) {
 				<info-note kind="warning">
 					Not enough machines to reach the target.
 				</info-note>
 				<button
 					class="btn btn-sm btn-outline-primary w-100"
 					type="button"
-					[tooltip]="'Add the missing machines (' + groupingLabel + ')'" container="body" placement="bottom"
+					[tooltip]="'Add the missing machines (' + (modeOption?.label ?? '') + ')'" container="body" placement="bottom"
 					(click)="autofill()"
 				>Autofill</button>
 			}
+			@if (!custom && hasCapacityShortage && restMachines !== null) {
+				<info-note kind="warning">
+					{{ restMachines }} machines can't make enough, even at 250%.
+				</info-note>
+				<button class="btn btn-sm btn-outline-primary w-100" type="button" (click)="useMachinesNeeded()">Use {{ machinesNeeded }} machines</button>
+			}
+		</div>
+
+		<div class="card-body p-2 d-flex flex-column gap-2 border-top border-secondary">
+			<div class="d-flex align-items-center gap-2">
+				<div class="section-title flex-grow-1">Automatic machines</div>
+				<div class="form-check form-switch mb-0">
+					<input
+						class="form-check-input"
+						type="checkbox"
+						role="switch"
+						id="node-automatic"
+						[ngModel]="!custom"
+						(ngModelChange)="setAutomatic($event)"
+					>
+					<label class="form-check-label small text-secondary" for="node-automatic"
+						tooltip="Work out the machines you didn't set by hand. Off: you edit every row."
+						container="body" placement="left"
+					>{{ custom ? 'Off' : 'On' }}</label>
+				</div>
+			</div>
+
+			@if (!custom) {
+				<div>
+					<label class="form-label text-secondary small mb-1" for="node-grouping-mode">Mode</label>
+					<select
+						id="node-grouping-mode"
+						class="form-select form-select-sm bg-dark text-light border-secondary"
+						[ngModel]="mode"
+						(ngModelChange)="setMode($event)"
+					>
+						@for (option of groupingOptions; track option.mode) {
+							<option [value]="option.mode">{{ option.label }}</option>
+						}
+					</select>
+					<div class="form-text mt-1">{{ modeDescription }}</div>
+				</div>
+
+				<div class="build-fields">
+					<div class="clock-field">
+						<label class="form-label text-secondary small mb-1 d-flex align-items-center gap-1" for="node-rest-clock">
+							Clock speed
+							@if (restMachines !== null) {
+								<span class="auto-tag text-secondary" tooltip="Worked out from the machine count. Type a clock speed to set it." container="body" placement="top">(auto)</span>
+							} @else if (!usesPlanClockSpeed) {
+								<button
+									class="btn btn-sm btn-link p-0 text-secondary"
+									type="button"
+									tooltip="Back to the plan's clock speed" container="body" placement="top"
+									(click)="resetRestClock()"
+								><fa-icon [icon]="faRotateLeft"></fa-icon></button>
+							}
+						</label>
+						<clock-speed-input
+							inputId="node-rest-clock"
+							[value]="restClockDisplay"
+							(valueChange)="onRestClockChange($event)"
+						></clock-speed-input>
+					</div>
+					<div class="machines-field">
+						<label class="form-label text-secondary small mb-1 d-flex align-items-center gap-1" for="node-rest-machines">
+							Machines
+							@if (restMachines === null) {
+								<span class="auto-tag text-secondary" tooltip="Worked out from the clock speed. Type a number to set it." container="body" placement="top">(auto)</span>
+							}
+						</label>
+						<input
+							id="node-rest-machines"
+							type="number"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							[ngModel]="restMachinesDisplay"
+							(ngModelChange)="onRestMachinesChange($event)"
+							min="1"
+							step="1"
+						>
+					</div>
+				</div>
+			} @else {
+				<div class="small text-secondary">Every row above is set by hand. Switch on to have the machines you didn't add yourself worked out again.</div>
+			}
+		</div>
+
+		<div class="card-footer px-2 py-1 small d-flex flex-wrap column-gap-3 row-gap-1">
+			<span><span class="text-secondary">Machines</span> {{ totalMachines }}</span>
+			@if (totalShards > 0) {
+				<span><span class="text-secondary">Shards</span> {{ totalShards }}</span>
+			}
+			@if (sloopSlots > 0) {
+				<span>
+					<span class="text-secondary">Sloops</span> {{ totalSloops }}
+					@if (sloopsLeft !== null) {
+						<span [class.text-secondary]="sloopsLeft >= 0" [class.text-warning]="sloopsLeft < 0">({{ sloopsLeft }} left in plan)</span>
+					}
+				</span>
+			}
+			<span><span class="text-secondary">Efficiency</span> {{ rateFormatter.percent(efficiency) }}</span>
 		</div>
 	</div>
 

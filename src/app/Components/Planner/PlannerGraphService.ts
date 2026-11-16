@@ -4,7 +4,9 @@ import {faCircleCheck, faLock, faTriangleExclamation, IconDefinition} from '@for
 import {Cell, Edge as X6Edge, EdgeToolNativeItem, EdgeView, Export, Graph as X6Graph, Node as X6Node, Selection} from '@antv/x6';
 import type {Metadata as PortsMetadata, PortMetadata} from '@antv/x6/lib/model/port';
 import type {Handle as VertexHandle} from '@antv/x6/lib/registry/tool/vertices';
+import type {NodeMetadata} from '@antv/x6/lib/model/node';
 import ELK from 'elkjs/lib/elk.bundled.js';
+import {AttrsBySelector} from '@src/Components/Planner/AttrsBySelector';
 import type {ElkExtendedEdge, ElkNode} from 'elkjs';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
 import {Observable, Subject, Subscription} from 'rxjs';
@@ -59,6 +61,7 @@ import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
+import {PlanBreakdownService} from '@src/Model/Planner/Breakdown/PlanBreakdownService';
 import {ZoomedOutNameLayout} from '@src/Components/Planner/ZoomedOutNameLayout';
 
 const NODE_WIDTH = GraphMetrics.NODE_WIDTH;
@@ -479,6 +482,12 @@ export class PlannerGraphService implements OnDestroy
 
 	private warningsById = new Map<string, GraphNodeWarnings>();
 
+	/** What each node looked like when drawn: edits often mutate the very instances the canvas holds, so a reference compare would miss them. */
+	private readonly renderedNodeKeys = new Map<string, string>();
+
+	/** x6 queues view removal by cell id, so an id removed and re-added in one batch leaves its old element behind; every edge render gets fresh ids. */
+	private edgeGeneration = 0;
+
 	private connectGesture: PortConnectGesture | null = null;
 	private markedPorts: Array<{cell: X6Node; portId: string}> = [];
 	private dimmedNodeIds: string[] = [];
@@ -504,6 +513,7 @@ export class PlannerGraphService implements OnDestroy
 		private readonly svgCleaner: GraphSvgCleaner,
 		private readonly contextMenu: PlannerContextMenuService,
 		private readonly layoutLock: GraphLayoutLockService,
+		private readonly breakdown: PlanBreakdownService,
 	)
 	{
 		toObservable(layoutLock.locked).pipe(skip(1)).subscribe(locked => this.onLayoutLockChanged(locked));
@@ -621,9 +631,10 @@ export class PlannerGraphService implements OnDestroy
 		});
 	}
 
-	public restore(container: HTMLElement, graph: Graph, fit = true): void
+	/** 'if-lost' keeps the current view unless no node would be visible in it, then fits like true. */
+	public restore(container: HTMLElement, graph: Graph, fit: boolean | 'if-lost' = true): void
 	{
-		const previous = this.x6Graph && !fit
+		const previous = this.x6Graph && fit !== true
 			? {zoom: this.x6Graph.zoom(), translate: this.x6Graph.translate()}
 			: null;
 
@@ -631,8 +642,10 @@ export class PlannerGraphService implements OnDestroy
 		const x6Graph = this.createGraph(container);
 
 		this.parallelOffsets = this.computeParallelOffsets(graph);
+		this.edgeGeneration++;
 
 		graph.nodes.forEach(node => this.addNode(x6Graph, node));
+		this.rememberRendered(graph.nodes);
 		// A saved edge whose node is gone would make x6 throw in its async render.
 		const nodeIds = new Set(graph.nodes.map(node => node.id));
 		graph.edges.forEach((edge, i) => {
@@ -647,10 +660,140 @@ export class PlannerGraphService implements OnDestroy
 		if (previous) {
 			x6Graph.zoom(previous.zoom, {absolute: true});
 			x6Graph.translate(previous.translate.tx, previous.translate.ty);
+			if (fit === 'if-lost' && !this.anyNodeVisible(x6Graph)) {
+				this.zoomToVisibleArea(x6Graph);
+			}
 		} else {
 			this.zoomToVisibleArea(x6Graph);
 		}
 		this.trackNodeMoves(x6Graph, graph.nodes);
+	}
+
+	/**
+	 * Applies an edit to the canvas in place: only nodes whose data or warnings changed are updated, and they keep
+	 * their x6 cell, so nothing flashes. Connections are re-created. Settings-driven restyles still need restore().
+	 */
+	public refresh(container: HTMLElement, graph: Graph): void
+	{
+		const x6Graph = this.x6Graph;
+		if (!x6Graph || x6Graph.container !== container) {
+			this.restore(container, graph, false);
+			return;
+		}
+
+		this.hideTooltip();
+		this.hideCornerPreview();
+		this.clearVertexSelection();
+		this.vertexDragAnchorId = null;
+		this.hoveredEdgeView = null;
+		this.touchedEdgeId = null;
+
+		this.warningsById = this.reconciler.computeWarnings(graph);
+		this.parallelOffsets = this.computeParallelOffsets(graph);
+		const nodeIds = new Set(graph.nodes.map(node => node.id));
+
+		const kindChanged = graph.nodes.some(node => {
+			const previous = this.nodeById.get(node.id);
+			return previous !== undefined && (previous instanceof SubplanNode) !== (node instanceof SubplanNode);
+		});
+		if (kindChanged) {
+			this.restore(container, graph, false);
+			return;
+		}
+
+		this.edgeGeneration++;
+		x6Graph.batchUpdate(() => {
+			x6Graph.getEdges().forEach(edge => x6Graph.removeCell(edge));
+			this.edgeById.clear();
+			x6Graph.getNodes().forEach(cell => {
+				if (!nodeIds.has(cell.id)) {
+					x6Graph.removeCell(cell);
+				}
+			});
+			graph.nodes.forEach(node => {
+				const cell = x6Graph.getCellById(node.id);
+				if (!cell?.isNode() || this.nodeChanged(node)) {
+					this.addNode(x6Graph, node);
+				} else if (cell.getPosition().x !== node.x || cell.getPosition().y !== node.y) {
+					cell.setPosition(node.x, node.y);
+				}
+			});
+			graph.edges.forEach((edge, i) => {
+				if (nodeIds.has(edge.sourceId) && nodeIds.has(edge.targetId)) {
+					this.addEdge(x6Graph, edge, i);
+				}
+			});
+		});
+
+		this.rememberRendered(graph.nodes);
+		this.nodeById.clear();
+		graph.nodes.forEach(node => this.nodeById.set(node.id, node));
+		this.warningEntriesSignal.set(this.buildWarningEntries(graph));
+		this.reselectEdge(x6Graph);
+		// Selecting the same cells again fires no change, so the Inspector would keep showing the replaced node objects.
+		const selected = this.selectedNodesSignal();
+		if (selected.some(node => this.nodeById.has(node.id) && this.nodeById.get(node.id) !== node)) {
+			this.selectedNodesSignal.set(selected
+				.map(node => this.nodeById.get(node.id))
+				.filter((node): node is Node => node !== undefined));
+		}
+	}
+
+	private rememberRendered(nodes: Node[]): void
+	{
+		this.renderedNodeKeys.clear();
+		nodes.forEach(node => this.renderedNodeKeys.set(node.id, this.renderKey(node)));
+	}
+
+	/** Position is left out: it is compared against the cell itself, and drags already move the cell. */
+	private renderKey(node: Node): string
+	{
+		const {x, y, ...data} = node.toJSON() as Record<string, unknown>;
+		return JSON.stringify([data, this.warningsById.get(node.id) ?? null]);
+	}
+
+	/**
+	 * An existing cell (same id) is rewritten prop by prop, never removed and re-added: see edgeGeneration.
+	 * The props come from a detached node so the shape's default attrs are merged in, as addNode would.
+	 */
+	private placeNode(x6Graph: X6Graph, metadata: NodeMetadata): void
+	{
+		const existing = metadata.id ? x6Graph.getCellById(metadata.id) : null;
+		if (!existing) {
+			x6Graph.addNode(metadata);
+			return;
+		}
+		const fresh = x6Graph.createNode(metadata);
+		const props = fresh.getProp() as Record<string, unknown>;
+		// x6 only writes the attributes it is given, so one that went away (a done fade, say) must be cleared explicitly.
+		props['attrs'] = this.withClearedAttrs(existing.getAttrs() as AttrsBySelector, (props['attrs'] ?? {}) as AttrsBySelector);
+		Object.entries(props).forEach(([key, value]) => {
+			if (key !== 'id' && key !== 'shape') {
+				existing.prop(key, value, {rewrite: true});
+			}
+		});
+		fresh.dispose();
+	}
+
+	private withClearedAttrs(previous: AttrsBySelector, next: AttrsBySelector): AttrsBySelector
+	{
+		const merged: AttrsBySelector = {...next};
+		Object.entries(previous).forEach(([selector, attrs]) => {
+			const kept = {...(merged[selector] ?? {})};
+			Object.keys(attrs ?? {}).forEach(name => {
+				if (!(name in kept)) {
+					kept[name] = null;
+				}
+			});
+			merged[selector] = kept;
+		});
+		return merged;
+	}
+
+	/** Subplan nodes render their subplan's current IO, which their own data does not show, so they are always updated. */
+	private nodeChanged(node: Node): boolean
+	{
+		return node instanceof SubplanNode || this.renderedNodeKeys.get(node.id) !== this.renderKey(node);
 	}
 
 	public clear(): void
@@ -676,6 +819,7 @@ export class PlannerGraphService implements OnDestroy
 		this.hoverMoveTarget = null;
 		this.x6Graph?.dispose();
 		this.x6Graph = null;
+		this.renderedNodeKeys.clear();
 		this.selection = null;
 		this.warningsById = new Map();
 		this.selectedNodesSignal.set([]);
@@ -889,6 +1033,21 @@ export class PlannerGraphService implements OnDestroy
 	}
 
 	/** x6's zoomToFit centers on the full canvas, so the padding asymmetry is applied as a translation. */
+	/** Visible = inside the canvas and not under a docked panel, the same area zoomToVisibleArea fits into. */
+	private anyNodeVisible(x6Graph: X6Graph): boolean
+	{
+		const insets = this.panelLayout.canvasInsets();
+		const container = x6Graph.container;
+		const left = insets.left;
+		const top = insets.top;
+		const right = container.clientWidth - insets.right;
+		const bottom = container.clientHeight - insets.bottom;
+		return x6Graph.getNodes().some(node => {
+			const box = x6Graph.localToGraph(node.getBBox());
+			return box.x < right && box.x + box.width > left && box.y < bottom && box.y + box.height > top;
+		});
+	}
+
 	private zoomToVisibleArea(x6Graph: X6Graph): void
 	{
 		const insets = this.panelLayout.canvasInsets();
@@ -1272,7 +1431,7 @@ export class PlannerGraphService implements OnDestroy
 			: {name: {}, machines: {}, stats: {}};
 		// Faded per element so the `done` check stays opaque.
 		const fade = node.done ? {opacity: DONE_OPACITY} : {};
-		x6Graph.addNode({
+		this.placeNode(x6Graph, {
 			id: node.id,
 			shape: 'planner-node',
 			zIndex: NODE_BASE_Z,
@@ -1339,7 +1498,7 @@ export class PlannerGraphService implements OnDestroy
 			Object.values(attrs).forEach(attr => attr['opacity'] = DONE_OPACITY);
 		}
 		attrs['done'] = this.iconAttrs(style.done);
-		x6Graph.addNode({
+		this.placeNode(x6Graph, {
 			id: node.id,
 			shape: 'planner-subplan-node',
 			zIndex: NODE_BASE_Z,
@@ -1726,7 +1885,7 @@ export class PlannerGraphService implements OnDestroy
 	{
 		const label = this.labelTextFor(edge);
 		const size = this.labelSizeFor(label);
-		const id = `edge-${index}`;
+		const id = `edge-${this.edgeGeneration}-${index}`;
 		this.edgeById.set(id, edge);
 		const hasIcon = label.iconUrl !== null && this.settings.graph().showEdgeItemIcons;
 		const scale = this.edgeScale();
@@ -3043,10 +3202,13 @@ export class PlannerGraphService implements OnDestroy
 			return {
 				title: `${node.getDisplayName()} - locked`,
 				lines: [
-					'Subplans are always locked. The calculation never changes what is inside.',
-					...(node.buildCount > 1
-						? [`Built ${node.buildCount} times here.`]
-						: []),
+					'Subplans are always locked.',
+					...(node.idle
+						? ['Not used: the last calculation needed none of it.']
+						: node.buildCount > 1 ? [`Built ${node.buildCount} times here.`] : []),
+					node.sizing === 'follows' ? 'Its size follows this plan.'
+						: node.sizing === 'copies' ? 'This plan picks how many copies to build.'
+						: 'Fixed size.',
 					'Double-click to open it.',
 				],
 			};
@@ -3143,11 +3305,18 @@ export class PlannerGraphService implements OnDestroy
 
 	private subplanStats(node: SubplanNode): string
 	{
-		const built = node.buildCount > 1 ? `built ${node.buildCount}× - ` : '';
+		if (node.idle) {
+			return 'Subplan - not used';
+		}
+		const built = node.buildCount > 1 ? `${node.buildCount}× - ` : '';
 		if (node.inputs.length === 0 && node.outputs.length === 0) {
 			return `Subplan - ${built}empty`;
 		}
-		return `Subplan - ${built}${node.inputs.length} in, ${node.outputs.length} out`;
+		const totals = this.breakdown.subplanTotals(node.subplanId);
+		const builds = node.builds();
+		const net = (totals.consumption - totals.production) * builds;
+		const power = net >= 0 ? this.rateFormatter.power(net) : `+${this.rateFormatter.power(-net)}`;
+		return `Subplan - ${built}${this.rateFormatter.machineCount(totals.machines * builds)} machines - ${power}`;
 	}
 
 	private machinesLine(node: RecipeNode): string

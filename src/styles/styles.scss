@@ -449,6 +449,13 @@ circle.pg-port-adsorbed {
 	background: #141824;
 }
 
+// At fractional zoom and browser zoom, tiles land on sub-pixel edges that Chromium (Edge too) draws as light or dark
+// lines along the tile borders. A transparent outline makes it draw the edges without that seam. Overlapping the tiles
+// instead stretches them, which shows as broken lines at high zoom.
+.map-tiles img.leaflet-tile {
+	outline: 1px solid transparent;
+}
+
 .leaflet-bar {
 	border: 1px solid #34475a !important;
 	box-shadow: none !important;
@@ -617,11 +624,21 @@ circle.pg-port-adsorbed {
 
 @keyframes map-highlight-pulse {
 	from { stroke-opacity: 1; }
-	to { stroke-opacity: 0.2; }
+	to { stroke-opacity: 0.55; }
 }
 
-.map-highlight-ring {
+.map-highlight-ring, .map-highlight-halo {
 	animation: map-highlight-pulse 0.9s ease-in-out infinite alternate;
+}
+
+.map-highlight-halo {
+	stroke-opacity: 0.75;
+	animation-name: map-highlight-halo-pulse;
+}
+
+@keyframes map-highlight-halo-pulse {
+	from { stroke-opacity: 0.75; }
+	to { stroke-opacity: 0.4; }
 }
 
 .map-popup {
@@ -729,6 +746,27 @@ circle.pg-port-adsorbed {
 
 	span {
 		color: var(--bs-secondary-color);
+	}
+}
+
+// Long item names wrap under the label instead of squeezing it.
+.map-popup-unlock {
+	flex-wrap: wrap;
+	align-items: center;
+	column-gap: 8px;
+
+	strong {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		margin-left: auto;
+		text-align: right;
+	}
+
+	img {
+		width: 20px;
+		height: 20px;
+		flex: none;
 	}
 }
 

@@ -46,20 +46,24 @@ export class SubplanScaler
 		}
 		scaled.add(planId);
 
-		if (plan.graph) {
+		let graph = plan.graph;
+		if (graph) {
 			// Nested subplans first: their nodes here re-read an interface that must already be resized.
-			const graph = this.planSerializer.reviveGraph(plan.graph);
-			graph.nodes
+			const revived = this.planSerializer.reviveGraph(graph);
+			revived.nodes
 				.filter((node): node is SubplanNode => node instanceof SubplanNode)
 				.forEach(node => this.scaleInto(node.subplanId, factor, scaled));
-			this.planManager.setGraph(planId, this.scaledGraph(graph, factor, plan.settings));
+			graph = this.scaledGraph(revived, factor, plan.settings);
 		}
 
-		// Maximise rows carry no rate to scale - they ask for "as much as possible".
-		this.planManager.setRequests(planId, plan.requests.map(request => (request.mode ?? 'rate') === 'rate'
-			? {...request, ratePerMinute: request.ratePerMinute * factor}
-			: {...request}));
-		this.planManager.setInputs(planId, plan.inputs.map(input => ({...input, amount: input.amount * factor})));
+		this.planManager.setPlanContent(planId, {
+			graph,
+			// Maximise rows carry no rate to scale - they ask for "as much as possible".
+			requests: plan.requests.map(request => (request.mode ?? 'rate') === 'rate'
+				? {...request, ratePerMinute: request.ratePerMinute * factor}
+				: {...request}),
+			inputs: plan.inputs.map(input => ({...input, amount: input.amount * factor})),
+		});
 	}
 
 	private scaledGraph(graph: Graph, factor: number, settings: PlanSettings): Graph

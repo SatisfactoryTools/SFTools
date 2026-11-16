@@ -689,23 +689,18 @@ export class PlanManager extends SyncableService<PlanStore>
 		return orders.length > 0 ? Math.max(...orders) + 1 : undefined;
 	}
 
+	/** New subplans take every settings group from their parent until the user gives one its own values. */
 	public createSubplan(name: string, parentPlanId: string): Plan
 	{
 		const parent = this.data().plans.find(p => p.id === parentPlanId);
-		const settings: PlanSettings = {
+		const base: PlanSettings = {
 			...this.defaultSettings(),
 			graph: parent?.settings.graph ? {...parent.settings.graph} : undefined,
-			enabledRecipes: parent?.settings.enabledRecipes ? [...parent.settings.enabledRecipes] : undefined,
-			resourceLimits: parent?.settings.resourceLimits ? {...parent.settings.resourceLimits} : undefined,
-			disabledResources: parent?.settings.disabledResources ? [...parent.settings.disabledResources] : undefined,
-			resourceArea: parent?.settings.resourceArea ? structuredClone(parent.settings.resourceArea) : undefined,
-			mapConveyors: parent?.settings.mapConveyors ? {...parent.settings.mapConveyors} : undefined,
 			factorySite: parent?.settings.factorySite ? {...parent.settings.factorySite} : undefined,
-			enabledFuels: parent?.settings.enabledFuels
-				? Object.fromEntries(Object.entries(parent.settings.enabledFuels).map(([gen, fuels]) => [gen, [...fuels]]))
-				: undefined,
-			disabledByproducts: parent?.settings.disabledByproducts ? [...parent.settings.disabledByproducts] : undefined,
+			defaultGroupingMode: parent?.settings.defaultGroupingMode,
+			parentGroups: [...SettingsGroups.all],
 		};
+		const settings = parent ? SettingsGroups.applyFromParent(base, parent.settings, SettingsGroups.all) : base;
 		const fixed = parent ? this.fixedFolderOf(parent) : null;
 		return this.insertPlan(name, null, parentPlanId, fixed?.settings
 			? SettingsGroups.apply(settings, fixed.settings, fixed.fixedGroups)
@@ -750,13 +745,68 @@ export class PlanManager extends SyncableService<PlanStore>
 		if (this.isReadOnlyPlan(planId)) return;
 		const plan = this.plans().find(p => p.id === planId);
 		const fixed = plan ? this.fixedFolderOf(plan) : null;
-		const effective = fixed?.settings
+		let effective = fixed?.settings
 			? SettingsGroups.apply(settings, fixed.settings, fixed.fixedGroups)
 			: settings;
-		this.mutate(store => ({
+		// Only setParentGroups changes which groups come from the parent: a reset or a copy of other settings keeps them.
+		effective = {...effective, parentGroups: plan?.settings.parentGroups};
+		const parent = plan?.parentPlanId ? this.plans().find(p => p.id === plan.parentPlanId) : undefined;
+		if (plan && parent) {
+			effective = SettingsGroups.applyFromParent(effective, parent.settings, SettingsGroups.parentGroupsOf({...plan, settings: effective}));
+		}
+		this.mutate(store => this.pushParentSettings({
 			...store,
 			plans: store.plans.map(p => p.id === planId ? {...p, settings: effective} : p),
-		}));
+		}, planId));
+	}
+
+	/** Groups switched to "same as parent" take the parent's values right away. */
+	public setParentGroups(planId: string, groups: readonly SettingsGroup[]): void
+	{
+		if (this.isReadOnlyPlan(planId)) return;
+		this.mutate(store => {
+			const plan = store.plans.find(p => p.id === planId);
+			const parent = plan?.parentPlanId ? store.plans.find(p => p.id === plan.parentPlanId) : undefined;
+			if (!plan || !parent) {
+				return store;
+			}
+			const ordered = SettingsGroups.all.filter(group => groups.includes(group));
+			const settings = SettingsGroups.applyFromParent({...plan.settings, parentGroups: ordered}, parent.settings, ordered);
+			const changed = SettingsGroups.differ(plan.settings, settings, SettingsGroups.all);
+			const updated: Plan = {
+				...plan,
+				settings,
+				metadata: changed && plan.graph ? {...plan.metadata, recalculationNeeded: true} : plan.metadata,
+			};
+			return this.pushParentSettings({...store, plans: store.plans.map(p => p.id === planId ? updated : p)}, planId);
+		});
+	}
+
+	/** Copies the parent's values down the subplan tree into every group a subplan takes from its parent. */
+	private pushParentSettings(store: PlanStore, parentId: string, seen: Set<string> = new Set()): PlanStore
+	{
+		if (seen.has(parentId)) {
+			return store;
+		}
+		seen.add(parentId);
+		const parent = store.plans.find(p => p.id === parentId);
+		if (!parent) {
+			return store;
+		}
+		let next = store;
+		store.plans.filter(p => p.parentPlanId === parentId).forEach(child => {
+			const groups = SettingsGroups.parentGroupsOf(child);
+			if (groups.length > 0 && SettingsGroups.differFromParent(child.settings, parent.settings, groups)) {
+				const updated: Plan = {
+					...child,
+					settings: SettingsGroups.applyFromParent(child.settings, parent.settings, groups),
+					metadata: child.graph ? {...child.metadata, recalculationNeeded: true} : child.metadata,
+				};
+				next = {...next, plans: next.plans.map(p => p.id === child.id ? updated : p)};
+			}
+			next = this.pushParentSettings(next, child.id, seen);
+		});
+		return next;
 	}
 
 	public setFolderSettings(folderId: string, settings: PlanSettings | null): void
@@ -841,6 +891,7 @@ export class PlanManager extends SyncableService<PlanStore>
 			generatorClockSpeeds: settings.generatorClockSpeeds ? settings.generatorClockSpeeds.map(entry => ({...entry})) : undefined,
 			maxSloops: settings.maxSloops,
 			sloopAccuracy: settings.sloopAccuracy,
+			parentGroups: settings.parentGroups ? [...settings.parentGroups] : undefined,
 		};
 	}
 
@@ -875,6 +926,18 @@ export class PlanManager extends SyncableService<PlanStore>
 						? p.metadata
 						: {...p.metadata, graphDirty, recalculationNeeded: graphDirty ? p.metadata.recalculationNeeded : undefined},
 				}
+				: p),
+		}));
+	}
+
+	/** One write, so watchers see a resized plan's graph, requests and inputs change together. */
+	public setPlanContent(planId: string, content: {graph: Graph | null; requests: ProductionRequest[]; inputs: PlanInput[]}): void
+	{
+		if (this.isReadOnlyPlan(planId)) return;
+		this.mutate(store => ({
+			...store,
+			plans: store.plans.map(p => p.id === planId
+				? {...p, graph: content.graph, requests: [...content.requests], inputs: [...content.inputs]}
 				: p),
 		}));
 	}
@@ -1025,9 +1088,11 @@ export class PlanManager extends SyncableService<PlanStore>
 				}
 			}
 			const fixed = this.fixedFolderForFolderIn(next.folders, parentPlanId === null ? folderId : this.topLevelFolderIdOf(moved, next.plans));
-			return fixed
-				? this.pushFixedSettings(next, fixed, new Set([planId, ...this.collectDescendantPlanIds(planId, next.plans)]))
-				: next;
+			if (fixed) {
+				next = this.pushFixedSettings(next, fixed, new Set([planId, ...this.collectDescendantPlanIds(planId, next.plans)]));
+			}
+			// Under a new parent, the groups it takes from its parent come from that one now.
+			return parentPlanId !== null && previousParentId !== parentPlanId ? this.pushParentSettings(next, parentPlanId) : next;
 		});
 		this.notifyScrubbed(touchedParents);
 	}

@@ -9,6 +9,7 @@ import {NodeDoneRequest} from '@src/Components/Planner/NodeDoneRequest';
 import {NodeLockRequest} from '@src/Components/Planner/NodeLockRequest';
 import {NodeSplitRequest} from '@src/Components/Planner/NodeSplitRequest';
 import {SubplanBuildCountRequest} from '@src/Components/Planner/SubplanBuildCountRequest';
+import {SubplanSizingRequest} from '@src/Components/Planner/SubplanSizingRequest';
 import {SubplanScaleRequest} from '@src/Components/Planner/SubplanScaleRequest';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
 import {GraphPoint} from '@src/Model/Planner/Graph/GraphPoint';
@@ -81,6 +82,9 @@ export class PlannerActionsService
 
 	private readonly subplanScaleSubject = new Subject<SubplanScaleRequest>();
 	public readonly subplanScaleRequests: Observable<SubplanScaleRequest> = this.subplanScaleSubject.asObservable();
+
+	private readonly subplanSizingSubject = new Subject<SubplanSizingRequest>();
+	public readonly subplanSizingRequests: Observable<SubplanSizingRequest> = this.subplanSizingSubject.asObservable();
 
 	private readonly subplanBuildCountSubject = new Subject<SubplanBuildCountRequest>();
 	public readonly subplanBuildCountRequests: Observable<SubplanBuildCountRequest> = this.subplanBuildCountSubject.asObservable();
@@ -224,6 +228,11 @@ export class PlannerActionsService
 	public requestSubplanScale(request: SubplanScaleRequest): void
 	{
 		this.subplanScaleSubject.next(request);
+	}
+
+	public requestSubplanSizing(request: SubplanSizingRequest): void
+	{
+		this.subplanSizingSubject.next(request);
 	}
 
 	public requestSubplanBuildCount(request: SubplanBuildCountRequest): void

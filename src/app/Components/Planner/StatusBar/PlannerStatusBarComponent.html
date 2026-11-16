@@ -102,7 +102,7 @@
 	} @else if (hasGraph() && graphDirty()) {
 		<span class="state state-modified" tooltip="calculated · edited by hand" container="body" placement="top"><span class="dot"></span><span class="state-text">calculated · edited by hand</span></span>
 	} @else if (hasGraph() && recalculationNeeded()) {
-		<span class="state state-modified" tooltip="The folder changed the settings of this plan." container="body" placement="top"><span class="dot"></span><span class="state-text">settings changed · recalculate</span></span>
+		<span class="state state-modified" tooltip="Its folder, its parent plan or one of its subplans changed since this plan was calculated." container="body" placement="top"><span class="dot"></span><span class="state-text">out of date · recalculate</span></span>
 	} @else if (hasGraph() && poolWarnings().length > 0) {
 		<span class="state state-error" tooltip="Other plans in the folder now use raw resources this plan needs." container="body" placement="top"><span class="dot"></span><span class="state-text">over the shared limit · recalculate</span></span>
 	} @else if (hasGraph()) {

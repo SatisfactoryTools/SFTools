@@ -2,7 +2,6 @@ import {Component, ChangeDetectionStrategy, Input, OnChanges, OnDestroy} from '@
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faLock, faLockOpen, faRotateLeft, faXmark} from '@fortawesome/free-solid-svg-icons';
-import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
 import {Subject, Subscription} from 'rxjs';
 import {debounceTime} from 'rxjs/operators';
 import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
@@ -14,16 +13,24 @@ import {PlannerActionsService} from '@src/Components/Planner/PlannerActionsServi
 import {GroupingModeOption} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/GroupingModeOption';
 import {IORateDraft} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/IORateDraft';
 import {MachineGroupDraft} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/MachineGroupDraft';
+import {BsDropdownModule} from 'ngx-bootstrap/dropdown';
+import {RecipeChoice} from '@src/Components/Planner/Panels/Inspector/RecipeNodeEditor/RecipeChoice';
 import {Building} from '@src/Model/Data/Entities/Building';
+import {Recipe} from '@src/Model/Data/Entities/Recipe';
+import {VersionManager} from '@src/Model/Data/VersionManager';
+import {EnabledRecipesResolver} from '@src/Model/Planner/EnabledRecipesResolver';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
+import {MachineBuild} from '@src/Model/Planner/MachineBuild';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
+import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {SloopBudgetService} from '@src/Model/Planner/SloopBudgetService';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {RateFormatter} from '@src/Model/RateFormatter';
 import {HelpButtonComponent} from '@src/Components/Help/HelpButtonComponent';
-import {ConfirmDialogService} from '@src/Components/Common/ConfirmDialogService';
 import {InspectorMenuButtonComponent} from '@src/Components/Planner/Panels/Inspector/InspectorMenuButtonComponent';
 import {ModLabelComponent} from '@src/Components/Mods/ModLabelComponent';
 
@@ -33,7 +40,7 @@ const APPLY_DEBOUNCE_MS = 400;
 	selector: 'recipe-node-editor',
 	templateUrl: './RecipeNodeEditorComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [ModLabelComponent, InspectorMenuButtonComponent, FormsModule, FaIconComponent, BsDropdownModule, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent, GoToNodeButtonComponent],
+	imports: [ModLabelComponent, InspectorMenuButtonComponent, FormsModule, BsDropdownModule, FaIconComponent, AppTooltipDirective, GameIconComponent, InfoNoteComponent, ClockSpeedInputComponent, HelpButtonComponent, GoToNodeButtonComponent],
 	styles: [`
 		@container panel (max-width: 300px) {
 			.groups-table td.stack-grow {
@@ -48,28 +55,109 @@ const APPLY_DEBOUNCE_MS = 400;
 			}
 			.groups-table tbody td:last-child { margin-left: auto; }
 		}
-		.io-tiles {
+		.info-row {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			column-gap: 0.5rem;
+			row-gap: 0.25rem;
+			min-width: 0;
+		}
+		.recipe-row {
+			flex-wrap: nowrap;
+		}
+		.info-row > select {
+			flex: 1 1 10rem;
+			width: auto;
+		}
+		.io-list {
+			display: flex;
+			flex-direction: column;
+			gap: 0.25rem;
+		}
+		.io-row {
+			display: grid;
+			grid-template-columns: auto minmax(0, 1fr) auto 8.5rem;
+			align-items: center;
+			column-gap: 0.5rem;
+		}
+		@container panel (max-width: 380px) {
+			.io-row {
+				grid-template-columns: auto minmax(0, 1fr) 7.5rem;
+			}
+			.io-row .io-per-craft {
+				display: none;
+			}
+		}
+		.recipe-io {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.25rem;
+			margin-top: 0.15rem;
+		}
+		.recipe-io-entry {
+			display: inline-flex;
+			align-items: center;
+			gap: 0.15rem;
+		}
+		.recipe-io-entry + .recipe-io-entry {
+			margin-left: 0.25rem;
+		}
+		.recipe-menu {
+			max-width: min(360px, 90vw);
+			max-height: 60vh;
+			overflow-y: auto;
+		}
+		.build-fields {
 			display: flex;
 			flex-wrap: wrap;
 			gap: 0.5rem;
 		}
-		.io-tile {
-			flex: 1 1 130px;
-			max-width: 220px;
+		.build-fields > .machines-field {
+			flex: 0 1 6rem;
+			min-width: 5rem;
+		}
+		.build-fields > .clock-field {
+			flex: 1 1 240px;
 			min-width: 0;
-			display: flex;
-			flex-direction: column;
+		}
+		.section-title {
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: var(--bs-secondary-color);
+		}
+		.groups-table .action-col {
+			width: 1%;
+			white-space: nowrap;
+			text-align: right;
+		}
+		.auto-input {
+			background: transparent;
+			border-color: var(--bs-border-color-translucent);
+			color: var(--bs-secondary-color);
+			text-align: right;
+			pointer-events: none;
+		}
+		.auto-input::-webkit-inner-spin-button {
+			display: none;
+		}
+		.groups-table .action-col .btn {
+			width: 2.75rem;
+			height: 1.9rem;
+			padding: 0;
+			display: inline-flex;
 			align-items: center;
-			gap: 0.15rem;
-			padding: 0.4rem 0.4rem 0.5rem;
-			background: rgba(255, 255, 255, 0.04);
-			text-align: center;
+			justify-content: center;
 		}
-		.io-tile .io-name {
-			max-width: 100%;
+		.auto-button {
+			font-size: 0.75rem;
 		}
-		.io-tile .input-group {
-			margin-top: 0.2rem;
+		.auto-tag {
+			font-size: 0.75em;
+			font-weight: normal;
 		}
 	`],
 })
@@ -85,34 +173,52 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		{
 			mode: 'underclock-last',
 			label: 'Underclock the last machine',
-			description: 'All at the default clock. The last one runs slower.',
+			description: 'All at the clock speed. The last one runs slower.',
+			countDescription: 'Whole-number clocks. The last one runs slower.',
+		},
+		{
+			mode: 'overclock-last',
+			label: 'Overclock the last machine',
+			description: 'All at the clock speed. The last one runs faster instead of adding a machine.',
+			countDescription: 'Whole-number clocks. The last one runs faster.',
 		},
 		{
 			mode: 'clock-equally',
 			label: 'Same clock for all',
-			description: 'All at the same clock, up to the default.',
+			description: 'All at the same clock, up to the clock speed.',
+			countDescription: 'All at the same exact clock.',
 		},
 		{
 			mode: 'no-clocking',
 			label: 'Whole machines only',
-			description: 'All at the default clock. May make more than needed.',
+			description: 'All at the clock speed. May make more than needed.',
+			countDescription: 'All at the same whole-number clock. May make a bit more than needed.',
 		},
 	];
 
 	@Input({required: true}) public node!: RecipeNode;
 
 	public machineClassName = '';
-	public groups: MachineGroupDraft[] = [];
+	public recipeChoices: RecipeChoice[] = [];
+	private draftMachine!: Building;
 	public inputRates: IORateDraft[] = [];
 	public outputRates: IORateDraft[] = [];
-	public groupingMode: GroupingMode = 'underclock-last';
 
-	/** Hand-built graphs never go through the request panel, so the clock is seeded from the plan but editable here. */
-	public defaultClockSpeed = 100;
+	public mode: GroupingMode = 'underclock-last';
+	public restClockSpeed = 100;
+	public restMachines: number | null = null;
+	public restSloops = 0;
+	public pinned: MachineGroupDraft[] = [];
+	public custom = false;
 
-	private defaultClockEdited = false;
+	/** With Automatic off: the rows it had filled in, editable now but dropped when it is switched back on. */
+	public manualRest: MachineGroupDraft[] = [];
 
-	private outputCycles = 0;
+	public previewGroups: MachineGroup[] = [];
+	public restGroups: MachineGroup[] = [];
+
+	/** Output in reference cycles: the draft's source of truth, so build changes keep the outputs and move the inputs. */
+	private outputUnits = 0;
 
 	/** Apply runs against this rather than the `node` input: a pending apply must flush against the node that was edited. */
 	private loadedNode: RecipeNode | null = null;
@@ -120,13 +226,16 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	private readonly applySubject = new Subject<void>();
 	private readonly applySubscription: Subscription;
 	private applyPending = false;
-	private applyLocks = false;
 
 	public constructor(
-		private readonly confirmDialog: ConfirmDialogService,
 		private readonly actions: PlannerActionsService,
+		private readonly builder: MachineBuilder,
 		private readonly normalizer: MachineGroupNormalizer,
 		private readonly clocks: ClockSpeedResolver,
+		private readonly planManager: PlanManager,
+		private readonly sloopBudget: SloopBudgetService,
+		private readonly versionManager: VersionManager,
+		private readonly enabledRecipes: EnabledRecipesResolver,
 		public readonly rateFormatter: RateFormatter,
 	)
 	{
@@ -138,19 +247,88 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	/** The same node arriving as a new instance keeps the draft; it is only re-tracked so the next apply sees its current lock state. */
 	public ngOnChanges(): void
 	{
-		if (this.loadedNode?.id === this.node.id) {
+		if (this.loadedNode?.id === this.node.id && this.loadedNode.recipe.className === this.node.recipe.className) {
 			this.loadedNode = this.node;
 			return;
 		}
 		this.flushPendingApply();
-		this.loadedNode = this.node;
-		this.machineClassName = this.node.machine.className;
-		this.groups = this.node.groups.map(group => ({...group}));
-		this.groupingMode = this.node.groupingMode;
-		this.defaultClockEdited = false;
-		this.defaultClockSpeed = this.planClockSpeed;
-		this.outputCycles = this.node.target * this.referenceCycles(this.node.machine) * this.node.outputBoostRatio();
-		this.refreshRates();
+		this.load(this.node);
+	}
+
+	private load(node: RecipeNode): void
+	{
+		this.loadedNode = node;
+		this.recipeChoices = this.choicesFor(node);
+		this.machineClassName = node.machine.className;
+		this.draftMachine = node.machine;
+		const build = node.build;
+		this.mode = build.rest.mode;
+		this.restClockSpeed = build.rest.clockSpeed;
+		this.restMachines = build.rest.machines;
+		this.restSloops = build.rest.sloops ?? 0;
+		this.pinned = build.pinned.map(group => ({...group}));
+		this.custom = build.custom;
+		this.manualRest = (build.manualRest ?? []).map(group => ({...group}));
+		this.outputUnits = this.builder.outputForTarget(build, node.target, node.machine);
+		this.refresh();
+	}
+
+	/** Every other recipe making the node's main product; the plan's enabled ones first. */
+	private choicesFor(node: RecipeNode): RecipeChoice[]
+	{
+		const data = this.versionManager.activeVersionData();
+		const product = node.recipe.products[0]?.item;
+		if (!data || !product) {
+			return [];
+		}
+		const settings = this.planManager.activeSettings();
+		const enabled = settings ? this.enabledRecipes.resolve(settings, data) : null;
+		return data.getRecipesProducingItem(product.className)
+			.filter(recipe => recipe.className !== node.recipe.className && recipe.producedIn.length > 0)
+			.map(recipe => ({
+				recipe,
+				enabled: enabled === null || enabled.has(recipe.className),
+			}))
+			.sort((a, b) => Number(b.enabled) - Number(a.enabled) || a.recipe.name.localeCompare(b.recipe.name));
+	}
+
+	/**
+	 * Replaces this node with one running another recipe at the same rate of the main product. The machine and build
+	 * are kept when the new recipe runs in the same machine; connections are settled by the usual node update.
+	 */
+	public changeRecipe(recipe: Recipe): void
+	{
+		const node = this.editedNode;
+		const product = node.recipe.products[0]?.item;
+		const newProduct = recipe.products.find(entry => entry.item.className === product?.className);
+		if (!product || !newProduct) {
+			return;
+		}
+		this.flushPendingApply();
+		const sameMachine = recipe.producedIn.find(machine => machine.className === node.machine.className);
+		const machine = sameMachine ?? recipe.producedIn[0];
+		const followsPlan = node.build.rest.clockSpeed === this.clocks.forRecipe(node.recipe, node.machine);
+		const rest = {
+			...node.build.rest,
+			clockSpeed: followsPlan ? this.clocks.forRecipe(recipe, machine) : node.build.rest.clockSpeed,
+		};
+		const build: MachineBuild = sameMachine
+			? {...node.build, rest}
+			: {pinned: [], rest: {...rest, sloops: 0}, custom: false};
+		const rate = node.outputs
+			.filter(io => io.item.className === product.className)
+			.reduce((sum, io) => sum + io.maxAmount, 0);
+		const output = rate / newProduct.amount / Formulas.referenceCycles(recipe, machine);
+		const target = this.builder.targetForOutput(build, output, machine);
+		if (!(target > 0)) {
+			return;
+		}
+		const updated = this.builder.node(node.id, target, build, machine, recipe);
+		updated.x = node.x;
+		updated.y = node.y;
+		updated.locked = true;
+		this.load(updated);
+		this.actions.requestNodeUpdate(updated);
 	}
 
 	public ngOnDestroy(): void
@@ -184,59 +362,95 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return this.editedNode.recipe.producedIn;
 	}
 
-	public get isModified(): boolean
+	public get sloopSlots(): number
 	{
-		const node = this.editedNode;
-		if (this.machineClassName !== node.machine.className) {
-			return true;
-		}
-		if (this.groupingMode !== node.groupingMode) {
-			return true;
-		}
-		if (JSON.stringify(this.groups) !== JSON.stringify(node.groups)) {
-			return true;
-		}
-		return Math.abs(this.draftTarget - node.target) > 1e-9 * Math.max(1, node.target);
+		return this.selectedMachine?.sloopSlots ?? 0;
 	}
 
-	private get planClockSpeed(): number
+	public get modeOption(): GroupingModeOption | undefined
 	{
-		const machine = this.selectedMachine;
-		return machine ? this.clocks.forRecipe(this.editedNode.recipe, machine) : 100;
+		return this.groupingOptions.find(option => option.mode === this.mode);
 	}
 
-	private get buildClockSpeed(): number
+	public get modeDescription(): string
 	{
-		const value = this.defaultClockSpeed;
-		return isFinite(value) && value > 0 ? Formulas.clampClock(value) : this.planClockSpeed;
+		const option = this.modeOption;
+		return (this.restMachines === null ? option?.description : option?.countDescription) ?? '';
+	}
+
+	public get restMachinesDisplay(): number
+	{
+		return this.restMachines ?? this.machineCount(this.restGroups);
+	}
+
+	public get restClockDisplay(): number
+	{
+		return this.restMachines === null ? this.restClockSpeed : (this.restGroups[0]?.clockSpeed ?? this.restClockSpeed);
+	}
+
+	public get restNeeded(): boolean
+	{
+		return this.restGroups.length > 0;
 	}
 
 	public get usesPlanClockSpeed(): boolean
 	{
-		return this.buildClockSpeed === this.planClockSpeed;
+		return this.restClockSpeed === this.planClockSpeed;
 	}
 
-	public onDefaultClockChange(value: number): void
+	public get totalMachines(): number
 	{
-		this.defaultClockSpeed = value;
-		this.defaultClockEdited = true;
+		return this.machineCount(this.previewGroups);
 	}
 
-	public resetDefaultClock(): void
+	public get totalShards(): number
 	{
-		this.defaultClockSpeed = this.planClockSpeed;
-		this.defaultClockEdited = false;
+		return this.previewGroups.reduce((sum, group) => sum + group.machines * Formulas.powerShards(group.clockSpeed), 0);
+	}
+
+	public get totalSloops(): number
+	{
+		return this.previewGroups.reduce((sum, group) => sum + group.machines * group.sloops, 0);
+	}
+
+	/** Null when the plan has no sloop budget to compare against. */
+	public get sloopsLeft(): number | null
+	{
+		const budget = Math.max(0, Math.round(this.planManager.activeSettings()?.maxSloops ?? 0));
+		if (budget <= 0) {
+			return null;
+		}
+		const graph = this.planManager.activePlan()?.graph;
+		const others = graph ? {...graph, nodes: graph.nodes.filter(node => node.id !== this.editedNode.id)} : null;
+		return budget - this.sloopBudget.usedByLockedNodes(others) - this.totalSloops;
+	}
+
+	public shardsOf(group: MachineGroup): number
+	{
+		return group.machines * Formulas.powerShards(group.clockSpeed);
 	}
 
 	public get efficiency(): number
 	{
-		const capacity = this.draftCapacity;
+		const capacity = Formulas.groupCapacity(this.previewGroups);
 		return capacity > 0 ? Math.min(1, this.draftTarget / capacity) : 0;
 	}
 
 	public get hasCapacityShortage(): boolean
 	{
-		return RecipeNode.isCapacityShort(this.draftTarget, this.draftCapacity);
+		return RecipeNode.isCapacityShort(this.draftTarget, Formulas.groupCapacity(this.previewGroups));
+	}
+
+	public get pinnedExceedTarget(): boolean
+	{
+		return this.builder.pinnedExceedTarget(this.draftBuild(), this.draftTarget);
+	}
+
+	/** How many machines the rest needs at the top clock, offered when a typed count falls short. */
+	public get machinesNeeded(): number
+	{
+		const target = this.builder.restTarget(this.draftBuild(), this.draftTarget);
+		return Math.max(1, Math.ceil(target * 100 / 250 - 1e-9));
 	}
 
 	public toggleLock(): void
@@ -252,101 +466,164 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		if (!machine || !ingredient || !this.isEditableRate(rate)) {
 			return;
 		}
-		this.outputCycles = (rate / ingredient.amount) * this.boostRatio(machine);
-		this.refreshRates({kind: 'input', index});
-		this.scheduleApply(true);
+		const target = (rate / ingredient.amount) / this.referenceCycles(machine);
+		this.outputUnits = this.builder.outputForTarget(this.draftBuild(), target, machine);
+		this.refresh({kind: 'input', index});
+		this.scheduleApply();
 	}
 
 	public onOutputRateChange(index: number): void
 	{
+		const machine = this.selectedMachine;
 		const product = this.editedNode.recipe.products[index];
 		const rate = this.outputRates[index]?.rate;
-		if (!product || !this.isEditableRate(rate)) {
+		if (!machine || !product || !this.isEditableRate(rate)) {
 			return;
 		}
-		this.outputCycles = rate / product.amount;
-		this.refreshRates({kind: 'output', index});
-		this.scheduleApply(true);
-	}
-
-	public onGroupsChange(): void
-	{
-		this.refreshRates();
-		this.scheduleApply(true);
+		this.outputUnits = (rate / product.amount) / this.referenceCycles(machine);
+		this.refresh({kind: 'output', index});
+		this.scheduleApply();
 	}
 
 	public onMachineChange(): void
 	{
-		// Another machine may have its own row in the Overclocking tab.
-		if (!this.defaultClockEdited) {
-			this.defaultClockSpeed = this.planClockSpeed;
-		}
-		this.clampSloops();
-		this.refreshRates();
-		this.scheduleApply(true);
-	}
-
-	public setGroupingMode(mode: GroupingMode): void
-	{
-		if (this.groupingMode !== mode) {
-			this.groupingMode = mode;
-			// A mode choice alone is not a manual edit and must not lock the node.
-			this.scheduleApply(false);
-		}
-	}
-
-	public get groupingLabel(): string
-	{
-		return this.groupingOptions.find(option => option.mode === this.groupingMode)?.label ?? '';
-	}
-
-	public async calculate(): Promise<void>
-	{
+		const previous = this.draftMachine;
 		const machine = this.selectedMachine;
-		if (!machine || this.outputCycles <= 0) {
+		if (!machine) {
 			return;
 		}
-		if (!await this.confirmDialog.ask({message: 'Replace the current machine groups with the calculated ones?', confirmLabel: 'Replace'})) {
+		// The clock follows the plan's setting for the new machine unless it was changed by hand.
+		if (this.restClockSpeed === this.clocks.forRecipe(this.editedNode.recipe, previous)) {
+			this.restClockSpeed = this.planClockSpeed;
+		}
+		this.outputUnits = this.outputUnits * this.referenceCycles(previous) / this.referenceCycles(machine);
+		[...this.pinned, ...this.manualRest].forEach(group => group.sloops = this.normalizer.clampSloops(group.sloops, machine));
+		this.restSloops = this.normalizer.clampSloops(this.restSloops, machine);
+		this.draftMachine = machine;
+		this.refresh();
+		this.scheduleApply();
+	}
+
+	public setMode(mode: GroupingMode): void
+	{
+		this.mode = mode;
+		this.onBuildChange();
+	}
+
+	public onRestMachinesChange(value: number | null): void
+	{
+		if (typeof value !== 'number' || !isFinite(value) || value < 1) {
 			return;
 		}
-		this.groups = this.normalizer
-			.recalculated(this.sanitizedGroups(), this.draftTarget, this.groupingMode, this.buildClockSpeed)
-			.map(group => ({...group}));
-		this.refreshRates();
-		this.scheduleApply(false);
+		this.restMachines = Math.round(value);
+		this.onBuildChange();
+	}
+
+	/** Every automatic machine gets the same sloops, so one cell sets them all and the count is worked out again. */
+	public onRestSloopsChange(value: number | null): void
+	{
+		if (typeof value !== 'number' || !isFinite(value) || value < 0) {
+			return;
+		}
+		this.restSloops = Math.round(value);
+		this.onBuildChange();
+	}
+
+	public onRestClockChange(value: number): void
+	{
+		this.restClockSpeed = value;
+		this.restMachines = null;
+		this.onBuildChange();
+	}
+
+	public resetRestClock(): void
+	{
+		this.onRestClockChange(this.planClockSpeed);
+	}
+
+	public useMachinesNeeded(): void
+	{
+		this.restMachines = this.machinesNeeded;
+		this.onBuildChange();
+	}
+
+	public addPinned(): void
+	{
+		this.pinned.push({machines: 1, clockSpeed: this.restClockSpeed, sloops: 0});
+		this.onBuildChange();
+	}
+
+	public get canRemoveRows(): boolean
+	{
+		return !this.custom || this.pinned.length + this.manualRest.length > 1;
+	}
+
+	public removePinned(index: number): void
+	{
+		if (this.canRemoveRows) {
+			this.pinned.splice(index, 1);
+			this.onBuildChange();
+		}
+	}
+
+	public removeManualRest(index: number): void
+	{
+		if (this.canRemoveRows) {
+			this.manualRest.splice(index, 1);
+			this.onBuildChange();
+		}
+	}
+
+	public pinRest(index: number): void
+	{
+		const group = this.restGroups[index];
+		if (group) {
+			this.pinned.push({...group});
+			this.onBuildChange();
+		}
+	}
+
+	/** Switching off turns the automatic rows editable without changing the node; switching on drops them and works the rest out again. */
+	public setAutomatic(automatic: boolean): void
+	{
+		if (automatic === !this.custom) {
+			return;
+		}
+		this.manualRest = automatic ? [] : this.restGroups.map(group => ({...group}));
+		this.custom = !automatic;
+		this.onBuildChange();
+	}
+
+	public lowerPinnedClocks(): void
+	{
+		const fitted = this.builder.fitted(this.draftBuild(), this.draftTarget);
+		this.pinned = fitted.pinned.map(group => ({...group}));
+		this.onBuildChange();
+	}
+
+	/** Edits keep the outputs; the rest is rebuilt around the user's rows. */
+	public onBuildChange(): void
+	{
+		this.refresh();
+		this.scheduleApply();
 	}
 
 	public autofill(): void
 	{
 		const machine = this.selectedMachine;
-		const amount = this.autofillAmount();
-		if (!machine || amount <= 0) {
+		if (!machine) {
 			return;
 		}
-		this.groups = [
-			...this.groups,
-			...this.normalizer
-				.generateForTarget(amount, this.buildClockSpeed, this.fillSloops(machine), this.groupingMode)
-				.map(group => ({...group})),
-		];
-		this.refreshRates();
-		this.scheduleApply(false);
-	}
-
-	public addGroup(): void
-	{
-		this.groups.push({machines: 1, clockSpeed: this.buildClockSpeed, sloops: 0});
-		this.refreshRates();
-		this.scheduleApply(true);
-	}
-
-	public removeGroup(index: number): void
-	{
-		if (this.groups.length > 1) {
-			this.groups.splice(index, 1);
-			this.refreshRates();
-			this.scheduleApply(true);
+		const groups = this.sanitized([...this.pinned, ...this.manualRest]);
+		const deficit = this.outputUnits - Formulas.groupCapacity(groups) * Formulas.outputBoostRatio(machine, groups);
+		if (deficit <= 0) {
+			return;
 		}
+		this.manualRest = [
+			...this.manualRest,
+			...this.builder.restGroups({mode: this.mode, clockSpeed: this.restClockSpeed, machines: null}, deficit).map(group => ({...group})),
+		];
+		this.onBuildChange();
 	}
 
 	private get editedNode(): RecipeNode
@@ -354,10 +631,54 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return this.loadedNode ?? this.node;
 	}
 
-	private scheduleApply(locks: boolean): void
+	private get planClockSpeed(): number
+	{
+		const machine = this.selectedMachine;
+		return machine ? this.clocks.forRecipe(this.editedNode.recipe, machine) : 100;
+	}
+
+	private get draftTarget(): number
+	{
+		const machine = this.selectedMachine;
+		return machine ? this.builder.targetForOutput(this.draftBuild(), this.outputUnits, machine) : 0;
+	}
+
+	/** Drafts may hold empty/NaN fields mid-typing - the build gets sane values instead. */
+	private draftBuild(): MachineBuild
+	{
+		return {
+			pinned: this.sanitized(this.pinned),
+			rest: {
+				mode: this.mode,
+				clockSpeed: this.cleanClock(this.restClockSpeed, this.planClockSpeed),
+				machines: this.restMachines,
+				sloops: this.selectedMachine ? this.normalizer.clampSloops(this.restSloops || 0, this.selectedMachine) : 0,
+			},
+			custom: this.custom,
+			...(this.custom ? {manualRest: this.sanitized(this.manualRest)} : {}),
+		};
+	}
+
+	private sanitized(groups: MachineGroupDraft[]): MachineGroup[]
+	{
+		const machine = this.selectedMachine;
+		return groups
+			.filter(group => (group.machines || 0) > 0 && (group.clockSpeed || 0) > 0)
+			.map(group => ({
+				machines: Math.max(1, Math.round(group.machines)),
+				clockSpeed: this.normalizer.roundClock(group.clockSpeed),
+				sloops: machine ? this.normalizer.clampSloops(group.sloops || 0, machine) : 0,
+			}));
+	}
+
+	private cleanClock(value: number, fallback: number): number
+	{
+		return isFinite(value) && value > 0 ? Formulas.clampClock(value) : fallback;
+	}
+
+	private scheduleApply(): void
 	{
 		this.applyPending = true;
-		this.applyLocks = this.applyLocks || locks;
 		this.applySubject.next();
 	}
 
@@ -368,80 +689,57 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		}
 	}
 
+	/** Every edit here is a decision the solver would not make, so it locks the node. */
 	private applyDraft(): void
 	{
 		if (!this.applyPending) {
 			return;
 		}
 		this.applyPending = false;
-		const locks = this.applyLocks;
-		this.applyLocks = false;
 
 		const node = this.loadedNode;
 		const machine = this.selectedMachine;
-		if (!node || !machine || this.groups.length === 0 || this.outputCycles <= 0 || !this.isModified) {
+		const build = this.draftBuild();
+		const target = this.draftTarget;
+		if (!node || !machine || this.outputUnits <= 0 || target <= 0 || (build.custom && this.builder.customGroups(build).length === 0)) {
 			return;
 		}
-
-		const groups = this.normalizedGroups(machine);
-		const target = this.outputCycles / this.boostRatioOf(groups, machine) / this.referenceCycles(machine);
-		const updated = new RecipeNode(node.id, target, groups, machine, node.recipe);
+		const updated = this.builder.node(node.id, target, build, machine, node.recipe);
+		if (!this.differs(updated, node)) {
+			return;
+		}
 		updated.x = node.x;
 		updated.y = node.y;
-		// Manual edits make the node user-owned; Calculate/Autofill keep the ownership as it is.
-		updated.locked = node.locked || locks;
+		updated.locked = true;
 		updated.done = node.done;
-		updated.groupingMode = this.groupingMode;
 		this.actions.requestNodeUpdate(updated);
 	}
 
-	private get draftTarget(): number
+	private differs(updated: RecipeNode, node: RecipeNode): boolean
 	{
-		const machine = this.selectedMachine;
-		return machine ? this.outputCycles / this.boostRatio(machine) / this.referenceCycles(machine) : 0;
+		return updated.machine.className !== node.machine.className
+			|| JSON.stringify(updated.build) !== JSON.stringify(node.build)
+			|| !this.builder.sameGroups(updated.groups, node.groups)
+			|| Math.abs(updated.target - node.target) > 1e-9 * Math.max(1, node.target);
 	}
 
-	private get draftCapacity(): number
-	{
-		return Formulas.groupCapacity(this.sanitizedGroups());
-	}
-
-	public autofillAmount(): number
-	{
-		const machine = this.selectedMachine;
-		if (!machine || this.outputCycles <= 0) {
-			return 0;
-		}
-		const groups = this.sanitizedGroups();
-		const boostedDeficit = this.outputCycles / this.referenceCycles(machine)
-			- Formulas.groupCapacity(groups) * Formulas.outputBoostRatio(machine, groups);
-		return boostedDeficit / Formulas.sloopOutputMultiplier(machine, this.fillSloops(machine));
-	}
-
-	private fillSloops(machine: Building): number
-	{
-		return this.normalizer.clampSloops(this.groups[this.groups.length - 1]?.sloops || 0, machine);
-	}
-
-	/** Group drafts may hold empty/NaN fields mid-typing - the formulas get zeros instead. */
-	private sanitizedGroups(): MachineGroup[]
-	{
-		return this.groups.map(group => ({
-			machines: group.machines || 0,
-			clockSpeed: group.clockSpeed || 0,
-			sloops: group.sloops || 0,
-		}));
-	}
-
-	private refreshRates(skip: {kind: 'input' | 'output'; index: number} | null = null): void
+	private refresh(skip: {kind: 'input' | 'output'; index: number} | null = null): void
 	{
 		const machine = this.selectedMachine;
 		if (!machine) {
 			this.inputRates = [];
 			this.outputRates = [];
+			this.previewGroups = [];
+			this.restGroups = [];
 			return;
 		}
-		const targetCycles = this.outputCycles / this.boostRatio(machine);
+		const build = this.draftBuild();
+		const target = this.draftTarget;
+		this.previewGroups = this.builder.groups(build, target);
+		this.restGroups = build.custom ? [] : this.builder.restGroups(build.rest, this.builder.restTarget(build, target));
+
+		const targetCycles = target * this.referenceCycles(machine);
+		const outputCycles = this.outputUnits * this.referenceCycles(machine);
 		this.inputRates = this.editedNode.recipe.ingredients.map((ingredient, index) =>
 			skip?.kind === 'input' && skip.index === index
 				? this.inputRates[index]
@@ -449,7 +747,7 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		this.outputRates = this.editedNode.recipe.products.map((product, index) =>
 			skip?.kind === 'output' && skip.index === index
 				? this.outputRates[index]
-				: {item: product.item, perCraft: product.amount, rate: this.roundRate(product.amount * this.outputCycles)});
+				: {item: product.item, perCraft: product.amount, rate: this.roundRate(product.amount * outputCycles)});
 	}
 
 	private referenceCycles(machine: Building): number
@@ -457,14 +755,9 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 		return Formulas.referenceCycles(this.editedNode.recipe, machine);
 	}
 
-	private boostRatio(machine: Building): number
+	private machineCount(groups: MachineGroup[]): number
 	{
-		return Formulas.outputBoostRatio(machine, this.sanitizedGroups());
-	}
-
-	private boostRatioOf(groups: MachineGroup[], machine: Building): number
-	{
-		return Formulas.outputBoostRatio(machine, groups);
+		return groups.reduce((sum, group) => sum + group.machines, 0);
 	}
 
 	/** Mid-typing values (empty, zero, negative) must not collapse the whole draft. */
@@ -476,23 +769,6 @@ export class RecipeNodeEditorComponent implements OnChanges, OnDestroy
 	private roundRate(rate: number): number
 	{
 		return Math.round(rate * 10000) / 10000;
-	}
-
-	private normalizedGroups(machine: Building): MachineGroup[]
-	{
-		return this.groups.map(group => ({
-			machines: Math.max(1, Math.round(group.machines || 1)),
-			clockSpeed: this.normalizer.roundClock(group.clockSpeed || 100),
-			sloops: this.normalizer.clampSloops(group.sloops || 0, machine),
-		}));
-	}
-
-	private clampSloops(): void
-	{
-		const machine = this.selectedMachine;
-		if (machine) {
-			this.groups.forEach(group => group.sloops = this.normalizer.clampSloops(group.sloops, machine));
-		}
 	}
 
 }

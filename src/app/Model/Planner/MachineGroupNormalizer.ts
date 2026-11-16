@@ -3,6 +3,8 @@ import {Building} from '@src/Model/Data/Entities/Building';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 
+const MAX_CLOCK = 250;
+
 @Injectable({providedIn: 'root'})
 export class MachineGroupNormalizer
 {
@@ -10,7 +12,7 @@ export class MachineGroupNormalizer
 	/** Rounds UP so a normalized group never produces less than the fraction it replaces. */
 	public roundClock(value: number): number
 	{
-		return Math.min(250, Math.max(1, Math.ceil(value * 10000 - 1e-7) / 10000));
+		return Math.min(MAX_CLOCK, Math.max(1, Math.ceil(value * 10000 - 1e-7) / 10000));
 	}
 
 	public clampSloops(sloops: number, machine: Building): number
@@ -23,6 +25,8 @@ export class MachineGroupNormalizer
 		switch (mode) {
 			case 'underclock-last':
 				return this.fromFractionalAmount(amount, clockSpeed, sloops);
+			case 'overclock-last':
+				return this.overclockLast(amount, clockSpeed, sloops);
 			case 'clock-equally': {
 				const machines = this.wholeMachines(amount);
 				return [{machines, clockSpeed: this.roundClock(amount * clockSpeed / machines), sloops}];
@@ -39,22 +43,37 @@ export class MachineGroupNormalizer
 		return this.generate(target * 100 / clock, clock, sloops, mode);
 	}
 
-	/** Bucketed by sloop count so the node's boost (and with it the input/output ratio) is preserved instead of mixed sloops being reset. */
-	public recalculated(groups: MachineGroup[], target: number, mode: GroupingMode, clockSpeed: number = 100): MachineGroup[]
+	/**
+	 * A fixed machine count leaves only the clocks to work out. The mode says where the uneven part goes:
+	 * whole-percent clocks with the last machine slower or faster, one exact clock for all, or whole percents that overshoot a little.
+	 */
+	public generateForCount(target: number, machines: number, sloops: number, mode: GroupingMode): MachineGroup[]
 	{
-		const buckets = new Map<number, number>();
-		groups.forEach(group => {
-			const capacity = group.machines * (group.clockSpeed / 100);
-			if (capacity > 0) {
-				buckets.set(group.sloops, (buckets.get(group.sloops) ?? 0) + capacity);
-			}
-		});
-		const totalCapacity = [...buckets.values()].reduce((sum, capacity) => sum + capacity, 0);
-		if (totalCapacity <= 0) {
-			return this.generateForTarget(target, clockSpeed, groups[0]?.sloops ?? 0, mode);
+		const count = Math.max(1, Math.round(machines));
+		const total = target * 100;
+		const exact = this.roundClock(total / count);
+		const isWhole = Math.abs(exact - Math.round(exact)) < 1e-9;
+		if (count === 1 || mode === 'clock-equally' || isWhole || exact <= 1 || exact >= MAX_CLOCK) {
+			return [{machines: count, clockSpeed: exact, sloops}];
 		}
-		return [...buckets.entries()].flatMap(([sloops, capacity]) =>
-			this.generateForTarget(target * capacity / totalCapacity, clockSpeed, sloops, mode));
+		switch (mode) {
+			case 'no-clocking':
+				return [{machines: count, clockSpeed: Math.ceil(exact), sloops}];
+			case 'underclock-last': {
+				const main = Math.ceil(exact);
+				const last = total - (count - 1) * main;
+				return last < 1
+					? [{machines: count, clockSpeed: exact, sloops}]
+					: [{machines: count - 1, clockSpeed: main, sloops}, {machines: 1, clockSpeed: this.roundClock(last), sloops}];
+			}
+			case 'overclock-last': {
+				const main = Math.floor(exact);
+				const last = this.roundClock(total - (count - 1) * main);
+				return total - (count - 1) * main > MAX_CLOCK
+					? [{machines: count, clockSpeed: exact, sloops}]
+					: [{machines: count - 1, clockSpeed: main, sloops}, {machines: 1, clockSpeed: last, sloops}];
+			}
+		}
 	}
 
 	/** 1e-9 is the solver's snap grid: smaller remainders are dust. */
@@ -79,6 +98,31 @@ export class MachineGroupNormalizer
 			groups.push({machines: whole, clockSpeed: this.roundClock(clockSpeed), sloops});
 		}
 		groups.push({machines: 1, clockSpeed: this.roundClock(remainder * clockSpeed), sloops});
+		return groups;
+	}
+
+	/**
+	 * The remainder rides on the last machine. Past the clock limit it is shared evenly by as many of the
+	 * last machines as it takes; when even all of them cannot carry it, one more slow machine is added instead.
+	 */
+	private overclockLast(amount: number, clockSpeed: number, sloops: number): MachineGroup[]
+	{
+		const whole = Math.floor(amount + 1e-9);
+		const remainder = amount - whole;
+		const headroom = MAX_CLOCK - clockSpeed;
+		if (whole === 0 || remainder <= 1e-9 || headroom <= 1e-9) {
+			return this.fromFractionalAmount(amount, clockSpeed, sloops);
+		}
+		const extra = remainder * clockSpeed;
+		const raised = Math.ceil(extra / headroom - 1e-9);
+		if (raised > whole) {
+			return this.fromFractionalAmount(amount, clockSpeed, sloops);
+		}
+		const groups: MachineGroup[] = [];
+		if (whole > raised) {
+			groups.push({machines: whole - raised, clockSpeed: this.roundClock(clockSpeed), sloops});
+		}
+		groups.push({machines: raised, clockSpeed: this.roundClock(clockSpeed + extra / raised), sloops});
 		return groups;
 	}
 

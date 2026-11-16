@@ -6,6 +6,7 @@ import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PoolResourceStatus} from '@src/Model/Planner/Pool/PoolResourceStatus';
 import {SubplanBuildCounter} from '@src/Model/Planner/SubplanBuildCounter';
+import {SubplanSharingService} from '@src/Model/Planner/Pool/SubplanSharingService';
 
 @Injectable({providedIn: 'root'})
 export class ResourcePoolService
@@ -17,12 +18,22 @@ export class ResourcePoolService
 		private readonly planManager: PlanManager,
 		private readonly versionManager: VersionManager,
 		private readonly subplanBuildCounter: SubplanBuildCounter,
+		private readonly sharing: SubplanSharingService,
 	)
 	{
 	}
 
-	public effectiveLimits(plan: Plan): Record<string, number>
+	/** A subplan sharing its parent's resources gets what the parent leaves; the parent's own calculation counts the subplan's mining. */
+	public effectiveLimits(plan: Plan, seen: ReadonlySet<string> = new Set()): Record<string, number>
 	{
+		const parent = this.sharing.parentOf(plan);
+		if (parent !== null && this.sharing.sharesResources(plan) && !seen.has(parent.id)) {
+			const limits = this.sharing.limitsFromParent(plan, this.effectiveLimits(parent, new Set([...seen, plan.id])));
+			(plan.settings.disabledResources ?? []).forEach(className => {
+				limits[className] = 0;
+			});
+			return limits;
+		}
 		const own = plan.settings.resourceLimits ?? {};
 		const folder = this.planManager.poolFolderOf(plan);
 		const others = folder === null ? new Map<string, number>() : this.usageByOthers(folder, plan);
@@ -41,17 +52,19 @@ export class ResourcePoolService
 		return this.planManager.poolFolderOf(plan)?.name ?? null;
 	}
 
+	/** Null for a subplan that shares its parent's resources: the parent's figures cover it. */
 	public status(plan: Plan): PoolResourceStatus[] | null
 	{
 		const folder = this.planManager.poolFolderOf(plan);
 		const data = this.versionManager.activeVersionData();
-		if (folder === null || data === null) {
+		if (folder === null || data === null || this.sharing.sharesResources(plan)) {
 			return null;
 		}
 		const limits = folder.settings?.resourceLimits ?? {};
 		const disabled = new Set(folder.settings?.disabledResources ?? []);
 		const others = this.usageByOthers(folder, plan);
-		const own = this.mineUsage(plan);
+		const builds = this.subplanBuildCounter.totalBuildsOf(plan);
+		const own = new Map([...this.sharing.sharedMines(plan)].map(([className, amount]) => [className, amount * builds]));
 
 		return data.resources
 			.map(className => data.searchItemByClassName(className))
@@ -98,11 +111,13 @@ export class ResourcePoolService
 		return (this.status(plan) ?? []).filter(status => status.overUse);
 	}
 
+	/** The subplans sharing the plan's budget are not others: the plan's own calculation counts them. */
 	private usageByOthers(folder: Folder, plan: Plan): Map<string, number>
 	{
 		const total = new Map<string, number>();
+		const tree = this.sharing.resourceTreeIds(plan);
 		this.planManager.innerPlans(folder.id)
-			.filter(other => other.id !== plan.id)
+			.filter(other => !tree.has(other.id))
 			.forEach(other => this.mineUsage(other).forEach((amount, className) => {
 				total.set(className, (total.get(className) ?? 0) + amount);
 			}));

@@ -106,6 +106,7 @@ const PLAN_DEFAULTS_LABELS: Record<keyof PlanDefaultsSettings, SettingsFieldLabe
 		label: 'Default machine grouping',
 		format: CHOICE({
 			'underclock-last': 'Underclock the last machine',
+			'overclock-last': 'Overclock the last machine',
 			'clock-equally': 'Same clock for all',
 			'no-clocking': 'Whole machines only',
 		}),

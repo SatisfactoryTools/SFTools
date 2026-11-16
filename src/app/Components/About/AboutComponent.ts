@@ -15,6 +15,13 @@ import {AppPlatform} from '@src/Model/Desktop/AppPlatform';
 	changeDetection: ChangeDetectionStrategy.Eager,
 	imports: [FaIconComponent, BackLinkComponent, RouterLink],
 	styles: [`
+		/* The page text is selectable; links that act as buttons stay app-like. */
+		back-link,
+		a.feature,
+		.link-row {
+			-webkit-user-select: none;
+			user-select: none;
+		}
 		.about-hero {
 			display: flex;
 			align-items: center;

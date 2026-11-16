@@ -4,6 +4,7 @@ import {Subscription} from 'rxjs';
 import {FormsModule} from '@angular/forms';
 import {FaIconComponent} from '@fortawesome/angular-fontawesome';
 import {faXmark} from '@fortawesome/free-solid-svg-icons';
+import {AppTooltipDirective} from '@src/Components/Common/AppTooltipDirective';
 import {InfoNoteComponent} from '@src/Components/Common/InfoNoteComponent';
 import {ItemPickerComponent} from '@src/Components/Common/ItemPickerComponent';
 import {ItemPickerOption} from '@src/Components/Common/ItemPickerOption';
@@ -20,7 +21,7 @@ import {ResourceWeightResolver} from '@src/Model/Planner/ResourceWeightResolver'
 	selector: 'calculator-input-tab',
 	templateUrl: './CalculatorInputTabComponent.html',
 	changeDetection: ChangeDetectionStrategy.Eager,
-	imports: [FormsModule, FaIconComponent, ItemPickerComponent, InfoNoteComponent],
+	imports: [FormsModule, FaIconComponent, ItemPickerComponent, InfoNoteComponent, AppTooltipDirective],
 })
 export class CalculatorInputTabComponent implements OnDestroy
 {
@@ -101,6 +102,16 @@ export class CalculatorInputTabComponent implements OnDestroy
 		if (resourceWeight !== undefined) return this.weightResolver.round(resourceWeight / 2);
 		if (item.form !== ItemForm.Solid) return CalculatorInputTabComponent.FLUID_WEIGHT;
 		return item.sinkPoints > 0 ? this.weightResolver.round(item.sinkPoints / 1000) : 1;
+	}
+
+	public toggleInfinite(row: PlanInput): void
+	{
+		if (row.infinite) {
+			delete row.infinite;
+		} else {
+			row.infinite = true;
+		}
+		this.sync();
 	}
 
 	public removeRow(index: number): void

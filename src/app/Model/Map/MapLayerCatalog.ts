@@ -16,6 +16,9 @@ export class MapLayerCatalog
 
 	public static readonly COLLECTIBLE_LAYERS: ReadonlyArray<MapLayerId> = ['slugs', 'artifacts', 'drives', 'plants', 'items', 'creatures'];
 
+	/** Collectible layers whose markers fall into kinds, so they have a list even before their markers load. */
+	private static readonly LISTED_LAYERS: ReadonlyArray<MapLayerId> = ['slugs', 'artifacts', 'plants', 'creatures'];
+
 	private static readonly LABELS: Record<MapLayerId, string> = {
 		nodes: 'Resource nodes',
 		slugs: 'Power slugs',
@@ -83,7 +86,9 @@ export class MapLayerCatalog
 				if (markers !== null && markers.length === 0) {
 					continue;
 				}
-				layers.push(new MapLayer(id, MapLayerCatalog.LABELS[id], markers?.length ?? null, markers === null ? [] : this.collectibleGroups(markers)));
+				layers.push(markers === null
+					? new MapLayer(id, MapLayerCatalog.LABELS[id], null, [], true, MapLayerCatalog.LISTED_LAYERS.includes(id))
+					: new MapLayer(id, MapLayerCatalog.LABELS[id], markers.length, this.collectibleGroups(markers)));
 			}
 		}
 		return layers;
@@ -92,7 +97,7 @@ export class MapLayerCatalog
 	private nodeLayer(markers: MapMarker[] | null): MapLayer
 	{
 		if (markers === null) {
-			return new MapLayer('nodes', MapLayerCatalog.LABELS.nodes, null, []);
+			return new MapLayer('nodes', MapLayerCatalog.LABELS.nodes, null, [], true, true);
 		}
 
 		const resources = [...this.groupBy(markers)].map(([key, group]) => {

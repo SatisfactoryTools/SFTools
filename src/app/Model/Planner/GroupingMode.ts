@@ -1,1 +1,1 @@
-export type GroupingMode = 'underclock-last' | 'clock-equally' | 'no-clocking';
+export type GroupingMode = 'underclock-last' | 'overclock-last' | 'clock-equally' | 'no-clocking';

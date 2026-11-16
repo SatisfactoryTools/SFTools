@@ -64,14 +64,20 @@ import {TextMatcher} from '@src/Model/Search/TextMatcher';
 		}
 	`,
 	styles: `
+		/* Stretched to the row, so it is as tall as the buttons beside it. */
 		:host {
 			display: block;
 			position: relative;
 			width: 260px;
 			max-width: 100%;
+			align-self: stretch;
 		}
 		.search-box {
 			position: relative;
+			height: 100%;
+		}
+		.search-box input {
+			height: 100%;
 		}
 		.search-box input {
 			padding-left: 1.9rem;

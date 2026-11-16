@@ -1,3 +1,4 @@
+import {SettingsGroup} from '@src/Model/Planner/SettingsGroup';
 import {AlienPowerAugmenters} from '@src/Model/Planner/AlienPowerAugmenters';
 import {CalculationMode} from '@src/Model/Planner/CalculationMode';
 import {GraphLayoutSettings} from '@src/Model/Planner/GraphLayoutSettings';
@@ -48,4 +49,9 @@ export interface PlanSettings
 	readonly generatorClockSpeeds?: GeneratorClockSpeed[];
 	readonly maxSloops?: number;
 	readonly sloopAccuracy?: SloopAccuracy;
+	/**
+	 * Subplans only: the settings groups that are the parent plan's. Resources and sloops then also share the parent's
+	 * budget instead of copying it. Undefined on subplans saved before this existed: those share resources only.
+	 */
+	readonly parentGroups?: SettingsGroup[];
 }

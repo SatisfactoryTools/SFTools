@@ -1,4 +1,5 @@
 import {ConveyorTiers} from '@src/Model/Map/ConveyorTiers';
+import {MinerTiers} from '@src/Model/Map/MinerTiers';
 import {FactorySiteOptions} from '@src/Model/Planner/FactorySiteOptions';
 import {MapConveyors} from '@src/Model/Planner/MapConveyors';
 
@@ -8,6 +9,7 @@ export class MapPlanDefaults
 	public static readonly CONVEYORS: MapConveyors = {
 		beltMark: ConveyorTiers.BELTS.length,
 		pipeMark: ConveyorTiers.PIPES.length,
+		minerMark: MinerTiers.MULTIPLIERS.length,
 	};
 
 	public static readonly FACTORY_SITE: FactorySiteOptions = {

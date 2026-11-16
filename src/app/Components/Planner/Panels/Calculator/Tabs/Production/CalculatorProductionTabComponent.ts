@@ -1,4 +1,4 @@
-import {Component, OnDestroy, ChangeDetectionStrategy} from '@angular/core';
+import {Component, OnDestroy, ChangeDetectionStrategy, computed} from '@angular/core';
 import {toObservable} from '@angular/core/rxjs-interop';
 import {Subscription} from 'rxjs';
 import {FormsModule} from '@angular/forms';
@@ -37,6 +37,21 @@ export class CalculatorProductionTabComponent implements OnDestroy
 	private loadedPlanId: string | null = null;
 	private loadedRequests: string | null = null;
 	private readonly subscription = new Subscription();
+
+	/** The parent plan this subplan's size follows, if any of its nodes there follows it. */
+	public readonly followedParent = computed<Plan | null>(() => {
+		const plan = this.planManager.activePlan();
+		if (!plan?.parentPlanId || this.planManager.activePlanReadOnly()) {
+			return null;
+		}
+		const parent = this.planManager.findPlan(plan.parentPlanId);
+		const follows = (parent?.graph?.nodes ?? []).some(node => {
+			// Read structurally: the graph may still be raw JSON.
+			const raw = node as unknown as {type?: string; subplanId?: string; sizing?: string};
+			return raw.type === 'subplan' && raw.subplanId === plan.id && (raw.sizing ?? 'follows') === 'follows';
+		});
+		return follows ? parent : null;
+	});
 
 	public constructor(
 		public readonly planManager: PlanManager,

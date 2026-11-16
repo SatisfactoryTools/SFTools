@@ -1,4 +1,10 @@
 <div class="p-2">
+	@if (followedParent(); as parent) {
+		<info-note class="mb-2">
+			The size of this subplan follows "{{ parent.name }}": whenever "{{ parent.name }}" is calculated, these rates are changed to what it needs.
+			To keep your own rates, set its size to Fixed or Whole copies in the subplan node's Inspector.
+		</info-note>
+	}
 	<table class="table table-dark table-sm align-middle mb-2 table-stack">
 		<thead>
 			<tr>

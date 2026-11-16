@@ -5,6 +5,26 @@
 		<button
 			type="button"
 			class="btn btn-sm btn-dark dropdown-toggle"
+			aria-label="Miner" title="The miner: it sets what each solid node gives on the map. Fluids are not affected."
+			[disabled]="planSettings.resourcesBlocker() !== null"
+			dropdownToggle
+		><span class="conveyor-label">Miner</span> Mk.{{ minerMark }}</button>
+		<div *dropdownMenu class="dropdown-menu" role="menu">
+			@for (rate of miners; track $index) {
+				<button
+					type="button"
+					class="dropdown-item d-flex justify-content-between gap-3"
+					role="menuitem"
+					[class.active]="minerMark === $index + 1"
+					(click)="setMiner($index + 1)"
+				><span>Mk.{{ $index + 1 }}</span><span class="opacity-75">{{ rate }}/min pure</span></button>
+			}
+		</div>
+	</div>
+	<div class="btn-group" dropdown [dropup]="true" container="body" placement="top left">
+		<button
+			type="button"
+			class="btn btn-sm btn-dark dropdown-toggle"
 			aria-label="Fastest belt" title="The fastest belt: it caps what each solid node gives on the map"
 			[disabled]="planSettings.resourcesBlocker() !== null"
 			dropdownToggle

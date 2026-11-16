@@ -7,7 +7,7 @@ import {AugmenterNode} from '@src/Model/Planner/Solver/Response/AugmenterNode';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
-import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
@@ -20,7 +20,10 @@ const ISLAND_GAP = 200;
 export class GraphComposer
 {
 
-	public constructor(private readonly edgeBuilder: GraphEdgeBuilder)
+	public constructor(
+		private readonly edgeBuilder: GraphEdgeBuilder,
+		private readonly builder: MachineBuilder,
+	)
 	{
 	}
 
@@ -196,7 +199,7 @@ export class GraphComposer
 
 	private identityKey(node: Node): string
 	{
-		// Clock speed and sloops are deliberately not part of the key: solver output always arrives at 100%/0 sloops.
+		// Clock speed and sloops are deliberately not part of the key: one recipe in one machine is one node.
 		if (node instanceof RecipeNode) {
 			return `recipe:${node.recipe.className}@${node.machine.className}`;
 		}
@@ -219,15 +222,7 @@ export class GraphComposer
 		let node: Node;
 
 		if (existing instanceof RecipeNode && incoming instanceof RecipeNode) {
-			const merged = new RecipeNode(
-				existing.id,
-				existing.target + incoming.target,
-				this.coalesceGroups([...existing.groups, ...incoming.groups]),
-				existing.machine,
-				existing.recipe,
-			);
-			merged.groupingMode = existing.groupingMode;
-			node = merged;
+			node = this.builder.node(existing.id, existing.target + incoming.target, this.builder.merged([existing, incoming]), existing.machine, existing.recipe);
 		} else if (existing instanceof MineNode) {
 			node = new MineNode(existing.id, amount, existing.item);
 		} else if (existing instanceof ProductNode) {
@@ -257,9 +252,7 @@ export class GraphComposer
 		let node: Node;
 
 		if (incoming instanceof RecipeNode) {
-			const adopted = new RecipeNode(match.id, incoming.target, incoming.groups, incoming.machine, incoming.recipe);
-			adopted.groupingMode = incoming.groupingMode;
-			node = adopted;
+			node = this.builder.node(match.id, incoming.target, incoming.build, incoming.machine, incoming.recipe);
 		} else if (incoming instanceof MineNode) {
 			node = new MineNode(match.id, incoming.amount, incoming.item);
 		} else if (incoming instanceof ProductNode) {
@@ -280,20 +273,6 @@ export class GraphComposer
 		node.y = match.y;
 		node.done = incoming.done;
 		return node;
-	}
-
-	private coalesceGroups(groups: MachineGroup[]): MachineGroup[]
-	{
-		const merged: MachineGroup[] = [];
-		groups.forEach(group => {
-			const index = merged.findIndex(g => g.clockSpeed === group.clockSpeed && g.sloops === group.sloops);
-			if (index === -1) {
-				merged.push(group);
-			} else {
-				merged[index] = {...merged[index], machines: merged[index].machines + group.machines};
-			}
-		});
-		return merged;
 	}
 
 }

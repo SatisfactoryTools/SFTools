@@ -9,7 +9,7 @@
 
 			@if (relatedArticles().length > 0) {
 				<section class="article-section">
-					<h2 class="section-title">See also</h2>
+					<h2 class="section-title selectable">See also</h2>
 					<div class="related-grid">
 						@for (related of relatedArticles(); track related.slug) {
 							<help-article-card [article]="related"/>

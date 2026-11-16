@@ -32,7 +32,6 @@
 		/>
 
 		<div #gameBar class="map-game-bar">
-			<map-search [entries]="searchEntries()" [coordinates]="coordinates()" (pick)="onSearch($event)" (cleared)="clearHighlight()" (activated)="markers.requestCollectibles()"/>
 			<div class="btn-group shadow-sm">
 				<button
 					type="button"
@@ -64,6 +63,7 @@
 			</div>
 			<map-game (load)="openSaveDialog()"/>
 			<span class="map-game-extra"><ng-content/></span>
+			<map-search [entries]="searchEntries()" [coordinates]="coordinates()" (pick)="onSearch($event)" (cleared)="clearHighlight()" (activated)="markers.requestCollectibles()"/>
 		</div>
 
 		@switch (sidePanel()) {
@@ -75,6 +75,7 @@
 						[state]="location.layers()"
 						(stateChange)="onLayersChange($event)"
 						(closed)="closeSidePanel()"
+						(listWanted)="markers.requestCollectibles()"
 					/>
 				</div>
 			}

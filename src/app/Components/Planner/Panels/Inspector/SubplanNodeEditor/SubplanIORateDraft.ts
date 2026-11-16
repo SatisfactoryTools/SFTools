@@ -4,6 +4,8 @@ export interface SubplanIORateDraft
 {
 
 	readonly item: Item;
+
+	/** One build of the subplan. */
 	rate: number;
 
 }

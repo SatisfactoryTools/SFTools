@@ -15,6 +15,7 @@ import {ResourcePoolService} from '@src/Model/Planner/Pool/ResourcePoolService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {SettingsManager} from '@src/Model/Settings/SettingsManager';
+import {SubplanSizeApplier} from '@src/Model/Planner/SubplanSizeApplier';
 
 /** Sequential on purpose: a plan solved earlier counts against the shared resource pool of the plans after it. Component-scoped like the graph service it borrows the ELK layout from. */
 @Injectable()
@@ -42,6 +43,7 @@ export class FolderRecalculationService
 		private readonly notifications: NotificationService,
 		private readonly pool: ResourcePoolService,
 		private readonly settings: SettingsManager,
+		private readonly subplanSizes: SubplanSizeApplier,
 	)
 	{
 	}
@@ -153,11 +155,19 @@ export class FolderRecalculationService
 			return result.status;
 		}
 
-		const graph = await this.composeGraph(plan, result, existing);
+		const sized = existing === null ? null : this.subplanSizes.apply(existing, result.subplanSizes);
+		const graph = await this.composeGraph(plan, result, sized?.graph ?? null);
 		this.planManager.setGraph(plan.id, graph, false);
 		this.planManager.setAchievedMaximums(plan.id, result.achievedMaximums);
-		this.graphReplacedSubject.next(plan.id);
+		[plan.id, ...(sized?.resizedPlanIds ?? [])].forEach(id => this.graphReplacedSubject.next(id));
 		return null;
+	}
+
+	/** One plan on its own, for subplan changes that travel up; null when it worked. */
+	public async recalculateOne(plan: Plan): Promise<string | null>
+	{
+		this.cancelled = false;
+		return this.recalculate(plan);
 	}
 
 	private async composeGraph(plan: Plan, result: SolverResponse, existing: Graph | null): Promise<Graph>

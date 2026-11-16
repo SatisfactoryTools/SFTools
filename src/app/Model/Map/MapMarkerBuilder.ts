@@ -1,6 +1,7 @@
 import {Injectable} from '@angular/core';
 import {CollectibleSchema} from '@src/Model/API/Schema/World/CollectibleSchema';
 import {CollectiblesSchema} from '@src/Model/API/Schema/World/CollectiblesSchema';
+import {DropPodUnlockSchema} from '@src/Model/API/Schema/World/DropPodUnlockSchema';
 import {WorldNodesSchema} from '@src/Model/API/Schema/World/WorldNodesSchema';
 import {Data} from '@src/Model/Data/Data';
 import {IconUrlService} from '@src/Model/Data/IconUrlService';
@@ -11,6 +12,7 @@ import {MapMarker} from '@src/Model/Map/MapMarker';
 import {MapMarkerKind} from '@src/Model/Map/MapMarkerKind';
 import {MapPurity} from '@src/Model/Map/MapPurity';
 import {MapResourceColors} from '@src/Model/Map/MapResourceColors';
+import {MapUnlockCost} from '@src/Model/Map/MapUnlockCost';
 import {GamePlayer} from '@src/Model/Game/GamePlayer';
 
 @Injectable({providedIn: 'root'})
@@ -90,7 +92,7 @@ export class MapMarkerBuilder
 			}
 		}
 		for (const pod of schema.dropPods) {
-			markers.push(this.collectibleMarker(pod, this.collectibleCatalog.dropPod(), data, background, false, collected.has(pod.name)));
+			markers.push(this.collectibleMarker(pod, this.collectibleCatalog.dropPod(), data, background, false, collected.has(pod.name), this.unlockCost(pod.unlock, data)));
 		}
 		for (const spawner of schema.creatureSpawners) {
 			markers.push(this.collectibleMarker(spawner, this.collectibleCatalog.creature(spawner.creature), data, background, arachnophobia, false));
@@ -123,7 +125,29 @@ export class MapMarkerBuilder
 		);
 	}
 
-	private collectibleMarker(entry: CollectibleSchema, kind: CollectibleKind, data: Data, background: MapBackground, arachnophobia: boolean, collected: boolean): MapMarker
+	private unlockCost(unlock: DropPodUnlockSchema | undefined, data: Data): MapUnlockCost | null
+	{
+		if (unlock === undefined) {
+			return null;
+		}
+		const item = unlock.item === undefined ? undefined : data.searchItemByClassName(unlock.item);
+		return new MapUnlockCost(
+			unlock.item === undefined ? null : item?.name ?? unlock.item,
+			this.icons.url(item?.icon, 64),
+			unlock.amount ?? 0,
+			unlock.power ?? null,
+		);
+	}
+
+	private collectibleMarker(
+		entry: CollectibleSchema,
+		kind: CollectibleKind,
+		data: Data,
+		background: MapBackground,
+		arachnophobia: boolean,
+		collected: boolean,
+		unlock: MapUnlockCost | null = null,
+	): MapMarker
 	{
 		// Loose pickups name their own item; every other collectible's item is fixed by its kind.
 		const itemClass = entry.item ?? kind.itemClass;
@@ -136,7 +160,7 @@ export class MapMarkerBuilder
 		const title = item?.name ?? kind.label;
 		return new MapMarker(
 			entry.name, kind.layer, kind.category === null ? [] : [kind.category], kind.category, kind.categoryLabel, kind.group, iconUrl,
-			'collectible', title, kind.description, kind.color, null, ...entry.location, entry.amount ?? null, false, collected,
+			'collectible', title, kind.description, kind.color, null, ...entry.location, entry.amount ?? null, false, collected, unlock,
 		);
 	}
 

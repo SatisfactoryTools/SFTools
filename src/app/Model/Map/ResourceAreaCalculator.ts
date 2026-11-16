@@ -5,6 +5,7 @@ import {WorldNodesSchema} from '@src/Model/API/Schema/World/WorldNodesSchema';
 import {Data} from '@src/Model/Data/Data';
 import {WorldLimitsCalculator} from '@src/Model/Data/WorldLimitsCalculator';
 import {ConveyorTiers} from '@src/Model/Map/ConveyorTiers';
+import {MinerTiers} from '@src/Model/Map/MinerTiers';
 import {MapAreaGeometry} from '@src/Model/Map/MapAreaGeometry';
 import {MapMarkerBuilder} from '@src/Model/Map/MapMarkerBuilder';
 import {MapPlanDefaults} from '@src/Model/Map/MapPlanDefaults';
@@ -63,6 +64,7 @@ export class ResourceAreaCalculator
 
 		const beltCap = ConveyorTiers.belt(conveyors.beltMark);
 		const pipeCap = ConveyorTiers.pipe(conveyors.pipeMark);
+		const minerMultiplier = MinerTiers.multiplier(conveyors.minerMark);
 		const limits = new Map<string, number | null>();
 		const rows: ResourceAreaRow[] = [];
 		for (const className of new Set([...nodes.keys(), ...satellites.keys()])) {
@@ -71,7 +73,7 @@ export class ResourceAreaCalculator
 			const satelliteCounts = satellites.get(className) ?? null;
 			const limit = className === SpecialClasses.WaterItem && !area.waterWells
 				? null
-				: this.limits.rowLimit(nodeCounts, satelliteCounts, (item?.form ?? ItemForm.Solid) === ItemForm.Solid, beltCap, pipeCap);
+				: this.limits.rowLimit(nodeCounts, satelliteCounts, (item?.form ?? ItemForm.Solid) === ItemForm.Solid, beltCap, pipeCap, minerMultiplier);
 			limits.set(className, limit);
 
 			const counts = this.sum(nodeCounts, satelliteCounts);

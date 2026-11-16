@@ -87,8 +87,11 @@ import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {SolverResponse} from '@src/Model/Planner/Solver/Response/SolverResponse';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
+import {PlanInput} from '@src/Model/Planner/PlanInput';
+import {ProductionRequest} from '@src/Model/Planner/ProductionRequest';
 import {SubplanBuildCountRequest} from '@src/Components/Planner/SubplanBuildCountRequest';
 import {SubplanScaleRequest} from '@src/Components/Planner/SubplanScaleRequest';
+import {SubplanSizingRequest} from '@src/Components/Planner/SubplanSizingRequest';
 import {Plan} from '@src/Model/Planner/Plan';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {PlannerLocationService} from '@src/Model/Planner/PlannerLocationService';
@@ -97,6 +100,8 @@ import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
 import {SubplanInliner} from '@src/Model/Planner/SubplanInliner';
 import {SubplanInlineResult} from '@src/Model/Planner/SubplanInlineResult';
 import {SubplanScaler} from '@src/Model/Planner/SubplanScaler';
+import {SubplanSizeApplier} from '@src/Model/Planner/SubplanSizeApplier';
+import {SubplanSyncService} from '@src/Components/Planner/SubplanSyncService';
 import {NotificationService} from '@src/Model/NotificationService';
 import {ProductionSolverService} from '@src/Model/Planner/ProductionSolverService';
 import {RateFormatter} from '@src/Model/RateFormatter';
@@ -128,6 +133,7 @@ const RATIO_TOLERANCE = 1e-4;
 	imports: [PlannerPanelContainerComponent, PlannerContextMenuComponent, PlannerNodeTooltipComponent, AddNodeDialogComponent, PlanShareDialogComponent, PlanLinkUnavailableDialogComponent, GraphExportDialogComponent, PlanExportDialogComponent, PlanImportDialogComponent],
 	providers: [
 		FolderRecalculationService,
+		SubplanSyncService,
 		PlannerGraphService,
 		// Component-scoped: both need the planner's graph layout.
 		OldPlanImporter,
@@ -203,6 +209,8 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		private readonly subplanResolver: SubplanIOResolver,
 		private readonly subplanScaler: SubplanScaler,
 		private readonly subplanInliner: SubplanInliner,
+		private readonly subplanSizes: SubplanSizeApplier,
+		private readonly subplanSync: SubplanSyncService,
 		private readonly notifications: NotificationService,
 		private readonly rateFormatter: RateFormatter,
 		private readonly settings: SettingsManager,
@@ -491,6 +499,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		);
 
 		this.subscription.add(
+			this.actions.subplanSizingRequests.subscribe(request => this.applySubplanSizing(request)),
+		);
+
+		this.subscription.add(
 			this.actions.undoRequests.subscribe(() => this.undo()),
 		);
 
@@ -506,6 +518,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 				return plan === null ? null : {
 					id: plan.id,
 					mode: this.modeOf(plan),
+					graph: plan.graph,
 					requestsKey: JSON.stringify({
 						// powerUnit is display-only - must not re-solve.
 						requests: plan.requests.map(r => ({itemClassName: r.itemClassName, ratePerMinute: r.ratePerMinute, mode: r.mode})),
@@ -530,7 +543,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 					previous !== null && current !== null
 					&& current.mode === 'automatic'
 					&& current.id === previous.id
-					&& current.requestsKey !== previous.requestsKey),
+					&& current.requestsKey !== previous.requestsKey
+					// Requests and graph changing together is a resize by the parent plan: the graph already fits the new requests.
+					&& current.graph === previous.graph),
 				debounceTime(200),
 			).subscribe(() => {
 				const plan = this.planManager.activePlan();
@@ -657,6 +672,19 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.subscription.add(
 			this.folderRecalculation.graphReplaced.subscribe(planId => this.refreshScrubbedGraph([planId])),
+		);
+
+		this.subscription.add(
+			this.subplanSync.graphChanged.subscribe(planId => this.refreshScrubbedGraph([planId])),
+		);
+
+		// Settles after every burst of changes; the sync itself writes plans, which simply schedules one more quiet pass.
+		this.subscription.add(
+			toObservable(this.planManager.plans).pipe(debounceTime(600)).subscribe(() => {
+				if (this.planManager.loadedForActiveVersion()) {
+					void this.subplanSync.sync(this.renderedPlanId);
+				}
+			}),
 		);
 
 		this.subscription.add(
@@ -978,7 +1006,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		const pieceIds = updated.nodes
 			.filter(candidate => candidate.id === request.nodeId || !before.has(candidate.id))
 			.map(candidate => candidate.id);
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, updated);
 		this.plannerGraph.selectNodesById(pieceIds);
 		this.planManager.setGraph(plan.id, updated, true);
 	}
@@ -1001,7 +1029,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		const updated = this.nodeMerger.merge(graph, nodeIds, plan.settings);
+		const updated = this.nodeMerger.merge(graph, nodeIds);
 		if (!updated) {
 			return;
 		}
@@ -1010,7 +1038,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		const remaining = new Set(updated.nodes.map(candidate => candidate.id));
 		const mergedId = nodeIds.find(id => remaining.has(id));
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, updated);
 		this.plannerGraph.selectNodesById(mergedId ? [mergedId] : []);
 		this.planManager.setGraph(plan.id, updated, true);
 	}
@@ -1049,7 +1077,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		// A debounced inspector edit may land after another node was selected.
 		const selectedIds = this.plannerGraph.selectedNodes().map(node => node.id);
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, reconciled);
 		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [updated.id]);
 		this.planManager.setGraph(plan.id, reconciled, true);
 	}
@@ -1112,7 +1140,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			edges: [...prepared.graph.edges, {sourceId: request.sourceId, targetId: request.targetId, itemClassName: request.itemClassName, amount, done: false}],
 		};
 
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, updated);
 		this.planManager.setGraph(prepared.plan.id, updated, true);
 	}
 
@@ -1157,7 +1185,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		};
 		const reconciled = this.graphReconciler.reconcile(replaced, increased.id);
 
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, reconciled);
 		this.planManager.setGraph(prepared.plan.id, reconciled, true);
 	}
 
@@ -1195,7 +1223,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			edges,
 		};
 
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, updated);
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
@@ -1241,7 +1269,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.history.push(this.snapshotOf(plan));
 
 		const updated: Graph = {nodes: graph.nodes, edges: remaining};
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, updated);
 		this.planManager.setGraph(plan.id, updated, true);
 	}
 
@@ -1291,7 +1319,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			nodes: graph.nodes.filter(node => !ids.has(node.id)),
 			edges: graph.edges.filter(edge => !ids.has(edge.sourceId) && !ids.has(edge.targetId)),
 		};
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, updated);
 		this.planManager.setGraph(plan.id, updated, true);
 		subplans.forEach(node => this.planManager.deletePlan(node.subplanId));
 	}
@@ -1373,9 +1401,10 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.notifications.show('Could not restore graph state: ' + String(err));
 			return;
 		}
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
-		this.planManager.setGraph(plan.id, graph, true);
+		// Subplans first: their nodes show what is inside them, which must already be the restored state.
 		this.restoreSubplans(plan.id, snapshot);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, graph);
+		this.planManager.setGraph(plan.id, graph, true);
 	}
 
 	/** Must run after the graph restore so the redo-side delete finds the node gone and scrubs nothing. */
@@ -1415,7 +1444,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}
 		});
 
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, graph);
 		if (request.nodeIds.length === 1) {
 			this.plannerGraph.selectNodeById(request.nodeIds[0]);
 		}
@@ -1451,7 +1480,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		});
 		this.markEdgesWithNodes(graph, ids, request.done);
 
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, graph);
 		this.plannerGraph.selectNodesById(request.nodeIds);
 		// Not dirty: every solve carries done marks over (GraphComposer.carryDone), and dirty would pause automatic mode.
 		this.planManager.setGraph(plan.id, graph);
@@ -1503,7 +1532,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.history.push(this.snapshotOf(plan));
 		changed.forEach(edge => edge.done = request.done);
 
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, graph, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, graph);
 		// Not dirty, like node done marks: the solver does not care what is built.
 		this.planManager.setGraph(plan.id, graph);
 	}
@@ -1666,16 +1695,60 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.history.push(snapshot);
 
 		// A plan may place the same subplan more than once.
-		const refreshed = this.refreshSubplanNodes(graph);
+		let refreshed = this.refreshSubplanNodes(graph);
+		// A size typed by hand is a decision: the next calculation of this plan must not resize it back.
+		refreshed = {
+			nodes: refreshed.nodes.map(candidate => candidate.id === node.id && candidate instanceof SubplanNode && candidate.sizing === 'follows'
+				? this.subplanResolver.withSizing(candidate, 'fixed')
+				: candidate),
+			edges: refreshed.edges,
+		};
 		const resizedIds = refreshed.nodes
 			.filter((candidate): candidate is SubplanNode => candidate instanceof SubplanNode && candidate.subplanId === request.subplanId)
 			.map(candidate => candidate.id);
 		const reconciled = resizedIds.reduce((current, id) => this.graphReconciler.reconcile(current, id), refreshed);
 
 		const selectedIds = this.plannerGraph.selectedNodes().map(selected => selected.id);
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, reconciled);
 		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [node.id]);
-		this.planManager.setGraph(plan.id, reconciled, true);
+		this.saveSubplanEdit(plan, reconciled);
+	}
+
+	/** A hand edit like any other: the plan is marked as edited by hand and waits for Calculate. */
+	private saveSubplanEdit(plan: Plan, graph: Graph): void
+	{
+		this.planManager.setGraph(plan.id, graph, true);
+	}
+
+	private applySubplanSizing(request: SubplanSizingRequest): void
+	{
+		if (this.planManager.activePlanReadOnly()) {
+			return;
+		}
+		const plan = this.planManager.activePlan();
+		if (!plan?.graph || plan.id !== this.renderedPlanId) {
+			return;
+		}
+		let graph: Graph;
+		try {
+			graph = this.planSerializer.reviveGraph(plan.graph);
+		} catch (err) {
+			this.notifications.show('Could not change the subplan: ' + String(err));
+			return;
+		}
+		const node = graph.nodes.find(candidate => candidate.id === request.nodeId);
+		if (!(node instanceof SubplanNode) || node.sizing === request.sizing) {
+			return;
+		}
+		this.history.push(this.snapshotOf(plan));
+		const updated = this.subplanResolver.withSizing(node, request.sizing);
+		const reconciled = this.graphReconciler.reconcile({
+			nodes: graph.nodes.map(candidate => candidate === node ? updated : candidate),
+			edges: graph.edges,
+		}, updated.id);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, reconciled);
+		this.plannerGraph.selectNodesById([updated.id]);
+		this.saveSubplanEdit(plan, reconciled);
 	}
 
 	private applySubplanBuildCount(request: SubplanBuildCountRequest): void
@@ -1714,9 +1787,9 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		const reconciled = this.graphReconciler.reconcile(withNode, updated.id);
 
 		const selectedIds = this.plannerGraph.selectedNodes().map(selected => selected.id);
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, reconciled, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, reconciled);
 		this.plannerGraph.selectNodesById(selectedIds.length > 0 ? selectedIds : [updated.id]);
-		this.planManager.setGraph(plan.id, reconciled, true);
+		this.saveSubplanEdit(plan, reconciled);
 	}
 
 	private openSubplan(subplanId: string): void
@@ -1765,7 +1838,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 
 		this.history.push(this.snapshotOf(plan));
 		this.planManager.dissolveSubplan(subplan.id, result.graph);
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, result.graph, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, result.graph);
 		this.plannerGraph.selectNodesById(result.nodeIds);
 	}
 
@@ -1834,7 +1907,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		if (edge) {
 			updated.edges.push(edge);
 		}
-		this.plannerGraph.restore(this.graphContainerRef.nativeElement, updated, false);
+		this.plannerGraph.refresh(this.graphContainerRef.nativeElement, updated);
 		this.plannerGraph.selectNodeById(node.id);
 		this.planManager.setGraph(plan.id, updated, true);
 	}
@@ -1968,16 +2041,19 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			this.notifications.show('Could not create subplan: ' + String(err));
 			return;
 		}
-		subNodes.forEach(node => node.locked = true);
+		// Locks carry over as they were: the subplan gets requests and inputs for its boundary, so recalculating it rebuilds the rest.
 
 		const boundaryNodes: Node[] = [];
 		const boundaryEdges: GraphEdge[] = [];
 
-		// Locked so recalculating the subplan keeps what the parent relies on.
+		// The edges become the subplan's inputs and requests, so recalculating it rebuilds the same boundary.
+		const inputs: PlanInput[] = [];
+		const requests: ProductionRequest[] = [];
 		this.groupByItem(inbound).forEach((edges, itemClassName) => {
 			const amount = edges.reduce((sum, e) => sum + e.amount, 0);
 			const node = new InputNode(crypto.randomUUID(), amount, data.getItemByClassName(itemClassName));
-			node.locked = true;
+			// Weightless: the parent supplies these, so the subplan's calculation should not try to avoid them.
+			inputs.push({itemClassName, amount, weight: 0});
 			boundaryNodes.push(node);
 			edges.forEach(e => boundaryEdges.push({sourceId: node.id, targetId: e.targetId, itemClassName, amount: e.amount, done: e.done}));
 		});
@@ -1985,7 +2061,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.groupByItem(outbound).forEach((edges, itemClassName) => {
 			const amount = edges.reduce((sum, e) => sum + e.amount, 0);
 			const node = new ProductNode(crypto.randomUUID(), amount, data.getItemByClassName(itemClassName));
-			node.locked = true;
+			requests.push({itemClassName, ratePerMinute: amount, mode: 'rate'});
 			boundaryNodes.push(node);
 			edges.forEach(e => boundaryEdges.push({sourceId: e.sourceId, targetId: node.id, itemClassName, amount: e.amount, done: e.done}));
 		});
@@ -2004,7 +2080,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		this.history.push(this.snapshotOf(plan));
 
 		const subplan = this.planManager.createSubplan(this.defaultSubplanName(plan.id), plan.id);
-		this.planManager.setGraph(subplan.id, subGraph, true);
+		this.planManager.setPlanContent(subplan.id, {graph: subGraph, requests, inputs});
 
 		const io = this.subplanResolver.resolveGraph(subGraph);
 		const subplanNode = new SubplanNode(crypto.randomUUID(), subplan.id, subplan.name, io.inputs, io.outputs);
@@ -2071,19 +2147,14 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		return `New Subplan ${counter}`;
 	}
 
-	/** Returns the same instance when nothing changed. */
-	private refreshSubplanNodes(graph: Graph): Graph
+	/** Returns the same instance when nothing changed. A subplan that now makes or needs something else marks the plan for recalculation. */
+	private refreshSubplanNodes(graph: Graph, planId: string | null = null): Graph
 	{
-		let changed = false;
-		const nodes = graph.nodes.map(node => {
-			if (!(node instanceof SubplanNode)) {
-				return node;
-			}
-			const refreshed = this.subplanResolver.refresh(node);
-			changed = changed || refreshed !== node;
-			return refreshed;
-		});
-		return changed ? {nodes, edges: graph.edges} : graph;
+		const result = this.subplanSync.refreshed(graph);
+		if (planId !== null && result.interfaceChanged) {
+			this.planManager.setRecalculationNeeded([planId], true);
+		}
+		return result.graph;
 	}
 
 	private refreshScrubbedGraph(planIds: string[]): void
@@ -2099,7 +2170,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 		if (!this.planManager.isReadOnlyPlan(plan.id)) {
-			const refreshed = this.refreshSubplanNodes(graph);
+			const refreshed = this.refreshSubplanNodes(graph, plan.id);
 			if (refreshed !== graph) {
 				graph = refreshed;
 				this.planManager.setGraph(plan.id, graph);
@@ -2122,7 +2193,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			return;
 		}
 
-		const refreshed = this.refreshSubplanNodes(graph);
+		const refreshed = this.refreshSubplanNodes(graph, plan.id);
 		if (refreshed === graph && graph === plan.graph) {
 			return;
 		}
@@ -2162,7 +2233,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		}
 
 		if (!readOnly) {
-			graph = this.refreshSubplanNodes(graph);
+			graph = this.refreshSubplanNodes(graph, plan.id);
 		}
 
 		this.renderedPlanId = plan.id;
@@ -2213,7 +2284,13 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 					return;
 				}
 				this.history.push(this.snapshotOf(plan));
+				// Locked nodes keep their ids, so a node being edited in the Inspector stays selected through the recalculation.
+				const selectedIds = this.plannerGraph.selectedNodes().map(selected => selected.id);
 				void this.applyResult(plan, result, existing).then(graph => {
+					const kept = selectedIds.filter(id => graph.nodes.some(node => node.id === id));
+					if (kept.length > 0) {
+						this.plannerGraph.selectNodesById(kept);
+					}
 					this.renderedPlanId = plan.id;
 					this.planManager.setGraph(plan.id, graph, false);
 					// Undefined clears stale maximise results.
@@ -2250,17 +2327,24 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		);
 	}
 
-	private async applyResult(plan: Plan, result: SolverResponse, existing: Graph | null): Promise<Graph>
+	/**
+	 * The view (zoom and position) is kept unless the result would leave nothing on screen. Node positions are kept
+	 * whenever the result has exactly the nodes the graph already has (only the numbers moved); otherwise it is laid out again.
+	 */
+	private async applyResult(plan: Plan, result: SolverResponse, solvedGraph: Graph | null): Promise<Graph>
 	{
 		const container = this.graphContainerRef.nativeElement;
+		// Subplans the calculation resized or picked copies of come in with their new interface before the graph is put together.
+		const existing = solvedGraph === null ? null : this.subplanSizes.apply(solvedGraph, result.subplanSizes).graph;
 		const mode = this.modeOf(plan);
 		const hasLocks = existing?.nodes.some(node => node.locked) ?? false;
+		const fit = existing ? 'if-lost' : true;
 
 		if (existing && mode === 'manual-append') {
 			const additionEdges = this.edgeBuilder.build(result.nodes);
 			await this.plannerGraph.layout(result.nodes, additionEdges, plan.settings.graph);
 			const graph = this.graphComposer.append(existing, {nodes: result.nodes, edges: additionEdges});
-			this.plannerGraph.restore(container, graph);
+			this.plannerGraph.restore(container, graph, fit);
 			return graph;
 		}
 
@@ -2274,19 +2358,25 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 			}
 			const graph: Graph = {nodes: merged.nodes, edges: merged.edges};
 			this.graphComposer.carryEdgeDone(existing, graph, autoDone);
-			this.plannerGraph.restore(container, graph);
+			this.plannerGraph.restore(container, graph, fit);
 			return graph;
 		}
 
 		this.graphComposer.carryDone(existing, result.nodes);
 
-		if (existing && hasLocks) {
+		if (existing && result.nodes.length > 0) {
 			const rebuilt = this.graphComposer.rebuild(existing, result.nodes);
-			await this.plannerGraph.layout(rebuilt.nodes, rebuilt.edges, plan.settings.graph);
-			const graph: Graph = {nodes: rebuilt.nodes, edges: rebuilt.edges};
-			this.graphComposer.carryEdgeDone(existing, graph, autoDone);
-			this.plannerGraph.restore(container, graph);
-			return graph;
+			// Every node found its counterpart and none went missing, so the user's arrangement still fits.
+			const sameNodes = rebuilt.newNodes.length === 0 && rebuilt.nodes.length === existing.nodes.length;
+			if (sameNodes || hasLocks) {
+				if (!sameNodes) {
+					await this.plannerGraph.layout(rebuilt.nodes, rebuilt.edges, plan.settings.graph);
+				}
+				const graph: Graph = {nodes: rebuilt.nodes, edges: rebuilt.edges};
+				this.graphComposer.carryEdgeDone(existing, graph, autoDone);
+				this.plannerGraph.restore(container, graph, fit);
+				return graph;
+			}
 		}
 
 		if (result.nodes.length === 0) {
@@ -2296,7 +2386,7 @@ export class PlannerComponent implements AfterViewInit, OnDestroy, HotkeyItemSou
 		await this.plannerGraph.layout(result.nodes, edges, plan.settings.graph);
 		const graph: Graph = {nodes: result.nodes, edges};
 		this.graphComposer.carryEdgeDone(existing, graph, autoDone);
-		this.plannerGraph.restore(container, graph);
+		this.plannerGraph.restore(container, graph, fit);
 		return graph;
 	}
 

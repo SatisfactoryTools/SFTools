@@ -2,6 +2,7 @@ import {MapCoordinateFormatter} from '@src/Model/Map/MapCoordinateFormatter';
 import {MapLayerId} from '@src/Model/Map/MapLayerId';
 import {MapMarker} from '@src/Model/Map/MapMarker';
 import {MapMarkerShapes} from '@src/Model/Map/MapMarkerShapes';
+import {MapUnlockCost} from '@src/Model/Map/MapUnlockCost';
 
 export class MapMarkerPopup
 {
@@ -26,6 +27,10 @@ export class MapMarkerPopup
 		heading.append(this.element('div', 'map-popup-title', marker.title), this.element('div', 'map-popup-description', marker.description));
 		header.append(heading);
 		root.append(header);
+
+		if (marker.unlock !== null) {
+			root.append(this.unlockRow(marker.unlock));
+		}
 
 		if (marker.amount !== null) {
 			const amount = this.element('div', 'map-popup-amount');
@@ -59,6 +64,28 @@ export class MapMarkerPopup
 			root.append(this.element('code', 'map-popup-id', marker.id));
 		}
 		return root;
+	}
+
+	private unlockRow(unlock: MapUnlockCost): HTMLElement
+	{
+		const row = this.element('div', 'map-popup-amount map-popup-unlock');
+		row.append(this.element('span', '', 'Needs to open'));
+		const cost = this.element('strong', '');
+		if (unlock.itemName !== null) {
+			if (unlock.itemIconUrl !== null) {
+				const icon = document.createElement('img');
+				icon.src = unlock.itemIconUrl;
+				icon.alt = '';
+				cost.append(icon);
+			}
+			cost.append(`${this.numbers.format(unlock.amount)} × ${unlock.itemName}`);
+		} else if (unlock.power !== null) {
+			cost.append(`${this.numbers.format(unlock.power)} MW of power`);
+		} else {
+			cost.append('Nothing');
+		}
+		row.append(cost);
+		return row;
 	}
 
 	private markRow(state: string, action: string, toggle: (() => void) | null): HTMLElement

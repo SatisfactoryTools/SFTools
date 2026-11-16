@@ -7,6 +7,7 @@ import {VersionManager} from '@src/Model/Data/VersionManager';
 import {GameManager} from '@src/Model/Game/GameManager';
 import {WorldLimitsCalculator} from '@src/Model/Data/WorldLimitsCalculator';
 import {ConveyorTiers} from '@src/Model/Map/ConveyorTiers';
+import {MinerTiers} from '@src/Model/Map/MinerTiers';
 import {FactorySiteExplanation} from '@src/Model/Map/FactorySite/FactorySiteExplanation';
 import {FactorySiteGrid} from '@src/Model/Map/FactorySite/FactorySiteGrid';
 import {FactorySiteMaskLoader} from '@src/Model/Map/FactorySite/FactorySiteMaskLoader';
@@ -83,6 +84,7 @@ export class FactorySiteService implements OnDestroy
 		const conveyors = this.planSettings.conveyors();
 		const beltCap = ConveyorTiers.belt(conveyors.beltMark);
 		const pipeCap = ConveyorTiers.pipe(conveyors.pipeMark);
+		const minerMultiplier = MinerTiers.multiplier(conveyors.minerMark);
 		const taken = this.games.taken();
 		const nodes = new Map<string, number[]>();
 		const add = (name: string, className: string, purity: string, location: [number, number, number], satellite: boolean): void => {
@@ -95,7 +97,7 @@ export class FactorySiteService implements OnDestroy
 				list = [];
 				nodes.set(className, list);
 			}
-			list.push(location[0], location[1], this.limits.nodeRate(MapMarkerBuilder.purity(purity), solid, satellite, beltCap, pipeCap));
+			list.push(location[0], location[1], this.limits.nodeRate(MapMarkerBuilder.purity(purity), solid, satellite, beltCap, pipeCap, minerMultiplier));
 		};
 		world.resourceNodes.forEach(node => add(node.name, node.resource, node.purity, node.location, false));
 		world.frackingCores.forEach(core => core.satellites.forEach(satellite => add(satellite.name, core.resource, satellite.purity, satellite.location, true)));

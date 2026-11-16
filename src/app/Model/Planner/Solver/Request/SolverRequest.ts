@@ -5,6 +5,7 @@ import {Item} from '@src/Model/Data/Entities/Item';
 import {MaximiseTarget} from '@src/Model/Planner/Solver/Request/MaximiseTarget';
 import {OptimisationTarget} from '@src/Model/Planner/Solver/Request/OptimisationTarget';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
+import {SubplanBlock} from '@src/Model/Planner/Solver/Request/SubplanBlock';
 import {ProductionTarget} from '@src/Model/Planner/Solver/Request/ProductionTarget';
 
 export interface SolverRequest
@@ -31,5 +32,6 @@ export interface SolverRequest
 	disabledByproducts: string[];
 	sinkableItems: Item[];
 	sinkPointsDemand: number;
+	subplanBlocks: SubplanBlock[];
 
 }

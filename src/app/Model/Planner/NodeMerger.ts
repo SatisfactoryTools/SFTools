@@ -1,13 +1,10 @@
 import {Injectable} from '@angular/core';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
-import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {NodeResizer} from '@src/Model/Planner/NodeResizer';
-import {PlanSettings} from '@src/Model/Planner/PlanSettings';
-import {ProductionNodeScaler} from '@src/Model/Planner/ProductionNodeScaler';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {ItemAmountNode} from '@src/Model/Planner/Solver/Response/ItemAmountNode';
-import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 
@@ -17,9 +14,8 @@ export class NodeMerger
 {
 
 	public constructor(
-		private readonly scaler: ProductionNodeScaler,
 		private readonly resizer: NodeResizer,
-		private readonly normalizer: MachineGroupNormalizer,
+		private readonly builder: MachineBuilder,
 	)
 	{
 	}
@@ -43,7 +39,7 @@ export class NodeMerger
 		return null;
 	}
 
-	public merge(graph: Graph, nodeIds: string[], settings: PlanSettings | null): Graph | null
+	public merge(graph: Graph, nodeIds: string[]): Graph | null
 	{
 		const ids = new Set(nodeIds);
 		// Graph order, so merging split copies back keeps the id the first copy kept from the original.
@@ -52,7 +48,7 @@ export class NodeMerger
 			return null;
 		}
 
-		const merged = this.mergedNode(nodes, settings);
+		const merged = this.mergedNode(nodes);
 		if (!merged) {
 			return null;
 		}
@@ -76,11 +72,11 @@ export class NodeMerger
 		return {nodes: mergedNodes, edges: this.mergedEdges(graph.edges, ids, merged.id)};
 	}
 
-	private mergedNode(nodes: Node[], settings: PlanSettings | null): Node | null
+	private mergedNode(nodes: Node[]): Node | null
 	{
 		const first = nodes[0];
 		if (first instanceof RecipeNode) {
-			return this.mergedRecipe(nodes as RecipeNode[], settings);
+			return this.mergedRecipe(nodes as RecipeNode[]);
 		}
 		if (first instanceof GeneratorNode || first instanceof ItemAmountNode) {
 			return this.resizer.withSize(first, this.sum(nodes.map(node => node.amount)), first.id);
@@ -88,50 +84,11 @@ export class NodeMerger
 		return null;
 	}
 
-	private mergedRecipe(nodes: RecipeNode[], settings: PlanSettings | null): RecipeNode
+	private mergedRecipe(nodes: RecipeNode[]): RecipeNode
 	{
 		const first = nodes[0];
 		const target = this.sum(nodes.map(node => node.target));
-		const combined = this.combinedGroups(nodes.flatMap(node => node.groups));
-
-		// Machines the plan generated are generated again for the total; hand-made groups are kept as they are.
-		let groups = combined;
-		if (nodes.every(node => this.isGenerated(node, settings))) {
-			const sample = new RecipeNode(first.id, target, combined, first.machine, first.recipe);
-			groups = this.normalizer.recalculated(combined, target, first.groupingMode, this.scaler.buildClockOf(sample, settings));
-		}
-
-		const merged = new RecipeNode(first.id, target, groups, first.machine, first.recipe);
-		merged.groupingMode = first.groupingMode;
-		return merged;
-	}
-
-	private isGenerated(node: RecipeNode, settings: PlanSettings | null): boolean
-	{
-		const regenerated = this.normalizer.recalculated(node.groups, node.target, node.groupingMode, this.scaler.buildClockOf(node, settings));
-		return this.sameGroups(this.combinedGroups(node.groups), this.combinedGroups(regenerated));
-	}
-
-	/** Groups running at the same clock with the same somersloops become one. */
-	private combinedGroups(groups: MachineGroup[]): MachineGroup[]
-	{
-		const combined: MachineGroup[] = [];
-		groups.forEach(group => {
-			const index = combined.findIndex(entry => entry.clockSpeed === group.clockSpeed && entry.sloops === group.sloops);
-			if (index === -1) {
-				combined.push({...group});
-			} else {
-				combined[index] = {...combined[index], machines: combined[index].machines + group.machines};
-			}
-		});
-		return combined;
-	}
-
-	private sameGroups(a: MachineGroup[], b: MachineGroup[]): boolean
-	{
-		return a.length === b.length && a.every(group => b.some(other => other.machines === group.machines
-			&& other.clockSpeed === group.clockSpeed
-			&& other.sloops === group.sloops));
+		return this.builder.node(first.id, target, this.builder.merged(nodes), first.machine, first.recipe);
 	}
 
 	/** Connections between the merged nodes become the merged node feeding itself, so every flow stays balanced. */

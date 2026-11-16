@@ -183,7 +183,7 @@ export class GraphVersionConverter
 			const groups = node['groups'] as MachineGroup[];
 			const fitted = groups.map(group => this.fitGroup(group, machine));
 			if (fitted.some((group, index) => group !== groups[index])) {
-				node = {...node, groups: fitted};
+				node = {...node, groups: fitted, ...this.fittedBuild(node['build'], machine)};
 				issues.warn(`Clock speeds or Somersloops adjusted to the limits of ${machine.name}`);
 				changed = true;
 			}
@@ -257,6 +257,19 @@ export class GraphVersionConverter
 	}
 
 	/** Same instance when nothing had to change, so the caller can tell. */
+	private fittedBuild(raw: unknown, machine: Building): RawNode
+	{
+		const build = raw as {pinned?: unknown; manualRest?: unknown} | null | undefined;
+		if (!build || !Array.isArray(build.pinned)) {
+			return {};
+		}
+		const fitted: RawNode = {...build, pinned: (build.pinned as MachineGroup[]).map(group => this.fitGroup(group, machine))};
+		if (Array.isArray(build.manualRest)) {
+			fitted['manualRest'] = (build.manualRest as MachineGroup[]).map(group => this.fitGroup(group, machine));
+		}
+		return {build: fitted};
+	}
+
 	private fitGroup(group: MachineGroup, machine: Building): MachineGroup
 	{
 		const clockSpeed = this.fitClock(group.clockSpeed, machine);

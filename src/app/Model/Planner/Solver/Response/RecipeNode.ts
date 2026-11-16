@@ -1,6 +1,6 @@
 import {Building} from '@src/Model/Data/Entities/Building';
 import {Formulas} from '@src/Model/Planner/Formulas';
-import {GroupingMode} from '@src/Model/Planner/GroupingMode';
+import {MachineBuild} from '@src/Model/Planner/MachineBuild';
 import {PowerDraw} from '@src/Model/Planner/PowerDraw';
 import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
@@ -12,8 +12,8 @@ export class RecipeNode extends Node
 
 	public readonly type = 'recipe' as const;
 
-	/** Like x/y/locked it is carried over to replacement instances, not constructed. */
-	public groupingMode: GroupingMode = 'underclock-last';
+	/** Like x/y/locked it is carried over to replacement instances, not constructed; MachineBuilder.node sets it. */
+	public build: MachineBuild;
 
 	public constructor(
 		id: string,
@@ -24,6 +24,7 @@ export class RecipeNode extends Node
 	)
 	{
 		super(id, groups.reduce((sum, group) => sum + group.machines, 0));
+		this.build = {pinned: groups, rest: {mode: 'underclock-last', clockSpeed: 100, machines: null}, custom: true};
 		this.setupIO();
 	}
 
@@ -101,7 +102,9 @@ export class RecipeNode extends Node
 			machineClassName: this.machine.className,
 			target: this.target,
 			groups: this.groups,
-			groupingMode: this.groupingMode,
+			build: this.build,
+			// Older app versions read only this and know no overclock-last.
+			groupingMode: this.build.rest.mode === 'overclock-last' ? 'underclock-last' : this.build.rest.mode,
 			x: this.x,
 			y: this.y,
 			...this.serializeFlags(),

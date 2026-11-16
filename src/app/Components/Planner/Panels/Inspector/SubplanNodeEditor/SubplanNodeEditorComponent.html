@@ -10,12 +10,6 @@
 			<span class="fw-semibold flex-grow-1 text-truncate" [title]="displayName">{{ displayName }}</span>
 			<span class="badge text-bg-secondary">Subplan</span>
 			<go-to-node [nodeIds]="[node.id]" placement="left"></go-to-node>
-			<span
-				class="text-warning"
-				tooltip="Subplans are always locked."
-				container="body"
-				placement="left"
-			><fa-icon [icon]="faLock" [fixedWidth]="true"></fa-icon></span>
 			<button
 				class="btn btn-sm btn-outline-primary py-0 px-1 flex-shrink-0"
 				type="button"
@@ -23,87 +17,117 @@
 				tooltip="Open subplan" container="body" placement="left"
 				(click)="openSubplan()"
 			><fa-icon [icon]="faArrowUpRightFromSquare" [fixedWidth]="true"></fa-icon><span class="visually-hidden">Open the subplan</span></button>
+			@if (!readOnly) {
+				<button
+					class="btn btn-sm btn-outline-secondary py-0 px-1 flex-shrink-0"
+					type="button"
+					[disabled]="!subplanExists"
+					tooltip="Unpack: put the subplan's nodes into this plan" container="body" placement="left"
+					(click)="unpack()"
+				><fa-icon [icon]="faBoxOpen" [fixedWidth]="true"></fa-icon><span class="visually-hidden">Unpack the subplan</span></button>
+			}
 			<inspector-menu-button/>
 		</div>
 		<div class="card-body p-2 d-flex flex-column gap-2">
 
-			<div class="d-flex align-items-center flex-wrap gap-2">
-				<label class="text-secondary small mb-0" for="subplan-build-count">Built</label>
-				<div class="input-group input-group-sm build-count flex-nowrap">
-					<input
-						id="subplan-build-count"
-						type="number"
-						class="form-control form-control-sm bg-dark text-light border-secondary"
-						[(ngModel)]="buildCount"
-						(ngModelChange)="onBuildCountChange()"
-						[disabled]="readOnly"
-						min="1"
-						step="1"
-					>
-					<span class="input-group-text bg-dark text-secondary border-secondary">×</span>
-				</div>
-				<span class="text-secondary small">in this plan</span>
+			<div class="info-row">
+				<label class="text-secondary mb-0 text-nowrap" for="subplan-sizing">Size</label>
+				<select
+					id="subplan-sizing"
+					class="form-select form-select-sm bg-dark text-light border-secondary"
+					[(ngModel)]="sizing"
+					(ngModelChange)="onSizingChange()"
+					[disabled]="readOnly"
+				>
+					@for (option of sizingOptions; track option.sizing) {
+						<option [value]="option.sizing">{{ option.label }}</option>
+					}
+				</select>
 			</div>
+			<div class="small text-secondary">{{ sizingDescription }}</div>
+
+			@if (node.sizing === 'fixed') {
+				<div class="info-row">
+					<label class="text-secondary small mb-0" for="subplan-build-count">Built</label>
+					<div class="input-group input-group-sm build-count flex-nowrap">
+						<input
+							id="subplan-build-count"
+							type="number"
+							class="form-control form-control-sm bg-dark text-light border-secondary"
+							[(ngModel)]="buildCount"
+							(ngModelChange)="onBuildCountChange()"
+							[disabled]="readOnly"
+							min="1"
+							step="1"
+						>
+						<span class="input-group-text bg-dark text-secondary border-secondary">×</span>
+					</div>
+					<span class="text-secondary small">in this plan</span>
+				</div>
+			} @else if (node.idle) {
+				<div class="small text-warning">Not used: the last calculation of this plan needed none of it.</div>
+			} @else if (node.sizing === 'copies') {
+				<div class="small">Built <strong>{{ node.buildCount }}×</strong> in this plan.</div>
+			} @else if (node.buildCount > 1) {
+				<div class="small">Built <strong>{{ node.buildCount }}×</strong> in this plan.</div>
+			}
 
 			@if (isEmpty) {
-				<div class="fst-italic text-secondary small">This subplan is empty.</div>
+				<div class="fst-italic text-secondary small">This subplan makes nothing yet. Open it to add what it should make.</div>
 			} @else {
-				<div>
-					<div class="text-secondary small mb-1">Inputs</div>
-					<div class="io-tiles">
-						@for (input of inputRates; track input.item.className; let i = $index) {
-							<div class="io-tile">
-								<game-icon [hash]="input.item.icon" [size]="32" [alt]="input.item.name"></game-icon>
-								<span class="io-name small text-truncate" [title]="input.item.name">{{ input.item.name }}</span>
-								<div class="input-group input-group-sm flex-nowrap">
-									<input
-										type="number"
-										class="form-control form-control-sm bg-dark text-light border-secondary"
-										[(ngModel)]="input.rate"
-										(ngModelChange)="onInputRateChange(i)"
-										[disabled]="readOnly"
-										min="0"
-										step="any"
-									>
-									<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(input.item) }}</span>
-								</div>
-								@if (buildsMany) {
-									<span class="io-total text-secondary">{{ totalText(input) }} in total</span>
+				@for (section of sections; track section.key) {
+					@if (section.rows.length > 0) {
+						<div>
+							<div class="io-row io-head text-secondary mb-1" [class.with-total]="showTotals">
+								<span></span>
+								<span>{{ section.label }}</span>
+								<span class="text-end">{{ showTotals ? 'per copy' : '' }}</span>
+								@if (showTotals) {
+									<span class="io-total">total</span>
 								}
 							</div>
-						} @empty {
-							<div class="fst-italic text-secondary small">None</div>
-						}
+							<div class="io-list">
+								@for (entry of section.rows; track entry.item.className; let i = $index) {
+									<div class="io-row" [class.with-total]="showTotals">
+										<game-icon [hash]="entry.item.icon" [size]="20" [alt]="entry.item.name"></game-icon>
+										<span class="io-name text-truncate" [title]="entry.item.name">{{ entry.item.name }}</span>
+										@if (ratesEditable) {
+											<div class="input-group input-group-sm flex-nowrap io-rate">
+												<input
+													type="number"
+													class="form-control form-control-sm bg-dark text-light border-secondary"
+													[attr.aria-label]="entry.item.name + ' ' + section.label"
+													[(ngModel)]="entry.rate"
+													(ngModelChange)="onRateChange(section, i)"
+													min="0"
+													step="any"
+												>
+												<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(entry.item) }}</span>
+											</div>
+										} @else {
+											<span class="io-fixed-rate small">{{ rateText(entry) }}</span>
+										}
+										@if (showTotals) {
+											<span class="io-total small text-secondary">{{ totalText(entry) }}</span>
+										}
+									</div>
+								}
+							</div>
+						</div>
+					}
+				}
+				@if (ratesEditable) {
+					<div class="small text-secondary">
+						Typing a rate resizes the subplan itself, everything in it by the same factor.@if (node.sizing === 'follows') { Its size then becomes Fixed, so the next calculation of this plan keeps it.}
 					</div>
-				</div>
+				}
+			}
 
-				<div>
-					<div class="text-secondary small mb-1">Outputs</div>
-					<div class="io-tiles">
-						@for (output of outputRates; track output.item.className; let i = $index) {
-							<div class="io-tile">
-								<game-icon [hash]="output.item.icon" [size]="32" [alt]="output.item.name"></game-icon>
-								<span class="io-name small text-truncate" [title]="output.item.name">{{ output.item.name }}</span>
-								<div class="input-group input-group-sm flex-nowrap">
-									<input
-										type="number"
-										class="form-control form-control-sm bg-dark text-light border-secondary"
-										[(ngModel)]="output.rate"
-										(ngModelChange)="onOutputRateChange(i)"
-										[disabled]="readOnly"
-										min="0"
-										step="any"
-									>
-									<span class="input-group-text bg-dark text-secondary border-secondary">{{ rateFormatter.unit(output.item) }}</span>
-								</div>
-								@if (buildsMany) {
-									<span class="io-total text-secondary">{{ totalText(output) }} in total</span>
-								}
-							</div>
-						} @empty {
-							<div class="fst-italic text-secondary small">None</div>
-						}
-					</div>
+			@if (totals; as subplanTotals) {
+				<div class="totals small text-secondary">
+					@for (part of totalsText(subplanTotals); track part) {
+						<span>{{ part }}</span>
+					}
 				</div>
 			}
 

@@ -200,7 +200,36 @@
 		</div>
 	}
 
-	<fieldset class="border-0 p-0 m-0 min-w-0" [disabled]="isFixedTab(activeTab())">
+	@if (isParentTab(activeTab()) && parentPlan(); as parent) {
+		<div class="px-2 pt-2">
+			<info-note>
+				<div class="d-flex align-items-center flex-wrap gap-2">
+					<span class="flex-grow-1">
+						@switch (activeTab()) {
+							@case ('resources') { This subplan shares the raw resources of "{{ parent.name }}": what it mines counts against the same limits. }
+							@case ('sloops') { This subplan shares the somersloops of "{{ parent.name }}": the ones it uses count against the same budget. }
+							@default { {{ groupLabel($any(activeTab())) }} settings are the same as in "{{ parent.name }}" and change with it. }
+						}
+					</span>
+					<button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="button" (click)="openParentPlan()">Open parent</button>
+					<button class="btn btn-sm btn-outline-secondary flex-shrink-0" type="button" (click)="setParentGroup($any(activeTab()), false)">Use own settings</button>
+				</div>
+			</info-note>
+		</div>
+	} @else if (isOwnSubplanTab(activeTab()) && parentPlan(); as parent) {
+		<div class="px-2 pt-2 d-flex align-items-center flex-wrap gap-2 small text-secondary">
+			<span class="flex-grow-1">
+				@switch (activeTab()) {
+					@case ('resources') { Own raw resource limits: what this subplan mines does not count against "{{ parent.name }}". }
+					@case ('sloops') { Own somersloop budget: the ones this subplan uses do not count against "{{ parent.name }}". }
+					@default { Own {{ groupLabel($any(activeTab())) }} settings, separate from "{{ parent.name }}". }
+				}
+			</span>
+			<button class="btn btn-sm btn-outline-secondary py-0 flex-shrink-0" type="button" (click)="setParentGroup($any(activeTab()), true)">{{ activeTab() === 'resources' || activeTab() === 'sloops' ? 'Share with parent' : 'Same as parent' }}</button>
+		</div>
+	}
+
+	<fieldset class="border-0 p-0 m-0 min-w-0" [disabled]="isLockedTab(activeTab())">
 		@switch (activeTab()) {
 			@case ('request') { <calculator-production-tab></calculator-production-tab> }
 			@case ('input') { <calculator-input-tab></calculator-input-tab> }
@@ -443,7 +472,7 @@
 					@if (badges().get(activeTabDefinition.id); as badge) {
 						<span class="badge tab-badge">{{ badge }}</span>
 					}
-					@if (locks && isFixedTab(activeTab())) {
+					@if (locks && isLockedTab(activeTab())) {
 						<fa-icon [icon]="faLock" class="small text-secondary"></fa-icon>
 					}
 				</button>
@@ -533,7 +562,7 @@
 		@if (badges().get(tab.id); as badge) {
 			<span class="badge tab-badge">{{ badge }}</span>
 		}
-		@if (locks && isFixedTab(tab.id)) {
+		@if (locks && isLockedTab(tab.id)) {
 			<fa-icon [icon]="faLock" class="small opacity-75"></fa-icon>
 		}
 	</button>
@@ -559,7 +588,7 @@
 	@if (badges().get(tab.id); as badge) {
 		<span class="badge tab-badge">{{ badge }}</span>
 	}
-	@if (locks && isFixedTab(tab.id)) {
+	@if (locks && isLockedTab(tab.id)) {
 		<span class="small text-secondary"><fa-icon [icon]="faLock"></fa-icon></span>
 	}
 </ng-template>

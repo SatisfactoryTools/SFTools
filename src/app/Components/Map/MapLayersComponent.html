@@ -8,128 +8,129 @@
 		<fa-icon [icon]="faXmark"></fa-icon>
 	</button>
 </div>
-<div class="layers-body px-3 py-2">
+<div class="layers-body">
 	@for (layer of layers; track layer.id) {
-		<div class="form-check mb-1">
-			<input
-				class="form-check-input"
-				type="checkbox"
-				[id]="'map-layer-' + layer.id"
-				[checked]="state.isLayerOn(layer.id)"
-				(change)="toggleLayer(layer, $event)"
-			/>
-			<label class="form-check-label d-flex gap-2" [for]="'map-layer-' + layer.id">
-				<span class="flex-grow-1">{{ layer.label }}</span>
-				@if (layer.count !== null) {
-					<span class="count text-secondary small">{{ layer.count }}</span>
-				} @else if (layer.loading && state.isLayerOn(layer.id)) {
-					<span class="spinner-border spinner-border-sm text-secondary" role="status" aria-label="Loading"></span>
+		<section class="layer" [class.layer-off]="!state.isLayerOn(layer.id)">
+			<div class="grid-row layer-row">
+				<span class="form-switch switch">
+					<input
+						class="form-check-input"
+						type="checkbox"
+						role="switch"
+						[id]="'map-layer-' + layer.id"
+						[checked]="state.isLayerOn(layer.id)"
+						(change)="toggleLayer(layer, $event)"
+					/>
+				</span>
+				<label class="layer-label text-truncate" [class.wide]="columnGroup(layer) === null" [for]="'map-layer-' + layer.id">{{ layer.label }}</label>
+				@if (columnGroup(layer); as group) {
+					<span class="purities">
+						<!-- Each column's box shows or hides that purity for every resource, so it stays in view while the list is folded. -->
+						@for (column of group.columns; track column.purity) {
+							<label class="purity purity-head" [tooltip]="column.label + ': ' + column.count" placement="top" container="body">
+								<map-marker-swatch [shape]="column.purity" color="#cfd6de"/>
+								<input
+									class="form-check-input"
+									type="checkbox"
+									[attr.aria-label]="column.label + ', all resources'"
+									[checked]="state.shownState(column.ids) === 'all'"
+									[indeterminate]="state.shownState(column.ids) === 'some'"
+									(change)="setIds(column.ids, $any($event.target).checked)"
+								/>
+							</label>
+						}
+					</span>
 				}
-			</label>
-		</div>
-		@if (state.isLayerOn(layer.id)) {
-			@for (group of layer.groups; track group.label) {
-				@if (group.columns.length > 0) {
-					<table class="category-table ms-4 mb-2">
-						<thead>
-							<tr>
-								<th class="check">
+				<span class="count text-secondary small">
+					@if (layer.count !== null) {
+						{{ layer.count }}
+					} @else if (layer.loading && state.isLayerOn(layer.id)) {
+						<span class="spinner-border spinner-border-sm" role="status" aria-label="Loading"></span>
+					}
+				</span>
+				<span class="fold">
+					@if (hasList(layer)) {
+						<button
+							type="button"
+							class="btn btn-sm btn-outline-secondary fold-btn"
+							[attr.aria-expanded]="isExpanded(layer)"
+							[attr.aria-label]="(isExpanded(layer) ? 'Hide the list of ' : 'Show the list of ') + layer.label"
+							(click)="toggleExpanded(layer)"
+						><fa-icon [icon]="faChevronDown" [fixedWidth]="true" [class.flipped]="isExpanded(layer)"></fa-icon></button>
+					}
+				</span>
+			</div>
+
+			@if (isExpanded(layer)) {
+				<div class="layer-list">
+					@if (isPending(layer)) {
+						<div class="list-loading text-secondary small">
+							<span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+							Loading…
+						</div>
+					}
+					@for (group of layer.groups; track group.label) {
+						@if (group.categories.length > 1) {
+							<div class="grid-row group-row">
+								<span></span>
+								<label class="item-label wide">
 									<input
 										class="form-check-input"
 										type="checkbox"
-										[attr.aria-label]="'All ' + group.label"
+										[attr.aria-label]="'Show all ' + (group.label || layer.label)"
 										[checked]="state.shownState(groupIds(group)) === 'all'"
 										[indeterminate]="state.shownState(groupIds(group)) === 'some'"
-										(change)="setGroup(group, $any($event.target).checked)"
+										(change)="setIds(groupIds(group), $any($event.target).checked)"
 									/>
-								</th>
-								<th class="group-label text-secondary">{{ group.label }}</th>
-								@for (column of group.columns; track column.purity) {
-									<th class="purity" [tooltip]="column.label + ': ' + column.count" placement="top" container="body">
-										<label class="d-inline-flex flex-column align-items-center gap-1">
-											<map-marker-swatch [shape]="column.purity" color="#cfd6de"/>
-											<input
-												class="form-check-input m-0"
-												type="checkbox"
-												[attr.aria-label]="column.label + ', all resources'"
-												[checked]="state.shownState(column.ids) === 'all'"
-												[indeterminate]="state.shownState(column.ids) === 'some'"
-												(change)="setIds(column.ids, $any($event.target).checked)"
-											/>
-										</label>
-									</th>
-								}
-								<th class="count"></th>
-							</tr>
-						</thead>
-						<tbody>
-							@for (category of group.categories; track category.key) {
-								<tr>
-									<td class="check">
-										<input
-											class="form-check-input"
-											type="checkbox"
-											[id]="'map-category-' + layer.id + '-' + category.key"
-											[checked]="state.shownState(category.ids) === 'all'"
-											[indeterminate]="state.shownState(category.ids) === 'some'"
-											(change)="setIds(category.ids, $any($event.target).checked)"
-										/>
-									</td>
-									<td class="name">
-										<label class="d-flex align-items-center gap-2" [for]="'map-category-' + layer.id + '-' + category.key">
-											<ng-container *ngTemplateOutlet="marker; context: {$implicit: category}"/>
-											<span class="text-truncate">{{ category.label }}</span>
-										</label>
-									</td>
-									@for (column of group.columns; track column.purity) {
-										<td class="purity">
-											@if (purityOf(category, column.purity); as purity) {
-												<input
-													class="form-check-input m-0"
-													type="checkbox"
-													[attr.aria-label]="category.label + ', ' + purity.label"
-													[tooltip]="purity.label + ': ' + purity.count" placement="top" container="body"
-													[checked]="state.isShown(purity.id)"
-													(change)="setIds([purity.id], $any($event.target).checked)"
-												/>
-											}
-										</td>
-									}
-									<td class="count text-secondary small">{{ category.count }}</td>
-								</tr>
-							}
-						</tbody>
-					</table>
-				} @else {
-					<div class="ms-4 mb-2">
-						<div class="d-flex align-items-center gap-2 mb-1 text-secondary">
-							<span class="group-label flex-grow-1">{{ group.label }}</span>
-							<button type="button" class="btn btn-link btn-sm p-0" (click)="setGroup(group, true)">All</button>
-							<button type="button" class="btn btn-link btn-sm p-0" (click)="setGroup(group, false)">None</button>
-						</div>
-						@for (category of group.categories; track category.key) {
-							<div class="form-check category d-flex align-items-center gap-2 mb-0">
-								<input
-									class="form-check-input flex-shrink-0"
-									type="checkbox"
-									[id]="'map-category-' + layer.id + '-' + category.key"
-									[checked]="state.shownState(category.ids) === 'all'"
-									[indeterminate]="state.shownState(category.ids) === 'some'"
-									(change)="setIds(category.ids, $any($event.target).checked)"
-								/>
-								<label class="form-check-label d-flex align-items-center gap-2 flex-grow-1" style="min-width: 0" [for]="'map-category-' + layer.id + '-' + category.key">
-									<ng-container *ngTemplateOutlet="marker; context: {$implicit: category}"/>
-									<span class="flex-grow-1 text-truncate">{{ category.label }}</span>
-									<span class="count text-secondary small" [title]="category.collected ? 'Left to collect / all' : ''">{{ category.countText }}</span>
+									<span class="group-label text-truncate">{{ group.label || 'All' }}</span>
 								</label>
+								<span class="count"></span>
+								<span></span>
 							</div>
 						}
-					</div>
-				}
+						@for (category of group.categories; track category.key) {
+							<div class="grid-row category-row">
+								<span></span>
+								<label class="item-label" [class.wide]="group.columns.length === 0" [for]="'map-category-' + layer.id + '-' + category.key">
+									<input
+										class="form-check-input"
+										type="checkbox"
+										[id]="'map-category-' + layer.id + '-' + category.key"
+										[checked]="state.shownState(category.ids) === 'all'"
+										[indeterminate]="state.shownState(category.ids) === 'some'"
+										(change)="setIds(category.ids, $any($event.target).checked)"
+									/>
+									<ng-container *ngTemplateOutlet="marker; context: {$implicit: category}"/>
+									<span class="text-truncate">{{ category.label }}</span>
+								</label>
+								@if (group.columns.length > 0) {
+									<span class="purities">
+										@for (column of group.columns; track column.purity) {
+											<span class="purity">
+												@if (purityOf(category, column.purity); as purity) {
+													<input
+														class="form-check-input"
+														type="checkbox"
+														[attr.aria-label]="category.label + ', ' + purity.label"
+														[tooltip]="purity.label + ': ' + purity.count" placement="top" container="body"
+														[checked]="state.isShown(purity.id)"
+														(change)="setIds([purity.id], $any($event.target).checked)"
+													/>
+												}
+											</span>
+										}
+									</span>
+								}
+								<span class="count text-secondary small" [title]="category.collected ? 'Left to collect / all' : ''">{{ category.countText }}</span>
+								<span></span>
+							</div>
+						}
+					}
+				</div>
 			}
-		}
+		</section>
 	} @empty {
-		<div class="text-secondary small py-1">Nothing to show for this game version yet.</div>
+		<div class="text-secondary small px-3 py-2">Nothing to show for this game version yet.</div>
 	}
 </div>
 

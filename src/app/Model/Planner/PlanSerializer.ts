@@ -2,6 +2,8 @@ import {Injectable} from '@angular/core';
 import {Data} from '@src/Model/Data/Data';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
+import {MachineBuild} from '@src/Model/Planner/MachineBuild';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
 import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
 import {Graph} from '@src/Model/Planner/Graph/Graph';
@@ -21,6 +23,7 @@ import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
 import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
+import {SubplanSizing} from '@src/Model/Planner/SubplanSizing';
 
 @Injectable({providedIn: 'root'})
 export class PlanSerializer
@@ -29,6 +32,7 @@ export class PlanSerializer
 	public constructor(
 		private readonly versionManager: VersionManager,
 		private readonly normalizer: MachineGroupNormalizer,
+		private readonly builder: MachineBuilder,
 	)
 	{
 	}
@@ -90,6 +94,22 @@ export class PlanSerializer
 		return {...edge, done: doneIds.has(edge.sourceId) && doneIds.has(edge.targetId)};
 	}
 
+	private isBuild(value: unknown): value is MachineBuild
+	{
+		const build = value as MachineBuild | null | undefined;
+		return Array.isArray(build?.pinned) && typeof build?.rest?.mode === 'string' && typeof build?.rest?.clockSpeed === 'number';
+	}
+
+	private revivedBuild(build: MachineBuild): MachineBuild
+	{
+		return {
+			pinned: build.pinned,
+			rest: {mode: build.rest.mode, clockSpeed: build.rest.clockSpeed, machines: build.rest.machines ?? null, sloops: build.rest.sloops ?? 0},
+			custom: build.custom === true,
+			...(build.custom === true && Array.isArray(build.manualRest) ? {manualRest: build.manualRest} : {}),
+		};
+	}
+
 	private deserializeNode(raw: Record<string, unknown>, data: Data): Node
 	{
 		const id = raw['id'] as string;
@@ -120,7 +140,9 @@ export class PlanSerializer
 					data.getBuildingByClassName(raw['machineClassName'] as string),
 					data.getRecipeByClassName(raw['recipeClassName'] as string),
 				);
-				recipeNode.groupingMode = (raw['groupingMode'] as GroupingMode | undefined) ?? 'underclock-last';
+				recipeNode.build = this.isBuild(raw['build'])
+					? this.revivedBuild(raw['build'])
+					: this.builder.fromLegacy(groups, target, (raw['groupingMode'] as GroupingMode | undefined) ?? 'underclock-last');
 				node = recipeNode;
 				break;
 			}
@@ -162,6 +184,8 @@ export class PlanSerializer
 					this.deserializeNodeIO(raw['inputs'], data),
 					this.deserializeNodeIO(raw['outputs'], data),
 					(raw['buildCount'] as number | undefined) ?? 1,
+					this.revivedSizing(raw['sizing']),
+					raw['idle'] === true,
 				);
 				break;
 			case 'sink': {
@@ -185,6 +209,12 @@ export class PlanSerializer
 			&& (raw['locked'] === true || node instanceof SubplanNode);
 		node.done = raw['done'] === true;
 		return node;
+	}
+
+	/** Subplans saved before sizing modes existed follow their parent. */
+	private revivedSizing(raw: unknown): SubplanSizing
+	{
+		return raw === 'fixed' || raw === 'copies' ? raw : 'follows';
 	}
 
 	private deserializeNodeIO(raw: unknown, data: Data): NodeIO[]

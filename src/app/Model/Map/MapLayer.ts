@@ -11,6 +11,8 @@ export class MapLayer
 		public readonly groups: MapCategoryGroup[],
 		/** Shown as a spinner while the layer is on. */
 		public readonly loading: boolean = count === null,
+		/** Whether it has a list to unfold, known before its markers load. */
+		public readonly listed: boolean = groups.some(group => group.categories.length > 0),
 	)
 	{
 	}

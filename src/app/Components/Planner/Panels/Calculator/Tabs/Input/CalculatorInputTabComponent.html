@@ -1,5 +1,5 @@
 <div class="p-2 d-flex flex-column gap-2">
-	<info-note>Items you already have, for example from another factory. The plan uses up to this amount.</info-note>
+	<info-note>Items you already have, for example from another factory. The plan uses up to this amount, or as much as it wants with ∞.</info-note>
 	@if (!weightsEnabled()) {
 		<info-note kind="warning">
 			Input weights are turned off in the Optimisation tab. Every input is free and the weights below are ignored.
@@ -9,7 +9,7 @@
 		<thead>
 			<tr>
 				<th>Item</th>
-				<th style="width: 130px;">Amount</th>
+				<th style="width: 170px;">Amount</th>
 				<th style="width: 110px;">Weight</th>
 				<th style="width: 36px;"></th>
 			</tr>
@@ -31,12 +31,23 @@
 								type="number"
 								class="form-control form-control-sm bg-dark text-light border-secondary"
 								[name]="'input-amount-' + i"
-								[(ngModel)]="row.amount"
-								(ngModelChange)="sync()"
+								[ngModel]="row.infinite ? null : row.amount"
+								(ngModelChange)="row.amount = $event ?? 0; sync()"
+								[disabled]="row.infinite === true"
+								[placeholder]="row.infinite ? 'unlimited' : ''"
 								min="0"
 								step="any"
 							>
 							<span class="input-group-text bg-dark text-secondary border-secondary">/min</span>
+							<button
+								type="button"
+								class="btn btn-outline-secondary px-2"
+								[class.active]="row.infinite === true"
+								[tooltip]="row.infinite ? 'Set an amount' : 'Unlimited: use as much as the plan wants, priced by the weight'"
+								container="body"
+								placement="top"
+								(click)="toggleInfinite(row)"
+							>∞</button>
 						</div>
 					</td>
 					<td class="stack-grow" data-label="Weight">

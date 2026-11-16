@@ -25,7 +25,7 @@ import {Recipe} from '@src/Model/Data/Entities/Recipe';
 import {VersionManager} from '@src/Model/Data/VersionManager';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
-import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {GroupingModeResolver} from '@src/Model/Planner/GroupingModeResolver';
 import {MakeableItemsResolver} from '@src/Model/Planner/MakeableItemsResolver';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
@@ -35,7 +35,6 @@ import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {PlanManager} from '@src/Model/Planner/PlanManager';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
-import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 
 @Component({
@@ -85,7 +84,7 @@ export class AddNodeDialogComponent implements OnInit
 	public constructor(
 		private readonly versionManager: VersionManager,
 		private readonly planManager: PlanManager,
-		private readonly normalizer: MachineGroupNormalizer,
+		private readonly builder: MachineBuilder,
 		private readonly clocks: ClockSpeedResolver,
 		private readonly groupingModes: GroupingModeResolver,
 		private readonly makeableItems: MakeableItemsResolver,
@@ -343,15 +342,7 @@ export class AddNodeDialogComponent implements OnInit
 				const machine = recipe.producedIn[0];
 				const target = this.recipeTargetFor(recipe, machine);
 				const groupingMode = this.groupingModes.resolve(this.planManager.activeSettings());
-				const recipeNode = new RecipeNode(
-					id,
-					target,
-					this.normalizer.generateForTarget(target, this.clocks.forRecipe(recipe, machine), 0, groupingMode),
-					machine,
-					recipe,
-				);
-				recipeNode.groupingMode = groupingMode;
-				node = recipeNode;
+				node = this.builder.node(id, target, this.builder.automatic(groupingMode, this.clocks.forRecipe(recipe, machine)), machine, recipe);
 				break;
 			}
 			case 'input':

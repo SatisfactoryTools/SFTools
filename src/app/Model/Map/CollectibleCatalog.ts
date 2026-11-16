@@ -8,7 +8,7 @@ export class CollectibleCatalog
 
 	public static readonly CATEGORY_ORDER: ReadonlyArray<string> = [
 		'slug-blue', 'slug-yellow', 'slug-purple', 'somersloop', 'mercer', 'berry', 'nut', 'mushroom',
-		'hog', 'spitter', 'stinger', 'beetle', 'creature-other', 'bird', 'doggo', 'giraffe',
+		'hog', 'spitter', 'stinger', 'crab', 'creature-other', 'beetle', 'bird', 'doggo', 'giraffe',
 	];
 
 	public static readonly SECTION_ORDER: ReadonlyArray<string> = ['', 'Aggressive', 'Harmless'];
@@ -32,8 +32,9 @@ export class CollectibleCatalog
 		'hog': ['Aggressive', 'Hogs'],
 		'spitter': ['Aggressive', 'Spitters'],
 		'stinger': ['Aggressive', 'Stingers'],
-		'beetle': ['Aggressive', 'Beetles'],
+		'crab': ['Aggressive', 'Flying Crab Hatchers'],
 		'creature-other': ['Aggressive', 'Other'],
+		'beetle': ['Harmless', 'Beetles'],
 		'bird': ['Harmless', 'Non-flying Birds'],
 		'doggo': ['Harmless', 'Lizard Doggos'],
 		'giraffe': ['Harmless', 'Space Giraffe-Tick-Penguin-Whale Things'],
@@ -55,6 +56,8 @@ export class CollectibleCatalog
 		Char_Stinger_Child_C: ['stinger', 'Small Stinger'],
 		Char_Stinger_C: ['stinger', 'Stinger'],
 		Char_EliteStinger_C: ['stinger', 'Elite Stinger'],
+		Char_CrabHatcher_C: ['crab', 'Flying Crab Hatcher'],
+		Char_BigCrabHatcher_C: ['crab', 'Big Flying Crab Hatcher'],
 		Char_Beetle_C: ['beetle', 'Beetle'],
 		Char_NonFlyingBird_C: ['bird', 'Non-flying Bird'],
 		Char_SpaceRabbit_C: ['doggo', 'Lizard Doggo'],

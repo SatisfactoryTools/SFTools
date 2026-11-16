@@ -61,8 +61,8 @@
 				[style.padding-left.rem]="item.depth * 1 + 0.25"
 				role="button"
 				longPressContextMenu
-				longPressDrag
-				draggable="true"
+				[longPressDrag]="!item.isEditing"
+				[attr.draggable]="item.isEditing ? 'false' : 'true'"
 				[attr.data-drop-id]="item.id"
 				data-drop-kind="folder"
 				(click)="selectFolder(item.id)"
@@ -115,8 +115,8 @@
 				[style.padding-left.rem]="item.depth * 1 + 0.25"
 				role="button"
 				longPressContextMenu
-				longPressDrag
-				draggable="true"
+				[longPressDrag]="!item.isEditing"
+				[attr.draggable]="item.isEditing ? 'false' : 'true'"
 				[attr.data-drop-id]="item.plan.id"
 				data-drop-kind="plan"
 				(click)="selectPlan(item.plan)"

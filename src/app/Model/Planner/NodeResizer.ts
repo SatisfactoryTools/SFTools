@@ -1,9 +1,7 @@
 import {Injectable} from '@angular/core';
-import {ClockSpeedResolver} from '@src/Model/Planner/ClockSpeedResolver';
 import {Formulas} from '@src/Model/Planner/Formulas';
 import {GraphEdge} from '@src/Model/Planner/Graph/GraphEdge';
-import {MachineGroup} from '@src/Model/Planner/Solver/Response/MachineGroup';
-import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
@@ -20,10 +18,7 @@ import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 export class NodeResizer
 {
 
-	public constructor(
-		private readonly normalizer: MachineGroupNormalizer,
-		private readonly clocks: ClockSpeedResolver,
-	)
+	public constructor(private readonly builder: MachineBuilder)
 	{
 	}
 
@@ -35,15 +30,14 @@ export class NodeResizer
 	public increasedOutput(node: Node, itemClassName: string, addition: number): Node | null
 	{
 		if (node instanceof RecipeNode) {
-			const sloops = this.uniformSloops(node.groups);
 			const product = node.recipe.products.find(entry => entry.item.className === itemClassName);
-			const perTarget = (product?.amount ?? 0)
-				* Formulas.referenceCycles(node.recipe, node.machine)
-				* Formulas.sloopOutputMultiplier(node.machine, sloops);
-			if (perTarget <= 0) {
+			const perCycle = (product?.amount ?? 0) * Formulas.referenceCycles(node.recipe, node.machine);
+			if (perCycle <= 0) {
 				return null;
 			}
-			return this.rebuiltRecipe(node, (this.outputTotal(node, itemClassName) + addition) / perTarget, sloops);
+			const build = {...node.build, custom: false};
+			const output = (this.outputTotal(node, itemClassName) + addition) / perCycle;
+			return this.rebuiltRecipe(node, this.builder.targetForOutput(build, output, node.machine));
 		}
 		if (node instanceof GeneratorNode) {
 			if (node.fuel.byproduct?.className !== itemClassName) {
@@ -68,7 +62,7 @@ export class NodeResizer
 			return null;
 		}
 		if (node instanceof RecipeNode) {
-			return this.rebuiltRecipe(node, node.target * factor, this.uniformSloops(node.groups));
+			return this.rebuiltRecipe(node, node.target * factor);
 		}
 		if (node instanceof GeneratorNode) {
 			return this.placed(node, new GeneratorNode(node.id, node.amount * factor, node.generator, node.fuel, node.clockSpeed), true);
@@ -132,24 +126,13 @@ export class NodeResizer
 		});
 	}
 
-	private rebuiltRecipe(node: RecipeNode, target: number, sloops: number): RecipeNode | null
+	/** Pinned rows (sloops, shards) are kept and only the rest is rebuilt; a custom build turns automatic. */
+	private rebuiltRecipe(node: RecipeNode, target: number): RecipeNode | null
 	{
 		if (target <= 0) {
 			return null;
 		}
-		const groups = this.normalizer.generateForTarget(target, this.clocks.forRecipe(node.recipe, node.machine), sloops, node.groupingMode);
-		const replacement = new RecipeNode(node.id, target, groups, node.machine, node.recipe);
-		replacement.groupingMode = node.groupingMode;
-		return this.placed(node, replacement, true);
-	}
-
-	/** Mixed sloops reset to 0: a scaled node then keeps its target exactly but its boosted output only approximately. */
-	private uniformSloops(groups: MachineGroup[]): number
-	{
-		if (groups.length === 0) {
-			return 0;
-		}
-		return groups.every(group => group.sloops === groups[0].sloops) ? groups[0].sloops : 0;
+		return this.placed(node, this.builder.node(node.id, target, this.builder.fitted(node.build, target), node.machine, node.recipe), true);
 	}
 
 	private outputTotal(node: Node, itemClassName: string): number

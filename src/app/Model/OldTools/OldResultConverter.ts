@@ -2,13 +2,12 @@ import {Injectable} from '@angular/core';
 import {Data} from '@src/Model/Data/Data';
 import {OldResultConversion} from '@src/Model/OldTools/OldResultConversion';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
-import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {ByproductNode} from '@src/Model/Planner/Solver/Response/ByproductNode';
 import {InputNode} from '@src/Model/Planner/Solver/Response/InputNode';
 import {MineNode} from '@src/Model/Planner/Solver/Response/MineNode';
 import {Node} from '@src/Model/Planner/Solver/Response/Node';
 import {ProductNode} from '@src/Model/Planner/Solver/Response/ProductNode';
-import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 
 /** Amounts below this are the old LP's float dust, not nodes. */
@@ -18,7 +17,7 @@ const EPSILON = 1e-6;
 export class OldResultConverter
 {
 
-	public constructor(private readonly normalizer: MachineGroupNormalizer)
+	public constructor(private readonly builder: MachineBuilder)
 	{
 	}
 
@@ -78,15 +77,7 @@ export class OldResultConverter
 						continue;
 					}
 					// The old value counts machines at the column's clock; the node's target is machine-equivalents at 100%.
-					const node = new RecipeNode(
-						id,
-						amount * clock / 100,
-						this.normalizer.generate(amount, clock, 0, groupingMode),
-						machine,
-						recipe,
-					);
-					node.groupingMode = groupingMode;
-					nodes.push(node);
+					nodes.push(this.builder.node(id, amount * clock / 100, this.builder.automatic(groupingMode, clock), machine, recipe));
 				}
 			}
 		}

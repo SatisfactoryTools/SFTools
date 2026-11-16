@@ -15,6 +15,7 @@ import {GeneratorNode} from '@src/Model/Planner/Solver/Response/GeneratorNode';
 import {GroupingMode} from '@src/Model/Planner/GroupingMode';
 import {HighsSolution} from '@src/Model/Planner/Solver/HighsSolution';
 import {MachineWeight} from '@src/Model/Planner/MachineWeight';
+import {MachineBuilder} from '@src/Model/Planner/MachineBuilder';
 import {MachineGroupNormalizer} from '@src/Model/Planner/MachineGroupNormalizer';
 import {Plan} from '@src/Model/Planner/Plan';
 import {ProductionResponse} from '@src/Model/Planner/ProductionResponse';
@@ -44,6 +45,10 @@ import {RecipeNode} from '@src/Model/Planner/Solver/Response/RecipeNode';
 import {SinkNode} from '@src/Model/Planner/Solver/Response/SinkNode';
 import {SubplanNode} from '@src/Model/Planner/Solver/Response/SubplanNode';
 import {SolveSettingsError} from '@src/Model/Planner/Solver/SolveSettingsError';
+import {SubplanBlock} from '@src/Model/Planner/Solver/Request/SubplanBlock';
+import {PlanManager} from '@src/Model/Planner/PlanManager';
+import {SubplanIOResolver} from '@src/Model/Planner/SubplanIOResolver';
+import {SubplanSharingService} from '@src/Model/Planner/Pool/SubplanSharingService';
 
 @Injectable({providedIn: 'root'})
 export class ProductionSolverService
@@ -55,6 +60,7 @@ export class ProductionSolverService
 		private readonly solver: SolverService,
 		private readonly versionManager: VersionManager,
 		private readonly normalizer: MachineGroupNormalizer,
+		private readonly builder: MachineBuilder,
 		private readonly enabledRecipes: EnabledRecipesResolver,
 		private readonly groupingModes: GroupingModeResolver,
 		private readonly breakdown: PlanBreakdownService,
@@ -62,6 +68,9 @@ export class ProductionSolverService
 		private readonly pool: ResourcePoolService,
 		private readonly resourceWeights: ResourceWeightResolver,
 		private readonly extraPower: ExtraPowerResolver,
+		private readonly planManager: PlanManager,
+		private readonly subplanIO: SubplanIOResolver,
+		private readonly sharing: SubplanSharingService,
 	)
 	{
 	}
@@ -88,7 +97,10 @@ export class ProductionSolverService
 		}
 
 		const optimisation = this.optimisationTarget(plan, data);
-		const request = this.buildRequest(plan, data, optimisation);
+		const blocks = this.subplanBlocks(lockedNodes);
+		// Subplan nodes go in as blocks, everything else locked stays a fixed column.
+		const otherLocked = lockedNodes.filter(node => !(node instanceof SubplanNode));
+		const request = this.buildRequest(plan, data, optimisation, blocks);
 		// Weighted inputs count as a goal of their own, as long as at least one is priced.
 		const weightedInputs = optimisation.inputs && request.inputs.some(input => input.weight > 0);
 		if (Object.keys(optimisation.rawResources).length === 0 && optimisation.power <= 0 && !this.hasMachineGoal(optimisation) && !weightedInputs) {
@@ -96,20 +108,34 @@ export class ProductionSolverService
 		}
 		const maximise = this.maximiseTarget(plan, data);
 		if (maximise !== null) {
-			return this.solveMaximise(plan, data, request, maximise, lockedNodes);
+			return this.solveMaximise(plan, data, request, maximise, otherLocked);
 		}
 
-		const lp = this.buildLp(request, data, lockedNodes);
+		const lp = this.buildLp(request, data, otherLocked);
 		return this.solver.solve(lp, this.solveOptions(request, plan)).pipe(
 			map(solution => {
 				const response = this.parseSolution(solution, data, this.groupingModes.resolve(plan.settings));
-				return {...response, nodes: [...response.nodes, ...this.augmenterNodes(plan, data)]};
+				return {
+					...response,
+					nodes: [...response.nodes, ...this.augmenterNodes(plan, data)],
+					subplanSizes: this.subplanSizes(this.columnsOf(solution), blocks),
+				};
 			}),
 		);
 	}
 
-	private buildRequest(plan: Plan, data: Data, optimisation: OptimisationTarget): SolverRequest
+	private buildRequest(plan: Plan, data: Data, optimisation: OptimisationTarget, blocks: SubplanBlock[] = []): SolverRequest
 	{
+		// Fixed subplans are built whatever happens, so what they use comes off the budget up front, never below zero:
+		// a subplan saved before budgets were shared may use more than its parent has.
+		const fixed = blocks.filter(block => block.fixed);
+		const limits = {...this.pool.effectiveLimits(plan)};
+		fixed.forEach(block => block.sharedMines.forEach((amount, className) => {
+			if (limits[className] !== undefined) {
+				limits[className] = Math.max(0, limits[className] - amount);
+			}
+		}));
+		const fixedSloops = fixed.reduce((sum, block) => sum + block.sharedSloops, 0);
 		return {
 			optimisation,
 			maximise: null,
@@ -128,12 +154,12 @@ export class ProductionSolverService
 					};
 				}),
 			inputs: this.inputSources(plan, data),
-			maxSloops: this.machineSloops(plan),
+			maxSloops: Math.max(0, this.machineSloops(plan) - Math.round(fixedSloops)),
 			defaultClockSpeed: Formulas.clampClock(plan.settings.defaultClockSpeed ?? 100),
 			recipeClockSpeeds: this.recipeClockSpeeds(plan),
 			machineClockSpeeds: this.machineClockSpeeds(plan),
 			generatorClockSpeeds: this.generatorClockSpeeds(plan),
-			resourceLimits: this.pool.effectiveLimits(plan),
+			resourceLimits: limits,
 			generators: this.enabledGenerators(plan, data),
 			extraPower: this.extraPower.resolve(plan.settings),
 			powerDemand: this.powerDemand(plan),
@@ -142,7 +168,47 @@ export class ProductionSolverService
 			disabledByproducts: plan.settings.disabledByproducts ?? [],
 			sinkableItems: this.sinkableItems(plan, data),
 			sinkPointsDemand: this.sinkPointsDemand(plan),
+			subplanBlocks: blocks,
 		};
+	}
+
+	private subplanBlocks(lockedNodes: Node[]): SubplanBlock[]
+	{
+		return lockedNodes
+			.filter((node): node is SubplanNode => node instanceof SubplanNode)
+			.map(node => {
+				const fixed = node.sizing === 'fixed';
+				const io = fixed ? {inputs: node.inputs, outputs: node.outputs} : this.subplanIO.unitIO(node);
+				// One unit of a following node is the node as built now, one unit of copies is a single copy.
+				const factor = node.sizing === 'copies' ? 1 : Math.max(1, node.buildCount);
+				const subplan = this.planManager.findPlan(node.subplanId);
+				const totals = this.breakdown.subplanTotals(node.subplanId);
+				const scaled = (amounts: Map<string, number>): Map<string, number> =>
+					new Map([...amounts].map(([className, amount]) => [className, amount * factor]));
+				return {
+					nodeId: node.id,
+					variable: fixed ? this.lockedVariableName(node) : 'block_' + node.id.replace(/-/g, ''),
+					fixed,
+					integer: node.sizing === 'copies',
+					inputs: io.inputs,
+					outputs: io.outputs,
+					netPower: (totals.consumption - totals.production) * factor,
+					mines: scaled(totals.mines),
+					sharedMines: subplan !== null && this.sharing.sharesResources(subplan) ? scaled(this.sharing.sharedMines(subplan)) : new Map(),
+					sharedSloops: subplan !== null && this.sharing.sharesSloops(subplan) ? this.sharing.sharedSloops(subplan) * factor : 0,
+					machines: totals.machines * factor,
+				};
+			});
+	}
+
+	private subplanSizes(columns: Map<string, number>, blocks: SubplanBlock[]): Record<string, number>
+	{
+		const sizes: Record<string, number> = {};
+		blocks.filter(block => !block.fixed).forEach(block => {
+			const value = Math.max(0, columns.get(block.variable) ?? 0);
+			sizes[block.nodeId] = block.integer ? Math.round(value) : value;
+		});
+		return sizes;
 	}
 
 	/** The UI enforces a single maximised category, but synced data may not. */
@@ -178,7 +244,9 @@ export class ProductionSolverService
 	private solveOptions(request: SolverRequest, plan: Plan): {workerOptions?: SolverWorkerOptions; timeoutMs?: number}
 	{
 		if (request.maxSloops <= 0) {
-			return {};
+			// Whole copies of a subplan are the only whole numbers here, and few: solving them exactly is cheap, while the
+			// default gap could stop at a worse count, since one copy more or less moves the total cost very little.
+			return request.subplanBlocks.some(block => block.integer && !block.fixed) ? {workerOptions: {mipRelGap: 1e-7}} : {};
 		}
 		const accuracy = plan.settings.sloopAccuracy ?? 'low';
 		const byAccuracy: Record<SloopAccuracy, {mipRelGap: number; timeoutMs: number}> = {
@@ -389,8 +457,13 @@ export class ProductionSolverService
 		)];
 	}
 
-	private sloopBudgetOf(plan: Plan): number
+	/** A subplan sharing its parent's sloops gets what the parent leaves. */
+	private sloopBudgetOf(plan: Plan, seen: ReadonlySet<string> = new Set()): number
 	{
+		const parent = this.sharing.parentOf(plan);
+		if (parent !== null && this.sharing.sharesSloops(plan) && !seen.has(parent.id)) {
+			return this.sharing.sloopsFromParent(plan, this.sloopBudgetOf(parent, new Set([...seen, plan.id])));
+		}
 		return Math.max(0, Math.round(plan.settings.maxSloops ?? 0));
 	}
 
@@ -433,16 +506,17 @@ export class ProductionSolverService
 		const byItem = new Map<string, InputSource>();
 		for (const input of plan.inputs ?? []) {
 			const item = data.searchItemByClassName(input.itemClassName);
-			if (!item || !(input.amount > 0)) {
+			const amount = input.infinite === true ? Infinity : input.amount;
+			if (!item || !(amount > 0)) {
 				continue;
 			}
 			const weight = Math.max(0, input.weight ?? 0);
 			const existing = byItem.get(item.className);
 			if (existing) {
-				existing.amount += input.amount;
+				existing.amount += amount;
 				existing.weight = Math.min(existing.weight, weight);
 			} else {
-				byItem.set(item.className, {item, amount: input.amount, weight});
+				byItem.set(item.className, {item, amount, weight});
 			}
 		}
 		return [...byItem.values()];
@@ -582,6 +656,21 @@ export class ProductionSolverService
 				});
 			}
 
+			// A sized subplan is priced by what it mines and draws, or the calculation would take its output as free.
+			request.subplanBlocks.filter(block => !block.fixed).forEach(block => {
+				let cost = 0;
+				block.mines.forEach((amount, className) => {
+					const weight = request.optimisation.rawResources[className] ?? 0;
+					cost += amount * (weight > 0 ? weight : tieBreak);
+				});
+				cost += Math.max(0, block.netPower) * request.optimisation.power;
+				cost += block.machines * request.optimisation.machines;
+				// A little cheaper than building the same thing here, so a near tie goes to the subplan the user placed.
+				if (cost > 0) {
+					optimisation.push((cost * 0.99) + ' ' + block.variable);
+				}
+			});
+
 			// Unpriced mining would otherwise float free, so the solver could mine to the limit and dump it all as byproducts.
 			data.resources.forEach(className => {
 				if (!(request.optimisation.rawResources[className] > 0)) {
@@ -701,18 +790,20 @@ export class ProductionSolverService
 				generationTerms.push({coefficient: node.powerProduction(), variable: varName});
 			}
 
+			if (factoryDrawFactor > 0 && node instanceof RecipeNode && node.averagePowerUsage() > 0) {
+				drawTerms.push('- ' + (node.averagePowerUsage() * factoryDrawFactor) + ' ' + varName);
+			}
+		});
+
+		request.subplanBlocks.forEach(block => {
+			block.inputs.forEach(io => add(io.item.className, '- ' + io.maxAmount + ' ' + block.variable));
+			block.outputs.forEach(io => add(io.item.className, '+ ' + io.maxAmount + ' ' + block.variable));
 			if (factoryDrawFactor > 0) {
-				if (node instanceof RecipeNode && node.averagePowerUsage() > 0) {
-					drawTerms.push('- ' + (node.averagePowerUsage() * factoryDrawFactor) + ' ' + varName);
-				} else if (node instanceof SubplanNode) {
-					const power = this.breakdown.subplanPower(node.subplanId);
-					const net = (power.consumption - power.production) * Math.max(1, node.buildCount);
-					if (net > 0) {
-						drawTerms.push('- ' + (net * factoryDrawFactor) + ' ' + varName);
-					} else if (net < 0) {
-						// Goes to the draw side: the subplan's own augmenters already boosted this, the parent's percentage must not apply again.
-						drawTerms.push('+ ' + (-net) + ' ' + varName);
-					}
+				if (block.netPower > 0) {
+					drawTerms.push('- ' + (block.netPower * factoryDrawFactor) + ' ' + block.variable);
+				} else if (block.netPower < 0) {
+					// Goes to the draw side: the subplan's own augmenters already boosted this, the parent's percentage must not apply again.
+					drawTerms.push('+ ' + (-block.netPower) + ' ' + block.variable);
 				}
 			}
 		});
@@ -793,18 +884,35 @@ export class ProductionSolverService
 		sloopedRecipes.forEach((sloops, recipe) => countedColumns.add(recipe));
 		countedColumns.forEach(column => lines.push(column + '_count - ' + column + ' >= 0'));
 
+		const sizedBlocks = request.subplanBlocks.filter(block => !block.fixed);
+		const sloopLines: string[] = [];
 		if (request.maxSloops > 0) {
-			const sloopLines: string[] = [];
-
 			sloopedRecipes.forEach((sloops, recipe) => {
 				sloopLines.push(sloops + ' ' + recipe + '_count');
 			});
-
-			if (sloopLines.length) {
-				lines.push(...sloopLines);
-				lines.push(' <= ' + request.maxSloops);
-			}
 		}
+		sizedBlocks.filter(block => block.sharedSloops > 0).forEach(block => {
+			sloopLines.push('+ ' + block.sharedSloops + ' ' + block.variable);
+		});
+		if (sloopLines.length) {
+			lines.push('\\\\ Sloops');
+			lines.push(...sloopLines);
+			lines.push(' <= ' + request.maxSloops);
+		}
+
+		// Resources a sized subplan mines from the parent's budget share the limit with the parent's own mines.
+		const sharedLimitRows = new Set<string>();
+		Object.entries(request.resourceLimits).forEach(([className, limit]) => {
+			const users = sizedBlocks.filter(block => (block.sharedMines.get(className) ?? 0) > 0);
+			if (!data.resources.includes(className) || users.length === 0) {
+				return;
+			}
+			sharedLimitRows.add(className);
+			lines.push('\\\\ Limit ' + className);
+			lines.push(className + '@Mine');
+			users.forEach(block => lines.push('+ ' + block.sharedMines.get(className) + ' ' + block.variable));
+			lines.push(' <= ' + limit);
+		});
 
 		lines.push('\nBounds');
 		byproducts.forEach(byproduct => {
@@ -828,12 +936,12 @@ export class ProductionSolverService
 		});
 
 		Object.entries(request.resourceLimits).forEach(([className, limit]) => {
-			if (data.resources.includes(className)) {
+			if (data.resources.includes(className) && !sharedLimitRows.has(className)) {
 				lines.push(className + '@Mine <= ' + limit);
 			}
 		});
 
-		request.inputs.forEach(input => {
+		request.inputs.filter(input => isFinite(input.amount)).forEach(input => {
 			lines.push(input.item.className + '@Input <= ' + input.amount);
 		});
 
@@ -844,12 +952,17 @@ export class ProductionSolverService
 		lockedNodes.forEach(node => {
 			lines.push(this.lockedVariableName(node) + ' = 1');
 		});
+		request.subplanBlocks.filter(block => block.fixed).forEach(block => {
+			lines.push(block.variable + ' = 1');
+		});
 
-		if (countedColumns.size) {
+		const integerBlocks = sizedBlocks.filter(block => block.integer);
+		if (countedColumns.size || integerBlocks.length) {
 			lines.push('\nGeneral');
 			countedColumns.forEach(column => {
 				lines.push(column + '_count');
 			});
+			integerBlocks.forEach(block => lines.push(block.variable));
 		}
 
 
@@ -884,7 +997,7 @@ export class ProductionSolverService
 			.filter(column => Math.abs(column.Primal) > 1e-6)
 			.filter(column => !column.Name.endsWith('_count'))
 			// Locked nodes pass through from the existing graph, never rebuilt.
-			.filter(column => !column.Name.startsWith('locked_'))
+			.filter(column => !column.Name.startsWith('locked_') && !column.Name.startsWith('block_'))
 			// Surpluses and the maximise loop's bookkeeping are not graph nodes (@Carry is netted into @Byproduct before parsing).
 			.filter(column => column.Name !== 'PowerSurplus' && column.Name !== 'SinkPointsSurplus' && column.Name !== 'MaxRate')
 			.filter(column => !column.Name.endsWith('@Carry'))
@@ -919,15 +1032,16 @@ export class ProductionSolverService
 						const clock = parseFloat(clockSpeed);
 
 						// The LP variable counts machines AT the column's clock; the target is machine-equivalents at 100%.
-						const recipeNode = new RecipeNode(
+						// Slooped machines are pinned: sloops are scarce, so later resizing must not hand them out again.
+						const sloopCount = parseInt(sloops);
+						const pinned = sloopCount > 0 ? this.normalizer.generate(column.Primal, clock, sloopCount, groupingMode) : [];
+						return this.builder.node(
 							id,
 							column.Primal * clock / 100,
-							this.normalizer.generate(column.Primal, clock, parseInt(sloops), groupingMode),
+							this.builder.automatic(groupingMode, clock, pinned),
 							data.getBuildingByClassName(machine),
 							data.getRecipeByClassName(recipeClass),
 						);
-						recipeNode.groupingMode = groupingMode;
-						return recipeNode;
 				}
 			});
 	}
@@ -993,6 +1107,7 @@ export class ProductionSolverService
 				inputs,
 				carryInputs: this.carrySources(carries, data),
 				maxSloops: sloops,
+				subplanBlocks: first ? base.subplanBlocks : [],
 			};
 			const roundLocked = first ? lockedNodes : [];
 
@@ -1002,9 +1117,12 @@ export class ProductionSolverService
 			if (maxStatus === 'Unbounded') {
 				// Input-free recipes (e.g. the FICSMAS Gift Tree) make their products limitless whatever the resource limits are.
 				const free = roundBase.recipes.filter(recipe => recipe.ingredients.length === 0 && recipe.producedIn.length > 0);
+				const unlimitedInputs = roundBase.inputs.filter(input => !isFinite(input.amount));
 				throw new SolveSettingsError(free.length > 0
 					? `There is no limit to how much can be made, because ${free.map(recipe => recipe.name).join(', ')} needs no inputs. Turn it off in the Recipes tab.`
-					: 'There is no limit to how much can be made. Set raw resource limits in the Resources tab.');
+					: unlimitedInputs.length > 0
+						? `There is no limit to how much can be made, because ${unlimitedInputs.map(input => input.item.name).join(', ')} is an unlimited input. Give it an amount in the Input tab.`
+						: 'There is no limit to how much can be made. Set raw resource limits in the Resources tab.');
 			}
 			if (maxStatus !== 'Optimal') {
 				if (first) {
@@ -1037,7 +1155,7 @@ export class ProductionSolverService
 
 			const columns = this.columnsOf(fixSolution);
 			columns.forEach((primal, name) => merged.set(name, (merged.get(name) ?? 0) + primal));
-			({limits, inputs, sloops, carries} = this.leftoversAfter(columns, limits, inputs, sloops, carries));
+			({limits, inputs, sloops, carries} = this.leftoversAfter(columns, limits, inputs, sloops, carries, roundBase.subplanBlocks));
 
 			if (maximise.category === 'items') {
 				const probeBase: SolverRequest = {
@@ -1050,6 +1168,7 @@ export class ProductionSolverService
 					inputs,
 					carryInputs: this.carrySources(carries, data),
 					maxSloops: 0,
+					subplanBlocks: [],
 				};
 				items = await this.probeProducible(items, probeBase, data, run);
 				if (items.length === 0) {
@@ -1068,6 +1187,7 @@ export class ProductionSolverService
 				...this.augmenterNodes(plan, data),
 			],
 			achievedMaximums: achieved,
+			subplanSizes: this.subplanSizes(merged, base.subplanBlocks),
 		};
 	}
 
@@ -1092,12 +1212,26 @@ export class ProductionSolverService
 		inputs: InputSource[],
 		sloops: number,
 		carries: Map<string, number>,
+		blocks: SubplanBlock[],
 	): {limits: Record<string, number>; inputs: InputSource[]; sloops: number; carries: Map<string, number>}
 	{
 		const nextLimits = {...limits};
 		const nextInputs = inputs.map(input => ({...input}));
 		const nextCarries = new Map(carries);
 		let usedSloops = 0;
+
+		blocks.filter(block => !block.fixed).forEach(block => {
+			const size = columns.get(block.variable) ?? 0;
+			if (size <= 0) {
+				return;
+			}
+			usedSloops += block.sharedSloops * size;
+			block.sharedMines.forEach((amount, className) => {
+				if (nextLimits[className] !== undefined) {
+					nextLimits[className] = Math.max(0, nextLimits[className] - amount * size);
+				}
+			});
+		});
 
 		columns.forEach((primal, name) => {
 			if (primal <= 0) {

@@ -33,7 +33,9 @@ export class SubplanBuildCounter
 		const seen = new Set<string>();
 		while (current !== null && current.parentPlanId !== null && !seen.has(current.id)) {
 			seen.add(current.id);
-			factor *= Math.max(1, this.buildsOf(current));
+			const placed = this.placedIn(this.planManager.findPlan(current.parentPlanId)?.graph ?? null, current.id);
+			// An unplaced subplan still counts once; one whose every node is idle is not built at all.
+			factor *= placed ? this.buildsOf(current) : 1;
 			current = this.planManager.findPlan(current.parentPlanId);
 		}
 		return factor;
@@ -43,12 +45,20 @@ export class SubplanBuildCounter
 	{
 		return (graph?.nodes ?? []).reduce((sum, node) => {
 			// Read structurally: the graph may still be raw JSON.
-			const raw = node as unknown as {type?: string; subplanId?: string; buildCount?: number};
-			if (raw.type !== 'subplan' || raw.subplanId !== subplanId) {
+			const raw = node as unknown as {type?: string; subplanId?: string; buildCount?: number; idle?: boolean};
+			if (raw.type !== 'subplan' || raw.subplanId !== subplanId || raw.idle === true) {
 				return sum;
 			}
 			return sum + Math.max(1, Math.round(raw.buildCount ?? 1));
 		}, 0);
+	}
+
+	private placedIn(graph: Graph | null, subplanId: string): boolean
+	{
+		return (graph?.nodes ?? []).some(node => {
+			const raw = node as unknown as {type?: string; subplanId?: string};
+			return raw.type === 'subplan' && raw.subplanId === subplanId;
+		});
 	}
 
 }
