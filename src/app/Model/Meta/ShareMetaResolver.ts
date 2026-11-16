@@ -1,6 +1,5 @@
 import {Injectable} from '@angular/core';
 import {SharedFolderNode} from '@src/Model/API/Schema/Shares/SharedFolderNode';
-import {SharedPlanNode} from '@src/Model/API/Schema/Shares/SharedPlanNode';
 import {SharePayload} from '@src/Model/API/Schema/Shares/SharePayload';
 import {IconUrlService} from '@src/Model/Data/IconUrlService';
 import {VersionManager} from '@src/Model/Data/VersionManager';
@@ -31,10 +30,9 @@ export class ShareMetaResolver
 			};
 		}
 
-		const description = (payload.root as SharedPlanNode).description ?? '';
 		return {
 			title: payload.root.name,
-			description: description.trim() !== '' ? description : `Shared production plan for Satisfactory (${version}).`,
+			description: `Shared production plan for Satisfactory (${version}).`,
 			image: this.planImage(payload),
 		};
 	}

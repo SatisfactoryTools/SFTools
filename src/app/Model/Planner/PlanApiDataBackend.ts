@@ -170,7 +170,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 				this.plansApi.createPlan(
 					versionId, p.id, p.name, p.folderId, p.parentPlanId,
 					serializedData.get(p.id)!,
-					p.description || undefined,
 					p.linkAccess,
 				).pipe(tap(res => this.serverRevisions.set(p.id, res.revision))),
 			));
@@ -182,7 +181,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 
 				const needsDataUpdate =
 					oldP.name !== p.name ||
-					oldP.description !== p.description ||
 					// linkAccess is a column of its own, not part of the data JSON.
 					(oldP.linkAccess ?? true) !== (p.linkAccess ?? true) ||
 					serializedData.get(p.id) !== this.lastSyncedData.get(p.id);
@@ -191,7 +189,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 					const revision = this.serverRevisions.get(p.id) ?? 0;
 					ops.push(this.plansApi.updatePlan(versionId, p.id, revision, {
 						name: p.name,
-						description: p.description || null,
 						data: serializedData.get(p.id)!,
 						linkAccess: p.linkAccess ?? true,
 					}).pipe(tap(res => this.serverRevisions.set(p.id, res.revision))));
@@ -269,7 +266,6 @@ export class PlanApiDataBackend implements DataBackend<PlanStore>, SyncReporter<
 		return {
 			id: schema.id,
 			name: schema.name,
-			description: schema.description ?? '',
 			folderId: schema.folder,
 			parentPlanId: schema.parent,
 			settings: PlanSettingsNormalizer.normalize({

@@ -25,12 +25,12 @@ export class PlansApiService
 		return this.http.get<PlanSchema>(`${this.plansBase(versionId)}/${id}`);
 	}
 
-	public createPlan(versionId: string, id: string, name: string, folder: string | null, parent: string | null, data: string, description?: string, linkAccess?: boolean): Observable<PlanSchema>
+	public createPlan(versionId: string, id: string, name: string, folder: string | null, parent: string | null, data: string, linkAccess?: boolean): Observable<PlanSchema>
 	{
-		return this.http.post<PlanSchema>(this.plansBase(versionId), {id, name: NameLimit.clamp(name), folder, parent, data, description, linkAccess});
+		return this.http.post<PlanSchema>(this.plansBase(versionId), {id, name: NameLimit.clamp(name), folder, parent, data, linkAccess});
 	}
 
-	public updatePlan(versionId: string, id: string, revision: number, fields: {name?: string; description?: string | null; data?: string; linkAccess?: boolean}): Observable<PlanSchema>
+	public updatePlan(versionId: string, id: string, revision: number, fields: {name?: string; data?: string; linkAccess?: boolean}): Observable<PlanSchema>
 	{
 		return this.http.put<PlanSchema>(`${this.plansBase(versionId)}/${id}`, {...fields, ...(fields.name !== undefined ? {name: NameLimit.clamp(fields.name)} : {}), revision});
 	}

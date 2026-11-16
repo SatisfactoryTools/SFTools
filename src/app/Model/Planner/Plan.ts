@@ -9,7 +9,6 @@ export interface Plan
 
 	readonly id: string;
 	readonly name: string;
-	readonly description: string;
 	readonly folderId: string | null;
 	readonly parentPlanId: string | null;
 	readonly settings: PlanSettings;

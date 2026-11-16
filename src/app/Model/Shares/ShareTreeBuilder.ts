@@ -28,7 +28,6 @@ export class ShareTreeBuilder
 		return {
 			id: plan.id,
 			name: plan.name,
-			description: plan.description || null,
 			data: PlanDataSerializer.plan(plan),
 			subplans: store.plans
 				.filter(candidate => candidate.parentPlanId === plan.id && !path.has(candidate.id))

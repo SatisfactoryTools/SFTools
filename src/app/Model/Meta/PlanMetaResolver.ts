@@ -23,7 +23,7 @@ export class PlanMetaResolver
 		const version = this.versionManager.activeVersion()?.name ?? '';
 		return {
 			title: plan.name,
-			description: plan.description.trim() !== '' ? plan.description : `Production plan for Satisfactory (${version}).`,
+			description: `Production plan for Satisfactory (${version}).`,
 			image: this.iconUrls.url(this.planIcons.iconHash(plan), 256),
 		};
 	}

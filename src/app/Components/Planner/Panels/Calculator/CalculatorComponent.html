@@ -8,9 +8,6 @@
 			<span class="fw-semibold">{{ share.type === 'plan' ? planNames.displayNameOf(share.root.name) : share.root.name }}</span>
 			<span class="badge bg-secondary">shared {{ share.sharedAt | date: 'mediumDate' }}</span>
 		</div>
-		@if (activePlan()?.description; as description) {
-			<div class="text-secondary mb-2">{{ description }}</div>
-		}
 		<info-note class="mb-3">
 			This is a shared {{ share.type === 'folder' ? 'folder' : 'plan' }}. It is read-only and never changes.
 			Add it to your plans to get {{ share.type === 'folder' ? 'a copy of the whole folder' : 'a copy' }} you can edit.
@@ -32,9 +29,6 @@
 			<span class="fw-semibold">{{ planNames.displayNameOf(link.root.name) }}</span>
 			<span class="badge bg-secondary">shared by link</span>
 		</div>
-		@if (activePlan()?.description; as description) {
-			<div class="text-secondary mb-2">{{ description }}</div>
-		}
 		<info-note class="mb-3">
 			This plan belongs to someone else. It is read-only and changes when they change it.
 			Add it to your plans to get a copy you can edit.
@@ -53,9 +47,6 @@
 			<span class="fw-semibold">{{ planNames.displayName(plan) }}</span>
 			<span class="badge bg-secondary">on this device</span>
 		</div>
-		@if (plan.description; as description) {
-			<div class="text-secondary mb-2">{{ description }}</div>
-		}
 		<info-note class="mb-3">
 			This plan was made while you were signed out. It is saved only on {{ platform.device }} and is read-only here.
 			Add it to your plans to move it into your account.

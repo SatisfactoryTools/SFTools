@@ -133,7 +133,6 @@ export class SharePayloadHydrator
 		plans.push({
 			id,
 			name: node.name,
-			description: node.description ?? '',
 			folderId,
 			parentPlanId,
 			settings: {

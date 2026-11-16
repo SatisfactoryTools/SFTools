@@ -96,7 +96,6 @@ export class PlanStoreOfflineMerger implements OfflineMerger<PlanStore>
 	{
 		return JSON.stringify([
 			plan.name,
-			plan.description ?? '',
 			plan.folderId,
 			plan.parentPlanId,
 			plan.linkAccess ?? true,

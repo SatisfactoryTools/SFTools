@@ -68,7 +68,6 @@ export class PlanExportTreeBuilder
 		return {
 			id: entry.plan.id,
 			name: entry.plan.name,
-			description: entry.plan.description || null,
 			data: PlanDataSerializer.plan(entry.plan),
 			subplans: entry.subplans.map(subplan => this.planNode(subplan)),
 		};

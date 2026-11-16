@@ -1381,7 +1381,6 @@ export class PlanManager extends SyncableService<PlanStore>
 		const plan: Plan = {
 			id: crypto.randomUUID(),
 			name,
-			description: '',
 			folderId,
 			parentPlanId,
 			settings,

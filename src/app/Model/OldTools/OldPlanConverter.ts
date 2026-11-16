@@ -90,7 +90,6 @@ export class OldPlanConverter
 		const plan = {
 			id: crypto.randomUUID(),
 			name: this.resolveName(source, data, requests),
-			description: '',
 			folderId: null,
 			parentPlanId: null,
 			settings: this.convertSettings(source, data, unknown),

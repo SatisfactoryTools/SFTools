@@ -2,7 +2,6 @@ export interface PlanSchema
 {
 	readonly id: string;
 	readonly name: string;
-	readonly description: string | null;
 	readonly version: string;
 	readonly folder: string | null;
 	readonly parent: string | null;
