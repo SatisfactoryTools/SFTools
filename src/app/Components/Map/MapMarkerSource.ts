@@ -21,7 +21,7 @@ export class MapMarkerSource
 
 	private readonly data = computed(() => this.versionManager.activeVersionData());
 
-	// The collectibles file is ten times the nodes one: fetched once a collectible layer is first turned on or the search is used, then kept.
+	// The collectibles file is ten times the nodes one, so it waits until the nodes are in (the layer list needs its counts), then is kept.
 	private collectiblesRequested = false;
 	private readonly collectiblesWantedSignal = signal(false);
 
@@ -30,7 +30,10 @@ export class MapMarkerSource
 		if (path === null) {
 			return undefined;
 		}
-		this.collectiblesRequested ||= this.collectiblesWantedSignal() || this.location.layers().anyLayerOn(MapLayerCatalog.COLLECTIBLE_LAYERS);
+		this.collectiblesRequested ||= this.collectiblesWantedSignal()
+			|| this.location.layers().anyLayerOn(MapLayerCatalog.COLLECTIBLE_LAYERS)
+			|| this.worldNodesManager.path() === null
+			|| this.worldNodesManager.nodes() !== null;
 		return this.collectiblesRequested ? `${env.apiUrl}/${path}` : undefined;
 	});
 

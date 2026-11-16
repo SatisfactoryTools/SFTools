@@ -44,7 +44,7 @@
 				<span class="count text-secondary small">
 					@if (layer.count !== null) {
 						{{ layer.count }}
-					} @else if (layer.loading && state.isLayerOn(layer.id)) {
+					} @else if (isLoading(layer)) {
 						<span class="spinner-border spinner-border-sm" role="status" aria-label="Loading"></span>
 					}
 				</span>

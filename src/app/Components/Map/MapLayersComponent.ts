@@ -7,6 +7,7 @@ import {MapMarkerSwatchComponent} from '@src/Components/Map/MapMarkerSwatchCompo
 import {MapCategory} from '@src/Model/Map/MapCategory';
 import {MapCategoryGroup} from '@src/Model/Map/MapCategoryGroup';
 import {MapLayer} from '@src/Model/Map/MapLayer';
+import {MapLayerCatalog} from '@src/Model/Map/MapLayerCatalog';
 import {MapCategoryPurity} from '@src/Model/Map/MapCategoryPurity';
 import {MapLayerState} from '@src/Model/Map/MapLayerState';
 import {MapPurity} from '@src/Model/Map/MapPurity';
@@ -234,6 +235,12 @@ export class MapLayersComponent implements OnChanges
 	public hasList(layer: MapLayer): boolean
 	{
 		return layer.listed;
+	}
+
+	/** Nodes and collectibles load with the map, so their counts are in progress even while the layer is off. */
+	public isLoading(layer: MapLayer): boolean
+	{
+		return layer.loading && (layer.id === 'nodes' || MapLayerCatalog.COLLECTIBLE_LAYERS.includes(layer.id) || this.state.isLayerOn(layer.id));
 	}
 
 	/** Unfolded before its markers came in. */
